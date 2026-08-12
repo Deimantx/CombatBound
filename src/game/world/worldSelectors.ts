@@ -62,3 +62,7 @@ export function worldBreadcrumb(selection: WorldSelection) {
 }
 
 export function locationBreadcrumb(locationId: string) { return worldBreadcrumb(selectionForLocation(locationId)) }
+export function locationParentBreadcrumb(locationId: string) {
+  const selection = selectionForLocation(locationId)
+  return [continentById[selection.continentId]?.name, regionById[selection.regionId]?.name, areaById[selection.areaId]?.name, subAreaById[selection.subAreaId]?.name].filter(Boolean).join(' · ')
+}

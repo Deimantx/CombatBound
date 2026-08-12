@@ -5,7 +5,7 @@ import { itemById } from '../game/data/items'
 import { combatLocationById } from '../game/data/world/combatLocations'
 import { continentById } from '../game/data/world/continents'
 import { createInitialGameState, type GameState } from '../game/gameState'
-import { cascadeSelection, getDefaultWorldSelection, isCombatLocationAvailable } from '../game/world/worldSelectors'
+import { cascadeSelection, getDefaultWorldSelection, isCombatLocationAvailable, selectionForLocation } from '../game/world/worldSelectors'
 import { loadGameSave, saveGame, clearGameSave } from '../game/persistence/saveGame'
 import type { CombatSkillId } from '../game/progression/progressionTypes'
 import type { StanceId, TechniqueId } from '../game/combat/combatTypes'
@@ -98,7 +98,7 @@ export const useGameStore = create<GameStoreState>((set, get) => {
     selectRegion: (id) => selectWorldNode({ regionId: id }),
     selectArea: (id) => selectWorldNode({ areaId: id }),
     selectSubArea: (id) => selectWorldNode({ subAreaId: id }),
-    selectCombatLocation: (id) => { if (combatLocationById[id]) selectWorldNode({ combatLocationId: id }) },
+    selectCombatLocation: (id) => { if (combatLocationById[id]) selectWorldNode(selectionForLocation(id)) },
     startHunt: runHunt,
     switchHunt: runHunt,
     stopHunt: () => set((state) => flatState({ ...state.game, combat: { ...state.game.combat, phase: 'stopped', stopReason: 'manual', recoveryRemaining: 0, enemies: state.game.combat.enemies.map((enemy) => ({ ...enemy, currentAction: null })) } }, state)),
@@ -120,7 +120,7 @@ export const useGameStore = create<GameStoreState>((set, get) => {
     setCombatOverviewTab: (combatOverviewTab) => set({ combatOverviewTab }),
     setReducedMotion: (reducedMotion) => set((state) => { const next = { ...state, reducedMotion }; savePermanent(state.game, { reducedMotion, showInspectorButton: state.showInspectorButton }); return next }),
     setShowInspectorButton: (showInspectorButton) => set((state) => { savePermanent(state.game, { reducedMotion: state.reducedMotion, showInspectorButton }); return { ...state, showInspectorButton } }),
-    resetGameplay: () => { clearGameSave(); const game = createInitialGameState(); set((state) => { savePermanent(game, { reducedMotion: state.reducedMotion, showInspectorButton: state.showInspectorButton }); return flatState(game, { ...state, ...defaultSelection }) }) },
+    resetGameplay: () => { clearGameSave(); const game = createInitialGameState(); set((state) => { savePermanent(game, { reducedMotion: state.reducedMotion, showInspectorButton: state.showInspectorButton }); return flatState(game, selectionUi(defaultSelection, state)) }) },
     resetPrototype: () => get().resetGameplay(),
   }
 })
