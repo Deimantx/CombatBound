@@ -1,0 +1,32 @@
+import { BookOpen, Crosshair, Gem, Search, Shield, Sparkles, Target } from 'lucide-react'
+import { useMemo, useState } from 'react'
+import { enemyById, enemyDefinitions } from '../../../game/data/enemies'
+import { itemDefinitions } from '../../../game/data/items'
+import { combatLocationDefinitions } from '../../../game/data/world/combatLocations'
+import { useGameStore } from '../../../state/gameStore'
+import { Panel } from '../../components/Panel'
+import { PlaceholderArt } from '../../components/PlaceholderArt'
+import { ProgressBar } from '../../components/ProgressBar'
+import { SearchField } from '../../components/SearchField'
+import { SegmentedTabs } from '../../components/SegmentedTabs'
+import { ScreenHeading } from '../../shell/ScreenHeading'
+
+export function CollectionScreen() {
+  const game = useGameStore((state) => state.game)
+  const tab = useGameStore((state) => state.collectionTab)
+  const setTab = useGameStore((state) => state.setCollectionTab)
+  const selectedId = useGameStore((state) => state.selectedCollectionEntryId)
+  const selectEntry = useGameStore((state) => state.selectCollectionEntry)
+  const [query, setQuery] = useState('')
+  const [discovery, setDiscovery] = useState<'All' | 'Discovered' | 'Undiscovered'>('All')
+  const entries = tab === 'Items' ? itemDefinitions.map((item) => ({ id: item.id, name: item.name, icon: item.icon, meta: `${item.category} · ${item.rarity}`, discovered: game.collection.discoveredItems.includes(item.id), description: item.description, defeats: 0, sources: combatLocationDefinitions.filter((location) => location.sharedLoot?.some((drop) => drop.itemId === item.id) || location.enemyPool.some((entry) => enemyById[entry.enemyId]?.loot.some((drop) => drop.itemId === item.id))).map((location) => location.name) })) : enemyDefinitions.map((enemy) => ({ id: enemy.id, name: enemy.name, icon: enemy.icon, meta: `${enemy.family} · ${game.collection.targets[enemy.id]?.defeats ?? 0} defeats`, discovered: game.collection.targets[enemy.id]?.discovered ?? false, description: `${enemy.traits.map((trait) => `${trait.name}: ${trait.description}`).join(' ')} Weaknesses: ${enemy.weaknesses.join(', ') || 'none'}.`, defeats: game.collection.targets[enemy.id]?.defeats ?? 0, sources: combatLocationDefinitions.filter((location) => location.enemyPool.some((entry) => entry.enemyId === enemy.id)).map((location) => location.name) }))
+  const filtered = useMemo(() => entries.filter((entry) => entry.name.toLowerCase().includes(query.toLowerCase()) && (discovery === 'All' || (discovery === 'Discovered' ? entry.discovered : !entry.discovered))), [entries, query, discovery])
+  const selected = entries.find((entry) => entry.id === selectedId) ?? entries[0]
+  const discoveredCount = entries.filter((entry) => entry.discovered).length
+  return <div className="screen collection-screen" data-debug-screen="collection">
+    <ScreenHeading screen="collection" />
+    <Panel title="Collection summary" subtitle="Items and Targets are updated by gameplay" icon={BookOpen} panelId="collectionSummary" screen="collection" className="collection-summary"><div className="collection-summary-main"><div className="collection-total"><span>{tab.toUpperCase()} COMPLETION</span><strong>{Math.round((discoveredCount / entries.length) * 100)}%</strong><small>{discoveredCount} of {entries.length} entries</small></div><ProgressBar value={(discoveredCount / entries.length) * 100} variant="experience" /><div className="collection-stat-cards"><div><Gem size={15} /><span>Items</span><strong>{game.collection.discoveredItems.length}</strong></div><div><Target size={15} /><span>Targets</span><strong>{Object.values(game.collection.targets).filter((entry) => entry.discovered).length}</strong></div><div><Sparkles size={15} /><span>Total defeats</span><strong>{Object.values(game.collection.targets).reduce((sum, entry) => sum + entry.defeats, 0)}</strong></div></div></div></Panel>
+    <div className="collection-controls"><SegmentedTabs items={['Items', 'Targets'] as const} active={tab} onChange={setTab} label="Collection category" /><SearchField value={query} onChange={setQuery} placeholder="Search collection" /><div className="discovery-filters">{(['All', 'Discovered', 'Undiscovered'] as const).map((value) => <button key={value} className={discovery === value ? 'filter-chip is-active' : 'filter-chip'} onClick={() => setDiscovery(value)}>{value}</button>)}</div></div>
+    <div className="collection-layout"><Panel title={`${tab} log`} subtitle={`${filtered.length} entries shown`} icon={tab === 'Items' ? Gem : Target} panelId="collectionBrowser" screen="collection" className="collection-browser"><div className="collection-grid">{filtered.map((entry) => <button key={entry.id} className={`collection-card ${entry.discovered ? '' : 'is-locked'} ${selected?.id === entry.id ? 'is-selected' : ''}`} onClick={() => selectEntry(entry.id)} data-debug-kind="collection-entry" data-debug-target-id={entry.id} data-debug-label={entry.name}><PlaceholderArt icon={entry.discovered ? entry.icon : 'target'} size="medium" variant={entry.discovered ? 'gold' : 'muted'} />{!entry.discovered && <span className="lock-mark">?</span>}<strong>{entry.discovered ? entry.name : 'Undiscovered'}</strong><small>{entry.discovered ? entry.meta : 'Entry locked'}</small></button>)}</div></Panel><Panel title="Entry details" subtitle="Selected collection entry" icon={Shield} panelId="collectionDetails" screen="collection" className="collection-details">{selected && <><div className="collection-detail-art"><PlaceholderArt icon={selected.discovered ? selected.icon : 'target'} label={selected.name} size="large" variant={selected.discovered ? 'gold' : 'muted'} /></div><span className="tiny-label">{tab.toUpperCase()}</span><h3>{selected.discovered ? selected.name : 'Undiscovered entry'}</h3><p>{selected.meta}</p><div className="detail-divider" /><p className="detail-description">{selected.discovered ? selected.description : 'Defeat or obtain this entry to reveal its details.'}</p>{selected.discovered && selected.sources.length > 0 && <p className="detail-description collection-sources"><strong>Sources:</strong> {selected.sources.join(' · ')}</p>}{tab === 'Targets' && selected.discovered && <div className="discovery-stamp"><Crosshair size={14} /> Defeats: {selected.defeats}</div>}{selected.discovered && <div className="discovery-stamp"><Sparkles size={14} /> Discovered</div>}</>}</Panel></div>
+  </div>
+}

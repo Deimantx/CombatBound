@@ -1,0 +1,156 @@
+import { describe, expect, it } from 'vitest'
+import { advanceCombat, castSpell, createCombatContext, selectEnemy, startHunt, useHealingPotion } from '../game/combat/combatEngine'
+import { combatBalance } from '../game/combat/combatBalance'
+import { generateCombatGroup } from '../game/combat/combatGroupGenerator'
+import { enemyById } from '../game/data/enemies'
+import { combatLocationById } from '../game/data/world/combatLocations'
+import { createInitialGameState } from '../game/gameState'
+import { calculateHunterCombatStats } from '../game/equipment/derivedStats'
+import { addSkillXp, calculateHunterRank, levelForXp, xpForLevel } from '../game/progression/experience'
+
+const fixedContext = createCombatContext({ next: () => 0.5 })
+const statsFor = (game: ReturnType<typeof createInitialGameState>) => calculateHunterCombatStats(game.equipment, game.progression, game.combat.stance, game.combat.techniques)
+const sequenceContext = (values: number[]) => { let index = 0; return createCombatContext({ next: () => values[index++ % values.length] }) }
+
+describe('gameplay domain', () => {
+  it('generates independent runtime instances from a location pool', () => {
+    const game = createInitialGameState()
+    const started = startHunt(game, 'location.wolf-den', statsFor(game), fixedContext)
+    expect(started.combat.enemies.length).toBeGreaterThanOrEqual(1)
+    expect(started.combat.enemies.length).toBeLessThanOrEqual(3)
+    expect(new Set(started.combat.enemies.map((enemy) => enemy.instanceId)).size).toBe(started.combat.enemies.length)
+    expect(started.combat.enemies.every((enemy) => combatLocationById['location.wolf-den'].enemyPool.some((entry) => entry.enemyId === enemy.enemyId))).toBe(true)
+  })
+
+  it('keeps the player attack timer when switching runtime targets', () => {
+    const game = createInitialGameState()
+    const started = startHunt(game, 'location.wolf-den', statsFor(game), fixedContext)
+    const first = started.combat.enemies[0].instanceId
+    const second = started.combat.enemies[1].instanceId
+    const withProgress = { ...started, combat: { ...started.combat, selectedEnemyInstanceId: first, playerAttackTimer: 0.73 } }
+    const switched = selectEnemy(withProgress.combat, second)
+    expect(switched.selectedEnemyInstanceId).toBe(second)
+    expect(switched.playerAttackTimer).toBe(0.73)
+  })
+
+  it('does not end a generated group when one enemy is defeated', () => {
+    const game = createInitialGameState()
+    const started = startHunt(game, 'location.wolf-den', statsFor(game), fixedContext)
+    const first = started.combat.enemies[0]
+    const weakened = { ...started, combat: { ...started.combat, selectedEnemyInstanceId: first.instanceId, playerAttackTimer: 0, enemies: started.combat.enemies.map((enemy) => enemy.instanceId === first.instanceId ? { ...enemy, currentHealth: 1 } : enemy) } }
+    const after = advanceCombat(weakened, 0.01, fixedContext, statsFor(weakened))
+    expect(after.combat.enemies.some((enemy) => enemy.defeated)).toBe(true)
+    expect(after.combat.phase).toBe('active')
+    expect(after.combat.enemies.filter((enemy) => !enemy.defeated)).toHaveLength(started.combat.enemies.length - 1)
+  })
+
+  it('retargets and enters recovery only after the final generated group enemy dies', () => {
+    const game = createInitialGameState()
+    const started = startHunt(game, 'location.wolf-den', statsFor(game), fixedContext)
+    const target = started.combat.enemies[0]
+    const weakened = { ...started, combat: { ...started.combat, selectedEnemyInstanceId: target.instanceId, playerAttackTimer: 0, enemies: [{ ...target, currentHealth: 1 }] } }
+    const after = advanceCombat(weakened, 0.01, fixedContext, statsFor(weakened))
+    expect(after.combat.phase).toBe('recovery')
+    expect(after.combat.recoveryRemaining).toBe(combatBalance.recoverySeconds)
+    expect(after.combat.selectedEnemyInstanceId).toBeNull()
+    expect(after.combat.session.enemiesDefeated).toBe(1)
+    expect(after.combat.session.groupClears).toBe(1)
+    expect(after.collection.targets[target.enemyId]?.defeats).toBe(1)
+  })
+
+  it('generates a fresh group after recovery and keeps the Hunt location', () => {
+    const game = createInitialGameState()
+    const stats = { ...statsFor(game), maxHealth: 10000, attack: 10000, defense: 10000 }
+    const started = startHunt({ ...game, combat: { ...game.combat, playerHp: stats.maxHealth } }, 'location.wolf-den', stats, fixedContext)
+    const oldIds = started.combat.enemies.map((enemy) => enemy.instanceId)
+    const weakened = { ...started, combat: { ...started.combat, playerAttackTimer: 0, enemies: [{ ...started.combat.enemies[0], currentHealth: 1 }] } }
+    const cleared = advanceCombat(weakened, 0.01, fixedContext, stats)
+    const nextGroup = advanceCombat(cleared, combatBalance.recoverySeconds + 0.01, fixedContext, stats)
+    expect(nextGroup.combat.phase).toBe('active')
+    expect(nextGroup.combat.combatLocationId).toBe('location.wolf-den')
+    expect(nextGroup.combat.groupNumber).toBe(2)
+    expect(nextGroup.combat.enemies.some((enemy) => oldIds.includes(enemy.instanceId))).toBe(false)
+  })
+
+  it('switching Hunt location clears the old runtime group and session counters', () => {
+    const game = createInitialGameState()
+    const stats = statsFor(game)
+    const first = startHunt(game, 'location.wolf-den', stats, fixedContext)
+    const progressed = { ...first, combat: { ...first.combat, session: { ...first.combat.session, enemiesDefeated: 4, groupClears: 2 } } }
+    const switched = startHunt(progressed, 'location.bandit-camp', stats, fixedContext)
+    expect(switched.combat.combatLocationId).toBe('location.bandit-camp')
+    expect(switched.combat.groupNumber).toBe(1)
+    expect(switched.combat.session.enemiesDefeated).toBe(0)
+    expect(switched.combat.session.groupClears).toBe(0)
+    expect(switched.combat.enemies.every((enemy) => combatLocationById['location.bandit-camp'].enemyPool.some((entry) => entry.enemyId === enemy.enemyId))).toBe(true)
+  })
+
+  it('uses frame-independent elapsed time for attack progress', () => {
+    const game = createInitialGameState()
+    const stats = statsFor(game)
+    const started = startHunt(game, 'location.wolf-den', stats, fixedContext)
+    const oneLarge = advanceCombat(started, 1, fixedContext, stats)
+    let manySmall = started
+    for (let index = 0; index < 10; index += 1) manySmall = advanceCombat(manySmall, 0.1, fixedContext, stats)
+    expect(oneLarge.combat.playerAttackTimer).toBeCloseTo(manySmall.combat.playerAttackTimer, 5)
+  })
+
+  it('levels the active focus and derives hunter rank from skills', () => {
+    let progression = createInitialGameState().progression
+    progression = addSkillXp(progression, 'swordsmanship', xpForLevel(4)).progression
+    expect(progression.skills.swordsmanship.level).toBeGreaterThanOrEqual(4)
+    expect(levelForXp(progression.skills.swordsmanship.totalXp)).toBe(progression.skills.swordsmanship.level)
+    expect(calculateHunterRank(progression)).toBeGreaterThanOrEqual(1)
+  })
+
+  it('exposes immutable world enemy definitions and location pools', () => {
+    expect(Object.isFrozen(enemyById['enemy.grey-wolf'])).toBe(true)
+    expect(combatLocationById['location.wolf-den'].enemyPool).toHaveLength(4)
+    expect(combatLocationById['location.bandit-camp'].enemyPool.every((entry) => enemyById[entry.enemyId].familyId === 'family.bandits')).toBe(true)
+  })
+
+  it('starts and interrupts an independent archer special inside a generated group', () => {
+    const game = createInitialGameState()
+    const stats = statsFor(game)
+    const context = sequenceContext([0.5, 0.1, 0.5, 0.5, 0.5])
+    const started = startHunt(game, 'location.bandit-camp', stats, context)
+    const archer = started.combat.enemies.find((enemy) => enemy.enemyId === 'enemy.bandit-archer')
+    expect(archer).toBeDefined()
+    const targeted = { ...started, combat: { ...started.combat, selectedEnemyInstanceId: archer!.instanceId, adrenaline: 100 } }
+    const preparing = advanceCombat(targeted, 0.1, context, stats)
+    expect(preparing.combat.enemies.find((enemy) => enemy.instanceId === archer!.instanceId)?.currentAction).not.toBeNull()
+    const interrupted = castSpell(preparing, 'spell.disrupting-pulse', stats, context)
+    expect(interrupted.combat.enemies.find((enemy) => enemy.instanceId === archer!.instanceId)?.currentAction).toBeNull()
+    expect(interrupted.combat.adrenaline).toBe(65)
+  })
+
+  it('consumes a potion only when it restores health', () => {
+    const game = createInitialGameState()
+    const stats = statsFor(game)
+    const started = startHunt({ ...game, combat: { ...game.combat, playerHp: 100 } }, 'location.wolf-den', stats, fixedContext)
+    const healed = useHealingPotion(started, stats)
+    expect(healed.combat.playerHp).toBe(170)
+    expect(healed.inventory.quantities['item.healing-potion']).toBe(9)
+    const full = useHealingPotion({ ...started, combat: { ...started.combat, playerHp: stats.maxHealth } }, stats)
+    expect(full.inventory.quantities['item.healing-potion']).toBe(10)
+  })
+
+  it('keeps repeatable hunting stable across a simulated hour', () => {
+    const game = createInitialGameState()
+    const stats = { ...statsFor(game), maxHealth: 100000, attack: 10000, accuracy: 100, defense: 10000, attackInterval: 0.1, energyRegen: 100 }
+    const prepared = { ...game, combat: { ...game.combat, playerHp: stats.maxHealth } }
+    const started = startHunt(prepared, 'location.wolf-den', stats, fixedContext)
+    const after = advanceCombat(started, 3600, fixedContext, stats)
+    expect(after.combat.session.elapsedSeconds).toBeCloseTo(3600, 3)
+    expect(['active', 'recovery']).toContain(after.combat.phase)
+    expect(after.combat.session.groupClears).toBeGreaterThan(500)
+    expect(after.combat.session.enemiesDefeated).toBeGreaterThan(after.combat.session.groupClears)
+  })
+
+  it('supports deterministic weighted group generation and copy limits', () => {
+    const group = generateCombatGroup(combatLocationById['location.wolf-den'], { next: () => 0.99 }, 1)
+    expect(group).toHaveLength(3)
+    expect(group).not.toContain('enemy.alpha-wolf')
+    expect(new Set(group).size).toBeGreaterThanOrEqual(2)
+  })
+})

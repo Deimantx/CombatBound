@@ -1,0 +1,37 @@
+:root {
+  --sidebar-width: 236px;
+  --header-height: 70px;
+  --activity-height: 77px;
+  --content-padding: 28px;
+  --bg: #0d1012;
+  --bg-raised: #111619;
+  --panel: #171b1f;
+  --panel-2: #20262b;
+  --panel-3: #252c31;
+  --line: #354047;
+  --line-soft: rgba(53, 64, 71, 0.55);
+  --muted: #98a1a2;
+  --text: #e8e5dd;
+  --text-strong: #f2efe7;
+  --text-dim: #b1b6b5;
+  --gold: #d5aa62;
+  --gold-bright: #e0bc79;
+  --bronze: #b87950;
+  --green: #7bb18b;
+  --red: #c96f68;
+  --blue: #8ca9c3;
+  --gold-soft: rgba(213, 170, 98, 0.14);
+  --green-soft: rgba(123, 177, 139, 0.14);
+  --red-soft: rgba(201, 111, 104, 0.14);
+  --blue-soft: rgba(140, 169, 195, 0.14);
+  --panel-hover: #22292e;
+  --panel-active: #2a3136;
+  --radius: 12px;
+  --radius-sm: 8px;
+  --shadow: 0 15px 45px rgba(0, 0, 0, 0.24);
+  --gap-xs: 6px;
+  --gap-sm: 10px;
+  --gap-md: 14px;
+  --gap-lg: 20px;
+  --gap-xl: 28px;
+}

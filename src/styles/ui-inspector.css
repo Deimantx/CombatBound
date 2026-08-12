@@ -1,0 +1,17 @@
+.ui-inspector-overlay { background: rgba(5,7,8,.16); cursor: crosshair; inset: 0; position: fixed; z-index: 100; }
+[data-ui-inspector-hovered="true"] { outline: 2px solid var(--gold-bright) !important; outline-offset: 3px; box-shadow: 0 0 0 5px rgba(224,188,121,.22), inset 0 0 0 1px rgba(255,232,174,.7) !important; }
+.inspector-card-actions { align-items: center; display: flex; gap: 6px; }
+.inspector-card { background: #171b1f; border: 1px solid rgba(213,170,98,.42); border-radius: 10px; bottom: 24px; box-shadow: var(--shadow); cursor: default; max-height: calc(100vh - 115px); overflow: auto; padding: 15px; position: absolute; right: 24px; width: min(380px, calc(100vw - 48px)); }
+.inspector-card-header { align-items: flex-start; border-bottom: 1px solid var(--line-soft); display: flex; gap: 12px; justify-content: space-between; padding-bottom: 12px; }
+.inspector-card h2 { font-size: 14px; margin-top: 4px; max-width: 205px; }
+.inspector-fields { display: grid; gap: 0; grid-template-columns: 100px 1fr; margin-top: 8px; }
+.inspector-field { border-bottom: 1px solid rgba(53,64,71,.34); display: contents; }
+.inspector-field > span, .inspector-field > strong { border-bottom: 1px solid rgba(53,64,71,.34); min-width: 0; padding: 6px 0; }
+.inspector-field > span { color: var(--muted); font-size: 9px; font-weight: 800; letter-spacing: .07em; }
+.inspector-field > strong { color: var(--text-dim); font-size: 10px; font-weight: 500; overflow-wrap: anywhere; padding-left: 10px; }
+.inspector-debug-data { display: flex; flex-direction: column; gap: 5px; grid-column: span 2; margin-top: 10px; }
+.inspector-debug-data code { background: #101416; border: 1px solid var(--line-soft); border-radius: 4px; color: var(--blue); font-size: 9px; overflow-wrap: anywhere; padding: 4px 6px; }
+.inspector-empty { align-items: center; color: var(--muted); display: flex; flex-direction: column; gap: 10px; justify-content: center; min-height: 120px; text-align: center; }
+.inspector-empty svg { color: var(--gold); }
+.inspector-empty p { font-size: 11px; max-width: 240px; }
+@media (max-width: 600px) { .inspector-card { bottom: 8px; right: 8px; width: calc(100vw - 16px); } }

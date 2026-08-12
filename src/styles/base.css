@@ -1,0 +1,21 @@
+* { box-sizing: border-box; }
+html, body, #root { min-height: 100%; margin: 0; }
+body { background: var(--bg); color: var(--text); font-family: Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; font-size: 13px; line-height: 1.45; }
+button, input { font: inherit; }
+button { color: inherit; }
+button:focus-visible, input:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
+button:disabled { cursor: not-allowed; opacity: .52; }
+h1, h2, h3, p { margin: 0; }
+h1, h2, h3, strong { color: var(--text-strong); }
+small { color: var(--muted); font-size: 11px; }
+.sr-only { clip: rect(0, 0, 0, 0); clip-path: inset(50%); height: 1px; overflow: hidden; position: absolute; white-space: nowrap; width: 1px; }
+.muted, .muted-copy { color: var(--muted); }
+.text-gold { color: var(--gold); }
+.text-green { color: var(--green); }
+.text-red { color: var(--red); }
+.text-blue { color: var(--blue); }
+.eyebrow, .tiny-label { color: var(--muted); font-size: 10px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; }
+.tiny-label { letter-spacing: .1em; }
+.status-dot { background: var(--green); border-radius: 50%; display: inline-block; height: 6px; width: 6px; box-shadow: 0 0 0 3px var(--green-soft); }
+.status-dot-muted { background: var(--muted); box-shadow: 0 0 0 3px rgba(152, 161, 162, .12); }
+[data-reduced-motion="true"] *, [data-reduced-motion="true"] *::before, [data-reduced-motion="true"] *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; scroll-behavior: auto !important; transition-duration: .01ms !important; }
