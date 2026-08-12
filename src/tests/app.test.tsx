@@ -45,17 +45,28 @@ describe('prototype combat', () => {
 
 describe('UI Inspector model', () => {
   it('resolves a nested icon to its semantic button and formats a CombatBound reference', () => {
-    document.body.innerHTML = '<button data-debug-screen="combat" data-debug-kind="combat-control" data-debug-label="Fight" data-ui-panel="liveCombat"><span class="icon">+</span>Fight</button>'
+    document.body.innerHTML = '<button data-debug-screen="combat" data-debug-kind="combat-control" data-debug-label="Fight" data-debug-file="src/app/screens/combat/CombatScreen.tsx" data-debug-line="54" data-ui-panel="liveCombat"><span class="icon">+</span>Fight</button>'
     const icon = document.querySelector('.icon')
     const target = resolveSemanticTarget(icon)
     expect(target?.tagName).toBe('BUTTON')
     const model = buildInspectorTarget(target!)
     expect(formatInspectorReference(model)).toContain('CombatBound UI reference')
     expect(formatInspectorReference(model)).toContain('Kind: combat-control')
+    expect(model.sourceFile).toBe('src/app/screens/combat/CombatScreen.tsx')
+    expect(model.sourceLine).toBe('54')
+    expect(formatInspectorReference(model)).toContain('Source: src/app/screens/combat/CombatScreen.tsx:54')
   })
 
   it('ignores inspector-owned nodes', () => {
     document.body.innerHTML = '<div data-ui-inspector-ignore><button data-debug-label="Ignored">Ignored</button></div>'
     expect(resolveSemanticTarget(document.querySelector('button'))).toBeNull()
+  })
+
+  it('reads JSX source metadata from a rendered development element', () => {
+    render(<App />)
+    const home = screen.getByRole('button', { name: 'Home' })
+    const model = buildInspectorTarget(home)
+    expect(model.sourceFile).toBe('src/app/shell/Sidebar.tsx')
+    expect(model.sourceLine).toBe('19')
   })
 })
