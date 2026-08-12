@@ -53,6 +53,12 @@
 .activity-health > div span { align-items: center; display: inline-flex; gap: 4px; }
 .heart-mini { color: var(--red); font-size: 12px; }
 .activity-action { align-items: center; color: var(--gold); display: inline-flex; font-size: 10px; font-weight: 800; gap: 7px; letter-spacing: .08em; margin-left: auto; white-space: nowrap; }
+.activity-bar.is-compact { cursor: default; gap: 9px; height: 38px; padding: 0 11px; }
+.activity-bar.is-compact:hover { background: #151a1d; }
+.activity-bar.is-compact .activity-icon { border-radius: 6px; height: 24px; width: 24px; }
+.activity-bar.is-compact .activity-copy { flex-direction: row; align-items: baseline; gap: 7px; min-width: 0; }
+.activity-bar.is-compact .activity-copy .eyebrow { flex-shrink: 0; }
+.activity-bar.is-compact .activity-copy strong { font-size: 10px; font-weight: 600; margin: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 @media (max-width: 1120px) { :root { --sidebar-width: 72px; --content-padding: 18px; } .sidebar { padding: 20px 10px 14px; } .brand-block { justify-content: center; padding: 0 0 22px; } .brand-block > div:last-child, .nav-caption, .nav-item span, .sidebar-footer { display: none; } .nav-item { justify-content: center; padding: 0; } .nav-arrow { display: none; } .activity-bar { left: calc(var(--sidebar-width) + var(--content-padding)); right: var(--content-padding); } .player-identity { min-width: 140px; } .topbar-stats { gap: 12px; justify-content: flex-start; } }
 @media (max-width: 900px) { .topbar { gap: 12px; padding: 0 16px; } .topbar-stats .top-stat:first-child { display: none; } .save-state { display: none; } .screen-content { padding-top: 20px; } .activity-bar { left: calc(var(--sidebar-width) + 10px); right: 10px; } }
 @media (max-width: 620px) { :root { --sidebar-width: 58px; } .sidebar { padding-left: 6px; padding-right: 6px; } .brand-mark { height: 31px; width: 31px; } .topbar { height: 62px; } .topbar-stats { display: none; } .player-identity { flex: 1; } .inspect-button { font-size: 0; padding: 0; width: 32px; } .inspect-button svg { margin: auto; } .screen-content { padding-left: 12px; padding-right: 12px; } .activity-bar { gap: 9px; height: 68px; left: 8px; right: 8px; } .activity-copy { min-width: 0; } .activity-copy small, .activity-health { display: none; } .activity-action { font-size: 9px; } }

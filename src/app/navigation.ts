@@ -21,7 +21,7 @@ export const navigationItems: NavigationItem[] = [
 
 export const screenTitles: Record<ScreenId, { title: string; subtitle: string }> = {
   home: { title: 'Home', subtitle: 'A clear view of your combat journey.' },
-  combat: { title: 'Combat', subtitle: 'Select a target and engage in live prototype combat.' },
+  combat: { title: 'Combat', subtitle: 'Hunt enemy groups, manage combat decisions, and survive repeated encounters.' },
   equipment: { title: 'Equipment', subtitle: 'Manage your current combat loadout.' },
   inventory: { title: 'Inventory', subtitle: 'Review carried items and equipment.' },
   collection: { title: 'Collection Log', subtitle: 'Track the items and targets you have discovered.' },

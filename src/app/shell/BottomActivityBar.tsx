@@ -6,6 +6,7 @@ import { useGameStore } from '../../state/gameStore'
 import { ProgressBar } from '../components/ProgressBar'
 
 export function BottomActivityBar() {
+  const screen = useGameStore((state) => state.screen)
   const combat = useGameStore((state) => state.game.combat)
   const activeCombatLocationId = useGameStore((state) => state.activeCombatLocationId)
   const setScreen = useGameStore((state) => state.setScreen)
@@ -13,6 +14,8 @@ export function BottomActivityBar() {
   const family = location ? enemyFamilyById[location.familyId]?.name : undefined
   const alive = combat.enemies.filter((enemy) => !enemy.defeated).length
   const active = combat.phase === 'active' || combat.phase === 'recovery'
+  const compact = screen === 'combat'
+  if (compact) return <div className={`activity-bar is-compact ${active ? 'is-combat' : ''}`} data-ui-region="actionStrip" data-debug-kind="persistent-activity" data-debug-label={active ? 'Active combat' : 'Idle activity'}><div className="activity-icon">{active ? <Swords size={15} /> : <PauseCircle size={15} />}</div><div className="activity-copy"><span className="eyebrow">{active ? 'IN COMBAT' : 'IDLE'}</span><strong>{active ? `${location?.name ?? 'Combat Location'} · Group ${combat.groupNumber} · ${alive} alive · HP ${Math.floor(combat.playerHp)}/${Math.floor(combat.maxPlayerHp)}` : 'Choose a Combat Location above.'}</strong></div></div>
   return <button className={`activity-bar ${active ? 'is-combat' : ''}`} onClick={() => setScreen('combat')} data-ui-region="actionStrip" data-debug-kind="persistent-activity" data-debug-label={active ? 'Active combat' : 'Idle activity'}>
     <div className="activity-icon">{active ? <Swords size={17} /> : <PauseCircle size={17} />}</div>
     <div className="activity-copy"><span className="eyebrow">{active ? 'IN COMBAT' : 'IDLE'}</span><strong>{active ? location?.name ?? 'Combat Location' : 'No active Hunt'}</strong><small>{active ? `${family ?? 'Enemy family'} · ${combat.phase === 'recovery' ? `Recovering · next group in ${combat.recoveryRemaining.toFixed(1)}s` : `Group ${combat.groupNumber} · ${alive} enemies alive`}` : 'Choose a Combat Location from the Combat screen.'}</small></div>
