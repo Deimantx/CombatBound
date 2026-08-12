@@ -34,18 +34,6 @@ export interface AreaDefinition {
   regionId: string
   name: string
   description: string
-  subAreaIds: string[]
-  availability: ContentAvailability
-  requiredCombatLevel?: number
-  recommendedCombatLevel?: [number, number]
-  presentation: WorldPresentation
-}
-
-export interface SubAreaDefinition {
-  id: string
-  areaId: string
-  name: string
-  description: string
   combatLocationIds: string[]
   availability: ContentAvailability
   requiredCombatLevel?: number
@@ -73,7 +61,7 @@ export interface CombatGroupGenerationDefinition {
 
 export interface CombatLocationDefinition {
   id: string
-  subAreaId: string
+  areaId: string
   name: string
   description: string
   familyId: string
@@ -90,6 +78,5 @@ export interface WorldSelection {
   continentId: string
   regionId: string
   areaId: string
-  subAreaId: string
   combatLocationId: string
 }

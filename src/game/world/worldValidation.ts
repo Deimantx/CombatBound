@@ -4,7 +4,6 @@ import { combatLocationById, combatLocationDefinitions } from '../data/world/com
 import { continentById, continentDefinitions } from '../data/world/continents'
 import { enemyFamilyById } from '../data/world/enemyFamilies'
 import { regionById, regionDefinitions } from '../data/world/regions'
-import { subAreaById, subAreaDefinitions } from '../data/world/subAreas'
 
 export function validateWorldContent() {
   const errors: string[] = []
@@ -12,7 +11,6 @@ export function validateWorldContent() {
   unique(continentDefinitions.map((node) => node.id), 'continents')
   unique(regionDefinitions.map((node) => node.id), 'regions')
   unique(areaDefinitions.map((node) => node.id), 'areas')
-  unique(subAreaDefinitions.map((node) => node.id), 'sub-areas')
   unique(combatLocationDefinitions.map((node) => node.id), 'combat locations')
   for (const region of regionDefinitions) {
     if (!continentById[region.continentId]) errors.push(`Region ${region.id} has no continent`)
@@ -21,14 +19,10 @@ export function validateWorldContent() {
   }
   for (const area of areaDefinitions) {
     if (!regionById[area.regionId]) errors.push(`Area ${area.id} has no region`)
-    for (const subAreaId of area.subAreaIds) if (!subAreaById[subAreaId] || subAreaById[subAreaId].areaId !== area.id) errors.push(`Area ${area.id} has invalid sub-area ${subAreaId}`)
-  }
-  for (const subArea of subAreaDefinitions) {
-    if (!areaById[subArea.areaId]) errors.push(`Sub-area ${subArea.id} has no area`)
-    for (const locationId of subArea.combatLocationIds) if (!combatLocationById[locationId] || combatLocationById[locationId].subAreaId !== subArea.id) errors.push(`Sub-area ${subArea.id} has invalid location ${locationId}`)
+    for (const locationId of area.combatLocationIds) if (!combatLocationById[locationId] || combatLocationById[locationId].areaId !== area.id) errors.push(`Area ${area.id} has invalid location ${locationId}`)
   }
   for (const location of combatLocationDefinitions) {
-    if (!subAreaById[location.subAreaId]) errors.push(`Location ${location.id} has no sub-area`)
+    if (!areaById[location.areaId]) errors.push(`Location ${location.id} has no area`)
     if (!enemyFamilyById[location.familyId]) errors.push(`Location ${location.id} has no family`)
     if (location.enemyPool.length < 3 || location.enemyPool.length > 5) errors.push(`Location ${location.id} should have 3-5 enemy definitions`)
     if (location.groupGeneration.minGroupSize > location.groupGeneration.maxGroupSize) errors.push(`Location ${location.id} has invalid group size range`)

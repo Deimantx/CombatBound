@@ -17,13 +17,13 @@ function openCombatBrowser() {
 describe('combat browser presentation and flow', () => {
   it('renders hierarchy tiers in vertical navigation order', () => {
     openCombatBrowser()
-    const labels = ['CONTINENT', 'REGION', 'AREA', 'SUB-AREA', 'COMBAT LOCATIONS'].map((label) => screen.getByText(label))
+    const labels = ['CONTINENT', 'REGION', 'AREA', 'COMBAT LOCATIONS'].map((label) => screen.getByText(label))
     expect(labels.every((label, index) => index === 0 || labels[index - 1].compareDocumentPosition(label) & Node.DOCUMENT_POSITION_FOLLOWING)).toBe(true)
   })
 
   it('selects a location for preview without starting a hunt', () => {
     openCombatBrowser()
-    fireEvent.click(screen.getByRole('button', { name: /^Frontier Road/ }))
+    fireEvent.click(screen.getByRole('button', { name: /^Old Road/ }))
     fireEvent.click(screen.getByRole('button', { name: /^Bandit Camp/ }))
     expect(screen.getByRole('heading', { name: 'Bandit Camp' })).toBeInTheDocument()
     expect(useGameStore.getState().game.combat.phase).toBe('inactive')
@@ -40,7 +40,7 @@ describe('combat browser presentation and flow', () => {
     openCombatBrowser()
     fireEvent.click(screen.getByRole('button', { name: 'Start hunt' }))
     fireEvent.click(screen.getByRole('button', { name: 'Expand' }))
-    fireEvent.click(screen.getByRole('button', { name: /^Frontier Road/ }))
+    fireEvent.click(screen.getByRole('button', { name: /^Old Road/ }))
     fireEvent.click(screen.getByRole('button', { name: /^Bandit Camp/ }))
     expect(screen.getAllByText('CURRENT HUNT').length).toBeGreaterThan(0)
     expect(screen.getByText('BROWSING')).toBeInTheDocument()

@@ -19,7 +19,7 @@ npm run build
 
 ## Current scope
 
-The first gameplay vertical slice includes a persistent shell, hierarchical Continent → Region → Area → Sub-area → Combat Location navigation, weighted random group generation, continuous location Hunts, real multi-enemy combat, automatic attacks, explicit runtime targeting, enemy specials and interrupts, stances, sustained techniques, spells, healing potions, XP and Hunter Rank, real loot, equipment-derived combat stats, Inventory, Collection/Bestiary progress, and a development-only UI Inspector.
+The first gameplay vertical slice includes a persistent shell, hierarchical Continent → Region → Area → Combat Location navigation, weighted random group generation, continuous location Hunts, real multi-enemy combat, automatic attacks, explicit runtime targeting, enemy specials and interrupts, stances, sustained techniques, spells, healing potions, XP and Hunter Rank, real loot, equipment-derived combat stats, Inventory, Collection/Bestiary progress, and a development-only UI Inspector.
 
 Balance and content are still temporary MVP values. There is no offline simulation, crafting, movement, companion system, or final art yet.
 

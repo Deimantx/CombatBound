@@ -17,7 +17,6 @@ interface GameStoreState {
   selectedContinentId: string
   selectedRegionId: string
   selectedAreaId: string
-  selectedSubAreaId: string
   selectedCombatLocationId: string
   activeCombatLocationId: string | null
   combatActive: boolean
@@ -42,7 +41,6 @@ interface GameStoreState {
   selectContinent: (id: string) => void
   selectRegion: (id: string) => void
   selectArea: (id: string) => void
-  selectSubArea: (id: string) => void
   selectCombatLocation: (id: string) => void
   startHunt: () => void
   switchHunt: () => void
@@ -75,9 +73,9 @@ const saved = loadGameSave()
 const defaultSelection = getDefaultWorldSelection()
 const hydratedGame: GameState = saved ? syncCombatStats({ combat: { ...initial.combat, phase: 'inactive', playerHp: initial.combat.maxPlayerHp }, progression: saved.progression, inventory: saved.inventory, equipment: saved.equipment, collection: saved.collection, gold: saved.gold }) : initial
 
-type UiState = Pick<GameStoreState, 'screen' | 'selectedContinentId' | 'selectedRegionId' | 'selectedAreaId' | 'selectedSubAreaId' | 'selectedCombatLocationId' | 'inventoryFilter' | 'selectedInventoryItemId' | 'selectedEquipmentSlot' | 'selectedCollectionEntryId' | 'collectionTab' | 'combatOverviewTab' | 'reducedMotion' | 'showInspectorButton'>
+type UiState = Pick<GameStoreState, 'screen' | 'selectedContinentId' | 'selectedRegionId' | 'selectedAreaId' | 'selectedCombatLocationId' | 'inventoryFilter' | 'selectedInventoryItemId' | 'selectedEquipmentSlot' | 'selectedCollectionEntryId' | 'collectionTab' | 'combatOverviewTab' | 'reducedMotion' | 'showInspectorButton'>
 
-function flatState(game: GameState, ui: UiState): Pick<GameStoreState, 'game' | 'screen' | 'selectedContinentId' | 'selectedRegionId' | 'selectedAreaId' | 'selectedSubAreaId' | 'selectedCombatLocationId' | 'activeCombatLocationId' | 'combatActive' | 'activity' | 'selectedTargetId' | 'playerHp' | 'enemyHp' | 'playerAttackProgress' | 'enemyAttackProgress' | 'round' | 'kills' | 'combatLog' | 'inventoryFilter' | 'selectedInventoryItemId' | 'selectedEquipmentSlot' | 'selectedCollectionEntryId' | 'collectionTab' | 'combatOverviewTab' | 'reducedMotion' | 'showInspectorButton'> {
+function flatState(game: GameState, ui: UiState): Pick<GameStoreState, 'game' | 'screen' | 'selectedContinentId' | 'selectedRegionId' | 'selectedAreaId' | 'selectedCombatLocationId' | 'activeCombatLocationId' | 'combatActive' | 'activity' | 'selectedTargetId' | 'playerHp' | 'enemyHp' | 'playerAttackProgress' | 'enemyAttackProgress' | 'round' | 'kills' | 'combatLog' | 'inventoryFilter' | 'selectedInventoryItemId' | 'selectedEquipmentSlot' | 'selectedCollectionEntryId' | 'collectionTab' | 'combatOverviewTab' | 'reducedMotion' | 'showInspectorButton'> {
   const combat = game.combat
   const target = combat.enemies.find((enemy) => enemy.instanceId === combat.selectedEnemyInstanceId) ?? combat.enemies[0]
   const active = combat.phase === 'active' || combat.phase === 'recovery'
@@ -85,10 +83,10 @@ function flatState(game: GameState, ui: UiState): Pick<GameStoreState, 'game' | 
 }
 
 function savePermanent(game: GameState, settings: { reducedMotion: boolean; showInspectorButton: boolean }) { saveGame({ version: 1, progression: game.progression, inventory: game.inventory, equipment: game.equipment, collection: game.collection, gold: game.gold, settings }) }
-function selectionUi(selection: ReturnType<typeof cascadeSelection>, state: GameStoreState): UiState { return { screen: state.screen, selectedContinentId: selection.continentId, selectedRegionId: selection.regionId, selectedAreaId: selection.areaId, selectedSubAreaId: selection.subAreaId, selectedCombatLocationId: selection.combatLocationId, inventoryFilter: state.inventoryFilter, selectedInventoryItemId: state.selectedInventoryItemId, selectedEquipmentSlot: state.selectedEquipmentSlot, selectedCollectionEntryId: state.selectedCollectionEntryId, collectionTab: state.collectionTab, combatOverviewTab: state.combatOverviewTab, reducedMotion: state.reducedMotion, showInspectorButton: state.showInspectorButton } }
+function selectionUi(selection: ReturnType<typeof cascadeSelection>, state: GameStoreState): UiState { return { screen: state.screen, selectedContinentId: selection.continentId, selectedRegionId: selection.regionId, selectedAreaId: selection.areaId, selectedCombatLocationId: selection.combatLocationId, inventoryFilter: state.inventoryFilter, selectedInventoryItemId: state.selectedInventoryItemId, selectedEquipmentSlot: state.selectedEquipmentSlot, selectedCollectionEntryId: state.selectedCollectionEntryId, collectionTab: state.collectionTab, combatOverviewTab: state.combatOverviewTab, reducedMotion: state.reducedMotion, showInspectorButton: state.showInspectorButton } }
 
 export const useGameStore = create<GameStoreState>((set, get) => {
-  const ui: UiState = { screen: 'home', selectedContinentId: defaultSelection.continentId, selectedRegionId: defaultSelection.regionId, selectedAreaId: defaultSelection.areaId, selectedSubAreaId: defaultSelection.subAreaId, selectedCombatLocationId: defaultSelection.combatLocationId, inventoryFilter: 'All', selectedInventoryItemId: 'item.training-sword', selectedEquipmentSlot: 'weapon', selectedCollectionEntryId: 'enemy.grey-wolf', collectionTab: 'Items', combatOverviewTab: 'Session Summary', reducedMotion: saved?.settings.reducedMotion ?? false, showInspectorButton: saved?.settings.showInspectorButton ?? true }
+  const ui: UiState = { screen: 'home', selectedContinentId: defaultSelection.continentId, selectedRegionId: defaultSelection.regionId, selectedAreaId: defaultSelection.areaId, selectedCombatLocationId: defaultSelection.combatLocationId, inventoryFilter: 'All', selectedInventoryItemId: 'item.training-sword', selectedEquipmentSlot: 'weapon', selectedCollectionEntryId: 'enemy.grey-wolf', collectionTab: 'Items', combatOverviewTab: 'Session Summary', reducedMotion: saved?.settings.reducedMotion ?? false, showInspectorButton: saved?.settings.showInspectorButton ?? true }
   const selectWorldNode = (selection: Partial<ReturnType<typeof cascadeSelection>>) => set((state) => flatState(state.game, selectionUi(cascadeSelection(selection), state)))
   const runHunt = () => set((state) => { const totalLevel = Object.values(state.game.progression.skills).reduce((sum, skill) => sum + skill.level, 0); if (!isCombatLocationAvailable(state.selectedCombatLocationId, totalLevel)) return state; const stats = calculateHunterCombatStats(state.game.equipment, state.game.progression, state.game.combat.stance, state.game.combat.techniques); const prepared = { ...state.game, combat: { ...state.game.combat, playerHp: stats.maxHealth, energy: stats.maxEnergy, shield: 0, stopReason: null } }; const game = engineStartHunt(prepared, state.selectedCombatLocationId, stats, context); return flatState(game, state) })
   return {
@@ -97,7 +95,6 @@ export const useGameStore = create<GameStoreState>((set, get) => {
     selectContinent: (id) => { if (continentById[id]) selectWorldNode({ continentId: id }) },
     selectRegion: (id) => selectWorldNode({ regionId: id }),
     selectArea: (id) => selectWorldNode({ areaId: id }),
-    selectSubArea: (id) => selectWorldNode({ subAreaId: id }),
     selectCombatLocation: (id) => { if (combatLocationById[id]) selectWorldNode(selectionForLocation(id)) },
     startHunt: runHunt,
     switchHunt: runHunt,
