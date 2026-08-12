@@ -32,13 +32,13 @@ describe('combat screen dashboard', () => {
     expect(screen.getByText('ENEMY GROUP')).toBeInTheDocument()
     expect(screen.getByText('YOUR ATTACK')).toBeInTheDocument()
     expect(screen.getByText(/Healing Potion ×/)).toBeInTheDocument()
-    expect(screen.getByText(/NET \+5\.0\/s/)).toBeInTheDocument()
+    expect(screen.getByText(/Net Energy: \+5\.0\/s/)).toBeInTheDocument()
 
     const technique = screen.getByRole('button', { name: /Careful Positioning/ })
     expect(technique).toHaveAttribute('aria-pressed', 'false')
     fireEvent.click(technique)
     expect(technique).toHaveAttribute('aria-pressed', 'true')
-    expect(screen.getByText(/NET \+2\.0\/s/)).toBeInTheDocument()
+    expect(screen.getByText(/Net Energy: \+2\.0\/s/)).toBeInTheDocument()
   })
 
   it('uses the compact activity bar on combat and the persistent bar elsewhere', () => {
