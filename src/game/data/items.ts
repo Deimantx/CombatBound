@@ -25,8 +25,12 @@ export interface ItemDefinition {
     parryChance?: number
     blockChance?: number
     blockPower?: number
+    physicalResistance?: number
     fireResistance?: number
+    earthResistance?: number
+    airResistance?: number
     natureResistance?: number
+    mysticResistance?: number
   }
 }
 

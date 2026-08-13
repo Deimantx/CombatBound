@@ -57,8 +57,8 @@ export function formatPercent(value: number) {
   return `${Math.round(value * 100)}%`
 }
 
-export function techniqueDrain(combat: CombatState) {
-  return Object.entries(combat.techniques).reduce((sum, [id, enabled]) => sum + (enabled ? techniqueDefinitions[id as keyof typeof techniqueDefinitions].drainPerSecond : 0), 0) * stanceDefinitions[combat.stance].techniqueDrain
+export function techniqueStaminaDrain(combat: CombatState) {
+  return Object.entries(combat.techniques).reduce((sum, [id, enabled]) => sum + (enabled ? techniqueDefinitions[id as keyof typeof techniqueDefinitions].staminaDrainPerSecond : 0), 0) * stanceDefinitions[combat.stance].staminaDrainMultiplier
 }
 
 export interface SpellUiState {
@@ -70,7 +70,7 @@ export interface SpellUiState {
 export function getSpellUiState(spell: SpellDefinition, runtime: SpellRuntime | undefined, combat: CombatState, selectedAction?: EnemyActionDefinition): SpellUiState {
   if (combat.phase !== 'active') return { enabled: false, status: 'INACTIVE', tone: 'inactive' }
   if ((runtime?.cooldownRemaining ?? 0) > 0) return { enabled: false, status: `COOLDOWN ${runtime!.cooldownRemaining.toFixed(1)}s`, tone: 'cooldown' }
-  if (combat.adrenaline < spell.cost) return { enabled: false, status: `NEED ${spell.cost} ADR`, tone: 'invalid' }
+  if (combat.mana < spell.manaCost) return { enabled: false, status: `NEED ${spell.manaCost} MANA`, tone: 'invalid' }
   if (spell.id === 'spell.disrupting-pulse' && !selectedAction?.interruptible) return { enabled: false, status: 'NO INTERRUPTIBLE TARGET', tone: 'invalid' }
   return { enabled: true, status: spell.id === 'spell.disrupting-pulse' ? 'INTERRUPT NOW' : 'READY', tone: 'ready' }
 }

@@ -3,7 +3,6 @@ export const combatBalance = {
   maxSimulationStepSeconds: 0.1, // [TUNING] Prototype value.
   recoverySeconds: 3, // [TUNING] Prototype value.
   recoveryHealthPerSecond: 15, // [TUNING] Prototype value.
-  adrenalineCarryover: 0.75, // [TUNING] Prototype value.
   stanceSwitchCooldown: 2, // [TUNING] Prototype value.
   potionCooldown: 5, // [TUNING] Prototype value.
   autoPotionThreshold: 0.35, // [TUNING] Prototype value.
@@ -21,12 +20,12 @@ export const combatBalance = {
   baseParryChance: 0.03, // [TUNING] Prototype value.
   baseBlockChance: 0, // [TUNING] Prototype value.
   baseBlockPower: 0.5, // [TUNING] Prototype value.
-  baseEnergy: 100, // [TUNING] Prototype value.
-  baseEnergyRegen: 5, // [TUNING] Prototype value.
-  baseAdrenaline: 100, // [TUNING] Prototype value.
-  techniqueDrain: 3, // [TUNING] Prototype value.
-  adrenalinePerDamage: 0.25, // [TUNING] Prototype value.
-  adrenalinePerDamageTaken: 0.2, // [TUNING] Prototype value.
+  baseMaxStamina: 100, // [TUNING] Prototype value.
+  baseStaminaRegen: 5, // [TUNING] Prototype value.
+  recoveryStaminaRegenMultiplier: 3, // [TUNING] Prototype value.
+  baseMaxMana: 100, // [TUNING] Prototype value.
+  baseManaRegen: 1, // [TUNING] Prototype value.
+  baseStaminaDrain: 3, // [TUNING] Prototype value.
   baseStatusResistance: 0, // [TUNING] Prototype value.
   basePhysicalResistance: 0, // [TUNING] Prototype value.
   baseFireResistance: 0, // [TUNING] Prototype value.

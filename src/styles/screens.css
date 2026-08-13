@@ -475,6 +475,54 @@
 .focus-progression:hover { background: var(--panel-hover); }
 .focus-progression.is-focused { background: var(--gold-soft); }
 
+.equipment-stat-groups { display: flex; flex-direction: column; gap: 0; }
+.equipment-stat-group-toggle { align-items: center; background: transparent; border: 0; color: inherit; cursor: pointer; display: flex; justify-content: space-between; padding: 0; text-align: left; width: 100%; }
+.equipment-stat-group-toggle:hover h3 { color: var(--gold-bright); }
+.equipment-stat-group-toggle h3 { color: var(--gold); font-size: 9px; letter-spacing: .12em; margin-bottom: 4px; }
+.equipment-stat-group-chevron { color: var(--muted); flex-shrink: 0; transform: rotate(-90deg); transition: color .18s ease, transform .18s ease; }
+.equipment-stat-group-chevron.is-open { color: var(--gold); transform: rotate(0); }
+.equipment-stat-group-content { margin-top: 1px; }
+.equipment-stat-group-content[hidden] { display: none; }
+.equipment-stat-group + .equipment-stat-group { border-top: 1px solid var(--line-soft); padding-top: 12px; }
+.equipment-resistance-grid { display: grid; gap: 0 12px; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.equipment-resistance-grid .stat-line { min-width: 0; }
+.candidate-tooltip-host, .spell-tooltip-host { display: block; min-width: 0; width: 100%; }
+.candidate-tooltip-host > .candidate-item, .spell-tooltip-host > .spell-button { width: 100%; }
+.info-resolution .panel-body { display: flex; flex-direction: column; gap: 13px; }
+.resolution-flow { align-items: center; display: flex; flex-wrap: wrap; gap: 5px; justify-content: center; }
+.resolution-step { align-items: center; display: flex; gap: 5px; }
+.resolution-step strong { background: var(--panel-2); border: 1px solid var(--line-soft); border-radius: 6px; color: var(--text-dim); font-size: 10px; padding: 7px 8px; white-space: nowrap; }
+.resolution-step span { color: var(--gold); font-size: 12px; }
+.info-callout { background: var(--blue-soft); border: 1px solid rgba(140,169,195,.22); border-radius: 7px; color: var(--blue); font-size: 10px; line-height: 1.45; padding: 9px 10px; }
+.info-reference-panel .panel-body { padding: 12px; }
+.info-stat-reference { display: flex; flex-direction: column; gap: 8px; }
+.info-stat-reference .panel-header { min-height: 48px; padding: 11px 12px; }
+.info-stat-reference .panel-body { padding: 10px 12px; }
+.info-reference-list { display: flex; flex-direction: column; gap: 8px; }
+.info-reference-row { border-bottom: 1px solid rgba(53,64,71,.35); display: flex; gap: 14px; justify-content: space-between; padding: 4px 0 8px; }
+.info-reference-row:last-child { border-bottom: 0; padding-bottom: 0; }
+.info-reference-row strong, .damage-type-card strong, .skill-reference-card strong { font-size: 11px; }
+.info-reference-row p, .damage-type-card p, .skill-reference-card p { color: var(--muted); font-size: 10px; line-height: 1.35; margin-top: 2px; }
+.info-reference-row small { color: var(--gold); flex: 0 1 48%; font-size: 9px; line-height: 1.35; text-align: right; }
+.damage-type-grid, .skill-reference-grid { display: grid; gap: 8px; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.damage-type-card, .skill-reference-card { background: var(--panel-2); border: 1px solid var(--line-soft); border-radius: 7px; padding: 9px; }
+.damage-type-card strong { color: var(--gold); }
+.skill-reference-card small { color: var(--green); display: block; font-size: 9px; line-height: 1.35; margin-top: 7px; }
+.effect-reference-list { display: flex; flex-direction: column; gap: 8px; }
+.effect-reference-row { background: var(--panel-2); border: 1px solid var(--line-soft); border-left: 3px solid var(--gold); border-radius: 6px; display: grid; gap: 4px 10px; grid-template-columns: minmax(110px, .35fr) 1fr auto; padding: 8px 9px; }
+.effect-reference-row.effect-debuff, .effect-reference-row.effect-status { border-left-color: var(--red); }
+.effect-reference-row.effect-barrier, .effect-reference-row.effect-buff { border-left-color: var(--blue); }
+.effect-reference-row strong { font-size: 11px; }
+.effect-reference-row span, .effect-reference-row small { color: var(--muted); font-size: 9px; }
+.effect-reference-row p { color: var(--text-dim); font-size: 10px; }
+.info-actions-panel { grid-column: span 2; }
+.info-actions-panel .panel-body { padding: 14px 18px; }
+.info-action-columns { display: grid; gap: 18px; grid-template-columns: repeat(3, 1fr); }
+.info-action-columns h3 { color: var(--gold); font-size: 10px; margin-bottom: 7px; }
+.info-action-columns .guide-row { padding: 7px 0; }
+.info-action-columns .guide-row p { font-size: 10px; }
+html[data-reduced-motion="true"] .equipment-stat-group-chevron { transition: none; }
+
 @media (max-width: 1100px) { .home-secondary-grid { grid-template-columns: 1fr 1fr; } .home-rewards { grid-column: span 2; } .combat-main-grid { grid-template-columns: minmax(190px, .65fr) minmax(390px, 1.35fr); } .live-combat-panel { grid-column: span 2; order: -1; } .player-combat-panel { order: 1; } .target-combat-panel { grid-column: span 2; min-height: 0 !important; order: 2; } .target-combat-panel .panel-body { display: grid; gap: 18px; grid-template-columns: 1fr 1fr; } .target-combat-panel .target-stat-grid { margin: 0; } .target-combat-panel .trait-section { align-self: center; } .target-combat-panel .reward-preview { margin-top: 0; } }
 @media (max-width: 1050px) { .world-tier-grid { grid-template-columns: repeat(2, minmax(0, 290px)); } .combat-location-preview { min-height: 0; } }
 @media (max-width: 900px) { .home-overview-grid, .home-secondary-grid, .equipment-layout, .inventory-layout, .collection-layout, .settings-layout, .info-layout { grid-template-columns: 1fr; } .home-rewards, .info-about { grid-column: auto; } .combat-locations-workspace { grid-template-columns: 1fr; } .world-location-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } .combat-main-grid { grid-template-columns: 1fr; } .combat-main-grid .panel { min-height: 0; } .live-combat-panel, .player-combat-panel, .target-combat-panel { grid-column: auto; } .live-combat-panel { order: -1; } .player-combat-panel { order: 1; } .target-combat-panel { order: 2; } .target-combat-panel .panel-body { display: flex; } .overview-tab-grid { grid-template-columns: repeat(2, 1fr); } .overview-note, .reward-overview .overview-note { grid-column: span 2; } .equipment-loadout { grid-row: auto; } }

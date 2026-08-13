@@ -39,12 +39,19 @@ export function calculateHunterCombatStats(equipment: EquipmentState, progressio
     parryChance: combatBalance.baseParryChance + (armorStats.parryChance ?? 0) + (techniques['careful-positioning'] ? techniqueDefinitions['careful-positioning'].parry : 0),
     blockChance: combatBalance.baseBlockChance + (armorStats.blockChance ?? 0),
     blockPower: armorStats.blockPower ?? combatBalance.baseBlockPower,
-    maxEnergy: combatBalance.baseEnergy,
-    energyRegen: combatBalance.baseEnergyRegen * stanceData.energyRegen,
-    maxAdrenaline: combatBalance.baseAdrenaline,
-    adrenalineGeneration: stanceData.adrenaline,
+    maxStamina: combatBalance.baseMaxStamina,
+    staminaRegen: combatBalance.baseStaminaRegen * stanceData.staminaRegenMultiplier,
+    maxMana: combatBalance.baseMaxMana,
+    manaRegen: combatBalance.baseManaRegen,
     statusResistance: combatBalance.baseStatusResistance,
-    resistances: { physical: combatBalance.basePhysicalResistance, fire: combatBalance.baseFireResistance },
+    resistances: {
+      physical: combatBalance.basePhysicalResistance + (weaponStats.physicalResistance ?? 0) + (armorStats.physicalResistance ?? 0),
+      fire: combatBalance.baseFireResistance + (weaponStats.fireResistance ?? 0) + (armorStats.fireResistance ?? 0),
+      earth: (weaponStats.earthResistance ?? 0) + (armorStats.earthResistance ?? 0),
+      air: (weaponStats.airResistance ?? 0) + (armorStats.airResistance ?? 0),
+      nature: (weaponStats.natureResistance ?? 0) + (armorStats.natureResistance ?? 0),
+      mystic: (weaponStats.mysticResistance ?? 0) + (armorStats.mysticResistance ?? 0),
+    },
   })
 
   const canonical: CombatStats = {
@@ -55,7 +62,7 @@ export function calculateHunterCombatStats(equipment: EquipmentState, progressio
     attackInterval: base.attackInterval * stanceData.attackIntervalMultiplier,
     dodgeChance: base.dodgeChance + stanceData.dodge,
     parryChance: base.parryChance + stanceData.parry,
-    energyRegen: base.energyRegen,
+    staminaRegen: base.staminaRegen,
   }
   const stats = { ...canonical, attack: Math.round(canonical.attackPower), defense: Math.round(canonical.armor), dodge: canonical.dodgeChance, parry: canonical.parryChance, block: canonical.blockChance }
   return stats

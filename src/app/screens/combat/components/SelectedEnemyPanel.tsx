@@ -8,6 +8,9 @@ import { PlaceholderArt } from '../../../components/PlaceholderArt'
 import { ProgressBar } from '../../../components/ProgressBar'
 import { formatPercent, combatProgress } from './combatUi'
 import { EffectChips } from './EffectChips'
+import { buildStatTooltip } from '../../../../game/presentation/tooltipBuilders'
+import { formatResistance, labelForStatKey } from '../../../../game/presentation/statFormatting'
+import { GameTooltip } from '../../../components/tooltip/GameTooltip'
 
 export function SelectedEnemyPanel({ game, selectedEnemy }: { game: GameState; selectedEnemy?: EnemyCombatInstance }) {
   const combat = game.combat
@@ -24,20 +27,20 @@ export function SelectedEnemyPanel({ game, selectedEnemy }: { game: GameState; s
             <span className="level-badge">{selectedEnemy.defeated ? 'DEFEATED' : `INSTANCE ${selectedEnemy.instanceId.split('#')[1]}`}</span>
           </div>
         </div>
-        <div className="target-health">
+        <GameTooltip content={{ ...buildStatTooltip('currentHealth', selectedEnemy.currentHealth), rows: [{ label: 'Current', value: `${Math.floor(selectedEnemy.currentHealth)} / ${selectedEnemy.maxHealth}`, tone: 'red' }] }}><div className="target-health" data-debug-stat-key="currentHealth">
           <div className="target-health-heading">
             <span>HEALTH</span>
             <strong>{Math.floor(selectedEnemy.currentHealth)} / {selectedEnemy.maxHealth}</strong>
           </div>
           <ProgressBar value={(selectedEnemy.currentHealth / selectedEnemy.maxHealth) * 100} variant="health" className="target-health-bar" ariaLabel={`Selected target ${selectedEnemy.displayName} health`} />
-        </div>
+        </div></GameTooltip>
         <div className="target-stat-grid">
-          <TargetStat label="Attack" value={definition.attackPower} />
-          <TargetStat label="Accuracy" value={definition.accuracy} />
-          <TargetStat label="Armor" value={definition.armor} />
-          <TargetStat label="Evasion" value={definition.evasion} />
-          <TargetStat label="Interval" value={`${definition.attackInterval.toFixed(1)}s`} />
-          <TargetStat label="Dodge" value={formatPercent(definition.dodgeChance)} />
+          <TargetStat label="Attack Power" value={definition.attackPower} statKey="attackPower" statValue={definition.attackPower} />
+          <TargetStat label="Accuracy" value={definition.accuracy} statKey="accuracy" statValue={definition.accuracy} />
+          <TargetStat label="Armor" value={definition.armor} statKey="armor" statValue={definition.armor} />
+          <TargetStat label="Evasion" value={definition.evasion} statKey="evasion" statValue={definition.evasion} />
+          <TargetStat label="Attack Interval" value={`${definition.attackInterval.toFixed(1)}s`} statKey="attackInterval" statValue={definition.attackInterval} />
+          <TargetStat label="Dodge Chance" value={formatPercent(definition.dodgeChance)} statKey="dodgeChance" statValue={definition.dodgeChance} />
           <TargetStat label="XP" value={definition.baseXp} />
         </div>
         <div className="combat-effects-inspector"><div className="section-title"><span className="tiny-label">ACTIVE EFFECTS</span><small>{selectedEnemy.effects.length}</small></div><EffectChips effects={selectedEnemy.effects} debugId="enemy" /></div>
@@ -57,8 +60,8 @@ export function SelectedEnemyPanel({ game, selectedEnemy }: { game: GameState; s
             </div>
           })}
         </div>}
-        <AffinityRow label="WEAKNESS" values={affinityLabels(definition.resistances, 'weakness')} tone="weakness" />
-        <AffinityRow label="RESISTANCE" values={affinityLabels(definition.resistances, 'resistance')} tone="resistance" />
+        <AffinityRow label="WEAKNESS" values={affinityValues(definition.resistances, 'weakness')} tone="weakness" />
+        <AffinityRow label="RESISTANCE" values={affinityValues(definition.resistances, 'resistance')} tone="resistance" />
         <div className="reward-preview">
           <span className="tiny-label">KNOWN DROPS</span>
           <div className="drop-list">{definition.loot.map((drop) => <span key={drop.itemId}><Sparkles size={11} /> <strong>{itemById[drop.itemId]?.name ?? drop.itemId}</strong><small>{Math.round(drop.chance * 100)}%{drop.maxQuantity > 1 ? ` · ×${drop.minQuantity}-${drop.maxQuantity}` : ''}</small></span>)}</div>
@@ -68,6 +71,6 @@ export function SelectedEnemyPanel({ game, selectedEnemy }: { game: GameState; s
   )
 }
 
-function TargetStat({ label, value }: { label: string; value: string | number }) { return <div><span>{label}</span><strong>{value}</strong></div> }
-function AffinityRow({ label, values, tone }: { label: string; values: string[]; tone: 'weakness' | 'resistance' }) { if (values.length === 0) return null; return <div className={`affinity-row ${tone}`}><span className="tiny-label">{label}</span><div>{values.map((value) => <span key={value}>{value}</span>)}</div></div> }
-function affinityLabels(resistances: Record<string, number>, tone: 'weakness' | 'resistance') { return Object.entries(resistances).filter(([, value]) => tone === 'weakness' ? value < 0 : value > 0).map(([type, value]) => `${type} ${Math.round(Math.abs(value) * 100)}%`) }
+function TargetStat({ label, value, statKey, statValue }: { label: string; value: string | number; statKey?: string; statValue?: number }) { const content = <div data-debug-stat-key={statKey}><span>{label}</span><strong>{value}</strong></div>; return statKey && statValue !== undefined ? <GameTooltip content={buildStatTooltip(statKey, statValue)}>{content}</GameTooltip> : content }
+function AffinityRow({ label, values, tone }: { label: string; values: Array<{ type: string; value: number }>; tone: 'weakness' | 'resistance' }) { if (values.length === 0) return null; return <div className={`affinity-row ${tone}`}><span className="tiny-label">{label}</span><div>{values.map((entry) => <GameTooltip key={entry.type} content={buildStatTooltip(`${entry.type}Resistance`, entry.value)}><span data-debug-kind="tooltip-trigger" data-debug-stat-key={`${entry.type}Resistance`}>{labelForStatKey(`${entry.type}Resistance`)} {formatResistance(entry.value)}</span></GameTooltip>)}</div></div> }
+function affinityValues(resistances: Record<string, number>, tone: 'weakness' | 'resistance') { return Object.entries(resistances).filter(([, value]) => tone === 'weakness' ? value < 0 : value > 0).map(([type, value]) => ({ type, value })) }

@@ -19,10 +19,10 @@ export function normalizeCombatStats(stats: Partial<CombatStats> & Record<string
     parryChance: clamp(finite(legacy.parry, finite(stats.parryChance, combatBalance.baseParryChance)), 0, combatBalance.maxAvoidanceChance),
     blockChance: clamp(finite(legacy.block, finite(stats.blockChance, combatBalance.baseBlockChance)), 0, combatBalance.maxAvoidanceChance),
     blockPower: clamp(finite(stats.blockPower, combatBalance.baseBlockPower), 0, 0.95),
-    maxEnergy: Math.max(0, finite(stats.maxEnergy, combatBalance.baseEnergy)),
-    energyRegen: finite(stats.energyRegen, combatBalance.baseEnergyRegen),
-    maxAdrenaline: Math.max(0, finite(stats.maxAdrenaline, combatBalance.baseAdrenaline)),
-    adrenalineGeneration: Math.max(0, finite(stats.adrenalineGeneration, 1)),
+    maxStamina: Math.max(0, finite(stats.maxStamina, combatBalance.baseMaxStamina)),
+    staminaRegen: finite(stats.staminaRegen, combatBalance.baseStaminaRegen),
+    maxMana: Math.max(0, finite(stats.maxMana, combatBalance.baseMaxMana)),
+    manaRegen: finite(stats.manaRegen, combatBalance.baseManaRegen),
     statusResistance: clamp(finite(stats.statusResistance, combatBalance.baseStatusResistance), 0, combatBalance.maxStatusResistance),
     resistances: { ...(stats.resistances ?? {}) },
   }
@@ -45,7 +45,7 @@ export function calculateEffectiveCombatStats(baseStats: CombatStats, activeEffe
     }
   }
 
-  const statKeys: Array<keyof CombatStats> = ['maxHealth', 'attackPower', 'accuracy', 'attackInterval', 'armor', 'evasion', 'critChance', 'critDamage', 'dodgeChance', 'parryChance', 'blockChance', 'blockPower', 'maxEnergy', 'energyRegen', 'maxAdrenaline', 'adrenalineGeneration', 'statusResistance']
+  const statKeys: Array<keyof CombatStats> = ['maxHealth', 'attackPower', 'accuracy', 'attackInterval', 'armor', 'evasion', 'critChance', 'critDamage', 'dodgeChance', 'parryChance', 'blockChance', 'blockPower', 'maxStamina', 'staminaRegen', 'maxMana', 'manaRegen', 'statusResistance']
   for (const stat of statKeys) {
     const base = result[stat]
     if (typeof base !== 'number') continue
@@ -55,6 +55,8 @@ export function calculateEffectiveCombatStats(baseStats: CombatStats, activeEffe
   }
 
   result.maxHealth = Math.max(1, finite(result.maxHealth, combatBalance.baseMaxHealth))
+  result.maxStamina = Math.max(0, finite(result.maxStamina, combatBalance.baseMaxStamina))
+  result.maxMana = Math.max(0, finite(result.maxMana, combatBalance.baseMaxMana))
   result.attackInterval = Math.max(combatBalance.minimumAttackInterval, finite(result.attackInterval, combatBalance.baseAttackInterval))
   result.armor = Math.max(0, finite(result.armor))
   result.evasion = Math.max(0, finite(result.evasion))
@@ -80,10 +82,10 @@ export function calculateEnemyBaseCombatStats(definition: EnemyDefinition): Comb
     parryChance: definition.parryChance,
     blockChance: definition.blockChance,
     blockPower: definition.blockPower,
-    maxEnergy: 0,
-    energyRegen: 0,
-    maxAdrenaline: 0,
-    adrenalineGeneration: 1,
+    maxStamina: 0,
+    staminaRegen: 0,
+    maxMana: 0,
+    manaRegen: 0,
     statusResistance: 0,
     resistances: definition.resistances,
   })

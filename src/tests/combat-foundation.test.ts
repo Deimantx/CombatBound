@@ -15,7 +15,7 @@ const rng = (value: number) => ({ next: () => value })
 const stats: CombatStats = {
   maxHealth: 100, attackPower: 100, accuracy: 100, attackInterval: 1, armor: 0, evasion: 0,
   critChance: 0, critDamage: 2, dodgeChance: 0, parryChance: 0, blockChance: 0, blockPower: combatBalance.baseBlockPower,
-  maxEnergy: 0, energyRegen: 0, maxAdrenaline: 0, adrenalineGeneration: 1, statusResistance: 0, resistances: {},
+  maxStamina: 0, staminaRegen: 0, maxMana: 0, manaRegen: 1, statusResistance: 0, resistances: {},
 }
 
 describe('Combat Foundation 2.0 math', () => {
@@ -73,7 +73,9 @@ describe('Combat effect runtime', () => {
     const game = createInitialGameState()
     const stats = calculateHunterCombatStats(game.equipment, game.progression, game.combat.stance, game.combat.techniques)
     const context = createCombatContext(rng(0.5))
-    const started = startHunt({ ...game, combat: { ...game.combat, adrenaline: 100 } }, 'location.wolf-den', stats, context)
+    const started = startHunt({ ...game, combat: { ...game.combat, stamina: 12, mana: 17 } }, 'location.wolf-den', stats, context)
+    expect(started.combat.stamina).toBe(stats.maxStamina)
+    expect(started.combat.mana).toBe(stats.maxMana)
     const cast = castSpell(started, 'spell.flame-blast', stats, context)
     const target = cast.combat.enemies.find((enemy) => enemy.instanceId === cast.combat.selectedEnemyInstanceId)
     expect(target?.effects.some((effect) => effect.effectId === 'effect.burn')).toBe(true)

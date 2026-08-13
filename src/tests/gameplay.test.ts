@@ -95,6 +95,63 @@ describe('gameplay domain', () => {
     expect(oneLarge.combat.playerAttackTimer).toBeCloseTo(manySmall.combat.playerAttackTimer, 5)
   })
 
+  it('regenerates Stamina and Mana independently during active combat', () => {
+    const game = createInitialGameState()
+    const stats = { ...statsFor(game), staminaRegen: 5, manaRegen: 1 }
+    const started = startHunt(game, 'location.wolf-den', stats, fixedContext)
+    const depleted = { ...started, combat: { ...started.combat, stamina: 50, mana: 50 } }
+    const advanced = advanceCombat(depleted, 1, fixedContext, stats)
+    expect(advanced.combat.stamina).toBeCloseTo(55, 5)
+    expect(advanced.combat.mana).toBeCloseTo(51, 5)
+  })
+
+  it('applies sustained Technique Stamina drain to net regeneration', () => {
+    const game = createInitialGameState()
+    const stats = { ...statsFor(game), staminaRegen: 5, manaRegen: 1 }
+    const started = startHunt(game, 'location.wolf-den', stats, fixedContext)
+    const activeTechnique = { ...started, combat: { ...started.combat, stamina: 50, mana: 50, techniques: { ...started.combat.techniques, 'careful-positioning': true } } }
+    const advanced = advanceCombat(activeTechnique, 1, fixedContext, stats)
+    expect(advanced.combat.stamina).toBeCloseTo(52, 5)
+    expect(advanced.combat.mana).toBeCloseTo(51, 5)
+  })
+
+  it('deactivates sustained Techniques when Stamina is depleted', () => {
+    const game = createInitialGameState()
+    const stats = { ...statsFor(game), staminaRegen: 0 }
+    const started = startHunt(game, 'location.wolf-den', stats, fixedContext)
+    const activeTechnique = { ...started, combat: { ...started.combat, stamina: 1, techniques: { ...started.combat.techniques, 'careful-positioning': true } } }
+    const advanced = advanceCombat(activeTechnique, 1, fixedContext, stats)
+    expect(advanced.combat.stamina).toBe(0)
+    expect(advanced.combat.techniques['careful-positioning']).toBe(false)
+    expect(advanced.combat.log[0]?.text).toBe('Techniques deactivated: Stamina depleted.')
+  })
+
+  it('accelerates Stamina but not Mana regeneration during group recovery', () => {
+    const game = createInitialGameState()
+    const stats = { ...statsFor(game), staminaRegen: 5, manaRegen: 1 }
+    const started = startHunt(game, 'location.wolf-den', stats, fixedContext)
+    const target = started.combat.enemies[0]
+    const cleared = advanceCombat({ ...started, combat: { ...started.combat, stamina: 50, mana: 50, playerAttackTimer: 0, enemies: [{ ...target, currentHealth: 1 }] } }, 0.01, fixedContext, stats)
+    expect(cleared.combat.phase).toBe('recovery')
+    const beforeRecovery = cleared.combat
+    const recovering = advanceCombat(cleared, 1, fixedContext, stats)
+    expect(recovering.combat.stamina - beforeRecovery.stamina).toBeCloseTo(15, 5)
+    expect(recovering.combat.mana - beforeRecovery.mana).toBeCloseTo(1, 5)
+  })
+
+  it('preserves current resources when a recovery spawns the next group', () => {
+    const game = createInitialGameState()
+    const stats = { ...statsFor(game), staminaRegen: 0, manaRegen: 1 }
+    const started = startHunt(game, 'location.wolf-den', stats, fixedContext)
+    const target = started.combat.enemies[0]
+    const cleared = advanceCombat({ ...started, combat: { ...started.combat, stamina: 20, mana: 20, playerAttackTimer: 0, enemies: [{ ...target, currentHealth: 1 }] } }, 0.01, fixedContext, stats)
+    const nextGroup = advanceCombat(cleared, combatBalance.recoverySeconds + 0.01, fixedContext, stats)
+    expect(nextGroup.combat.phase).toBe('active')
+    expect(nextGroup.combat.stamina).toBeCloseTo(20, 5)
+    expect(nextGroup.combat.mana).toBeCloseTo(23.02, 5)
+    expect(nextGroup.combat.stamina).toBeLessThan(nextGroup.combat.maxStamina)
+  })
+
   it('levels the active focus and derives hunter rank from skills', () => {
     let progression = createInitialGameState().progression
     progression = addSkillXp(progression, 'swordsmanship', xpForLevel(4)).progression
@@ -116,12 +173,12 @@ describe('gameplay domain', () => {
     const started = startHunt(game, 'location.bandit-camp', stats, context)
     const archer = started.combat.enemies.find((enemy) => enemy.enemyId === 'enemy.bandit-archer')
     expect(archer).toBeDefined()
-    const targeted = { ...started, combat: { ...started.combat, selectedEnemyInstanceId: archer!.instanceId, adrenaline: 100 } }
+    const targeted = { ...started, combat: { ...started.combat, selectedEnemyInstanceId: archer!.instanceId, mana: 100 } }
     const preparing = advanceCombat(targeted, 0.1, context, stats)
     expect(preparing.combat.enemies.find((enemy) => enemy.instanceId === archer!.instanceId)?.currentAction).not.toBeNull()
     const interrupted = castSpell(preparing, 'spell.disrupting-pulse', stats, context)
     expect(interrupted.combat.enemies.find((enemy) => enemy.instanceId === archer!.instanceId)?.currentAction).toBeNull()
-    expect(interrupted.combat.adrenaline).toBe(65)
+    expect(interrupted.combat.mana).toBe(65)
   })
 
   it('consumes a potion only when it restores health', () => {
@@ -137,7 +194,7 @@ describe('gameplay domain', () => {
 
   it('keeps repeatable hunting stable across a simulated hour', () => {
     const game = createInitialGameState()
-    const stats = { ...statsFor(game), maxHealth: 100000, attack: 10000, accuracy: 100, defense: 10000, attackInterval: 0.1, energyRegen: 100 }
+    const stats = { ...statsFor(game), maxHealth: 100000, attack: 10000, accuracy: 100, defense: 10000, attackInterval: 0.1, staminaRegen: 100 }
     const prepared = { ...game, combat: { ...game.combat, playerHp: stats.maxHealth } }
     const started = startHunt(prepared, 'location.wolf-den', stats, fixedContext)
     const after = advanceCombat(started, 3600, fixedContext, stats)

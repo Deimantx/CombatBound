@@ -1,18 +1,23 @@
 import type { ReactNode } from 'react'
+import { GameTooltip } from './tooltip/GameTooltip'
+import { buildStatTooltip } from '../../game/presentation/tooltipBuilders'
 
 interface StatLineProps {
   label: string
   value: ReactNode
   detail?: string
   accent?: 'gold' | 'green' | 'red' | 'blue'
+  statKey?: string
+  statValue?: number
 }
 
-export function StatLine({ label, value, detail, accent }: StatLineProps) {
-  return (
-    <div className="stat-line">
+export function StatLine({ label, value, detail, accent, statKey, statValue }: StatLineProps) {
+  const line = (
+    <div className="stat-line" data-debug-stat-key={statKey}>
       <span className="stat-label">{label}</span>
       <span className={`stat-value ${accent ? `text-${accent}` : ''}`}>{value}</span>
       {detail && <span className="stat-detail">{detail}</span>}
     </div>
   )
+  return statKey && statValue !== undefined ? <GameTooltip content={buildStatTooltip(statKey, statValue)}>{line}</GameTooltip> : line
 }

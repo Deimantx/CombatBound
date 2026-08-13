@@ -22,8 +22,10 @@ export type CombatStatKey =
   | 'parryChance'
   | 'blockChance'
   | 'blockPower'
-  | 'energyRegen'
-  | 'adrenalineGeneration'
+  | 'maxStamina'
+  | 'staminaRegen'
+  | 'maxMana'
+  | 'manaRegen'
   | 'statusResistance'
 
 export interface CombatStats {
@@ -39,10 +41,10 @@ export interface CombatStats {
   parryChance: number
   blockChance: number
   blockPower: number
-  maxEnergy: number
-  energyRegen: number
-  maxAdrenaline: number
-  adrenalineGeneration: number
+  maxStamina: number
+  staminaRegen: number
+  maxMana: number
+  manaRegen: number
   statusResistance: number
   resistances: Partial<Record<DamageType, number>>
 }
@@ -243,10 +245,10 @@ export interface CombatState {
   maxPlayerHp: number
   playerAttackTimer: number
   playerAttackInterval: number
-  energy: number
-  maxEnergy: number
-  adrenaline: number
-  maxAdrenaline: number
+  stamina: number
+  maxStamina: number
+  mana: number
+  maxMana: number
   stance: StanceId
   stanceCooldownRemaining: number
   techniques: Record<TechniqueId, boolean>

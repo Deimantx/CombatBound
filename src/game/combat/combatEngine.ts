@@ -61,14 +61,14 @@ export function startHunt(game: GameState, locationId: string, stats: HunterComb
   const group = generateCombatGroup(location, context.rng, Object.values(game.progression.skills).reduce((sum, skill) => sum + skill.level, 0))
   const session = { ...game.combat.session, elapsedSeconds: 0, groupClears: 0, enemiesDefeated: 0, damageDealt: 0, damageTaken: 0, healing: 0, xpGained: 0, itemsGained: 0, lootGained: {}, goldGained: 0, highestHit: 0 }
   const clean = clearEndedHuntEffects({ ...game.combat, session }, context.effects)
-  const combat = createActiveCombat(clean, locationId, group, stats, 1)
+  const combat = createActiveCombat(clean, locationId, group, stats, 1, true)
   return { ...game, combat }
 }
 
-function createActiveCombat(previous: CombatState, locationId: string, enemyIds: string[], stats: HunterCombatStats, groupNumber: number): CombatState {
+function createActiveCombat(previous: CombatState, locationId: string, enemyIds: string[], stats: HunterCombatStats, groupNumber: number, resetResources = false): CombatState {
   const enemies = instantiateEnemies(enemyIds, groupNumber)
   const base = playerBaseStats(stats)
-  return { ...previous, phase: 'active', combatLocationId: locationId, groupNumber, enemies, selectedEnemyInstanceId: enemies[0]?.instanceId ?? null, maxPlayerHp: base.maxHealth, playerHp: Math.min(previous.playerHp, base.maxHealth), playerAttackInterval: base.attackInterval, playerAttackTimer: Math.min(previous.playerAttackTimer, base.attackInterval), maxEnergy: base.maxEnergy, maxAdrenaline: base.maxAdrenaline, recoveryRemaining: 0, stopReason: null, lastDamageSource: null }
+  return { ...previous, phase: 'active', combatLocationId: locationId, groupNumber, enemies, selectedEnemyInstanceId: enemies[0]?.instanceId ?? null, maxPlayerHp: base.maxHealth, playerHp: Math.min(previous.playerHp, base.maxHealth), playerAttackInterval: base.attackInterval, playerAttackTimer: Math.min(previous.playerAttackTimer, base.attackInterval), stamina: resetResources ? base.maxStamina : clamp(previous.stamina, 0, base.maxStamina), maxStamina: base.maxStamina, mana: resetResources ? base.maxMana : clamp(previous.mana, 0, base.maxMana), maxMana: base.maxMana, recoveryRemaining: 0, stopReason: null, lastDamageSource: null }
 }
 
 export function selectEnemy(combat: CombatState, instanceId: string) { return combat.enemies.some((enemy) => enemy.instanceId === instanceId && !enemy.defeated) ? { ...combat, selectedEnemyInstanceId: instanceId } : combat }
@@ -78,7 +78,7 @@ export function setStance(combat: CombatState, stance: StanceId, newStats: Hunte
   const progress = combat.playerAttackInterval > 0 ? 1 - combat.playerAttackTimer / combat.playerAttackInterval : 0
   const active = combat.phase === 'active'
   const canonical = playerBaseStats(newStats)
-  return { ...combat, stance, stanceCooldownRemaining: active ? combatBalance.stanceSwitchCooldown : 0, playerAttackInterval: canonical.attackInterval, playerAttackTimer: active ? Math.max(0, canonical.attackInterval * (1 - progress)) : canonical.attackInterval, maxPlayerHp: canonical.maxHealth, playerHp: Math.min(combat.playerHp, canonical.maxHealth), maxEnergy: canonical.maxEnergy, maxAdrenaline: canonical.maxAdrenaline }
+  return { ...combat, stance, stanceCooldownRemaining: active ? combatBalance.stanceSwitchCooldown : 0, playerAttackInterval: canonical.attackInterval, playerAttackTimer: active ? Math.max(0, canonical.attackInterval * (1 - progress)) : canonical.attackInterval, maxPlayerHp: canonical.maxHealth, playerHp: Math.min(combat.playerHp, canonical.maxHealth), maxStamina: canonical.maxStamina, stamina: Math.min(combat.stamina, canonical.maxStamina), maxMana: canonical.maxMana, mana: Math.min(combat.mana, canonical.maxMana) }
 }
 
 export function toggleTechnique(combat: CombatState, technique: TechniqueId) { return { ...combat, techniques: { ...combat.techniques, [technique]: !combat.techniques[technique] } } }
@@ -86,13 +86,13 @@ export function toggleTechnique(combat: CombatState, technique: TechniqueId) { r
 export function castSpell(game: GameState, spellId: string, stats: HunterCombatStats, context: CombatContext): GameState {
   const spell = spellById[spellId]
   const combat = game.combat
-  if (!spell || combat.phase !== 'active' || combat.adrenaline < spell.cost) return game
+  if (!spell || combat.phase !== 'active' || combat.mana < spell.manaCost) return game
   const runtime = combat.spells.find((entry) => entry.spellId === spellId)
   if (!runtime || runtime.cooldownRemaining > 0) return game
   const target = combat.enemies.find((enemy) => enemy.instanceId === combat.selectedEnemyInstanceId && !enemy.defeated)
   if (spell.targetMode === 'selectedEnemy' && !target) return game
 
-  let next: GameState = { ...game, combat: { ...combat, adrenaline: combat.adrenaline - spell.cost, spells: combat.spells.map((entry) => entry.spellId === spellId ? { ...entry, cooldownRemaining: spell.cooldownSeconds } : entry) } }
+  let next: GameState = { ...game, combat: { ...combat, mana: combat.mana - spell.manaCost, spells: combat.spells.map((entry) => entry.spellId === spellId ? { ...entry, cooldownRemaining: spell.cooldownSeconds } : entry) } }
   const source: CombatantRef = { kind: 'player' }
   const targetRef: CombatantRef = target ? { kind: 'enemy', instanceId: target.instanceId } : source
 
@@ -132,7 +132,7 @@ function damageEnemy(game: GameState, target: EnemyCombatInstance, packet: Damag
   const barrierResult = packet.ignoresBarrier ? { combat: game.combat, absorbed: 0, remaining: resolution.mitigatedDamage } : absorbDamage(game.combat, packet.target, resolution.mitigatedDamage, context.effects)
   resolution = applyBarrierToDamage(resolution, barrierResult.absorbed)
   const defeated = current.currentHealth - resolution.healthDamage <= 0
-  let next: GameState = { ...game, combat: { ...barrierResult.combat, enemies: barrierResult.combat.enemies.map((enemy) => enemy.instanceId === current.instanceId ? { ...enemy, currentHealth: Math.max(0, enemy.currentHealth - resolution.healthDamage), defeated, currentAction: defeated ? null : enemy.currentAction } : enemy), adrenaline: clamp(game.combat.adrenaline + resolution.healthDamage * combatBalance.adrenalinePerDamage * attackerStats.adrenalineGeneration, 0, game.combat.maxAdrenaline), session: { ...game.combat.session, damageDealt: game.combat.session.damageDealt + resolution.healthDamage, highestHit: Math.max(game.combat.session.highestHit, resolution.healthDamage) } } }
+  let next: GameState = { ...game, combat: { ...barrierResult.combat, enemies: barrierResult.combat.enemies.map((enemy) => enemy.instanceId === current.instanceId ? { ...enemy, currentHealth: Math.max(0, enemy.currentHealth - resolution.healthDamage), defeated, currentAction: defeated ? null : enemy.currentAction } : enemy), session: { ...game.combat.session, damageDealt: game.combat.session.damageDealt + resolution.healthDamage, highestHit: Math.max(game.combat.session.highestHit, resolution.healthDamage) } } }
   const message = resolution.outcome === 'hit' || resolution.outcome === 'block' ? `${prefix} for ${resolution.healthDamage} damage${resolution.critical ? ' critical' : ''}${resolution.barrierAbsorbed > 0 ? ` (${resolution.barrierAbsorbed} absorbed)` : ''}.` : `${prefix} ${resolution.outcome}s against ${current.displayName}.`
   const eventType = resolution.outcome === 'miss' ? 'attackMissed' : resolution.outcome === 'dodge' ? 'attackDodged' : resolution.outcome === 'parry' ? 'attackParried' : resolution.outcome === 'block' ? 'attackBlocked' : resolution.critical ? 'criticalHit' : 'damageDealt'
   next.combat = event(next.combat, { text: message, type: 'player', eventType, source: packet.source, target: packet.target, data: { damage: resolution.healthDamage, critical: resolution.critical, absorbed: resolution.barrierAbsorbed } })
@@ -166,7 +166,7 @@ function advanceStep(game: GameState, step: number, context: CombatContext, stat
     combat = game.combat
     const effective = getPlayerStats(combat, stats, context)
     const healed = Math.min(effective.maxHealth, combat.playerHp + combatBalance.recoveryHealthPerSecond * 3 * step)
-    combat = { ...combat, playerHp: healed, maxPlayerHp: effective.maxHealth, energy: clamp(combat.energy + effective.energyRegen * step * 3, 0, combat.maxEnergy), recoveryRemaining: combat.recoveryRemaining - step, session: { ...combat.session, elapsedSeconds: combat.session.elapsedSeconds + step } }
+    combat = { ...combat, playerHp: healed, maxPlayerHp: effective.maxHealth, stamina: clamp(combat.stamina + effective.staminaRegen * step * combatBalance.recoveryStaminaRegenMultiplier, 0, combat.maxStamina), mana: clamp(combat.mana + effective.manaRegen * step, 0, combat.maxMana), recoveryRemaining: combat.recoveryRemaining - step, session: { ...combat.session, elapsedSeconds: combat.session.elapsedSeconds + step } }
     if (combat.recoveryRemaining <= 0 && combat.combatLocationId && (healed / effective.maxHealth) >= combatBalance.safetyStopThreshold) {
       const location = context.locations[combat.combatLocationId]
       const group = location ? generateCombatGroup(location, context.rng, Object.values(game.progression.skills).reduce((sum, skill) => sum + skill.level, 0)) : []
@@ -175,16 +175,16 @@ function advanceStep(game: GameState, step: number, context: CombatContext, stat
     return { ...game, combat }
   }
   if (combat.phase !== 'active') return game
-  combat = { ...combat, session: { ...combat.session, elapsedSeconds: combat.session.elapsedSeconds + step }, stanceCooldownRemaining: Math.max(0, combat.stanceCooldownRemaining - step), potionCooldownRemaining: Math.max(0, combat.potionCooldownRemaining - step), playerAttackTimer: combat.playerAttackTimer - step, energy: clamp(combat.energy + energyDelta(combat, stats, context) * step, 0, combat.maxEnergy), adrenaline: clamp(combat.adrenaline, 0, combat.maxAdrenaline), spells: combat.spells.map((spell) => ({ ...spell, cooldownRemaining: Math.max(0, spell.cooldownRemaining - step) })) }
+  combat = { ...combat, session: { ...combat.session, elapsedSeconds: combat.session.elapsedSeconds + step }, stanceCooldownRemaining: Math.max(0, combat.stanceCooldownRemaining - step), potionCooldownRemaining: Math.max(0, combat.potionCooldownRemaining - step), playerAttackTimer: combat.playerAttackTimer - step, stamina: clamp(combat.stamina + staminaDelta(combat, stats, context) * step, 0, combat.maxStamina), mana: clamp(combat.mana + getPlayerStats(combat, stats, context).manaRegen * step, 0, combat.maxMana), spells: combat.spells.map((spell) => ({ ...spell, cooldownRemaining: Math.max(0, spell.cooldownRemaining - step) })) }
   game = { ...game, combat }
   game = advanceCombatEffects(game, step, context, stats)
   combat = game.combat
   if (combat.phase !== 'active') return game
   const effective = getPlayerStats(combat, stats, context)
-  if (combat.energy <= 0 && (combat.techniques['careful-positioning'] || combat.techniques['heightened-reflexes'])) { combat = event({ ...combat, energy: 0, techniques: { 'careful-positioning': false, 'heightened-reflexes': false } }, { text: 'Techniques deactivated: Energy depleted.', type: 'system' }) }
+  if (combat.stamina <= 0 && (combat.techniques['careful-positioning'] || combat.techniques['heightened-reflexes'])) { combat = event({ ...combat, stamina: 0, techniques: { 'careful-positioning': false, 'heightened-reflexes': false } }, { text: 'Techniques deactivated: Stamina depleted.', type: 'system' }) }
   const protectiveRuntime = combat.spells.find((spell) => spell.spellId === 'spell.protective-sign')
   const protectiveSpell = context.spells['spell.protective-sign']
-  if (protectiveRuntime?.autoEnabled && getBarrierAmount(combat.playerEffects, context.effects) <= 0 && combat.playerHp / effective.maxHealth <= 0.7 && combat.adrenaline >= 25 && protectiveRuntime.cooldownRemaining <= 0 && protectiveSpell) {
+  if (protectiveRuntime?.autoEnabled && getBarrierAmount(combat.playerEffects, context.effects) <= 0 && combat.playerHp / effective.maxHealth <= 0.7 && protectiveRuntime.cooldownRemaining <= 0 && protectiveSpell && combat.mana >= protectiveSpell.manaCost) {
     game = castSpell({ ...game, combat }, protectiveSpell.id, stats, context)
     combat = game.combat
   }
@@ -217,7 +217,7 @@ function advanceStep(game: GameState, step: number, context: CombatContext, stat
       const result = resolveDamage(packet, enemyStats, playerStats, context.rng)
       const barrierResult = packet.ignoresBarrier ? { combat, absorbed: 0, remaining: result.mitigatedDamage } : absorbDamage(combat, packet.target, result.mitigatedDamage, context.effects)
       const resolved = applyBarrierToDamage(result, barrierResult.absorbed)
-      combat = { ...barrierResult.combat, enemies: barrierResult.combat.enemies, playerHp: Math.max(0, combat.playerHp - resolved.healthDamage), adrenaline: clamp(combat.adrenaline + (resolved.healthDamage + resolved.barrierAbsorbed) * combatBalance.adrenalinePerDamageTaken * playerStats.adrenalineGeneration, 0, combat.maxAdrenaline), lastDamageSource: definition.name, session: { ...combat.session, damageTaken: combat.session.damageTaken + resolved.healthDamage } }
+      combat = { ...barrierResult.combat, enemies: barrierResult.combat.enemies, playerHp: Math.max(0, combat.playerHp - resolved.healthDamage), lastDamageSource: definition.name, session: { ...combat.session, damageTaken: combat.session.damageTaken + resolved.healthDamage } }
       combat = { ...combat, enemies: combat.enemies.map((candidate) => candidate.instanceId === current.instanceId ? { ...candidate, attackTimer: definition.attackInterval } : candidate) }
       const message = resolved.outcome === 'hit' || resolved.outcome === 'block' ? `${current.displayName} hits you for ${resolved.healthDamage}${resolved.barrierAbsorbed > 0 ? ` (${resolved.barrierAbsorbed} absorbed)` : ''}.` : `${current.displayName} ${resolved.outcome}s your attack.`
       const type = resolved.outcome === 'miss' ? 'attackMissed' : resolved.outcome === 'dodge' ? 'attackDodged' : resolved.outcome === 'parry' ? 'attackParried' : resolved.outcome === 'block' ? 'attackBlocked' : 'damageDealt'
@@ -229,10 +229,10 @@ function advanceStep(game: GameState, step: number, context: CombatContext, stat
   return { ...game, combat }
 }
 
-function energyDelta(combat: CombatState, stats: HunterCombatStats, context: CombatContext) {
+function staminaDelta(combat: CombatState, stats: HunterCombatStats, context: CombatContext) {
   const stance = stanceDefinitions[combat.stance]
-  const drain = Object.entries(combat.techniques).reduce((sum, [id, active]) => sum + (active ? techniqueDefinitions[id as TechniqueId].drainPerSecond : 0), 0) * stance.techniqueDrain
-  return getPlayerStats(combat, stats, context).energyRegen - drain
+  const drain = Object.entries(combat.techniques).reduce((sum, [id, active]) => sum + (active ? techniqueDefinitions[id as TechniqueId].staminaDrainPerSecond : 0), 0) * stance.staminaDrainMultiplier
+  return getPlayerStats(combat, stats, context).staminaRegen - drain
 }
 
 function advanceCombatEffects(game: GameState, step: number, context: CombatContext, stats: HunterCombatStats): GameState {
@@ -346,7 +346,7 @@ function resolveDefeatedEnemies(game: GameState, context: CombatContext): GameSt
       next.combat = locationReward.combat
       for (const itemId of locationReward.droppedItemIds) next.combat = event(next.combat, { text: `Location bonus: ${context.items[itemId]?.name ?? itemId}.`, type: 'system' })
     }
-    const cleared = { ...next.combat, selectedEnemyInstanceId: null, session: { ...next.combat.session, groupClears: next.combat.session.groupClears + 1 }, adrenaline: next.combat.adrenaline * combatBalance.adrenalineCarryover }
+    const cleared = { ...next.combat, selectedEnemyInstanceId: null, session: { ...next.combat.session, groupClears: next.combat.session.groupClears + 1 } }
     next.combat = cleared.playerHp / cleared.maxPlayerHp < combatBalance.safetyStopThreshold ? event({ ...cleared, phase: 'stopped', stopReason: 'safety' }, { text: 'Group cleared. Safety rule stopped the hunt below 20% HP.', type: 'system', eventType: 'groupCleared' }) : event({ ...cleared, phase: 'recovery', recoveryRemaining: combatBalance.recoverySeconds }, { text: `Group ${cleared.groupNumber} cleared. Recovery begins.`, type: 'system', eventType: 'recoveryStarted' })
   } else if (next.combat.phase === 'active' && (!next.combat.selectedEnemyInstanceId || !alive.some((enemy) => enemy.instanceId === next.combat.selectedEnemyInstanceId))) next.combat = { ...next.combat, selectedEnemyInstanceId: selectNextTarget(next.combat.enemies) }
   return next
@@ -360,5 +360,5 @@ export function stopHunt(combat: CombatState, definitions: Record<string, Effect
 export function syncCombatStats(game: GameState): GameState {
   const stats = calculateHunterCombatStats(game.equipment, game.progression, game.combat.stance, game.combat.techniques)
   const canonical = playerBaseStats(stats)
-  return { ...game, combat: { ...game.combat, maxPlayerHp: canonical.maxHealth, playerHp: Math.min(game.combat.playerHp, canonical.maxHealth), playerAttackInterval: canonical.attackInterval, maxEnergy: canonical.maxEnergy, maxAdrenaline: canonical.maxAdrenaline } }
+  return { ...game, combat: { ...game.combat, maxPlayerHp: canonical.maxHealth, playerHp: Math.min(game.combat.playerHp, canonical.maxHealth), playerAttackInterval: canonical.attackInterval, maxStamina: canonical.maxStamina, stamina: Math.min(game.combat.stamina, canonical.maxStamina), maxMana: canonical.maxMana, mana: Math.min(game.combat.mana, canonical.maxMana) } }
 }

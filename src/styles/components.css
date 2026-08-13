@@ -79,3 +79,39 @@
 .confirm-dialog h2 { font-size: 17px; }
 .confirm-dialog p { color: var(--muted); margin-top: 8px; }
 .dialog-actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 20px; }
+
+/* CombatBound informational tooltips */
+.game-tooltip-layer { pointer-events: none; position: fixed; z-index: 90; }
+.game-tooltip { background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius-sm); box-shadow: var(--shadow); color: var(--text); min-width: 220px; max-width: min(360px, calc(100vw - 20px)); overflow: hidden; width: 310px; animation: tooltip-enter .1s ease-out both; user-select: none; }
+.game-tooltip-header { align-items: center; background: var(--panel-2); border-bottom: 1px solid var(--line-soft); display: flex; gap: 9px; padding: 10px 11px; }
+.game-tooltip-header .placeholder-art { height: 30px; width: 30px; }
+.game-tooltip-title { color: var(--text-strong); display: block; font-size: 12px; line-height: 1.2; }
+.game-tooltip-subtitle { color: var(--muted); display: block; font-size: 9px; margin-top: 3px; }
+.game-tooltip-description { color: var(--text-dim); font-size: 10px; line-height: 1.45; padding: 10px 11px 0; }
+.game-tooltip-rows { padding: 8px 11px; }
+.game-tooltip-row { align-items: baseline; border-bottom: 1px solid rgba(53,64,71,.35); display: flex; gap: 12px; justify-content: space-between; padding: 4px 0; }
+.game-tooltip-row:last-child { border-bottom: 0; }
+.game-tooltip-label { color: var(--muted); font-size: 10px; }
+.game-tooltip-value { font-size: 10px; text-align: right; }
+.game-tooltip-notes { background: var(--panel-2); border-top: 1px solid var(--line-soft); padding: 7px 11px; }
+.game-tooltip-note { color: var(--muted); font-size: 9px; line-height: 1.35; }
+.game-tooltip-note + .game-tooltip-note { margin-top: 3px; }
+.game-tooltip .tone-gold, .game-tooltip-value.tone-gold { color: var(--gold); }
+.game-tooltip .tone-blue, .game-tooltip-value.tone-blue { color: var(--blue); }
+.game-tooltip .tone-green, .game-tooltip-value.tone-green { color: var(--green); }
+.game-tooltip .tone-red, .game-tooltip-value.tone-red { color: var(--red); }
+@keyframes tooltip-enter { from { opacity: 0; transform: translateY(3px); } to { opacity: 1; transform: translateY(0); } }
+
+/* Accessible disclosure panels */
+.collapsible-panel-header { align-items: center; }
+.collapsible-panel-toggle { align-items: center; background: transparent; border: 0; color: inherit; cursor: pointer; display: flex; flex: 1; min-width: 0; padding: 0; text-align: left; }
+.collapsible-panel-toggle:hover .panel-title { color: var(--gold-bright); }
+.collapsible-panel-toggle .panel-heading { flex: 1; }
+.collapsible-panel-toggle .panel-title, .collapsible-panel-toggle .panel-subtitle { display: block; }
+.collapsible-panel-chevron { color: var(--muted); flex-shrink: 0; transition: transform .18s ease, color .18s ease; }
+.collapsible-panel-chevron.is-open { color: var(--gold); transform: rotate(180deg); }
+.collapsible-panel-actions { align-items: center; display: flex; flex-shrink: 0; gap: 8px; }
+.collapsible-panel-summary { color: var(--muted); display: flex; font-size: 10px; gap: 10px; }
+.collapsible-panel-content[hidden] { display: none; }
+html[data-reduced-motion="true"] .game-tooltip { animation: none; }
+html[data-reduced-motion="true"] .collapsible-panel-chevron { transition: none; }
