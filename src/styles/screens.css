@@ -1,4 +1,101 @@
 /* Home */
+.mastery-summary-grid { display: grid; gap: 9px; grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.mastery-metric { background: var(--panel-2); border: 1px solid var(--line-soft); border-radius: 8px; display: flex; flex-direction: column; gap: 4px; min-height: 86px; padding: 10px; }
+.mastery-metric strong { color: var(--gold-bright); font-size: 18px; }
+.mastery-metric small { color: var(--muted); font-size: 9px; min-height: 22px; }
+.mastery-metric .progress-wrap { margin-top: auto; }
+.proficiencies-layout { display: grid; gap: 12px; grid-template-columns: minmax(260px, 17vw) minmax(0, 1fr) minmax(260px, 290px); margin-top: 14px; min-width: 0; }
+.proficiencies-layout > * { min-width: 0; }
+.proficiencies-selector, .selected-proficiency-panel { min-width: 0; }
+.proficiency-group + .proficiency-group { border-top: 1px solid var(--line-soft); margin-top: 14px; padding-top: 12px; }
+.proficiency-list { display: flex; flex-direction: column; gap: 6px; margin-top: 7px; }
+.proficiency-grid { display: grid; gap: 6px; grid-template-columns: repeat(3, minmax(0, 1fr)); margin-top: 7px; }
+.proficiency-tile { align-items: center; background: var(--panel-2); border: 1px solid var(--line-soft); border-radius: 7px; color: var(--text); cursor: pointer; display: flex; flex-direction: column; gap: 3px; justify-content: flex-start; min-height: 82px; min-width: 0; padding: 7px 5px 6px; position: relative; text-align: center; width: 100%; }
+.proficiency-tile:hover, .proficiency-tile.is-selected { background: var(--gold-soft); border-color: rgba(213,170,98,.38); }
+.proficiency-tile.is-active { border-color: rgba(213,170,98,.8); box-shadow: 0 1px 7px rgba(213,170,98,.12); }
+.proficiency-tile-top { align-items: center; display: flex; height: 27px; justify-content: center; position: relative; width: 100%; }
+.proficiency-tile-indicator { align-items: center; border-radius: 999px; display: flex; font-size: 7px; font-weight: 900; height: 13px; justify-content: center; position: absolute; right: -1px; top: -2px; width: 13px; }
+.proficiency-tile-indicator.is-active { background: var(--gold); color: var(--panel); }
+.proficiency-tile-indicator.is-spell { color: var(--blue); }
+.proficiency-tile-name { display: -webkit-box; font-size: 9px; line-height: 1.1; min-height: 2.2em; overflow: hidden; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
+.proficiency-tile > small { color: var(--muted); font-size: 8px; white-space: nowrap; }
+.proficiency-tile .progress-wrap { height: 4px; margin-top: auto; width: 100%; }
+.proficiency-row { align-items: center; background: var(--panel-2); border: 1px solid var(--line-soft); border-radius: 7px; color: var(--text); cursor: pointer; display: flex; gap: 8px; padding: 7px; text-align: left; width: 100%; }
+.proficiency-row:hover, .proficiency-row.is-selected { background: var(--gold-soft); border-color: rgba(213,170,98,.38); }
+.proficiency-row > span { display: flex; flex: 1; flex-direction: column; gap: 3px; min-width: 0; }
+.proficiency-row strong { font-size: 11px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.proficiency-row small { color: var(--muted); font-size: 9px; }
+.proficiency-row em { color: var(--green); font-size: 8px; font-style: normal; font-weight: 800; letter-spacing: .08em; }
+.proficiency-row .progress-wrap { height: 4px; }
+.selected-proficiency-header { border-bottom: 1px solid var(--line-soft); padding-bottom: 13px; }
+.selected-proficiency-heading { align-items: center; display: flex; justify-content: space-between; }
+.selected-proficiency-heading h3 { font-size: 18px; margin-top: 3px; }
+.proficiency-active-badge { align-items: center; color: var(--green); display: inline-flex; font-size: 9px; font-weight: 800; gap: 4px; letter-spacing: .08em; }
+.selected-xp-line { align-items: baseline; color: var(--muted); display: flex; font-size: 10px; justify-content: space-between; margin: 12px 0 6px; }
+.selected-xp-line strong { color: var(--gold); font-size: 10px; }
+.selected-lifetime-xp, .untrained-copy { color: var(--muted); display: block; font-size: 10px; margin-top: 7px; }
+.perk-tree-heading { align-items: center; display: flex; justify-content: space-between; margin: 13px 0 7px; }
+.perk-tree-heading small { color: var(--gold); font-size: 9px; }
+.perk-tree { display: grid; gap: 7px; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.perk-card { background: var(--panel-2); border: 1px solid var(--line-soft); border-radius: 7px; display: flex; flex-direction: column; gap: 5px; min-height: 110px; padding: 9px; }
+.perk-card.is-purchased { border-color: rgba(103,184,129,.4); }
+.perk-card.is-locked { opacity: .68; }
+.perk-card-heading { align-items: flex-start; display: flex; gap: 7px; justify-content: space-between; }
+.perk-card-heading strong { font-size: 11px; }
+.perk-card-heading span { color: var(--gold); font-size: 9px; white-space: nowrap; }
+.perk-card p { color: var(--muted); flex: 1; font-size: 9px; line-height: 1.35; }
+.perk-card small { color: var(--red); font-size: 9px; }
+.perk-card .button { align-self: flex-start; font-size: 9px; padding: 5px 8px; }
+.proficiency-empty { align-items: center; color: var(--muted); display: flex; flex-direction: column; gap: 6px; justify-content: center; min-height: 180px; text-align: center; }
+.proficiency-empty svg { color: var(--gold); }
+.proficiency-empty strong { color: var(--text-dim); font-size: 12px; }
+.proficiency-empty span { font-size: 10px; }
+.perk-tree-region { min-width: 0; width: 100%; }
+.perk-tree-viewport { background: rgba(9,13,16,.46); border: 1px solid var(--line-soft); border-radius: 8px; height: clamp(470px, 66vh, 760px); min-width: 0; overflow-x: hidden; overflow-y: auto; position: relative; width: 100%; }
+.perk-tree-canvas { background-image: linear-gradient(rgba(70,83,91,.09) 1px, transparent 1px), linear-gradient(90deg, rgba(70,83,91,.09) 1px, transparent 1px); background-size: 46px 46px; min-width: 0; position: relative; width: 100%; }
+.perk-tree-connectors { height: 100%; left: 0; overflow: visible; pointer-events: none; position: absolute; top: 0; width: 100%; }
+.perk-tree-edge { stroke: rgba(126,145,158,.32); stroke-width: 2; }
+.perk-tree-edge.is-active { stroke: var(--gold); stroke-width: 2.5; }
+.perk-tree-node { align-items: center; background: rgba(25,31,35,.98); border: 1px solid rgba(91,106,116,.6); border-radius: 8px; color: var(--text); cursor: pointer; display: flex; flex-direction: column; gap: 2px; height: 64px; justify-content: center; padding: 4px; position: absolute; text-align: center; transform: translate(-50%, -50%); transition: border-color .15s, background .15s, transform .15s; width: clamp(76px, 12%, 108px); z-index: 1; }
+.perk-tree-node:hover, .perk-tree-node.is-selected { border-color: var(--gold); background: rgba(67,52,30,.9); transform: translate(-50%, calc(-50% - 1px)); }
+.perk-tree-node.is-available { border-color: rgba(213,170,98,.72); box-shadow: 0 0 12px rgba(213,170,98,.08); }
+.perk-tree-node.is-purchased-partial { border-color: rgba(103,184,129,.62); }
+.perk-tree-node.is-maxed { background: rgba(38,67,47,.8); border-color: rgba(103,184,129,.8); }
+.perk-tree-node.is-level-locked, .perk-tree-node.is-prerequisite-locked, .perk-tree-node.is-points-locked { opacity: .72; }
+.perk-node-icon { height: 22px; }
+.perk-tree-node strong { display: -webkit-box; font-size: 9px; line-height: 1.1; max-width: 100%; overflow: hidden; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
+.perk-tree-node small { color: var(--muted); font-size: 8px; }
+.perk-tree-details { background: var(--panel-2); border: 1px solid var(--line-soft); border-radius: 8px; display: flex; flex-direction: column; gap: 10px; min-width: 0; padding: 12px; }
+.perk-details-panel { min-height: 470px; }
+.perk-details-panel-heading { align-items: center; display: flex; justify-content: space-between; }
+.perk-details-empty { align-items: center; justify-content: center; min-height: 280px; text-align: center; }
+.perk-tree-details > svg { color: var(--gold); margin: auto; }
+.perk-details-heading { align-items: flex-start; display: flex; gap: 8px; justify-content: space-between; }
+.perk-details-heading h3 { font-size: 15px; margin-top: 3px; }
+.perk-details-status { align-items: center; display: inline-flex; font-size: 8px; font-weight: 800; gap: 3px; letter-spacing: .06em; white-space: nowrap; }
+.perk-details-status.is-available { color: var(--gold-bright); }
+.perk-details-status.is-maxed { color: var(--green); }
+.perk-details-status.is-level-locked, .perk-details-status.is-prerequisite-locked, .perk-details-status.is-points-locked { color: var(--red); }
+.perk-tree-details p { color: var(--muted); font-size: 10px; line-height: 1.4; }
+.perk-details-grid { border-bottom: 1px solid var(--line-soft); border-top: 1px solid var(--line-soft); display: grid; gap: 6px 8px; grid-template-columns: 1fr auto; padding: 9px 0; }
+.perk-details-grid span { color: var(--muted); font-size: 9px; }
+.perk-details-grid strong { font-size: 9px; text-align: right; }
+.perk-details-prerequisites { display: flex; flex-direction: column; gap: 4px; }
+.perk-details-prerequisites small { color: var(--muted); font-size: 9px; line-height: 1.35; }
+.perk-details-lock { border-radius: 5px; font-size: 9px; line-height: 1.35; padding: 7px; }
+.perk-details-lock.is-available { background: var(--gold-soft); color: var(--gold-bright); }
+.perk-details-lock.is-maxed { background: var(--green-soft); color: var(--green); }
+.perk-details-lock.is-level-locked, .perk-details-lock.is-prerequisite-locked, .perk-details-lock.is-points-locked { background: var(--red-soft); color: var(--red); }
+.perk-tree-details .full-button { margin-top: auto; }
+@media (max-width: 1200px) { .proficiencies-layout { grid-template-columns: minmax(250px, 260px) minmax(0, 1fr) minmax(250px, 270px); } }
+@media (max-width: 900px) { .proficiencies-layout { grid-template-columns: 1fr; } .proficiencies-selector { order: 0; } .selected-proficiency-panel { order: 1; } .perk-details-panel, .perk-details-empty { order: 2; min-height: 0; } }
+@media (max-width: 700px) { .perk-tree-workspace { grid-template-columns: 1fr; } .perk-tree-details { min-height: 0; } }
+@media (max-width: 600px) { .mastery-summary-grid, .perk-tree { grid-template-columns: 1fr; } .proficiency-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+.combatbound-scroll { scrollbar-color: var(--line) transparent; scrollbar-width: thin; }
+.combatbound-scroll::-webkit-scrollbar { height: 7px; width: 7px; }
+.combatbound-scroll::-webkit-scrollbar-track { background: transparent; }
+.combatbound-scroll::-webkit-scrollbar-thumb { background: var(--line); border-radius: 999px; }
+.combatbound-scroll::-webkit-scrollbar-thumb:hover { background: var(--bronze); }
 .home-overview-grid { display: grid; gap: 14px; grid-template-columns: minmax(0, 1.15fr) minmax(360px, .85fr); }
 .home-secondary-grid { display: grid; gap: 14px; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(260px, .75fr); margin-top: 14px; }
 .overview-primary { align-items: center; display: flex; gap: 15px; }

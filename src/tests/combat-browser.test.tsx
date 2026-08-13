@@ -1,7 +1,8 @@
-import { cleanup, fireEvent, render, screen } from '@testing-library/react'
+import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import App from '../../App'
 import { useGameStore } from '../state/gameStore'
+import { masteryXpForLevel } from '../game/progression/masteryProgression'
 
 beforeEach(() => {
   useGameStore.getState().resetGameplay()
@@ -14,6 +15,10 @@ function openCombatBrowser() {
   fireEvent.click(screen.getByRole('button', { name: 'Combat' }))
 }
 
+function unlockBanditCamp() {
+  useGameStore.setState((state) => ({ game: { ...state.game, progression: { ...state.game.progression, masteryXp: masteryXpForLevel(2) } } }))
+}
+
 describe('combat browser presentation and flow', () => {
   it('renders hierarchy tiers in vertical navigation order', () => {
     openCombatBrowser()
@@ -23,6 +28,7 @@ describe('combat browser presentation and flow', () => {
 
   it('selects a location for preview without starting a hunt', () => {
     openCombatBrowser()
+    act(unlockBanditCamp)
     fireEvent.click(screen.getByRole('button', { name: /^Old Road/ }))
     fireEvent.click(screen.getByRole('button', { name: /^Bandit Camp/ }))
     expect(screen.getByRole('heading', { name: 'Bandit Camp' })).toBeInTheDocument()
@@ -38,6 +44,7 @@ describe('combat browser presentation and flow', () => {
 
   it('keeps the current hunt while browsing another location', () => {
     openCombatBrowser()
+    act(unlockBanditCamp)
     fireEvent.click(screen.getByRole('button', { name: 'Start hunt' }))
     fireEvent.click(screen.getByRole('button', { name: 'Expand' }))
     fireEvent.click(screen.getByRole('button', { name: /^Old Road/ }))

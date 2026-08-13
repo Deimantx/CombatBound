@@ -1,7 +1,7 @@
 import { clamp, combatBalance } from './combatBalance'
 import { calculateArmorMitigation, calculateResistanceMultiplier, resolveDefensiveOutcome, type DefensiveOutcome } from './combatMath'
 import { getResistance } from './combatStats'
-import type { CombatRng, CombatStats, CombatantRef, DamageComponent, DamageType, DefensiveEligibility } from './combatTypes'
+import type { CombatRng, CombatStats, CombatantRef, DamageComponent, DamageType, DefensiveEligibility, DamageProgressionSource } from './combatTypes'
 
 export interface DamagePacket extends DamageComponent {
   source: CombatantRef
@@ -10,6 +10,10 @@ export interface DamagePacket extends DamageComponent {
   attackerAccuracy?: number
   defensiveEligibility?: DefensiveEligibility
   guaranteedHit?: boolean
+  progressionSource?: DamageProgressionSource
+  damageMultiplier?: number
+  criticalDamageMultiplier?: number
+  criticalChanceBonus?: number
 }
 
 export interface DamageResolution {
@@ -30,9 +34,10 @@ export interface DamageResolution {
 const safe = (value: number | undefined, fallback = 0) => Number.isFinite(value) ? value as number : fallback
 
 export function rollDamage(component: DamageComponent & { baseDamage?: number }, attacker: CombatStats, rng: CombatRng) {
-  const base = Math.max(0, safe(component.baseDamage, 0) + safe(component.flatDamage, 0) + (component.scaling?.sourceStat === 'attackPower' ? attacker.attackPower * component.scaling.multiplier : 0))
-  const minimum = component.minDamage ?? base * (component.minMultiplier ?? combatBalance.baseDamageVarianceMin)
-  const maximum = component.maxDamage ?? base * (component.maxMultiplier ?? combatBalance.baseDamageVarianceMax)
+  const multiplier = Math.max(0, safe((component as DamagePacket).damageMultiplier, 1))
+  const base = Math.max(0, (safe(component.baseDamage, 0) + safe(component.flatDamage, 0) + (component.scaling?.sourceStat === 'attackPower' ? attacker.attackPower * component.scaling.multiplier : 0)) * multiplier)
+  const minimum = component.minDamage !== undefined ? component.minDamage * multiplier : base * (component.minMultiplier ?? combatBalance.baseDamageVarianceMin)
+  const maximum = component.maxDamage !== undefined ? component.maxDamage * multiplier : base * (component.maxMultiplier ?? combatBalance.baseDamageVarianceMax)
   const low = Math.min(minimum, maximum)
   const high = Math.max(minimum, maximum)
   return Math.max(0, low + (high - low) * clamp(rng.next(), 0, 1))
@@ -46,8 +51,8 @@ export function resolveDamage(packet: DamagePacket, attacker: CombatStats, defen
   if (outcome === 'miss' || outcome === 'dodge' || outcome === 'parry') return emptyDamageResolution(outcome)
 
   const rolledDamage = rollDamage(packet, attacker, rng)
-  const critical = packet.canCrit && rng.next() < clamp(attacker.critChance, 0, combatBalance.maxCritChance)
-  const rawDamage = Math.max(0, rolledDamage * (critical ? Math.max(1, attacker.critDamage) : 1))
+  const critical = packet.canCrit && rng.next() < clamp(attacker.critChance + (packet.criticalChanceBonus ?? 0), 0, combatBalance.maxCritChance)
+  const rawDamage = Math.max(0, rolledDamage * (critical ? Math.max(1, attacker.critDamage * (packet.criticalDamageMultiplier ?? 1)) : 1))
   const armorMitigation = packet.ignoresArmor || packet.damageType !== 'physical' ? 0 : calculateArmorMitigation(defender.armor)
   const afterArmor = rawDamage * (1 - armorMitigation)
   const resistanceMultiplier = packet.ignoresResistance || packet.damageType === 'true' ? 1 : calculateResistanceMultiplier(getResistance(defender, packet.damageType))

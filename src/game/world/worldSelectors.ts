@@ -37,17 +37,17 @@ export function cascadeSelection(selection: Partial<WorldSelection>): WorldSelec
   return { continentId: continent.id, regionId: region.id, areaId: area.id, combatLocationId: location.id }
 }
 
-export function isWorldNodeAvailable(availability: string | undefined, requiredCombatLevel: number | undefined, totalCombatLevel: number) {
-  return availability === 'available' && (requiredCombatLevel ?? 0) <= totalCombatLevel
+export function isWorldNodeAvailable(availability: string | undefined, requiredMasteryLevel: number | undefined, masteryLevel: number) {
+  return availability === 'available' && (requiredMasteryLevel ?? 0) <= masteryLevel
 }
 
-export function isCombatLocationAvailable(locationId: string, totalCombatLevel: number) {
+export function isCombatLocationAvailable(locationId: string, masteryLevel: number) {
   const location = combatLocationById[locationId]
   if (!location) return false
   const area = areaById[location.areaId]
   const region = area && regionById[area.regionId]
   const continent = region && continentById[region.continentId]
-  return Boolean(continent && region && area && isWorldNodeAvailable(continent.availability, undefined, totalCombatLevel) && isWorldNodeAvailable(region.availability, region.requiredCombatLevel, totalCombatLevel) && isWorldNodeAvailable(area.availability, area.requiredCombatLevel, totalCombatLevel) && isWorldNodeAvailable(location.availability, location.requiredCombatLevel, totalCombatLevel))
+  return Boolean(continent && region && area && isWorldNodeAvailable(continent.availability, undefined, masteryLevel) && isWorldNodeAvailable(region.availability, region.requiredMasteryLevel, masteryLevel) && isWorldNodeAvailable(area.availability, area.requiredMasteryLevel, masteryLevel) && isWorldNodeAvailable(location.availability, location.requiredMasteryLevel, masteryLevel))
 }
 
 export function worldBreadcrumb(selection: WorldSelection) {

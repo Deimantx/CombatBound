@@ -1,11 +1,17 @@
 import { combatBalance, clamp } from './combatBalance'
 import type { CombatStats, CombatState, CombatantRef } from './combatTypes'
 import type { ActiveEffectInstance, EffectDefinition, EffectStackingMode, EffectTick, EffectTimerResult } from './combatEffectTypes'
+import type { ProgressionCredit } from '../progression/progressionTypes'
 
 export interface EffectApplyOptions {
   targetStats?: CombatStats
   power?: number
   absorbAmount?: number
+  progressionCredit?: ProgressionCredit
+  durationBonusSeconds?: number
+  durationMultiplier?: number
+  periodicPowerMultiplier?: number
+  maxStacksBonus?: number
 }
 
 export interface EffectApplicationResult {
@@ -28,21 +34,21 @@ export function updateActiveEffects(combat: CombatState, target: CombatantRef, e
   return { ...combat, enemies: combat.enemies.map((enemy) => enemy.instanceId === target.instanceId ? { ...enemy, effects } : enemy) }
 }
 
-export function calculateEffectDuration(definition: EffectDefinition, targetStats?: CombatStats) {
+export function calculateEffectDuration(definition: EffectDefinition, targetStats?: CombatStats, durationBonusSeconds = 0, durationMultiplier = 1) {
   if (definition.durationSeconds === null) return null
   const duration = Math.max(0, definition.durationSeconds)
   const resistant = !((definition.beneficial ?? (definition.kind === 'buff' || definition.kind === 'barrier')))
   const statusResistance = resistant ? clamp(targetStats?.statusResistance ?? 0, 0, combatBalance.maxStatusResistance) : 0
-  return duration * (1 - statusResistance)
+  return Math.max(0, (duration + durationBonusSeconds) * durationMultiplier * (1 - statusResistance))
 }
 
 export function applyEffect(combat: CombatState, definition: EffectDefinition, source: CombatantRef, target: CombatantRef, options: EffectApplyOptions = {}): EffectApplicationResult {
   if (!aliveRef(combat, target)) return { combat, instance: null, outcome: 'missing-target' }
   const effects = getActiveEffects(combat, target)
-  const duration = calculateEffectDuration(definition, options.targetStats)
+  const duration = calculateEffectDuration(definition, options.targetStats, options.durationBonusSeconds, options.durationMultiplier)
   const interval = definition.periodic && definition.periodic.intervalSeconds > 0 ? definition.periodic.intervalSeconds : null
   const nextSequence = combat.effectSequence + 1
-  const maxStacks = Math.max(1, Math.floor(definition.stacking.maxStacks || 1))
+  const maxStacks = Math.max(1, Math.floor((definition.stacking.maxStacks || 1) + (options.maxStacksBonus ?? 0)))
   const existing = effects.filter((effect) => effect.effectId === definition.id)
   const mode = definition.stacking.mode
 
@@ -56,7 +62,8 @@ export function applyEffect(combat: CombatState, definition: EffectDefinition, s
       stacks: mode === 'stack-refresh' ? Math.min(maxStacks, current.stacks + 1) : current.stacks,
       remainingSeconds: mode === 'extend' ? (current.remainingSeconds === null || duration === null ? null : current.remainingSeconds + duration) : duration,
       nextTickRemaining: interval,
-      snapshot: options.power !== undefined || current.snapshot ? { power: options.power ?? current.snapshot?.power } : current.snapshot,
+      snapshot: options.power !== undefined || current.snapshot || options.periodicPowerMultiplier !== undefined ? { power: options.power ?? current.snapshot?.power, periodicPowerMultiplier: options.periodicPowerMultiplier ?? current.snapshot?.periodicPowerMultiplier } : current.snapshot,
+      progressionCredit: options.progressionCredit ?? current.progressionCredit,
       runtimeValues: definition.kind === 'barrier' ? { absorbRemaining: options.absorbAmount ?? definition.barrierAmount ?? current.runtimeValues?.absorbRemaining ?? 0 } : current.runtimeValues,
     }
     const updated = updateActiveEffects(combat, target, effects.map((effect) => effect.instanceId === current.instanceId ? refreshed : effect))
@@ -72,7 +79,8 @@ export function applyEffect(combat: CombatState, definition: EffectDefinition, s
     remainingSeconds: duration,
     nextTickRemaining: interval,
     appliedSequence: nextSequence,
-    snapshot: options.power !== undefined || definition.barrierAmount !== undefined ? { power: options.power ?? definition.barrierAmount } : undefined,
+    snapshot: options.power !== undefined || definition.barrierAmount !== undefined || options.periodicPowerMultiplier !== undefined ? { power: options.power ?? definition.barrierAmount, periodicPowerMultiplier: options.periodicPowerMultiplier } : undefined,
+    progressionCredit: options.progressionCredit,
     runtimeValues: definition.kind === 'barrier' ? { absorbRemaining: options.absorbAmount ?? definition.barrierAmount ?? 0 } : undefined,
   }
   const updated = updateActiveEffects(combat, target, [...effects, instance])
@@ -156,6 +164,7 @@ export function absorbDamage(combat: CombatState, target: CombatantRef, amount: 
   let remaining = Math.max(0, amount)
   let absorbed = 0
   let effects = getActiveEffects(combat, target)
+  const absorptions: Array<{ effectId: string; amount: number; progressionCredit?: ProgressionCredit }> = []
   for (const effect of effects) {
     if (remaining <= 0) break
     if (definitions[effect.effectId]?.kind !== 'barrier') continue
@@ -163,10 +172,11 @@ export function absorbDamage(combat: CombatState, target: CombatantRef, amount: 
     const used = Math.min(pool, remaining)
     remaining -= used
     absorbed += used
+    if (used > 0) absorptions.push({ effectId: effect.effectId, amount: used, progressionCredit: effect.progressionCredit })
     const nextPool = pool - used
     effects = nextPool > 0 ? effects.map((candidate) => candidate.instanceId === effect.instanceId ? { ...candidate, runtimeValues: { absorbRemaining: nextPool } } : candidate) : effects.filter((candidate) => candidate.instanceId !== effect.instanceId)
   }
-  return { combat: updateActiveEffects(combat, target, effects), absorbed, remaining }
+  return { combat: updateActiveEffects(combat, target, effects), absorbed, remaining, absorptions }
 }
 
 export function removeEffectsByPersistence(combat: CombatState, persistence: 'enemy-life' | 'between-enemies' | 'hunt', definitions: Record<string, EffectDefinition>) {

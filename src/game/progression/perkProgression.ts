@@ -1,0 +1,378 @@
+import { normalizeCombatStats } from '../combat/combatStats'
+import type { CombatStats, StatModifier } from '../combat/combatTypes'
+import { perkById } from '../data/proficiencyPerks'
+import { proficiencyById } from '../data/proficiencies'
+import { calculateAvailablePerkPoints } from './masteryProgression'
+import { getProficiencyLevel } from './proficiencyProgression'
+import type {
+  CombatProficiencyId,
+  MagicProficiencyId,
+  PerkPurchaseResult,
+  PerkPurchaseState,
+  ProgressionState,
+  ProficiencyPerkDefinition,
+  ProficiencyPerkEffect,
+  WeaponProficiencyId,
+} from './progressionTypes'
+
+export function getPurchasedPerkRank(progression: ProgressionState, perkId: string) {
+  return Math.max(0, progression.purchasedPerks[perkId] ?? 0)
+}
+
+function isPerkInKnownTree(perk: ProficiencyPerkDefinition) {
+  const tree = proficiencyById[perk.proficiencyId]
+  return Boolean(tree && (tree.perkIds.includes(perk.id) || perk.branch === 'Legacy'))
+}
+
+function missingPrerequisites(progression: ProgressionState, perk: ProficiencyPerkDefinition) {
+  const missing: Array<{ perkId: string; requiredRank: number }> = []
+  for (const rule of perk.prerequisiteRules) {
+    const satisfied = rule.requirements.filter((requirement) => getPurchasedPerkRank(progression, requirement.perkId) >= requirement.requiredRank).length
+    const minimum = rule.mode === 'all' ? rule.requirements.length : Math.max(1, rule.minimumSatisfied ?? 1)
+    if (satisfied >= minimum) continue
+    for (const requirement of rule.requirements) {
+      if (getPurchasedPerkRank(progression, requirement.perkId) < requirement.requiredRank) missing.push(requirement)
+    }
+  }
+  return missing
+}
+
+/** The single canonical purchase validator used by the UI, tooltips, and purchase action. */
+export function getPerkPurchaseState(
+  progression: ProgressionState,
+  perkId: string,
+  definitions: Record<string, ProficiencyPerkDefinition> = perkById,
+): PerkPurchaseState {
+  const perk = definitions[perkId]
+  const currentRank = getPurchasedPerkRank(progression, perkId)
+  if (!perk || !isPerkInKnownTree(perk)) return { status: 'unknown', currentRank }
+  if (currentRank >= perk.maxRank) return { status: 'maxed', perk, currentRank }
+
+  const level = getProficiencyLevel(progression, perk.proficiencyId)
+  if (level < perk.requiredProficiencyLevel) return { status: 'level-locked', perk, currentRank, missingLevel: perk.requiredProficiencyLevel - level }
+
+  const missing = missingPrerequisites(progression, perk)
+  if (missing.length > 0) return { status: 'prerequisite-locked', perk, currentRank, missingPrerequisites: missing }
+
+  const available = calculateAvailablePerkPoints(progression, definitions)
+  if (available < perk.costPerRank) return { status: 'points-locked', perk, currentRank, missingPoints: perk.costPerRank - available }
+  return { status: 'available', perk, currentRank }
+}
+
+export function purchasePerk(progression: ProgressionState, perkId: string, definitions: Record<string, ProficiencyPerkDefinition> = perkById): PerkPurchaseResult {
+  const state = getPerkPurchaseState(progression, perkId, definitions)
+  const rank = state.currentRank
+  if (state.status === 'unknown') return { progression, outcome: 'unknown-perk', perkId, rank }
+  if (state.status === 'maxed') return { progression, outcome: 'max-rank', perkId, rank }
+  if (state.status === 'level-locked') return { progression, outcome: 'level-locked', perkId, rank }
+  if (state.status === 'prerequisite-locked') return { progression, outcome: 'prerequisite-locked', perkId, rank }
+  if (state.status === 'points-locked') return { progression, outcome: 'insufficient-points', perkId, rank }
+  const nextRank = rank + 1
+  return {
+    progression: { ...progression, purchasedPerks: { ...progression.purchasedPerks, [perkId]: nextRank } },
+    outcome: 'purchased',
+    perkId,
+    rank: nextRank,
+  }
+}
+
+function activeEffects(progression: ProgressionState, proficiencyId: CombatProficiencyId, definitions: Record<string, ProficiencyPerkDefinition>) {
+  return Object.values(definitions).filter((perk) => perk.proficiencyId === proficiencyId).flatMap((perk) => {
+    const rank = getPurchasedPerkRank(progression, perk.id)
+    return rank > 0 ? perk.effects.map((effect) => ({ effect, rank })) : []
+  })
+}
+
+function toStatModifier(effect: Extract<ProficiencyPerkEffect, { type: 'statModifier' }>, rank: number): StatModifier {
+  return { stat: effect.stat, operation: effect.operation, value: effect.valuePerRank * rank }
+}
+
+export interface ActiveStatContext {
+  stance?: 'high' | 'mid' | 'low'
+  activeTechniqueCount?: number
+  staminaFraction?: number
+  playerHpFraction?: number
+  barrierActive?: boolean
+}
+
+export function getActiveProficiencyStatModifiers(
+  progression: ProgressionState,
+  proficiencyId: CombatProficiencyId | null,
+  definitions: Record<string, ProficiencyPerkDefinition> = perkById,
+  context: ActiveStatContext = {},
+): StatModifier[] {
+  if (!proficiencyId) return []
+  const modifiers: StatModifier[] = []
+  for (const { effect, rank } of activeEffects(progression, proficiencyId, definitions)) {
+    if (effect.type === 'statModifier') modifiers.push(toStatModifier(effect, rank))
+    if (effect.type === 'weaponAttackIntervalModifier' && proficiencyId === 'one-handed-sword') modifiers.push({ stat: 'attackInterval', operation: 'addPercent', value: effect.valuePerRank * rank })
+    if (effect.type === 'conditionalStatModifier') {
+      const matches = effect.condition.type === 'active-barrier' ? context.barrierActive === true
+        : effect.condition.type === 'stamina-above' ? (context.staminaFraction ?? 0) >= (effect.condition.fraction ?? 0)
+          : effect.condition.type === 'player-hp-below' ? (context.playerHpFraction ?? 1) < (effect.condition.fraction ?? 1)
+            : effect.condition.type === 'active-technique' ? (context.activeTechniqueCount ?? 0) > 0
+              : false
+      if (matches) modifiers.push({ stat: effect.stat, operation: effect.operation, value: effect.valuePerRank * rank })
+    }
+    if (effect.type === 'activeTechniqueStatModifier' && (context.activeTechniqueCount ?? 0) > 0) modifiers.push({ stat: effect.stat, operation: effect.operation, value: effect.valuePerRank * rank * Math.max(1, context.activeTechniqueCount ?? 0) })
+    if (effect.type === 'stanceSpecificStatModifier' && context.stance === effect.stance) modifiers.push({ stat: effect.stat, operation: effect.operation, value: effect.valuePerRank * rank })
+  }
+  return modifiers
+}
+
+export function getConditionalProficiencyStatModifiers(
+  progression: ProgressionState,
+  proficiencyId: CombatProficiencyId | null,
+  context: ActiveStatContext,
+  definitions: Record<string, ProficiencyPerkDefinition> = perkById,
+): StatModifier[] {
+  if (!proficiencyId) return []
+  return activeEffects(progression, proficiencyId, definitions).flatMap(({ effect, rank }) => {
+    if (effect.type !== 'conditionalStatModifier') return []
+    const matches = effect.condition.type === 'active-barrier' ? context.barrierActive === true
+      : effect.condition.type === 'stamina-above' ? (context.staminaFraction ?? 0) >= (effect.condition.fraction ?? 0)
+        : effect.condition.type === 'player-hp-below' ? (context.playerHpFraction ?? 1) < (effect.condition.fraction ?? 1)
+          : effect.condition.type === 'active-technique' ? (context.activeTechniqueCount ?? 0) > 0
+            : false
+    return matches ? [{ stat: effect.stat, operation: effect.operation, value: effect.valuePerRank * rank }] : []
+  })
+}
+
+export function applyProficiencyStatModifiers(baseStats: CombatStats, modifiers: StatModifier[]) {
+  const next = normalizeCombatStats({ ...baseStats } as CombatStats & Record<string, unknown>)
+  const flat: Partial<Record<keyof CombatStats, number>> = {}
+  const additive: Partial<Record<keyof CombatStats, number>> = {}
+  const multiplicative: Partial<Record<keyof CombatStats, number>> = {}
+  for (const modifier of modifiers) {
+    if (modifier.operation === 'flat') flat[modifier.stat] = (flat[modifier.stat] ?? 0) + modifier.value
+    if (modifier.operation === 'addPercent') additive[modifier.stat] = (additive[modifier.stat] ?? 0) + modifier.value
+    if (modifier.operation === 'multiply') multiplicative[modifier.stat] = (multiplicative[modifier.stat] ?? 1) * modifier.value
+  }
+  for (const stat of new Set(Object.keys(flat).concat(Object.keys(additive), Object.keys(multiplicative))) as Set<keyof CombatStats>) {
+    if (typeof next[stat] !== 'number') continue
+    const base = next[stat] as number
+    next[stat] = (base + (flat[stat] ?? 0)) * (1 + (additive[stat] ?? 0)) * (multiplicative[stat] ?? 1) as never
+  }
+  return normalizeCombatStats(next as CombatStats & Record<string, unknown>)
+}
+
+export function getWeaponHitEffectHooks(progression: ProgressionState, proficiencyId: WeaponProficiencyId | null, definitions: Record<string, ProficiencyPerkDefinition> = perkById) {
+  if (!proficiencyId) return [] as Array<{ effectId: string; chance: number }>
+  return activeEffects(progression, proficiencyId, definitions).flatMap(({ effect, rank }) => effect.type === 'onWeaponHitApplyEffect' ? [{ effectId: effect.effectId, chance: Math.min(1, effect.chancePerRank * rank) }] : [])
+}
+
+export function getWeaponHitResourceHooks(progression: ProgressionState, proficiencyId: WeaponProficiencyId | null, definitions: Record<string, ProficiencyPerkDefinition> = perkById) {
+  if (!proficiencyId) return [] as Array<{ resource: 'stamina' | 'mana'; amount: number; chance: number }>
+  return activeEffects(progression, proficiencyId, definitions).flatMap(({ effect, rank }) => effect.type === 'weaponOnHitResourceRestore' ? [{ resource: effect.resource, amount: effect.amountPerRank * rank, chance: Math.min(1, effect.chancePerRank === undefined ? 1 : effect.chancePerRank * rank) }] : [])
+}
+
+export function getWeaponHitAdvanceHooks(progression: ProgressionState, proficiencyId: WeaponProficiencyId | null, definitions: Record<string, ProficiencyPerkDefinition> = perkById) {
+  if (!proficiencyId) return [] as Array<{ chance: number; fraction: number }>
+  return activeEffects(progression, proficiencyId, definitions).flatMap(({ effect, rank }) => effect.type === 'weaponOnHitAdvanceAttack' ? [{ chance: Math.min(1, effect.chancePerRank * rank), fraction: effect.fraction }] : [])
+}
+
+export function getTechniqueStaminaDrainMultiplier(progression: ProgressionState, proficiencyId: WeaponProficiencyId | null, definitions: Record<string, ProficiencyPerkDefinition> = perkById) {
+  if (!proficiencyId) return 1
+  return Math.max(0, 1 + activeEffects(progression, proficiencyId, definitions).reduce((sum, { effect, rank }) => sum + (effect.type === 'techniqueStaminaDrainModifier' ? effect.valuePerRank * rank : 0), 0))
+}
+
+export function getStanceSwitchCooldownMultiplier(progression: ProgressionState, proficiencyId: WeaponProficiencyId | null, definitions: Record<string, ProficiencyPerkDefinition> = perkById) {
+  if (!proficiencyId) return 1
+  return Math.max(.1, 1 + activeEffects(progression, proficiencyId, definitions).reduce((sum, { effect, rank }) => sum + (effect.type === 'stanceSwitchCooldownModifier' ? effect.valuePerRank * rank : 0), 0))
+}
+
+export function getParryEffectHooks(progression: ProgressionState, proficiencyId: WeaponProficiencyId | null, definitions: Record<string, ProficiencyPerkDefinition> = perkById) {
+  if (!proficiencyId) return [] as Array<{ effectId: string; durationSeconds?: number }>
+  return activeEffects(progression, proficiencyId, definitions).flatMap(({ effect, rank }) => effect.type === 'onParryApplyEffect' || effect.type === 'onParryStatBuff' ? Array.from({ length: rank }, () => ({ effectId: effect.effectId, durationSeconds: effect.durationSeconds })) : [])
+}
+
+export function getStanceSwitchEffectHooks(progression: ProgressionState, proficiencyId: WeaponProficiencyId | null, definitions: Record<string, ProficiencyPerkDefinition> = perkById) {
+  if (!proficiencyId) return [] as Array<{ effectId: string; durationSeconds?: number }>
+  return activeEffects(progression, proficiencyId, definitions).flatMap(({ effect, rank }) => effect.type === 'onStanceSwitchApplyEffect' ? Array.from({ length: rank }, () => ({ effectId: effect.effectId, durationSeconds: effect.durationSeconds })) : [])
+}
+
+function matchesCondition(condition: { type: 'targetHpAbove' | 'targetHpBelow' | 'targetHasEffect' | 'targetHasEffectAndHpBelow' | 'manaAbove'; fraction?: number; effectId?: string }, targetHpFraction: number, targetEffectIds: string[]) {
+  if (condition.type === 'manaAbove') return false
+  if (condition.type === 'targetHpAbove') return targetHpFraction > (condition.fraction ?? 1)
+  if (condition.type === 'targetHpBelow') return targetHpFraction < (condition.fraction ?? 0)
+  if (condition.type === 'targetHasEffectAndHpBelow') return Boolean(condition.effectId && targetEffectIds.includes(condition.effectId)) && targetHpFraction < (condition.fraction ?? 0)
+  return Boolean(condition.effectId && targetEffectIds.includes(condition.effectId))
+}
+
+export function getConditionalWeaponDamageMultiplier(
+  progression: ProgressionState,
+  proficiencyId: WeaponProficiencyId | null,
+  targetHpFraction: number,
+  definitions: Record<string, ProficiencyPerkDefinition> = perkById,
+  targetEffectIds: string[] = [],
+) {
+  if (!proficiencyId) return 1
+  const additive = { value: 0 }
+  const multiplicative = { value: 1 }
+  for (const { effect, rank } of activeEffects(progression, proficiencyId, definitions)) {
+    if (effect.type === 'conditionalDamageModifier') {
+      if (!matchesCondition(effect.condition, targetHpFraction, targetEffectIds)) continue
+      if (effect.operation === 'addPercent') additive.value += effect.valuePerRank * rank
+      else multiplicative.value *= Math.pow(effect.valuePerRank, rank)
+    }
+    if (effect.type === 'weaponConditionalDamageModifier' && matchesCondition(effect.condition, targetHpFraction, targetEffectIds)) {
+      if (effect.operation === 'addPercent') additive.value += effect.valuePerRank * rank
+      else multiplicative.value *= Math.pow(effect.valuePerRank, rank)
+    }
+  }
+  return (1 + additive.value) * multiplicative.value
+}
+
+export function getWeaponDamageMultiplier(progression: ProgressionState, proficiencyId: WeaponProficiencyId | null, targetHpFraction: number, targetEffectIds: string[] = [], definitions: Record<string, ProficiencyPerkDefinition> = perkById, stance?: 'high' | 'mid' | 'low') {
+  if (!proficiencyId) return 1
+  let additive = 0
+  let multiplicative = 1
+  for (const { effect, rank } of activeEffects(progression, proficiencyId, definitions)) {
+    if (effect.type === 'weaponDamageModifier') additive += effect.valuePerRank * rank
+    if (effect.type === 'stanceSpecificDamageModifier' && stance === effect.stance) additive += effect.valuePerRank * rank
+    if (effect.type === 'weaponConditionalDamageModifier' && matchesCondition(effect.condition, targetHpFraction, targetEffectIds)) {
+      if (effect.operation === 'addPercent') additive += effect.valuePerRank * rank
+      else multiplicative *= Math.pow(effect.valuePerRank, rank)
+    }
+    if (effect.type === 'conditionalDamageModifier' && matchesCondition(effect.condition, targetHpFraction, targetEffectIds)) {
+      if (effect.operation === 'addPercent') additive += effect.valuePerRank * rank
+      else multiplicative *= Math.pow(effect.valuePerRank, rank)
+    }
+  }
+  return (1 + additive) * multiplicative
+}
+
+function activeMagicEffects(progression: ProgressionState, proficiencyId: MagicProficiencyId, definitions: Record<string, ProficiencyPerkDefinition>) {
+  return activeEffects(progression, proficiencyId, definitions)
+}
+
+export function getActiveGlobalMagicStatModifiers(progression: ProgressionState, definitions: Record<string, ProficiencyPerkDefinition> = perkById): StatModifier[] {
+  return (['fire-magic', 'warding-magic', 'disruption-magic'] as MagicProficiencyId[]).flatMap((id) => getActiveProficiencyStatModifiers(progression, id, definitions))
+}
+
+export function getConditionalMagicStatModifiers(progression: ProgressionState, barrierActive: boolean, definitions: Record<string, ProficiencyPerkDefinition> = perkById): StatModifier[] {
+  return (['fire-magic', 'warding-magic', 'disruption-magic'] as MagicProficiencyId[]).flatMap((id) => getConditionalProficiencyStatModifiers(progression, id, { barrierActive }, definitions))
+}
+
+export interface EffectiveMagicModifiers {
+  spellDamagePercent: number
+  spellFlatDamage: number
+  manaCostPercent: number
+  cooldownPercent: number
+  accuracy: number
+  barrierAmountPercent: number
+  barrierAmountFlat: number
+  barrierDurationBonus: number
+  barrierDurationPercent: number
+  canCrit: boolean
+  spellCriticalDamagePercent: number
+  conditionalCriticalChance: number
+  effectPeriodicPowerPercent: Record<string, number>
+  effectDurationBonus: Record<string, number>
+  effectMaxStacksBonus: Record<string, number>
+}
+
+export function getEffectiveMagicModifiers(progression: ProgressionState, proficiencyId: MagicProficiencyId, definitions: Record<string, ProficiencyPerkDefinition> = perkById): EffectiveMagicModifiers {
+  const result: EffectiveMagicModifiers = { spellDamagePercent: 0, spellFlatDamage: 0, manaCostPercent: 0, cooldownPercent: 0, accuracy: 0, barrierAmountPercent: 0, barrierAmountFlat: 0, barrierDurationBonus: 0, barrierDurationPercent: 0, canCrit: false, spellCriticalDamagePercent: 0, conditionalCriticalChance: 0, effectPeriodicPowerPercent: {}, effectDurationBonus: {}, effectMaxStacksBonus: {} }
+  for (const { effect, rank } of activeMagicEffects(progression, proficiencyId, definitions)) {
+    if (effect.type === 'spellDamageModifier') result.spellDamagePercent += effect.valuePerRank * rank
+    if (effect.type === 'spellFlatDamageModifier') result.spellFlatDamage += effect.valuePerRank * rank
+    if (effect.type === 'spellManaCostModifier') result.manaCostPercent += effect.valuePerRank * rank
+    if (effect.type === 'spellCooldownModifier') result.cooldownPercent += effect.valuePerRank * rank
+    if (effect.type === 'spellAccuracyModifier') result.accuracy += effect.valuePerRank * rank
+    if (effect.type === 'barrierAmountModifier') result.barrierAmountPercent += effect.valuePerRank * rank
+    if (effect.type === 'barrierFlatAmountModifier') result.barrierAmountFlat += effect.valuePerRank * rank
+    if (effect.type === 'barrierDurationModifier') {
+      if (Math.abs(effect.valuePerRank) < 1) result.barrierDurationPercent += effect.valuePerRank * rank
+      else result.barrierDurationBonus += effect.valuePerRank * rank
+    }
+    if (effect.type === 'spellCanCrit' || effect.type === 'spellCritEligibility') result.canCrit = true
+    if (effect.type === 'spellCriticalDamageModifier') result.spellCriticalDamagePercent += effect.valuePerRank * rank
+    if (effect.type === 'appliedEffectPeriodicPowerModifier' || effect.type === 'appliedEffectPeriodicDamageModifier') result.effectPeriodicPowerPercent[effect.effectId] = (result.effectPeriodicPowerPercent[effect.effectId] ?? 0) + effect.valuePerRank * rank
+    if (effect.type === 'appliedEffectDurationModifier') result.effectDurationBonus[effect.effectId] = (result.effectDurationBonus[effect.effectId] ?? 0) + effect.valuePerRank * rank
+    if (effect.type === 'appliedEffectMaxStacksModifier') result.effectMaxStacksBonus[effect.effectId] = (result.effectMaxStacksBonus[effect.effectId] ?? 0) + effect.valuePerRank * rank
+  }
+  return result
+}
+
+export function getConditionalMagicDamageMultiplier(progression: ProgressionState, proficiencyId: MagicProficiencyId, targetHpFraction: number, targetEffectIds: string[], definitions: Record<string, ProficiencyPerkDefinition> = perkById, manaFraction = 1) {
+  let additive = 0
+  let multiplier = 1
+  for (const { effect, rank } of activeMagicEffects(progression, proficiencyId, definitions)) {
+    if (effect.type !== 'conditionalDamageModifier' && effect.type !== 'spellConditionalDamageModifier') continue
+    const matches = effect.condition.type === 'manaAbove'
+      ? manaFraction >= (effect.condition.fraction ?? 0)
+      : matchesCondition(effect.condition, targetHpFraction, targetEffectIds)
+    if (!matches) continue
+    if (effect.operation === 'addPercent') additive += effect.valuePerRank * rank
+    if (effect.operation === 'multiply') multiplier *= Math.pow(effect.valuePerRank, rank)
+  }
+  return (1 + additive) * multiplier
+}
+
+export function getConditionalMagicManaCostMultiplier(progression: ProgressionState, proficiencyId: MagicProficiencyId, manaFraction: number, definitions: Record<string, ProficiencyPerkDefinition> = perkById) {
+  let additive = 0
+  for (const { effect, rank } of activeMagicEffects(progression, proficiencyId, definitions)) if (effect.type === 'spellConditionalManaCostModifier' && manaFraction >= effect.condition.fraction) additive += effect.valuePerRank * rank
+  return 1 + additive
+}
+
+export function getConditionalMagicCooldownMultiplier(progression: ProgressionState, proficiencyId: MagicProficiencyId, targetEffectIds: string[], definitions: Record<string, ProficiencyPerkDefinition> = perkById) {
+  let additive = 0
+  for (const { effect, rank } of activeMagicEffects(progression, proficiencyId, definitions)) if (effect.type === 'spellConditionalCooldownModifier' && targetEffectIds.includes(effect.condition.effectId)) additive += effect.valuePerRank * rank
+  return 1 + additive
+}
+
+export function getConditionalMagicCritChance(progression: ProgressionState, proficiencyId: MagicProficiencyId, targetHpFraction: number, definitions: Record<string, ProficiencyPerkDefinition> = perkById) {
+  return activeMagicEffects(progression, proficiencyId, definitions).reduce((sum, { effect, rank }) => sum + (effect.type === 'spellConditionalCritModifier' && targetHpFraction < effect.condition.fraction ? effect.valuePerRank * rank : 0), 0)
+}
+
+export function getSpellHpDamageResourceHooks(progression: ProgressionState, proficiencyId: MagicProficiencyId, definitions: Record<string, ProficiencyPerkDefinition> = perkById) {
+  return activeMagicEffects(progression, proficiencyId, definitions).flatMap(({ effect, rank }) => effect.type === 'spellOnHpDamageResourceRestore' ? [{ resource: effect.resource, amount: effect.amountPerRank * rank, chance: Math.min(1, effect.chancePerRank === undefined ? 1 : effect.chancePerRank * rank) }] : [])
+}
+
+export function getSpellCastEffectHooks(progression: ProgressionState, proficiencyId: MagicProficiencyId, definitions: Record<string, ProficiencyPerkDefinition> = perkById) {
+  return activeMagicEffects(progression, proficiencyId, definitions).flatMap(({ effect }) => effect.type === 'onSpellCastApplyEffect' ? [{ effectId: effect.effectId, durationSeconds: effect.durationSeconds }] : [])
+}
+
+export function getProficiencyXpMultiplier(progression: ProgressionState, proficiencyId: MagicProficiencyId, reasonType: 'successful-interrupt', definitions: Record<string, ProficiencyPerkDefinition> = perkById) {
+  return 1 + activeMagicEffects(progression, proficiencyId, definitions).reduce((sum, { effect, rank }) => sum + (effect.type === 'proficiencyXpModifier' && effect.reasonType === reasonType ? effect.valuePerRank * rank : 0), 0)
+}
+
+export interface SuccessfulInterruptHooks {
+  restoreMana: number
+  restoreStamina: number
+  effects: Array<{ effectId: string; durationMultiplier?: number }>
+  statEffects: Array<{ effectId: string; durationSeconds: number }>
+  cooldownMultiplier: number
+  enemyAttackDelay: number
+  reduceSpellCooldownFraction: number
+  reduceSpellCooldownSeconds: number
+  refundManaFraction: number
+  barrierAmount: number
+}
+
+export function getSuccessfulInterruptHooks(progression: ProgressionState, definitions: Record<string, ProficiencyPerkDefinition> = perkById): SuccessfulInterruptHooks {
+  const hooks: SuccessfulInterruptHooks = { restoreMana: 0, restoreStamina: 0, effects: [], statEffects: [], cooldownMultiplier: 1, enemyAttackDelay: 0, reduceSpellCooldownFraction: 0, reduceSpellCooldownSeconds: 0, refundManaFraction: 0, barrierAmount: 0 }
+  for (const { effect, rank } of activeMagicEffects(progression, 'disruption-magic', definitions)) {
+    if (effect.type === 'onSuccessfulInterruptRestoreMana') hooks.restoreMana += effect.amountPerRank * rank
+    if (effect.type === 'onSuccessfulInterruptRestoreStamina') hooks.restoreStamina += effect.amountPerRank * rank
+    if (effect.type === 'onSuccessfulInterruptApplyEffect') for (let i = 0; i < rank; i += 1) hooks.effects.push({ effectId: effect.effectId, durationMultiplier: effect.durationMultiplier })
+    if (effect.type === 'onSuccessfulInterruptApplyStatEffect') for (let i = 0; i < rank; i += 1) hooks.statEffects.push({ effectId: effect.effectId, durationSeconds: effect.durationSeconds })
+    if (effect.type === 'interruptCooldownModifier') hooks.cooldownMultiplier += effect.valuePerRank * rank
+    if (effect.type === 'interruptedActionCooldownModifier') hooks.cooldownMultiplier += effect.valuePerRank * rank
+    if (effect.type === 'interruptedEnemyAttackDelay') hooks.enemyAttackDelay += effect.valuePerRank * rank
+    if (effect.type === 'onSuccessfulInterruptApplyBarrier') hooks.barrierAmount += effect.amountPerRank * rank
+    if (effect.type === 'onSuccessfulInterruptReduceCooldown') hooks.reduceSpellCooldownFraction += effect.fraction * rank
+    if (effect.type === 'onSuccessfulInterruptReduceCooldownSeconds') hooks.reduceSpellCooldownSeconds += effect.amountSeconds * rank
+    if (effect.type === 'onSuccessfulInterruptRefundManaCost') hooks.refundManaFraction += effect.fraction * rank
+  }
+  return hooks
+}
+
+export function getBarrierAbsorbResourceRestore(progression: ProgressionState, resource: 'mana' | 'stamina', definitions: Record<string, ProficiencyPerkDefinition> = perkById) {
+  return activeMagicEffects(progression, 'warding-magic', definitions).reduce((sum, { effect, rank }) => sum + (effect.type === 'onBarrierAbsorbRestoreMana' && resource === 'mana' ? effect.amountPerRank * rank : effect.type === 'barrierAbsorbResourceRestore' && effect.resource === resource ? effect.amountPerRank * rank : 0), 0)
+}
+
+export function getBarrierAbsorbManaRestore(progression: ProgressionState, definitions: Record<string, ProficiencyPerkDefinition> = perkById) {
+  return getBarrierAbsorbResourceRestore(progression, 'mana', definitions)
+}

@@ -76,6 +76,12 @@ export interface DamageComponent {
   ignoresBarrier?: boolean
 }
 
+import type { CombatProficiencyId, MagicProficiencyId } from '../progression/progressionTypes'
+
+export type DamageProgressionSource =
+  | { type: 'equippedWeapon'; proficiencyEligible: boolean }
+  | { type: 'spell'; proficiencyId: MagicProficiencyId; proficiencyEligible: boolean }
+
 export interface CombatActionDefinition {
   id: string
   name: string
@@ -102,7 +108,7 @@ export interface EnemyActionDefinition extends DefensiveEligibility {
   preparationSeconds: number
   cooldownSeconds: number
   damageMultiplier: number
-  danger: 'low' | 'medium' | 'high'
+  danger: 'low' | 'medium' | 'high' | 'critical'
   interruptible: boolean
   weight?: number
   damage?: DamageComponent[]
@@ -149,7 +155,6 @@ export interface EnemyDefinition {
   resistances: Partial<Record<DamageType, number>>
   traits: EnemyTraitDefinition[]
   actions: EnemyActionDefinition[]
-  baseXp: number
   loot: LootEntry[]
   icon: string
   accent: 'red' | 'blue' | 'gold'
@@ -227,7 +232,8 @@ export interface CombatSession {
   damageDealt: number
   damageTaken: number
   healing: number
-  xpGained: number
+  proficiencyXpGained: Partial<Record<CombatProficiencyId, number>>
+  masteryXpGained: number
   itemsGained: number
   lootGained: Record<string, number>
   goldGained: number

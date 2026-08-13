@@ -1,4 +1,4 @@
-export type ScreenId = 'home' | 'combat' | 'equipment' | 'inventory' | 'collection' | 'settings' | 'info'
+export type ScreenId = 'home' | 'combat' | 'equipment' | 'proficiencies' | 'inventory' | 'collection' | 'settings' | 'info'
 
 export type ActivityType = 'idle' | 'combat'
 

@@ -1,4 +1,5 @@
 import type { CombatantRef, DamageType, StatModifier } from './combatTypes'
+import type { ProgressionCredit } from '../progression/progressionTypes'
 
 export type EffectKind = 'buff' | 'debuff' | 'status' | 'barrier'
 export type EffectStackingMode = 'refresh' | 'stack-refresh' | 'extend' | 'replace-stronger' | 'independent'
@@ -42,7 +43,8 @@ export interface ActiveEffectInstance {
   remainingSeconds: number | null
   nextTickRemaining: number | null
   appliedSequence: number
-  snapshot?: { power?: number }
+  snapshot?: { power?: number; periodicPowerMultiplier?: number }
+  progressionCredit?: ProgressionCredit
   runtimeValues?: { absorbRemaining?: number }
 }
 

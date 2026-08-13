@@ -21,6 +21,6 @@ export function createCombatState(): CombatState {
     playerHp: combatBalance.baseMaxHealth, maxPlayerHp: combatBalance.baseMaxHealth, playerAttackTimer: combatBalance.baseAttackInterval, playerAttackInterval: combatBalance.baseAttackInterval,
     stamina: combatBalance.baseMaxStamina, maxStamina: combatBalance.baseMaxStamina, mana: combatBalance.baseMaxMana, maxMana: combatBalance.baseMaxMana,
     stance: 'mid', stanceCooldownRemaining: 0, techniques: { 'careful-positioning': false, 'heightened-reflexes': false }, spells, playerEffects: [], potionCooldownRemaining: 0, recoveryRemaining: 0, stopReason: null, lastDamageSource: null,
-    log: [], events: [], session: { elapsedSeconds: 0, groupClears: 0, enemiesDefeated: 0, damageDealt: 0, damageTaken: 0, healing: 0, xpGained: 0, itemsGained: 0, lootGained: {}, goldGained: 0, highestHit: 0 }, eventSequence: 0, effectSequence: 0,
+    log: [], events: [], session: { elapsedSeconds: 0, groupClears: 0, enemiesDefeated: 0, damageDealt: 0, damageTaken: 0, healing: 0, proficiencyXpGained: {}, masteryXpGained: 0, itemsGained: 0, lootGained: {}, goldGained: 0, highestHit: 0 }, eventSequence: 0, effectSequence: 0,
   }
 }

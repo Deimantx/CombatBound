@@ -11,6 +11,8 @@ import { PlaceholderArt } from '../../../components/PlaceholderArt'
 import { StatLine } from '../../../components/StatLine'
 import { techniqueStaminaDrain } from './combatUi'
 import { EffectChips } from './EffectChips'
+import { getActiveWeaponProficiency } from '../../../../game/progression/progressionSelectors'
+import { proficiencyById } from '../../../../game/data/proficiencies'
 
 interface HunterCombatPanelProps {
   game: GameState
@@ -21,11 +23,10 @@ interface HunterCombatPanelProps {
 
 export function HunterCombatPanel({ game, stats, onSetStance, onToggleTechnique }: HunterCombatPanelProps) {
   const combat = game.combat
-  const totalLevel = Object.values(game.progression.skills).reduce((sum, skill) => sum + skill.level, 0)
+  const activeProficiency = getActiveWeaponProficiency(game.progression, game.equipment)
   const drain = techniqueStaminaDrain(combat)
   return <Panel title="Hunter" subtitle="Preparation and derived stats" icon={Shield} panelId="playerCombat" screen="combat" className="player-combat-panel">
-    <div className="combat-identity"><PlaceholderArt icon="shield" label="Vanguard" size="medium" variant="blue" /><div><h3>Vanguard</h3><p>Hunter Rank {game.progression.hunterRank} · Combat Lv {totalLevel}</p><span className="identity-level">{game.progression.trainingFocus} training</span></div></div>
-    <div className="training-row"><span className="tiny-label">TRAINING</span><strong>{game.progression.trainingFocus}</strong><small>Enemy kills award XP here.</small></div>
+    <div className="combat-identity"><PlaceholderArt icon="shield" label="Vanguard" size="medium" variant="blue" /><div><h3>Vanguard</h3><p>{activeProficiency ? `${proficiencyById[activeProficiency.proficiencyId]?.name} · Lv ${activeProficiency.level}` : 'No weapon proficiency'}</p><span className="identity-level">Use the equipped weapon to improve it.</span></div></div>
     <div className="stance-section"><div className="section-title"><span className="tiny-label">STANCE</span><small>{combat.stanceCooldownRemaining > 0 ? `${combat.stanceCooldownRemaining.toFixed(1)}s cooldown` : 'Ready'}</small></div><div className="stance-buttons">{(Object.keys(stanceDefinitions) as Array<'high' | 'mid' | 'low'>).map((stance) => <GameTooltip key={stance} content={buildStanceTooltip(stance)}><button className={combat.stance === stance ? 'stance-button is-active' : 'stance-button'} onClick={() => onSetStance(stance)} disabled={combat.stanceCooldownRemaining > 0} aria-pressed={combat.stance === stance} data-debug-kind="stance" data-debug-stance-id={`stance.${stance}`} data-debug-label={stanceDefinitions[stance].name}>{stanceDefinitions[stance].name}</button></GameTooltip>)}</div><p className="micro-copy">{stanceDefinitions[combat.stance].description}</p></div>
     <div className="stat-stack"><StatLine label="Attack Power" value={stats.attackPower} accent="gold" statKey="attackPower" statValue={stats.attackPower} /><StatLine label="Accuracy" value={Math.round(stats.accuracy)} statKey="accuracy" statValue={stats.accuracy} /><StatLine label="Armor" value={Math.round(stats.armor)} accent="blue" statKey="armor" statValue={stats.armor} /><StatLine label="Evasion" value={Math.round(stats.evasion)} statKey="evasion" statValue={stats.evasion} /><StatLine label="Attack interval" value={`${stats.attackInterval.toFixed(1)}s`} statKey="attackInterval" statValue={stats.attackInterval} /></div>
     <div className="combat-effects-inspector"><div className="section-title"><span className="tiny-label">ACTIVE EFFECTS</span><small>{game.combat.playerEffects.length}</small></div><EffectChips effects={game.combat.playerEffects} debugId="player" /></div>

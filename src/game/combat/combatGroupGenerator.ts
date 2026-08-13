@@ -2,8 +2,8 @@ import type { CombatLocationDefinition } from '../world/worldTypes'
 
 export interface RandomSource { next(): number }
 
-export function generateCombatGroup(location: CombatLocationDefinition, rng: RandomSource, combatLevel = 1): string[] {
-  const eligible = location.enemyPool.filter((entry) => (entry.minCombatLevel ?? 1) <= combatLevel)
+export function generateCombatGroup(location: CombatLocationDefinition, rng: RandomSource, masteryLevel = 1): string[] {
+  const eligible = location.enemyPool.filter((entry) => (entry.minMasteryLevel ?? 1) <= masteryLevel)
   const pool = eligible.length > 0 ? eligible : location.enemyPool
   const generation = location.groupGeneration
   const size = generation.minGroupSize + Math.floor(rng.next() * (generation.maxGroupSize - generation.minGroupSize + 1))

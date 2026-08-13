@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { combatStatReferenceById } from '../game/data/combatGlossary'
-import { skillById } from '../game/data/skills'
+import { proficiencyById } from '../game/data/proficiencies'
 import { formatCombatStatValue, formatItemStat } from '../game/presentation/statFormatting'
 
 describe('combat reference metadata', () => {
@@ -13,11 +13,10 @@ describe('combat reference metadata', () => {
     expect(combatStatReferenceById.blockChance.label).not.toBe(combatStatReferenceById.blockPower.label)
   })
 
-  it('describes current skill effects without inventing scaling', () => {
-    expect(skillById.swordsmanship.currentEffect).toContain('Accuracy')
-    expect(skillById.defense.currentEffect).toContain('Armor')
-    expect(skillById.stances.currentEffect).toContain('No direct stat scaling')
-    expect(skillById.magic.currentEffect).toContain('No direct spell scaling')
+  it('describes weapon proficiency progression without inventing global stat scaling', () => {
+    expect(proficiencyById['one-handed-sword'].description).toContain('sword')
+    expect(proficiencyById['one-handed-sword'].maxLevel).toBe(100)
+    expect(proficiencyById['one-handed-sword'].perkIds.length).toBeGreaterThan(0)
   })
 
   it('uses compact combat formats and resistance tones', () => {

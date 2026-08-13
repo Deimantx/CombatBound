@@ -4,7 +4,7 @@ import type { CombatState } from './combat/combatTypes'
 import { createCombatState } from './combat/combatState'
 import { enemyDefinitions } from './data/enemies'
 import { createInitialInventory, type InventoryState } from './inventory/inventoryTypes'
-import { createInitialProgression } from './progression/experience'
+import { createInitialProgression } from './progression/proficiencyProgression'
 import type { ProgressionState } from './progression/progressionTypes'
 
 export interface GameState {

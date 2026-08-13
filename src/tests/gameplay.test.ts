@@ -6,7 +6,7 @@ import { enemyById } from '../game/data/enemies'
 import { combatLocationById } from '../game/data/world/combatLocations'
 import { createInitialGameState } from '../game/gameState'
 import { calculateHunterCombatStats } from '../game/equipment/derivedStats'
-import { addSkillXp, calculateHunterRank, levelForXp, xpForLevel } from '../game/progression/experience'
+import { awardProficiencyXp, proficiencyLevelForXp, proficiencyXpForLevel } from '../game/progression/proficiencyProgression'
 
 const fixedContext = createCombatContext({ next: () => 0.5 })
 const statsFor = (game: ReturnType<typeof createInitialGameState>) => calculateHunterCombatStats(game.equipment, game.progression, game.combat.stance, game.combat.techniques)
@@ -152,12 +152,48 @@ describe('gameplay domain', () => {
     expect(nextGroup.combat.stamina).toBeLessThan(nextGroup.combat.maxStamina)
   })
 
-  it('levels the active focus and derives hunter rank from skills', () => {
+  it('levels weapon proficiency and global mastery from eligible damage', () => {
     let progression = createInitialGameState().progression
-    progression = addSkillXp(progression, 'swordsmanship', xpForLevel(4)).progression
-    expect(progression.skills.swordsmanship.level).toBeGreaterThanOrEqual(4)
-    expect(levelForXp(progression.skills.swordsmanship.totalXp)).toBe(progression.skills.swordsmanship.level)
-    expect(calculateHunterRank(progression)).toBeGreaterThanOrEqual(1)
+    const result = awardProficiencyXp(progression, 'one-handed-sword', proficiencyXpForLevel(4))
+    progression = result.progression
+    expect(proficiencyLevelForXp(progression.proficiencies['one-handed-sword']!.totalXp)).toBeGreaterThanOrEqual(4)
+    expect(progression.masteryXp).toBe(proficiencyXpForLevel(4))
+    expect(result.perkPointsEarned).toBe(0)
+  })
+
+  it('awards only actual HP damage from direct weapon attacks', () => {
+    const game = createInitialGameState()
+    const stats = { ...statsFor(game), attackPower: 10000, accuracy: 10000 }
+    const started = startHunt(game, 'location.wolf-den', stats, fixedContext)
+    const target = started.combat.enemies[0]
+    const overkill = advanceCombat({ ...started, combat: { ...started.combat, playerAttackTimer: 0, selectedEnemyInstanceId: target.instanceId, enemies: [{ ...target, currentHealth: 1 }] } }, 0.01, fixedContext, stats)
+    expect(overkill.progression.proficiencies['one-handed-sword']?.totalXp).toBe(1)
+    expect(overkill.progression.masteryXp).toBe(1)
+    expect(overkill.combat.session.proficiencyXpGained['one-handed-sword']).toBe(1)
+    expect(overkill.combat.session.masteryXpGained).toBe(1)
+  })
+
+  it('awards magic progression for eligible Fire spell damage without awarding the equipped weapon', () => {
+    const game = createInitialGameState()
+    const stats = statsFor(game)
+    const started = startHunt(game, 'location.wolf-den', stats, fixedContext)
+    const target = started.combat.enemies[0]
+    const cast = castSpell({ ...started, combat: { ...started.combat, selectedEnemyInstanceId: target.instanceId, mana: 100 } }, 'spell.flame-blast', stats, fixedContext)
+    expect(cast.progression.masteryXp).toBeGreaterThan(0)
+    expect(cast.progression.proficiencies['one-handed-sword']?.totalXp).toBe(0)
+    expect(cast.progression.proficiencies['fire-magic']?.totalXp).toBeGreaterThan(0)
+    expect(cast.combat.session.proficiencyXpGained['fire-magic']).toBeGreaterThan(0)
+  })
+
+  it('credits authored Burn ticks to Fire Magic', () => {
+    const game = createInitialGameState()
+    const stats = { ...statsFor(game), accuracy: 10000 }
+    const started = startHunt(game, 'location.wolf-den', stats, fixedContext)
+    const prepared = { ...started, combat: { ...started.combat, mana: 100, playerAttackTimer: 100, enemies: started.combat.enemies.map((enemy) => ({ ...enemy, attackTimer: 100, specialCooldownRemaining: 100 })) } }
+    const cast = castSpell(prepared, 'spell.flame-blast', stats, fixedContext)
+    const before = cast.progression.proficiencies['fire-magic']?.totalXp ?? 0
+    const advanced = advanceCombat(cast, 2.1, fixedContext, stats)
+    expect(advanced.progression.proficiencies['fire-magic']?.totalXp ?? 0).toBeGreaterThan(before)
   })
 
   it('exposes immutable world enemy definitions and location pools', () => {
@@ -179,6 +215,8 @@ describe('gameplay domain', () => {
     const interrupted = castSpell(preparing, 'spell.disrupting-pulse', stats, context)
     expect(interrupted.combat.enemies.find((enemy) => enemy.instanceId === archer!.instanceId)?.currentAction).toBeNull()
     expect(interrupted.combat.mana).toBe(65)
+    expect(interrupted.progression.proficiencies['disruption-magic']?.totalXp).toBe(50)
+    expect(interrupted.combat.session.proficiencyXpGained['disruption-magic']).toBe(50)
   })
 
   it('consumes a potion only when it restores health', () => {

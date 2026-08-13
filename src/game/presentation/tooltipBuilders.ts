@@ -2,11 +2,13 @@ import type { ActiveEffectInstance, EffectDefinition, CombatStatKey, DamageType 
 import type { ItemDefinition } from '../data/items'
 import { combatStatReferenceById } from '../data/combatGlossary'
 import { effectById } from '../data/effects'
-import { skillById } from '../data/skills'
 import type { SpellDefinition } from '../data/spells'
 import { stanceDefinitions } from '../data/stances'
 import type { TechniqueId } from '../combat/combatTypes'
+import type { ProgressionState } from '../progression/progressionTypes'
+import { calculateEffectiveSpell } from '../progression/spellProgression'
 import { techniqueDefinitions } from '../data/techniques'
+import { proficiencyById } from '../data/proficiencies'
 import { formatCombatStatValue, formatItemStats, formatPercent, formatSeconds, formatSignedNumber, labelForStatKey } from './statFormatting'
 import type { TooltipModel, TooltipRow, TooltipTone } from './tooltipTypes'
 
@@ -19,6 +21,7 @@ const toneForValue = (value: number): TooltipTone => value > 0 ? 'green' : value
 
 export function buildItemTooltip(item: ItemDefinition, options: { quantity?: number; equipped?: boolean } = {}): TooltipModel {
   const rows = formatItemStats(item.stats ?? {}).map((row) => ({ label: row.label, value: row.value, tone: row.tone }))
+  if (item.weaponProficiencyId) rows.unshift({ label: 'Proficiency', value: proficiencyById[item.weaponProficiencyId]?.name ?? item.weaponProficiencyId, tone: 'blue' as TooltipTone })
   return { id: item.id, icon: item.icon, title: item.name, subtitle: `${categoryLabels[item.category]} · ${rarityLabels[item.rarity]}`, tone: item.rarity === 'rare' ? 'gold' : item.rarity === 'uncommon' ? 'blue' : 'default', description: item.description, rows, notes: [options.quantity !== undefined ? `Owned: ${options.quantity}` : '', options.equipped ? 'Currently equipped' : ''].filter(Boolean) }
 }
 
@@ -30,9 +33,9 @@ export function buildStatTooltip(key: string, value: number, detail?: string): T
   return { id: `stat.${key}`, title: label, subtitle: reference ? `${reference.category[0].toUpperCase()}${reference.category.slice(1)} combat stat` : 'Combat stat', tone: reference?.category === 'resistances' ? toneForValue(value) : 'default', description: reference?.fullDescription ?? `Current combat value for ${label}.`, rows, notes: [reference?.formula, ...(reference?.notes ?? [])].filter((note): note is string => Boolean(note)) }
 }
 
-export function buildSkillTooltip(skill: keyof typeof skillById | (typeof skillById)[keyof typeof skillById]): TooltipModel {
-  const definition = typeof skill === 'string' ? skillById[skill] : skill
-  return { id: `skill.${definition.id}`, icon: definition.icon, title: definition.name, subtitle: 'Combat progression skill', description: definition.fullDescription, rows: [{ label: 'Current effect', value: definition.currentEffect, tone: definition.id === 'swordsmanship' || definition.id === 'defense' ? 'gold' : 'blue' }] }
+export function buildProficiencyTooltip(proficiency: keyof typeof proficiencyById | (typeof proficiencyById)[keyof typeof proficiencyById]): TooltipModel {
+  const definition = typeof proficiency === 'string' ? proficiencyById[proficiency] : proficiency
+  return { id: `proficiency.${definition.id}`, icon: definition.icon, title: definition.name, subtitle: `${definition.category === 'magic' ? 'Magic' : definition.category === 'melee' ? 'Melee' : 'Ranged'} proficiency`, description: definition.description, rows: [{ label: 'Maximum level', value: `${definition.maxLevel}`, tone: 'gold' }, { label: 'Perks authored', value: `${definition.perkIds.length}`, tone: 'blue' }] }
 }
 
 export function buildEffectTooltip(instance: ActiveEffectInstance, definition: EffectDefinition = effectById[instance.effectId]): TooltipModel {
@@ -53,14 +56,16 @@ export function buildEffectTooltip(instance: ActiveEffectInstance, definition: E
   return { id: `${definition.id}.${instance.instanceId}`, icon: definition.icon, title: definition.name, subtitle: `${kindLabels[definition.kind]} · ${definition.tags.join(' · ')}`, tone: definition.kind === 'debuff' || definition.kind === 'status' ? 'red' : definition.kind === 'barrier' ? 'blue' : 'green', description: definition.description, rows, notes }
 }
 
-export function buildSpellTooltip(spell: SpellDefinition): TooltipModel {
+export function buildSpellTooltip(spell: SpellDefinition, progression?: ProgressionState): TooltipModel {
+  const effective = progression ? calculateEffectiveSpell(spell, progression) : spell
   const rows: TooltipRow[] = [
-    { label: 'Mana cost', value: `${spell.manaCost}`, tone: 'gold' },
-    { label: 'Cooldown', value: formatSeconds(spell.cooldownSeconds), tone: 'blue' },
+    { label: 'Proficiency', value: proficiencyById[spell.magicProficiencyId]?.name ?? spell.magicProficiencyId, tone: 'blue' },
+    { label: 'Mana cost', value: `${effective.manaCost}`, tone: 'gold' },
+    { label: 'Cooldown', value: formatSeconds(effective.cooldownSeconds), tone: 'blue' },
     { label: 'Target', value: spell.targetMode === 'self' ? 'Self' : spell.targetMode === 'allEnemies' ? 'All enemies' : 'Selected enemy' },
   ]
-  if (spell.damage > 0) rows.push({ label: 'Base damage', value: `${spell.damage} ${damageLabels[spell.damageType ?? 'physical']}`, tone: 'red' })
-  if (spell.barrierAmount) rows.push({ label: 'Barrier', value: `${spell.barrierAmount}`, tone: 'blue' })
+  if (spell.damage > 0) rows.push({ label: 'Base damage', value: `${effective.damage} ${damageLabels[spell.damageType ?? 'physical']}`, tone: 'red' })
+  if (effective.barrierAmount) rows.push({ label: 'Barrier', value: `${effective.barrierAmount}`, tone: 'blue' })
   if (spell.applyEffects?.length) rows.push({ label: 'Applies', value: spell.applyEffects.map(({ effectId, chance }) => `${effectById[effectId]?.name ?? effectId}${chance < 1 ? ` (${formatPercent(chance)})` : ''}`).join(', '), tone: 'red' })
   if (spell.interruptsAction) rows.push({ label: 'Utility', value: 'Interrupts a selected enemy special action', tone: 'blue' })
   return { id: spell.id, icon: spell.icon, title: spell.name, subtitle: 'Combat spell', tone: spell.damageType === 'fire' ? 'red' : spell.barrierAmount ? 'blue' : 'gold', description: spell.description, rows }

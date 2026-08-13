@@ -1,6 +1,9 @@
 import { ArrowRight, Check, ChevronDown, Shield, ShieldCheck, Sparkles, Sword, Swords } from 'lucide-react'
 import { useId, useState } from 'react'
 import { itemDefinitions, type ItemDefinition } from '../../../game/data/items'
+import { proficiencyById } from '../../../game/data/proficiencies'
+import { getEquippedWeaponProficiency } from '../../../game/progression/progressionSelectors'
+import { getProficiencyLevel } from '../../../game/progression/proficiencyProgression'
 import { calculateHunterCombatStats } from '../../../game/equipment/derivedStats'
 import { calculateArmorMitigation } from '../../../game/combat/combatMath'
 import type { CombatReferenceCategory } from '../../../game/data/combatGlossary'
@@ -53,6 +56,9 @@ export function EquipmentScreen() {
   const equipped = itemDefinitions.find((item) => item.id === equippedId) ?? itemDefinitions[0]
   const candidates = itemDefinitions.filter((item) => item.category === selected && (game.inventory.quantities[item.id] ?? 0) > 0)
   const stats = calculateHunterCombatStats(game.equipment, game.progression, game.combat.stance, game.combat.techniques)
+  const equippedProficiency = getEquippedWeaponProficiency(game.equipment)
+  const equippedProficiencyName = equippedProficiency ? proficiencyById[equippedProficiency]?.name : undefined
+  const equippedProficiencyLevel = equippedProficiency ? getProficiencyLevel(game.progression, equippedProficiency) : 0
   const resistance = (key: string) => stats.resistances[key.replace('Resistance', '').toLowerCase() as keyof typeof stats.resistances] ?? 0
   const valueFor = (key: string) => key.endsWith('Resistance') ? resistance(key) : stats[key as keyof typeof stats] as number
   const detailFor = (key: string) => key === 'armor' ? `${formatCombatStatValue(key, valueFor(key))} · ${formatPercent(calculateArmorMitigation(stats.armor))} Physical direct mitigation` : key === 'attackInterval' ? `${formatCombatStatValue(key, valueFor(key))} · ${(1 / stats.attackInterval).toFixed(2)} attacks/sec` : undefined
@@ -61,7 +67,7 @@ export function EquipmentScreen() {
     <ScreenHeading screen="equipment" />
     <div className="equipment-layout">
       <Panel title="Equipment loadout" subtitle={combatLocked ? 'Viewing is allowed · Stop combat to change equipment.' : 'Combat-only equipment slots'} icon={ShieldCheck} panelId="equipmentLoadout" screen="equipment" className="equipment-loadout">
-        <div className="loadout-topline"><div className="loadout-avatar"><Shield size={32} /></div><div><h3>Vanguard</h3><p>Hunter Rank {game.progression.hunterRank} · {stats.attackPower} Attack Power</p></div><span className="loadout-rating"><Sparkles size={14} /> {stats.maxHealth} Max HP</span></div>
+        <div className="loadout-topline"><div className="loadout-avatar"><Shield size={32} /></div><div><h3>Vanguard</h3><p>{equippedProficiencyName ? `${equippedProficiencyName} · Lv ${equippedProficiencyLevel}` : 'No weapon proficiency'} · {stats.attackPower} Attack Power</p></div><span className="loadout-rating"><Sparkles size={14} /> {stats.maxHealth} Max HP</span></div>
         <div className="equipment-slots">{(['weapon', 'armor'] as const).map((slot) => { const item = itemDefinitions.find((candidate) => candidate.id === game.equipment.slots[slot]); const active = selected === slot; return <GameTooltip key={slot} content={item ? buildItemTooltip(item, { equipped: true, quantity: game.inventory.quantities[item.id] ?? 0 }) : { id: `equipment-slot.${slot}`, title: `${slot[0].toUpperCase()}${slot.slice(1)} slot`, description: 'An equipment slot for the Hunter.' }}><button className={`equipment-slot ${active ? 'is-selected' : ''}`} onClick={() => selectSlot(slot)} data-debug-kind="equipment-slot" data-debug-item-id={item?.id} data-debug-label={slot}><span className="slot-label">{slot}</span><PlaceholderArt icon={item?.icon ?? 'shield'} size="medium" variant={active ? 'gold' : 'muted'} /><strong>{item?.name ?? 'Empty'}</strong><small>{active ? 'Selected' : item?.rarity ?? 'Empty'}</small>{active && <span className="selected-check"><Check size={12} /></span>}</button></GameTooltip> })}</div>
         <div className="loadout-total"><span>Total combat rating</span><strong>{stats.attackPower}</strong><span className="text-green">{combatLocked ? 'Locked during combat' : 'Ready to equip'}</span></div>
       </Panel>

@@ -41,7 +41,6 @@ export function SelectedEnemyPanel({ game, selectedEnemy }: { game: GameState; s
           <TargetStat label="Evasion" value={definition.evasion} statKey="evasion" statValue={definition.evasion} />
           <TargetStat label="Attack Interval" value={`${definition.attackInterval.toFixed(1)}s`} statKey="attackInterval" statValue={definition.attackInterval} />
           <TargetStat label="Dodge Chance" value={formatPercent(definition.dodgeChance)} statKey="dodgeChance" statValue={definition.dodgeChance} />
-          <TargetStat label="XP" value={definition.baseXp} />
         </div>
         <div className="combat-effects-inspector"><div className="section-title"><span className="tiny-label">ACTIVE EFFECTS</span><small>{selectedEnemy.effects.length}</small></div><EffectChips effects={selectedEnemy.effects} debugId="enemy" /></div>
         {definition.parryChance > 0 || definition.blockChance > 0 ? <div className="target-defenses"><span>Parry {formatPercent(definition.parryChance)}</span><span>Block {formatPercent(definition.blockChance)}</span></div> : null}
