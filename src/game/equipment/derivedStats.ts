@@ -51,8 +51,11 @@ export function calculateHunterCombatStats(equipment: EquipmentState, progressio
     resistances: {
       physical: combatBalance.basePhysicalResistance + (weaponStats.physicalResistance ?? 0) + (armorStats.physicalResistance ?? 0),
       fire: combatBalance.baseFireResistance + (weaponStats.fireResistance ?? 0) + (armorStats.fireResistance ?? 0),
+      water: (weaponStats.waterResistance ?? 0) + (armorStats.waterResistance ?? 0),
       earth: (weaponStats.earthResistance ?? 0) + (armorStats.earthResistance ?? 0),
       air: (weaponStats.airResistance ?? 0) + (armorStats.airResistance ?? 0),
+      light: (weaponStats.lightResistance ?? 0) + (armorStats.lightResistance ?? 0),
+      darkness: (weaponStats.darknessResistance ?? 0) + (armorStats.darknessResistance ?? 0),
       nature: (weaponStats.natureResistance ?? 0) + (armorStats.natureResistance ?? 0),
       mystic: (weaponStats.mysticResistance ?? 0) + (armorStats.mysticResistance ?? 0),
     },

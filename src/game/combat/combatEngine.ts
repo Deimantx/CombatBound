@@ -11,7 +11,7 @@ import { itemById } from '../data/items'
 import { combatBalance, clamp } from './combatBalance'
 import { componentFromAttack, resolveDamage, applyBarrierToDamage, type DamagePacket } from './combatDamage'
 import { calculateEffectiveCombatStats, calculateEnemyBaseCombatStats, normalizeCombatStats } from './combatStats'
-import { applyEffectById, absorbDamage, advanceEffectTimers, getBarrierAmount, updateActiveEffects } from './combatEffects'
+import { applyEffectById, absorbDamage, advanceEffectTimers, cleanseEffects, getBarrierAmount, updateActiveEffects } from './combatEffects'
 import { interruptAction, selectNextEnemyAction } from './combatActions'
 import { instantiateEnemies } from './combatState'
 import { generateCombatGroup } from './combatGroupGenerator'
@@ -19,7 +19,7 @@ import { firstLivingEnemy, livingEnemies, selectNextTarget } from './combatTarge
 import { resolveEnemyReward, resolveLocationClearReward } from './combatRewards'
 import { awardProficiencyXp, calculateProficiencyXpAward, discoverProficiency } from '../progression/proficiencyProgression'
 import { masteryLevelForXp } from '../progression/masteryProgression'
-import { applyProficiencyStatModifiers, getBarrierAbsorbManaRestore, getConditionalMagicStatModifiers, getConditionalProficiencyStatModifiers, getParryEffectHooks, getProficiencyXpMultiplier, getSpellCastEffectHooks, getSpellHpDamageResourceHooks, getStanceSwitchCooldownMultiplier, getStanceSwitchEffectHooks, getSuccessfulInterruptHooks, getTechniqueStaminaDrainMultiplier, getWeaponDamageMultiplier, getWeaponHitAdvanceHooks, getWeaponHitEffectHooks, getWeaponHitResourceHooks } from '../progression/perkProgression'
+import { applyProficiencyStatModifiers, getBarrierAbsorbResourceRestore, getConditionalMagicStatModifiers, getConditionalProficiencyStatModifiers, getEffectiveMagicModifiers, getMagicCleanseEffectHooks, getMagicCleanseHooks, getParryEffectHooks, getProficiencyXpMultiplier, getSpellCastEffectHooks, getSpellHitEffectHooks, getSpellHpDamageResourceHooks, getSpellLifeDrainFraction, getStanceSwitchCooldownMultiplier, getStanceSwitchEffectHooks, getSuccessfulInterruptHooks, getTechniqueStaminaDrainMultiplier, getWeaponAttackModifiers, getWeaponBlockEffectHooks, getWeaponDamageMultiplier, getWeaponDodgeEffectHooks, getWeaponHitAdvanceHooks, getWeaponHitEffectHooks, getWeaponHitResourceHooks } from '../progression/perkProgression'
 import { calculateEffectiveSpell } from '../progression/spellProgression'
 import { getEquippedWeaponProficiency } from '../progression/progressionSelectors'
 import { perkById } from '../data/proficiencyPerks'
@@ -66,8 +66,27 @@ function awardCombatXp(game: GameState, proficiencyId: CombatProficiencyId, amou
   }
 }
 
+function applyEffectiveHealing(game: GameState, proficiencyId: CombatProficiencyId, requestedAmount: number, source: CombatantRef, label: string, awardProgression = true) {
+  const effective = Math.min(Math.max(0, game.combat.maxPlayerHp - game.combat.playerHp), Math.max(0, requestedAmount))
+  if (effective <= 0) return game
+  let next = { ...game, combat: event({ ...game.combat, playerHp: game.combat.playerHp + effective, session: { ...game.combat.session, healing: game.combat.session.healing + effective } }, { text: `${label} restores ${effective} HP.`, type: 'player', eventType: 'healingDone', source, target: { kind: 'player' }, data: { amount: effective } }) }
+  if (awardProgression) next = awardCombatXp(next, proficiencyId, calculateProficiencyXpAward({ type: 'effective-healing', amount: effective })).game
+  return next
+}
+
 function discoverCombatProficiency(game: GameState, proficiencyId: CombatProficiencyId) {
   return game.progression.proficiencies[proficiencyId] ? game : { ...game, progression: discoverProficiency(game.progression, proficiencyId) }
+}
+
+function restoreBarrierResource(game: GameState, proficiencyId: CombatProficiencyId, absorbedAmount: number) {
+  const resource = proficiencyId === 'light-magic' ? 'mana' : proficiencyId === 'earth-magic' ? 'stamina' : null
+  const magicProficiencyId = proficiencyId === 'light-magic' || proficiencyId === 'earth-magic' ? proficiencyId : undefined
+  if (!resource || !magicProficiencyId) return game
+  const restored = getBarrierAbsorbResourceRestore(game.progression, resource, perkById, magicProficiencyId) * absorbedAmount
+  if (restored <= 0) return game
+  return resource === 'mana'
+    ? { ...game, combat: { ...game.combat, mana: Math.min(game.combat.maxMana, game.combat.mana + restored) } }
+    : { ...game, combat: { ...game.combat, stamina: Math.min(game.combat.maxStamina, game.combat.stamina + restored) } }
 }
 
 function awardBarrierCredits(game: GameState, absorptions: Array<{ effectId: string; amount: number; progressionCredit?: ProgressionCredit }>) {
@@ -76,8 +95,7 @@ function awardBarrierCredits(game: GameState, absorptions: Array<{ effectId: str
     const credit = absorption.progressionCredit
     if (credit?.mode !== 'barrier-absorb') continue
     next = awardCombatXp(next, credit.proficiencyId, calculateProficiencyXpAward({ type: 'barrier-absorption', amount: absorption.amount })).game
-    const manaRestore = getBarrierAbsorbManaRestore(next.progression, perkById) * absorption.amount
-    if (manaRestore > 0 && credit.proficiencyId === 'warding-magic') next.combat = { ...next.combat, mana: Math.min(next.combat.maxMana, next.combat.mana + manaRestore) }
+    next = restoreBarrierResource(next, credit.proficiencyId, absorption.amount)
   }
   return next
 }
@@ -129,7 +147,7 @@ export function setStance(combat: CombatState, stance: StanceId, newStats: Hunte
 export function toggleTechnique(combat: CombatState, technique: TechniqueId) { return { ...combat, techniques: { ...combat.techniques, [technique]: !combat.techniques[technique] } } }
 
 export function castSpell(game: GameState, spellId: string, stats: HunterCombatStats, context: CombatContext): GameState {
-  const spell = spellById[spellId]
+  const spell = context.spells[spellId] ?? spellById[spellId]
   const combat = game.combat
   if (!spell || combat.phase !== 'active') return game
   const runtime = combat.spells.find((entry) => entry.spellId === spellId)
@@ -146,22 +164,51 @@ export function castSpell(game: GameState, spellId: string, stats: HunterCombatS
   let next: GameState = { ...game, combat: { ...combat, mana: combat.mana - effectiveSpell.manaCost, spells: combat.spells.map((entry) => entry.spellId === spellId ? { ...entry, cooldownRemaining: effectiveSpell.cooldownSeconds } : entry) } }
   const source: CombatantRef = { kind: 'player' }
 
+  const magicModifiers = getEffectiveMagicModifiers(next.progression, spell.magicProficiencyId, perkById)
   if (spell.damage > 0 && target) {
-    const packet: DamagePacket = { ...componentFromAttack(spell.damageType ?? 'fire', 0, effectiveSpell.canCrit), source, target: targetRef, baseDamage: effectiveSpell.damage, criticalDamageMultiplier: effectiveSpell.criticalDamageMultiplier, criticalChanceBonus: effectiveSpell.criticalChanceBonus, attackerAccuracy: getPlayerStats(next.combat, stats, context, next.progression).accuracy + effectiveSpell.accuracyModifier, minMultiplier: combatBalance.baseDamageVarianceMin, maxMultiplier: combatBalance.baseDamageVarianceMax, defensiveEligibility: { canMiss: spell.canMiss ?? true, dodgeable: spell.dodgeable ?? false, parryable: spell.parryable ?? false, blockable: spell.blockable ?? false }, progressionSource: { type: 'spell', proficiencyId: spell.magicProficiencyId, proficiencyEligible: true } }
-    const effects = (spell.applyEffects ?? []).map((applied) => ({ ...applied, options: applied.progressionCredit ? { progressionCredit: { proficiencyId: spell.magicProficiencyId, mode: applied.progressionCredit }, durationBonusSeconds: effectiveSpell.effectDurationModifiers[applied.effectId]?.durationBonusSeconds, durationMultiplier: effectiveSpell.effectDurationModifiers[applied.effectId]?.durationMultiplier, periodicPowerMultiplier: effectiveSpell.effectPeriodicPowerModifiers[applied.effectId], maxStacksBonus: effectiveSpell.effectMaxStacksModifiers[applied.effectId] } : undefined }))
+    const packet: DamagePacket = { ...componentFromAttack(spell.damageType ?? 'fire', 0, effectiveSpell.canCrit), source, target: targetRef, baseDamage: effectiveSpell.damage, criticalDamageMultiplier: effectiveSpell.criticalDamageMultiplier, criticalChanceBonus: effectiveSpell.criticalChanceBonus, attackerAccuracy: getPlayerStats(next.combat, stats, context, next.progression).accuracy + effectiveSpell.accuracyModifier, minMultiplier: combatBalance.baseDamageVarianceMin, maxMultiplier: combatBalance.baseDamageVarianceMax, defensiveEligibility: { canMiss: spell.canMiss ?? true, dodgeable: spell.dodgeable ?? false, parryable: spell.parryable ?? false, blockable: spell.blockable ?? false }, armorPenetrationPercent: magicModifiers.spellArmorPenetrationPercent, armorPenetrationFlat: magicModifiers.spellArmorPenetrationFlat, progressionSource: { type: 'spell', proficiencyId: spell.magicProficiencyId, proficiencyEligible: true } }
+    const effects = [
+      ...(spell.applyEffects ?? []).map((applied) => ({ ...applied, options: { sourceProficiencyId: spell.magicProficiencyId, progressionCredit: applied.progressionCredit ? { proficiencyId: spell.magicProficiencyId, mode: applied.progressionCredit } : undefined, durationBonusSeconds: effectiveSpell.effectDurationModifiers[applied.effectId]?.durationBonusSeconds, durationMultiplier: effectiveSpell.effectDurationModifiers[applied.effectId]?.durationMultiplier, periodicPowerMultiplier: effectiveSpell.effectPeriodicPowerModifiers[applied.effectId], maxStacksBonus: effectiveSpell.effectMaxStacksModifiers[applied.effectId] } })),
+      ...getSpellHitEffectHooks(next.progression, spell.magicProficiencyId, perkById).map((hook) => ({ effectId: hook.effectId, chance: hook.chance, options: { sourceProficiencyId: spell.magicProficiencyId, secondaryOnly: hook.secondaryOnly, durationBonusSeconds: effectiveSpell.effectDurationModifiers[hook.effectId]?.durationBonusSeconds, durationMultiplier: effectiveSpell.effectDurationModifiers[hook.effectId]?.durationMultiplier, periodicPowerMultiplier: effectiveSpell.effectPeriodicPowerModifiers[hook.effectId], maxStacksBonus: effectiveSpell.effectMaxStacksModifiers[hook.effectId] } })),
+    ]
     next = damageEnemy(next, target, packet, getPlayerStats(next.combat, stats, context, next.progression), context, `You cast ${spell.name}`, effects)
     if (next.combat.phase !== 'active') return next
-    for (const hook of getSpellCastEffectHooks(next.progression, spell.magicProficiencyId, perkById)) next = applyEffectToGame(next, hook.effectId, source, targetRef, getEnemyStats(next.combat, target, context), context, { durationBonusSeconds: hook.durationSeconds })
+  }
+  for (const hook of getSpellCastEffectHooks(next.progression, spell.magicProficiencyId, perkById)) {
+    const definition = context.effects[hook.effectId]
+    const hookTarget = definition?.beneficial || definition?.kind === 'buff' || definition?.kind === 'barrier' ? source : targetRef
+    if (hookTarget.kind === 'enemy' && !target) continue
+    const hookStats = hookTarget.kind === 'player' ? getPlayerStats(next.combat, stats, context, next.progression) : getEnemyStats(next.combat, target as EnemyCombatInstance, context)
+    next = applyEffectToGame(next, hook.effectId, source, hookTarget, hookStats, context, { sourceProficiencyId: spell.magicProficiencyId, durationBonusSeconds: hook.durationSeconds })
+  }
+  const castDamage = Math.max(0, next.combat.session.damageDealt - game.combat.session.damageDealt)
+  if (castDamage > 0 && spell.damage > 0) {
+    const manaRestore = castDamage * magicModifiers.damageBasedManaRestoreFraction
+    if (manaRestore > 0) next.combat = { ...next.combat, mana: Math.min(next.combat.maxMana, next.combat.mana + manaRestore) }
+    const drainFraction = getSpellLifeDrainFraction(next.progression, spell.magicProficiencyId, perkById)
+    const drainedHealing = Math.min(next.combat.maxPlayerHp - next.combat.playerHp, castDamage * drainFraction)
+    if (drainedHealing > 0) next = applyEffectiveHealing(next, spell.magicProficiencyId, drainedHealing, source, `${spell.name} drain`, false)
+  }
+  if (effectiveSpell.healing && spell.targetMode === 'self') next = applyEffectiveHealing(next, spell.magicProficiencyId, effectiveSpell.healing.flatAmount, source, spell.name)
+  if (spell.cleanseTags?.length) {
+    const cleansed = cleanseEffects(next.combat, source, { tags: spell.cleanseTags, maxEffects: spell.cleanseMaxEffects }, context.effects)
+    next = { ...next, combat: cleansed.combat }
+    if (cleansed.removed > 0) {
+      next = awardCombatXp(next, spell.magicProficiencyId, calculateProficiencyXpAward({ type: 'successful-cleanse', weight: cleansed.removed })).game
+      next.combat = event(next.combat, { text: `${spell.name} cleansed ${cleansed.removed} harmful effect${cleansed.removed === 1 ? '' : 's'}.`, type: 'player', eventType: 'effectCleansed', source, target: source, data: { removed: cleansed.removed } })
+      for (const hook of getMagicCleanseHooks(next.progression, spell.magicProficiencyId, perkById)) next.combat = hook.resource === 'mana' ? { ...next.combat, mana: Math.min(next.combat.maxMana, next.combat.mana + hook.amount) } : { ...next.combat, stamina: Math.min(next.combat.maxStamina, next.combat.stamina + hook.amount) }
+      for (const hook of getMagicCleanseEffectHooks(next.progression, spell.magicProficiencyId, perkById)) next = applyEffectToGame(next, hook.effectId, source, source, getPlayerStats(next.combat, stats, context, next.progression), context, { sourceProficiencyId: spell.magicProficiencyId, durationBonusSeconds: hook.durationSeconds })
+    }
   }
   if (spell.barrierAmount !== undefined) {
     const barrierEffectId = spell.barrierEffectId ?? 'effect.protective-sign'
     const duration = effectiveSpell.effectDurationModifiers[barrierEffectId]
-    next = applyEffectToGame(next, barrierEffectId, source, source, getPlayerStats(next.combat, stats, context, next.progression), context, { absorbAmount: effectiveSpell.barrierAmount, power: effectiveSpell.barrierAmount, progressionCredit: { proficiencyId: spell.magicProficiencyId, mode: 'barrier-absorb' }, durationBonusSeconds: duration?.durationBonusSeconds, durationMultiplier: duration?.durationMultiplier })
+    next = applyEffectToGame(next, barrierEffectId, source, source, getPlayerStats(next.combat, stats, context, next.progression), context, { absorbAmount: effectiveSpell.barrierAmount, power: effectiveSpell.barrierAmount, sourceProficiencyId: spell.magicProficiencyId, progressionCredit: { proficiencyId: spell.magicProficiencyId, mode: 'barrier-absorb' }, durationBonusSeconds: duration?.durationBonusSeconds, durationMultiplier: duration?.durationMultiplier })
     next = discoverCombatProficiency(next, spell.magicProficiencyId)
   }
   if (spell.interruptsAction && target) {
     const action = interruptActionDefinition
-    const hooks = getSuccessfulInterruptHooks(next.progression, perkById)
+    const hooks = getSuccessfulInterruptHooks(next.progression, perkById, spell.magicProficiencyId)
     const danger = action?.danger ?? 'low'
     const baseXp = calculateProficiencyXpAward({ type: 'successful-interrupt', danger })
     const xp = baseXp * getProficiencyXpMultiplier(next.progression, spell.magicProficiencyId, 'successful-interrupt', perkById)
@@ -172,19 +219,19 @@ export function castSpell(game: GameState, spellId: string, stats: HunterCombatS
     if (hooks.restoreMana > 0) next.combat = { ...next.combat, mana: Math.min(next.combat.maxMana, next.combat.mana + hooks.restoreMana) }
     if (hooks.restoreStamina > 0) next.combat = { ...next.combat, stamina: Math.min(next.combat.maxStamina, next.combat.stamina + hooks.restoreStamina) }
     if (hooks.refundManaFraction > 0) next.combat = { ...next.combat, mana: Math.min(next.combat.maxMana, next.combat.mana + effectiveSpell.manaCost * hooks.refundManaFraction) }
-    if (hooks.barrierAmount > 0) next = applyEffectToGame(next, 'effect.disruptive-shield', source, source, getPlayerStats(next.combat, stats, context, next.progression), context, { absorbAmount: hooks.barrierAmount, power: hooks.barrierAmount, durationBonusSeconds: 0, durationMultiplier: 1 })
-    for (const hook of hooks.statEffects) next = applyEffectToGame(next, hook.effectId, source, source, getPlayerStats(next.combat, stats, context, next.progression), context, { durationBonusSeconds: hook.durationSeconds })
+    if (hooks.barrierAmount > 0) next = applyEffectToGame(next, 'effect.disruptive-shield', source, source, getPlayerStats(next.combat, stats, context, next.progression), context, { absorbAmount: hooks.barrierAmount, power: hooks.barrierAmount, sourceProficiencyId: spell.magicProficiencyId, durationBonusSeconds: 0, durationMultiplier: 1 })
+    for (const hook of hooks.statEffects) next = applyEffectToGame(next, hook.effectId, source, source, getPlayerStats(next.combat, stats, context, next.progression), context, { sourceProficiencyId: spell.magicProficiencyId, durationBonusSeconds: hook.durationSeconds })
     if (hooks.reduceSpellCooldownFraction > 0 || hooks.reduceSpellCooldownSeconds > 0) next.combat = { ...next.combat, spells: next.combat.spells.map((entry) => entry.spellId === spellId ? { ...entry, cooldownRemaining: Math.max(0, entry.cooldownRemaining * (1 - hooks.reduceSpellCooldownFraction) - hooks.reduceSpellCooldownSeconds) } : entry) }
     for (const hook of hooks.effects) {
       const hookTarget = hook.effectId === 'effect.disruptive-shield' ? source : targetRef
       const hookStats = hookTarget.kind === 'player' ? getPlayerStats(next.combat, stats, context, next.progression) : getEnemyStats(next.combat, target, context)
-      next = applyEffectToGame(next, hook.effectId, source, hookTarget, hookStats, context, { durationMultiplier: hook.durationMultiplier })
+      next = applyEffectToGame(next, hook.effectId, source, hookTarget, hookStats, context, { sourceProficiencyId: spell.magicProficiencyId, durationMultiplier: hook.durationMultiplier })
     }
   }
   return next
 }
 
-function applyEffectToGame(game: GameState, effectId: string, source: CombatantRef, target: CombatantRef, targetStats: CombatStats, context: CombatContext, options: { absorbAmount?: number; power?: number; progressionCredit?: ProgressionCredit; durationBonusSeconds?: number; durationMultiplier?: number; periodicPowerMultiplier?: number; maxStacksBonus?: number } = {}) {
+function applyEffectToGame(game: GameState, effectId: string, source: CombatantRef, target: CombatantRef, targetStats: CombatStats, context: CombatContext, options: { absorbAmount?: number; power?: number; progressionCredit?: ProgressionCredit; sourceProficiencyId?: CombatProficiencyId; secondaryOnly?: boolean; durationBonusSeconds?: number; durationMultiplier?: number; periodicPowerMultiplier?: number; maxStacksBonus?: number } = {}) {
   const result = applyEffectById(game.combat, effectId, context.effects, source, target, { targetStats, ...options })
   if (!result.instance || result.outcome === 'rejected' || result.outcome === 'missing-target') return game
   const eventType: CombatEventType = result.outcome === 'refreshed' ? 'effectRefreshed' : result.outcome === 'stacked' ? 'effectStacked' : 'effectApplied'
@@ -193,14 +240,20 @@ function applyEffectToGame(game: GameState, effectId: string, source: CombatantR
   return { ...game, combat: event(result.combat, { text: `${definition.name}${suffix} applied to ${target.kind === 'player' ? 'you' : game.combat.enemies.find((enemy) => enemy.instanceId === target.instanceId)?.displayName ?? 'target'}.`, type: source.kind === 'player' ? 'player' : 'enemy', eventType, source, target, data: { effectId, stacks: result.instance.stacks } }) }
 }
 
-function damageEnemy(game: GameState, target: EnemyCombatInstance, packet: DamagePacket, attackerStats: CombatStats, context: CombatContext, prefix: string, effectsToApply: Array<{ effectId: string; chance: number; options?: { progressionCredit?: ProgressionCredit; durationBonusSeconds?: number; durationMultiplier?: number; periodicPowerMultiplier?: number; maxStacksBonus?: number } }> = []) {
+function damageEnemy(game: GameState, target: EnemyCombatInstance, packet: DamagePacket, attackerStats: CombatStats, context: CombatContext, prefix: string, effectsToApply: Array<{ effectId: string; chance: number; options?: { progressionCredit?: ProgressionCredit; sourceProficiencyId?: CombatProficiencyId; secondaryOnly?: boolean; durationBonusSeconds?: number; durationMultiplier?: number; periodicPowerMultiplier?: number; maxStacksBonus?: number } }> = [], allowSecondary = true, isSecondary = false) {
   const current = game.combat.enemies.find((enemy) => enemy.instanceId === target.instanceId)
   if (!current || current.defeated) return game
   const defenderStats = getEnemyStats(game.combat, current, context)
   const weaponProficiencyId = packet.progressionSource?.type === 'equippedWeapon' && packet.progressionSource.proficiencyEligible ? getEquippedWeaponProficiency(game.equipment) : null
   const proficiencyId = packet.progressionSource?.type === 'spell' && packet.progressionSource.proficiencyEligible ? packet.progressionSource.proficiencyId : weaponProficiencyId
   const conditionalMultiplier = packet.progressionSource?.proficiencyEligible && packet.progressionSource.type === 'equippedWeapon' ? getWeaponDamageMultiplier(game.progression, weaponProficiencyId, current.currentHealth / current.maxHealth, current.effects.map((effect) => effect.effectId), perkById, game.combat.stance) : 1
-  let resolution = resolveDamage({ ...packet, damageMultiplier: conditionalMultiplier }, attackerStats, defenderStats, context.rng)
+  const weaponAttack = getWeaponAttackModifiers(game.progression, weaponProficiencyId, perkById)
+  const magicAttack = packet.progressionSource?.type === 'spell' && packet.progressionSource.proficiencyEligible ? getEffectiveMagicModifiers(game.progression, packet.progressionSource.proficiencyId, perkById) : null
+  const secondaryFraction = magicAttack?.spellSecondaryTargetFraction ?? weaponAttack.secondaryTargetFraction
+  const secondaryCount = magicAttack?.spellSecondaryTargetCount ?? weaponAttack.secondaryTargetCount
+  const armorPenetrationPercent = magicAttack?.spellArmorPenetrationPercent ?? weaponAttack.armorPenetrationPercent
+  const armorPenetrationFlat = magicAttack?.spellArmorPenetrationFlat ?? weaponAttack.armorPenetrationFlat
+  let resolution = resolveDamage({ ...packet, damageMultiplier: conditionalMultiplier * (isSecondary ? secondaryFraction : 1), armorPenetrationPercent, armorPenetrationFlat, blockChancePenetration: weaponAttack.blockChancePenetration, blockPowerPenetration: weaponAttack.blockPowerPenetration }, attackerStats, defenderStats, context.rng)
   const barrierResult = packet.ignoresBarrier ? { combat: game.combat, absorbed: 0, remaining: resolution.mitigatedDamage, absorptions: [] as Array<{ effectId: string; amount: number; progressionCredit?: ProgressionCredit }> } : absorbDamage(game.combat, packet.target, resolution.mitigatedDamage, context.effects)
   resolution = applyBarrierToDamage(resolution, barrierResult.absorbed)
   const effectiveHealthDamage = Math.min(current.currentHealth, resolution.healthDamage)
@@ -222,18 +275,26 @@ function damageEnemy(game: GameState, target: EnemyCombatInstance, packet: Damag
     const awarded = awardCombatXp(next, credit.proficiencyId, calculateProficiencyXpAward({ type: 'barrier-absorption', amount: absorption.amount }))
     next = awarded.game
     if (awarded.result) progressionResults.push(awarded.result)
-    const manaRestore = getBarrierAbsorbManaRestore(next.progression, perkById) * absorption.amount
-    if (manaRestore > 0 && credit.proficiencyId === 'warding-magic') next.combat = { ...next.combat, mana: Math.min(next.combat.maxMana, next.combat.mana + manaRestore) }
+    next = restoreBarrierResource(next, credit.proficiencyId, absorption.amount)
   }
   const message = resolution.outcome === 'hit' || resolution.outcome === 'block' ? `${prefix} for ${resolution.healthDamage} damage${resolution.critical ? ' critical' : ''}${resolution.barrierAbsorbed > 0 ? ` (${resolution.barrierAbsorbed} absorbed)` : ''}.` : `${prefix} ${resolution.outcome}s against ${current.displayName}.`
   const eventType = resolution.outcome === 'miss' ? 'attackMissed' : resolution.outcome === 'dodge' ? 'attackDodged' : resolution.outcome === 'parry' ? 'attackParried' : resolution.outcome === 'block' ? 'attackBlocked' : resolution.critical ? 'criticalHit' : 'damageDealt'
   next.combat = event(next.combat, { text: message, type: 'player', eventType, source: packet.source, target: packet.target, data: { damage: resolution.healthDamage, critical: resolution.critical, absorbed: resolution.barrierAbsorbed } })
   if (resolution.outcome === 'hit' || resolution.outcome === 'block') {
-    for (const applied of effectsToApply) if (applied.chance >= 1 || context.rng.next() < applied.chance) next = applyEffectToGame(next, applied.effectId, packet.source, packet.target, defenderStats, context, applied.options)
+    for (const applied of effectsToApply) if (!(applied.options?.secondaryOnly && !isSecondary) && (applied.chance >= 1 || context.rng.next() < applied.chance)) next = applyEffectToGame(next, applied.effectId, packet.source, packet.target, defenderStats, context, applied.options)
     if (packet.progressionSource?.type === 'equippedWeapon' && packet.progressionSource.proficiencyEligible && effectiveHealthDamage > 0) {
       for (const applied of getWeaponHitEffectHooks(next.progression, weaponProficiencyId, perkById)) if (applied.chance >= 1 || context.rng.next() < applied.chance) next = applyEffectToGame(next, applied.effectId, packet.source, packet.target, defenderStats, context)
       for (const hook of getWeaponHitResourceHooks(next.progression, weaponProficiencyId, perkById)) if (hook.chance >= 1 || context.rng.next() < hook.chance) next.combat = hook.resource === 'mana' ? { ...next.combat, mana: Math.min(next.combat.maxMana, next.combat.mana + hook.amount) } : { ...next.combat, stamina: Math.min(next.combat.maxStamina, next.combat.stamina + hook.amount) }
       for (const hook of getWeaponHitAdvanceHooks(next.progression, weaponProficiencyId, perkById)) if (hook.chance >= 1 || context.rng.next() < hook.chance) next.combat = { ...next.combat, playerAttackTimer: Math.max(0, next.combat.playerAttackTimer - next.combat.playerAttackInterval * hook.fraction) }
+    }
+    if (resolution.outcome === 'block' && weaponProficiencyId) for (const hook of getWeaponBlockEffectHooks(next.progression, weaponProficiencyId, perkById)) next = applyEffectToGame(next, hook.effectId, packet.source, { kind: 'player' }, attackerStats, context, { durationBonusSeconds: hook.durationSeconds })
+  } else if (resolution.outcome === 'dodge' && weaponProficiencyId) {
+    for (const hook of getWeaponDodgeEffectHooks(next.progression, weaponProficiencyId, perkById)) next = applyEffectToGame(next, hook.effectId, packet.source, { kind: 'player' }, attackerStats, context, { durationBonusSeconds: hook.durationSeconds })
+  }
+  if (allowSecondary && (weaponProficiencyId || magicAttack) && secondaryCount > 0 && (resolution.outcome === 'hit' || resolution.outcome === 'block')) {
+    const secondaryTargets = next.combat.enemies.filter((enemy) => enemy.instanceId !== current.instanceId && !enemy.defeated).slice(0, secondaryCount)
+    for (const secondaryTarget of secondaryTargets) {
+      next = damageEnemy(next, secondaryTarget, { ...packet, target: { kind: 'enemy', instanceId: secondaryTarget.instanceId } }, attackerStats, context, `${prefix} (secondary)`, magicAttack ? effectsToApply : [], false, true)
     }
   }
   for (const progressionResult of progressionResults) {
@@ -370,6 +431,7 @@ function resolvePeriodicEffect(game: GameState, effect: ActiveEffectInstance, de
     if (effect.target.kind === 'player') {
       const effective = getPlayerStats(game.combat, stats, context, game.progression)
       const healed = Math.min(effective.maxHealth - game.combat.playerHp, amount)
+      if (healed > 0 && effect.sourceProficiencyId) return applyEffectiveHealing(game, effect.sourceProficiencyId, healed, effect.source, 'Regeneration')
       return { ...game, combat: event({ ...game.combat, playerHp: game.combat.playerHp + healed, session: { ...game.combat.session, healing: game.combat.session.healing + healed } }, { text: `Regeneration restores ${healed} HP.`, type: 'system', eventType: 'healingDone', target: effect.target, data: { amount: healed } }) }
     }
     return game
@@ -396,8 +458,7 @@ function resolvePeriodicEffect(game: GameState, effect: ActiveEffectInstance, de
   for (const absorption of barrierResult.absorptions) {
     if (absorption.progressionCredit?.mode !== 'barrier-absorb') continue
     next = awardCombatXp(next, absorption.progressionCredit.proficiencyId, calculateProficiencyXpAward({ type: 'barrier-absorption', amount: absorption.amount })).game
-    const manaRestore = getBarrierAbsorbManaRestore(next.progression, perkById) * absorption.amount
-    if (manaRestore > 0 && absorption.progressionCredit.proficiencyId === 'warding-magic') next.combat = { ...next.combat, mana: Math.min(next.combat.maxMana, next.combat.mana + manaRestore) }
+    next = restoreBarrierResource(next, absorption.progressionCredit.proficiencyId, absorption.amount)
   }
   next.combat = event(next.combat, { text: `${definition.name} deals ${resolved.healthDamage} damage${resolved.barrierAbsorbed > 0 ? ` (${resolved.barrierAbsorbed} absorbed)` : ''}.`, type: effect.source.kind === 'player' ? 'player' : 'enemy', eventType: 'effectTicked', source: effect.source, target: effect.target, data: { effectId: effect.effectId, damage: resolved.healthDamage, absorbed: resolved.barrierAbsorbed } })
   return next

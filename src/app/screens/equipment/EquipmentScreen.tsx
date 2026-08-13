@@ -21,7 +21,7 @@ const statGroups: Array<{ id: CombatReferenceCategory; title: string; keys: stri
   { id: 'offense', title: 'OFFENSE', keys: ['attackPower', 'accuracy', 'attackInterval', 'critChance', 'critDamage'] },
   { id: 'defense', title: 'DEFENSE', keys: ['maxHealth', 'armor', 'evasion', 'dodgeChance', 'parryChance', 'blockChance', 'blockPower', 'statusResistance'] },
   { id: 'resources', title: 'RESOURCES', keys: ['maxStamina', 'staminaRegen', 'maxMana', 'manaRegen'] },
-  { id: 'resistances', title: 'RESISTANCES', keys: ['physicalResistance', 'fireResistance', 'earthResistance', 'airResistance', 'natureResistance', 'mysticResistance'] },
+  { id: 'resistances', title: 'RESISTANCES', keys: ['physicalResistance', 'fireResistance', 'waterResistance', 'airResistance', 'earthResistance', 'lightResistance', 'darknessResistance', 'natureResistance', 'mysticResistance'] },
 ]
 
 const EQUIPMENT_STAT_GROUPS_STORAGE_KEY = 'combatbound-equipment-stat-groups'

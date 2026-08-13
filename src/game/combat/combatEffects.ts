@@ -8,6 +8,7 @@ export interface EffectApplyOptions {
   power?: number
   absorbAmount?: number
   progressionCredit?: ProgressionCredit
+  sourceProficiencyId?: ProgressionCredit['proficiencyId']
   durationBonusSeconds?: number
   durationMultiplier?: number
   periodicPowerMultiplier?: number
@@ -64,6 +65,7 @@ export function applyEffect(combat: CombatState, definition: EffectDefinition, s
       nextTickRemaining: interval,
       snapshot: options.power !== undefined || current.snapshot || options.periodicPowerMultiplier !== undefined ? { power: options.power ?? current.snapshot?.power, periodicPowerMultiplier: options.periodicPowerMultiplier ?? current.snapshot?.periodicPowerMultiplier } : current.snapshot,
       progressionCredit: options.progressionCredit ?? current.progressionCredit,
+      sourceProficiencyId: options.sourceProficiencyId ?? current.sourceProficiencyId,
       runtimeValues: definition.kind === 'barrier' ? { absorbRemaining: options.absorbAmount ?? definition.barrierAmount ?? current.runtimeValues?.absorbRemaining ?? 0 } : current.runtimeValues,
     }
     const updated = updateActiveEffects(combat, target, effects.map((effect) => effect.instanceId === current.instanceId ? refreshed : effect))
@@ -81,6 +83,7 @@ export function applyEffect(combat: CombatState, definition: EffectDefinition, s
     appliedSequence: nextSequence,
     snapshot: options.power !== undefined || definition.barrierAmount !== undefined || options.periodicPowerMultiplier !== undefined ? { power: options.power ?? definition.barrierAmount, periodicPowerMultiplier: options.periodicPowerMultiplier } : undefined,
     progressionCredit: options.progressionCredit,
+    sourceProficiencyId: options.sourceProficiencyId,
     runtimeValues: definition.kind === 'barrier' ? { absorbRemaining: options.absorbAmount ?? definition.barrierAmount ?? 0 } : undefined,
   }
   const updated = updateActiveEffects(combat, target, [...effects, instance])

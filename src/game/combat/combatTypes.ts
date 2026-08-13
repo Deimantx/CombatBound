@@ -3,7 +3,7 @@ export type CombatStopReason = 'manual' | 'defeat' | 'safety' | 'consumablesDepl
 export type StanceId = 'high' | 'mid' | 'low'
 export type TechniqueId = 'careful-positioning' | 'heightened-reflexes'
 export type SpellTargetMode = 'self' | 'selectedEnemy' | 'allEnemies'
-export type DamageType = 'physical' | 'fire' | 'earth' | 'air' | 'nature' | 'mystic' | 'true'
+export type DamageType = 'physical' | 'fire' | 'water' | 'air' | 'earth' | 'light' | 'darkness' | 'nature' | 'mystic' | 'true'
 
 export type CombatantRef =
   | { kind: 'player' }

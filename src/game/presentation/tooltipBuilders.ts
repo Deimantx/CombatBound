@@ -12,7 +12,7 @@ import { proficiencyById } from '../data/proficiencies'
 import { formatCombatStatValue, formatItemStats, formatPercent, formatSeconds, formatSignedNumber, labelForStatKey } from './statFormatting'
 import type { TooltipModel, TooltipRow, TooltipTone } from './tooltipTypes'
 
-const damageLabels: Record<DamageType, string> = { physical: 'Physical', fire: 'Fire', earth: 'Earth', air: 'Air', nature: 'Nature', mystic: 'Mystic', true: 'True' }
+const damageLabels: Record<DamageType, string> = { physical: 'Physical', fire: 'Fire', water: 'Water', air: 'Air', earth: 'Earth', light: 'Light', darkness: 'Darkness', nature: 'Nature', mystic: 'Mystic', true: 'True' }
 const kindLabels: Record<EffectDefinition['kind'], string> = { buff: 'Buff', debuff: 'Debuff', status: 'Status', barrier: 'Barrier' }
 const categoryLabels: Record<ItemDefinition['category'], string> = { weapon: 'Weapon', armor: 'Armor', accessory: 'Accessory', material: 'Material', consumable: 'Consumable', currency: 'Currency' }
 const rarityLabels: Record<ItemDefinition['rarity'], string> = { common: 'Common', uncommon: 'Uncommon', rare: 'Rare' }

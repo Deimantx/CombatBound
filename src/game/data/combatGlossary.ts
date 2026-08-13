@@ -47,8 +47,11 @@ export const combatStatReferences: CombatStatReference[] = [
 const resistanceTypes: Array<{ id: `${DamageType}Resistance`; damageType: DamageType; label: string; description: string }> = [
   { id: 'physicalResistance', damageType: 'physical', label: 'Physical Resistance', description: 'Reduces Physical damage after applicable Armor mitigation. Physical Resistance is separate from Armor.' },
   { id: 'fireResistance', damageType: 'fire', label: 'Fire Resistance', description: 'Reduces Fire damage. Negative Fire Resistance means Fire Weakness.' },
-  { id: 'earthResistance', damageType: 'earth', label: 'Earth Resistance', description: 'Reduces Earth damage. Armor does not normally mitigate Earth damage.' },
-  { id: 'airResistance', damageType: 'air', label: 'Air Resistance', description: 'Reduces Air damage. Armor does not normally mitigate Air damage.' },
+  { id: 'waterResistance', damageType: 'water', label: 'Water Resistance', description: 'Reduces Water damage. Negative Water Resistance means Water Weakness.' },
+  { id: 'airResistance', damageType: 'air', label: 'Air Resistance', description: 'Reduces Air damage. Negative Air Resistance means Air Weakness.' },
+  { id: 'earthResistance', damageType: 'earth', label: 'Earth Resistance', description: 'Reduces Earth damage. Negative Earth Resistance means Earth Weakness.' },
+  { id: 'lightResistance', damageType: 'light', label: 'Light Resistance', description: 'Reduces Light damage. Negative Light Resistance means Light Weakness.' },
+  { id: 'darknessResistance', damageType: 'darkness', label: 'Darkness Resistance', description: 'Reduces Darkness damage. Negative Darkness Resistance means Darkness Weakness.' },
   { id: 'natureResistance', damageType: 'nature', label: 'Nature Resistance', description: 'Reduces Nature damage. Armor does not normally mitigate Nature damage.' },
   { id: 'mysticResistance', damageType: 'mystic', label: 'Mystic Resistance', description: 'Reduces Mystic damage. Armor does not normally mitigate Mystic damage.' },
 ]
@@ -68,8 +71,11 @@ export const combatReferenceGroups: Array<{ id: CombatReferenceCategory; label: 
 export const damageTypeReferences: Array<{ id: DamageType; label: string; description: string }> = [
   { id: 'physical', label: 'Physical', description: 'Normally reduced by Armor and then Physical Resistance.' },
   { id: 'fire', label: 'Fire', description: 'Normally ignores Armor and uses Fire Resistance.' },
-  { id: 'earth', label: 'Earth', description: 'Normally ignores Armor and uses Earth Resistance.' },
+  { id: 'water', label: 'Water', description: 'Normally ignores Armor and uses Water Resistance.' },
   { id: 'air', label: 'Air', description: 'Normally ignores Armor and uses Air Resistance.' },
+  { id: 'earth', label: 'Earth', description: 'Normally ignores Armor and uses Earth Resistance.' },
+  { id: 'light', label: 'Light', description: 'Normally ignores Armor and uses Light Resistance.' },
+  { id: 'darkness', label: 'Darkness', description: 'Normally ignores Armor and uses Darkness Resistance.' },
   { id: 'nature', label: 'Nature', description: 'Normally ignores Armor and uses Nature Resistance.' },
   { id: 'mystic', label: 'Mystic', description: 'Normally ignores Armor and uses Mystic Resistance.' },
   { id: 'true', label: 'True', description: 'Ignores Armor and normal Resistances.' },

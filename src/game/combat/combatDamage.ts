@@ -1,5 +1,5 @@
 import { clamp, combatBalance } from './combatBalance'
-import { calculateArmorMitigation, calculateResistanceMultiplier, resolveDefensiveOutcome, type DefensiveOutcome } from './combatMath'
+import { calculateArmorMitigation, calculateEffectiveArmor, calculateResistanceMultiplier, resolveDefensiveOutcome, type DefensiveOutcome } from './combatMath'
 import { getResistance } from './combatStats'
 import type { CombatRng, CombatStats, CombatantRef, DamageComponent, DamageType, DefensiveEligibility, DamageProgressionSource } from './combatTypes'
 
@@ -14,6 +14,11 @@ export interface DamagePacket extends DamageComponent {
   damageMultiplier?: number
   criticalDamageMultiplier?: number
   criticalChanceBonus?: number
+  /** Attack-local penetration. These values never mutate the stored defender. */
+  armorPenetrationPercent?: number
+  armorPenetrationFlat?: number
+  blockChancePenetration?: number
+  blockPowerPenetration?: number
 }
 
 export interface DamageResolution {
@@ -44,20 +49,26 @@ export function rollDamage(component: DamageComponent & { baseDamage?: number },
 }
 
 export function resolveDamage(packet: DamagePacket, attacker: CombatStats, defender: CombatStats, rng: CombatRng): DamageResolution {
+  const effectiveDefender = {
+    ...defender,
+    armor: packet.damageType === 'physical' ? calculateEffectiveArmor(defender.armor, packet.armorPenetrationPercent, packet.armorPenetrationFlat) : defender.armor,
+    blockChance: Math.max(0, defender.blockChance - Math.max(0, packet.blockChancePenetration ?? 0)),
+    blockPower: Math.max(0, defender.blockPower - Math.max(0, packet.blockPowerPenetration ?? 0)),
+  }
   const eligibility = packet.defensiveEligibility ?? { canMiss: true, dodgeable: true, parryable: true, blockable: true }
   const outcome = packet.guaranteedHit || eligibility.canMiss === false
-    ? resolveDefensiveOutcome(attacker.accuracy, defender.evasion, defender, { ...eligibility, canMiss: false }, rng)
-    : resolveDefensiveOutcome(packet.attackerAccuracy ?? attacker.accuracy, defender.evasion, defender, eligibility, rng)
+    ? resolveDefensiveOutcome(attacker.accuracy, effectiveDefender.evasion, effectiveDefender, { ...eligibility, canMiss: false }, rng)
+    : resolveDefensiveOutcome(packet.attackerAccuracy ?? attacker.accuracy, effectiveDefender.evasion, effectiveDefender, eligibility, rng)
   if (outcome === 'miss' || outcome === 'dodge' || outcome === 'parry') return emptyDamageResolution(outcome)
 
   const rolledDamage = rollDamage(packet, attacker, rng)
   const critical = packet.canCrit && rng.next() < clamp(attacker.critChance + (packet.criticalChanceBonus ?? 0), 0, combatBalance.maxCritChance)
   const rawDamage = Math.max(0, rolledDamage * (critical ? Math.max(1, attacker.critDamage * (packet.criticalDamageMultiplier ?? 1)) : 1))
-  const armorMitigation = packet.ignoresArmor || packet.damageType !== 'physical' ? 0 : calculateArmorMitigation(defender.armor)
+  const armorMitigation = packet.ignoresArmor || packet.damageType !== 'physical' ? 0 : calculateArmorMitigation(effectiveDefender.armor)
   const afterArmor = rawDamage * (1 - armorMitigation)
   const resistanceMultiplier = packet.ignoresResistance || packet.damageType === 'true' ? 1 : calculateResistanceMultiplier(getResistance(defender, packet.damageType))
   const afterResistance = afterArmor * resistanceMultiplier
-  const blockedDamage = outcome === 'block' ? afterResistance * clamp(defender.blockPower, 0, 0.95) : 0
+  const blockedDamage = outcome === 'block' ? afterResistance * clamp(effectiveDefender.blockPower, 0, 0.95) : 0
   const mitigatedDamage = Math.max(0, Math.round(afterResistance - blockedDamage))
   return { outcome, critical, rawDamage, rolledDamage, armorMitigated: Math.max(0, rawDamage - afterArmor), resistanceMitigated: Math.max(0, afterArmor - afterResistance), blockedDamage: Math.max(0, Math.round(blockedDamage)), mitigatedDamage, absorbedDamage: 0, barrierAbsorbed: 0, healthDamage: mitigatedDamage, targetDied: false }
 }

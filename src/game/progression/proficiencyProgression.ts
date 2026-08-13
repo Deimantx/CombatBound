@@ -13,6 +13,35 @@ export function proficiencyLevelForXp(totalXp: number) {
   return level
 }
 
+export interface ProficiencyLevelProgress {
+  level: number
+  currentLevelXp: number
+  nextLevelXp: number
+  xpIntoLevel: number
+  xpRequiredForLevel: number
+  progressFraction: number
+  xpToNextLevel: number
+  isMaxLevel: boolean
+}
+
+/** Returns honest progress within the current proficiency level for UI surfaces. */
+export function getProficiencyLevelProgress(totalXp: number, maxLevel = MAX_PROFICIENCY_LEVEL): ProficiencyLevelProgress {
+  const safeXp = Math.max(0, Number.isFinite(totalXp) ? totalXp : 0)
+  const cappedMaxLevel = Math.max(1, Math.floor(maxLevel))
+  if (safeXp <= 0) {
+    const nextLevelXp = proficiencyXpForLevel(Math.min(2, cappedMaxLevel))
+    return { level: 0, currentLevelXp: 0, nextLevelXp, xpIntoLevel: 0, xpRequiredForLevel: nextLevelXp, progressFraction: 0, xpToNextLevel: nextLevelXp, isMaxLevel: false }
+  }
+  const level = Math.min(cappedMaxLevel, proficiencyLevelForXp(safeXp))
+  const currentLevelXp = proficiencyXpForLevel(level)
+  const isMaxLevel = level >= cappedMaxLevel
+  const nextLevelXp = isMaxLevel ? currentLevelXp : proficiencyXpForLevel(level + 1)
+  const xpRequiredForLevel = Math.max(0, nextLevelXp - currentLevelXp)
+  const xpIntoLevel = Math.max(0, safeXp - currentLevelXp)
+  const progressFraction = isMaxLevel ? 1 : xpRequiredForLevel > 0 ? Math.max(0, Math.min(1, xpIntoLevel / xpRequiredForLevel)) : 0
+  return { level, currentLevelXp, nextLevelXp, xpIntoLevel, xpRequiredForLevel, progressFraction, xpToNextLevel: isMaxLevel ? 0 : Math.max(0, nextLevelXp - safeXp), isMaxLevel }
+}
+
 export function getProficiencyProgress(progression: ProgressionState, proficiencyId: CombatProficiencyId) {
   return progression.proficiencies[proficiencyId]
 }
@@ -25,8 +54,7 @@ export function getProficiencyLevel(progression: ProgressionState, proficiencyId
 export function getProficiencyXpToNextLevel(progression: ProgressionState, proficiencyId: CombatProficiencyId) {
   const progress = getProficiencyProgress(progression, proficiencyId)
   if (!progress) return proficiencyXpForLevel(1)
-  const level = proficiencyLevelForXp(progress.totalXp)
-  return level >= MAX_PROFICIENCY_LEVEL ? 0 : Math.max(0, proficiencyXpForLevel(level + 1) - progress.totalXp)
+  return getProficiencyLevelProgress(progress.totalXp).xpToNextLevel
 }
 
 export function createInitialProgression(): ProgressionState {
@@ -41,6 +69,7 @@ export function discoverProficiency(progression: ProgressionState, proficiencyId
 
 export function calculateProficiencyXpAward(reason: ProficiencyXpReason) {
   if (reason.type === 'successful-interrupt') return DISRUPTION_XP_BY_DANGER[reason.danger]
+  if (reason.type === 'successful-cleanse') return Math.max(0, Number.isFinite(reason.weight) ? reason.weight : 0)
   return Math.max(0, Number.isFinite(reason.amount) ? reason.amount : 0)
 }
 

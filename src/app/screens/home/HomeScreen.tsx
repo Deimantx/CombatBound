@@ -4,11 +4,14 @@ import { itemDefinitions } from '../../../game/data/items'
 import { proficiencyById } from '../../../game/data/proficiencies'
 import { calculateAvailablePerkPoints, calculateEarnedPerkPoints, masteryLevelForXp } from '../../../game/progression/masteryProgression'
 import { getActiveWeaponProficiency } from '../../../game/progression/progressionSelectors'
-import { getProficiencyLevel, getProficiencyProgress, getProficiencyXpToNextLevel, proficiencyXpForLevel } from '../../../game/progression/proficiencyProgression'
+import { getProficiencyLevelProgress, getProficiencyProgress, getProficiencyXpToNextLevel } from '../../../game/progression/proficiencyProgression'
 import { combatLocationById } from '../../../game/data/world/combatLocations'
 import { enemyFamilyById } from '../../../game/data/world/enemyFamilies'
 import { locationBreadcrumb } from '../../../game/world/worldSelectors'
 import { calculateHunterCombatStats } from '../../../game/equipment/derivedStats'
+import { effectById } from '../../../game/data/effects'
+import { getBarrierAmount } from '../../../game/combat/combatEffects'
+import { formatHealthWithBarrier } from '../../../game/presentation/statFormatting'
 import { useGameStore } from '../../../state/gameStore'
 import { Panel } from '../../components/Panel'
 import { ProgressBar } from '../../components/ProgressBar'
@@ -23,11 +26,10 @@ export function HomeScreen() {
   const active = getActiveWeaponProficiency(game.progression, game.equipment)
   const activeDefinition = active ? proficiencyById[active.proficiencyId] : undefined
   const activeProgress = active ? getProficiencyProgress(game.progression, active.proficiencyId) : undefined
-  const level = active ? getProficiencyLevel(game.progression, active.proficiencyId) : 0
   const xp = activeProgress?.totalXp ?? 0
-  const currentThreshold = level > 0 ? proficiencyXpForLevel(level) : 0
-  const nextThreshold = level >= 100 ? currentThreshold : proficiencyXpForLevel(Math.max(1, level + 1))
-  const proficiencyPercent = nextThreshold <= currentThreshold ? 100 : ((xp - currentThreshold) / (nextThreshold - currentThreshold)) * 100
+  const activeLevelProgress = active ? getProficiencyLevelProgress(xp, activeDefinition?.maxLevel) : undefined
+  const level = activeLevelProgress?.level ?? 0
+  const proficiencyPercent = (activeLevelProgress?.progressFraction ?? 0) * 100
   const earnedPoints = calculateEarnedPerkPoints(game.progression.masteryXp)
   const availablePoints = calculateAvailablePerkPoints(game.progression, Object.fromEntries(proficiencyPerkDefinitions.map((perk) => [perk.id, perk])))
   const totalDefeats = Object.values(game.collection.targets).reduce((sum, entry) => sum + entry.defeats, 0)
@@ -35,6 +37,8 @@ export function HomeScreen() {
   const discoveredItems = game.collection.discoveredItems.length
   const activeLocation = game.combat.combatLocationId ? combatLocationById[game.combat.combatLocationId] : undefined
   const activeFamily = activeLocation ? enemyFamilyById[activeLocation.familyId]?.name : undefined
+  const absorbShield = getBarrierAmount(game.combat.playerEffects, effectById)
+  const playerHealth = formatHealthWithBarrier(game.combat.playerHp, stats.maxHealth, absorbShield)
 
   return <div className="screen home-screen" data-debug-screen="home">
     <ScreenHeading screen="home" />
@@ -42,7 +46,7 @@ export function HomeScreen() {
       <Panel title="Hunter overview" subtitle="Your current combat profile" icon={Shield} panelId="homeOverview" screen="home" className="home-overview">
         <div className="overview-primary"><div className="large-avatar"><Shield size={35} /></div><div><h3>Vanguard</h3><p>{activeDefinition?.name ?? 'No weapon proficiency'} · {stats.attackPower} Attack Power</p><div className="identity-tags"><span>MASTERY {Math.floor(game.progression.masteryXp).toLocaleString()} XP</span><span>POWER {stats.attack}</span></div></div></div>
         <div className="overview-stats"><StatLine label="Current activity" value={activeLocation ? `${activeLocation.name} · ${activeFamily ?? 'Hunt'} · Group ${game.combat.groupNumber}` : 'Idle'} accent="blue" /><StatLine label="Total kills" value={totalDefeats} accent="gold" /><StatLine label="Active proficiency" value={activeDefinition ? `${activeDefinition.name} · Lv ${level}` : 'Untrained'} /></div>
-        <div className="home-hp"><div className="home-hp-heading"><span>Current health</span><strong>{Math.floor(game.combat.playerHp)} <small>/ {stats.maxHealth}</small></strong></div><ProgressBar value={(game.combat.playerHp / stats.maxHealth) * 100} variant="health" ariaLabel={`Player health ${Math.floor(game.combat.playerHp)} of ${stats.maxHealth}`} /></div>
+        <div className="home-hp"><div className="home-hp-heading"><span>Current health</span><strong>{playerHealth}</strong></div><ProgressBar value={(game.combat.playerHp / stats.maxHealth) * 100} variant="health" ariaLabel={`Player health ${playerHealth}`} /></div>
         <button className="button button-primary full-button" onClick={() => setScreen('combat')}><Swords size={15} />{game.combat.phase === 'active' ? 'View live combat' : 'Open combat'}</button>{activeLocation && <p className="home-active-breadcrumb">{locationBreadcrumb(activeLocation.id)}</p>}
       </Panel>
       <Panel title="Combat Mastery" subtitle="Weapon use becomes permanent progression" icon={Sparkles} panelId="homeCombatMastery" screen="home">

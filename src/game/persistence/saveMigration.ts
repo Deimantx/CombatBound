@@ -1,7 +1,10 @@
 import type { CollectionState } from '../collection/collectionTypes'
 import type { EquipmentState } from '../equipment/equipmentTypes'
 import type { InventoryState } from '../inventory/inventoryTypes'
-import type { GameSaveV2 } from './saveTypes'
+import { proficiencyById } from '../data/proficiencies'
+import { perkById } from '../data/proficiencyPerks'
+import type { CombatProficiencyId, ProgressionState } from '../progression/progressionTypes'
+import type { GameSaveV3 } from './saveTypes'
 
 interface LegacySkillProgress { totalXp?: number }
 interface LegacySaveV1 {
@@ -14,20 +17,48 @@ interface LegacySaveV1 {
   settings: { reducedMotion: boolean; showInspectorButton: boolean }
 }
 
-function isRecord(value: unknown): value is Record<string, unknown> { return Boolean(value) && typeof value === 'object' && !Array.isArray(value) }
+interface LegacySaveV2 {
+  version: 2
+  progression: { proficiencies: Record<string, { proficiencyId?: string; totalXp?: number }>; masteryXp?: number; purchasedPerks?: Record<string, number> }
+  inventory: InventoryState
+  equipment: EquipmentState
+  collection: CollectionState
+  gold: number
+  settings: { reducedMotion: boolean; showInspectorButton: boolean }
+}
 
-export function migrateLegacySave(value: unknown): GameSaveV2 | null {
-  if (!isRecord(value) || value.version !== 1 || !isRecord(value.progression) || !isRecord(value.progression.skills) || typeof value.gold !== 'number' || !isRecord(value.inventory) || !isRecord(value.equipment) || !isRecord(value.collection) || !isRecord(value.settings)) return null
-  const old = value as unknown as LegacySaveV1
-  const skillXp = Object.values(old.progression.skills).reduce((total, skill) => total + (typeof skill.totalXp === 'number' && Number.isFinite(skill.totalXp) ? Math.max(0, skill.totalXp) : 0), 0)
-  const swordXp = typeof old.progression.skills.swordsmanship?.totalXp === 'number' ? Math.max(0, old.progression.skills.swordsmanship.totalXp) : 0
-  return {
-    version: 2,
-    progression: { proficiencies: { 'one-handed-sword': { proficiencyId: 'one-handed-sword', totalXp: swordXp } }, masteryXp: skillXp, purchasedPerks: {} },
-    inventory: old.inventory,
-    equipment: old.equipment,
-    collection: old.collection,
-    gold: old.gold,
-    settings: old.settings,
+function isRecord(value: unknown): value is Record<string, unknown> { return Boolean(value) && typeof value === 'object' && !Array.isArray(value) }
+function xp(value: unknown) { return typeof value === 'number' && Number.isFinite(value) ? Math.max(0, value) : 0 }
+function sharedSaveShape(value: Record<string, unknown>) { return typeof value.gold === 'number' && isRecord(value.inventory) && isRecord(value.equipment) && isRecord(value.collection) && isRecord(value.settings) }
+
+function migrateProgression(raw: LegacySaveV2['progression']): ProgressionState {
+  const proficiencies: ProgressionState['proficiencies'] = {}
+  for (const [rawId, value] of Object.entries(raw.proficiencies ?? {})) {
+    const migratedId = rawId === 'warding-magic' ? 'light-magic' : rawId === 'disruption-magic' ? 'air-magic' : rawId
+    if (!proficiencyById[migratedId] || !isRecord(value)) continue
+    const proficiencyId = migratedId as CombatProficiencyId
+    const current = proficiencies[proficiencyId]?.totalXp ?? 0
+    proficiencies[proficiencyId] = { proficiencyId, totalXp: current + xp(value.totalXp) }
   }
+  const purchasedPerks: Record<string, number> = {}
+  for (const [perkId, rank] of Object.entries(raw.purchasedPerks ?? {})) {
+    const perk = perkById[perkId]
+    if (!perk || perkId.includes('warding-magic') || perkId.includes('disruption-magic')) continue
+    if (Number.isInteger(rank) && rank > 0 && rank <= perk.maxRank) purchasedPerks[perkId] = rank
+  }
+  return { proficiencies, masteryXp: xp(raw.masteryXp), purchasedPerks }
+}
+
+export function migrateCurrentSave(value: unknown): GameSaveV3 | null {
+  if (!isRecord(value) || value.version !== 2 || !isRecord(value.progression) || !isRecord(value.progression.proficiencies) || !sharedSaveShape(value)) return null
+  const old = value as unknown as LegacySaveV2
+  return { version: 3, progression: migrateProgression(old.progression), inventory: old.inventory, equipment: old.equipment, collection: old.collection, gold: old.gold, settings: old.settings }
+}
+
+export function migrateLegacySave(value: unknown): GameSaveV3 | null {
+  if (!isRecord(value) || value.version !== 1 || !isRecord(value.progression) || !isRecord(value.progression.skills) || !sharedSaveShape(value)) return null
+  const old = value as unknown as LegacySaveV1
+  const skillXp = Object.values(old.progression.skills).reduce((total, skill) => total + xp(skill.totalXp), 0)
+  const swordXp = xp(old.progression.skills.swordsmanship?.totalXp)
+  return { version: 3, progression: { proficiencies: { 'one-handed-sword': { proficiencyId: 'one-handed-sword', totalXp: swordXp } }, masteryXp: skillXp, purchasedPerks: {} }, inventory: old.inventory, equipment: old.equipment, collection: old.collection, gold: old.gold, settings: old.settings }
 }

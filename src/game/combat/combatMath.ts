@@ -16,6 +16,12 @@ export function calculateArmorMitigation(armor: number) {
   return effectiveArmor / (effectiveArmor + combatBalance.armorConstant)
 }
 
+/** Calculates attack-local effective armor without mutating the defender. */
+export function calculateEffectiveArmor(armor: number, percentPenetration = 0, flatPenetration = 0) {
+  const safeArmor = Math.max(0, Number.isFinite(armor) ? armor : 0)
+  return Math.max(0, safeArmor * (1 - clamp(percentPenetration, 0, 1)) - Math.max(0, Number.isFinite(flatPenetration) ? flatPenetration : 0))
+}
+
 export function calculateResistanceMultiplier(resistance: number) {
   const effectiveResistance = clamp(Number.isFinite(resistance) ? resistance : 0, combatBalance.minResistance, combatBalance.maxResistance)
   return 1 - effectiveResistance

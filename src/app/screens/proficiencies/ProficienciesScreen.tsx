@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { Award, Check, Lock, MousePointer2, Sparkles, Swords } from 'lucide-react'
 import { proficiencyDefinitions, proficiencyById } from '../../../game/data/proficiencies'
 import { perkById } from '../../../game/data/proficiencyPerks'
@@ -6,10 +6,11 @@ import { itemById } from '../../../game/data/items'
 import { getEquippedWeaponProficiency } from '../../../game/progression/progressionSelectors'
 import { calculateEarnedPerkPoints, calculateAvailablePerkPoints, calculateSpentPerkPoints, masteryLevelForXp, masteryXpForLevel, masteryXpToNextLevel } from '../../../game/progression/masteryProgression'
 import { getPerkPurchaseState } from '../../../game/progression/perkProgression'
-import { getProficiencyLevel, getProficiencyProgress, getProficiencyXpToNextLevel, proficiencyXpForLevel } from '../../../game/progression/proficiencyProgression'
+import { getProficiencyLevelProgress, getProficiencyProgress, getProficiencyXpToNextLevel } from '../../../game/progression/proficiencyProgression'
 import { useGameStore } from '../../../state/gameStore'
 import type { CombatProficiencyId, PerkPurchaseState, ProficiencyPerkDefinition } from '../../../game/progression/progressionTypes'
 import { GameTooltip } from '../../components/tooltip/GameTooltip'
+import { useTooltip } from '../../components/tooltip/TooltipProvider'
 import { Panel } from '../../components/Panel'
 import { PlaceholderArt } from '../../components/PlaceholderArt'
 import { ProgressBar } from '../../components/ProgressBar'
@@ -34,6 +35,10 @@ const statusLabel: Record<string, string> = {
 }
 
 type Progression = ReturnType<typeof useGameStore.getState>['game']['progression']
+type TreePan = { x: number; y: number }
+
+const PAN_PADDING = 60
+const PAN_THRESHOLD = 4
 
 function graphPoint(perk: ProficiencyPerkDefinition) {
   const x = GRAPH_SIDE_PADDING + (perk.presentation.column / (GRAPH_COLUMNS - 1)) * (GRAPH_WIDTH - GRAPH_SIDE_PADDING * 2)
@@ -47,6 +52,7 @@ export function ProficienciesScreen() {
   const equippedProficiency = getEquippedWeaponProficiency(game.equipment)
   const [selectedId, setSelectedId] = useState<CombatProficiencyId>(equippedProficiency ?? 'one-handed-sword')
   const [selectedPerkId, setSelectedPerkId] = useState('')
+  const [treePanByProficiency, setTreePanByProficiency] = useState<Partial<Record<CombatProficiencyId, TreePan>>>({})
   const selected = proficiencyById[selectedId] ?? proficiencyDefinitions[0]
   const earned = calculateEarnedPerkPoints(game.progression.masteryXp)
   const spent = calculateSpentPerkPoints(game.progression, perkById)
@@ -77,7 +83,7 @@ export function ProficienciesScreen() {
       <Panel title={`${selected.name} Proficiency`} subtitle={selected.description} icon={Sparkles} panelId="selectedProficiency" screen="proficiencies" className="selected-proficiency-panel">
         <SelectedHeader definition={selected} progression={game.progression} equipped={selected.category !== 'magic' && selected.id === equippedProficiency} activeWeapon={activeWeapon} />
         <div className="perk-tree-heading"><span className="tiny-label">PERK TREE</span><small>{available} available point{available === 1 ? '' : 's'} · grows from root to apex</small></div>
-        {selectedPerks.length > 0 ? <PerkTree definition={selected} perks={selectedPerks} progression={game.progression} selectedPerkId={selectedPerk?.id ?? ''} onSelectPerk={setSelectedPerkId} /> : <div className="proficiency-empty"><Sparkles size={18} /><strong>Tree not authored yet</strong><span>Future perks for this proficiency will appear here.</span></div>}
+        {selectedPerks.length > 0 ? <PerkTree definition={selected} perks={selectedPerks} progression={game.progression} selectedPerkId={selectedPerk?.id ?? ''} onSelectPerk={setSelectedPerkId} pan={treePanByProficiency[selected.id]} onPanChange={(next) => setTreePanByProficiency((current) => ({ ...current, [selected.id]: next }))} /> : <div className="proficiency-empty"><Sparkles size={18} /><strong>Tree not authored yet</strong><span>Future perks for this proficiency will appear here.</span></div>}
       </Panel>
       {selectedPerk ? <PerkDetailsPanel perk={selectedPerk} progression={game.progression} availablePoints={available} onPurchase={purchasePerk} /> : <div className="perk-tree-details perk-details-empty"><MousePointer2 size={16} /><span>Select an authored Proficiency to view Perk details.</span></div>}
     </div>
@@ -94,33 +100,138 @@ function ProficiencyGroup({ label, definitions, selectedId, equippedId, progress
 }
 
 function ProficiencyTile({ definition, selected, active, progression, onSelect }: { definition: typeof proficiencyDefinitions[number]; selected: boolean; active: boolean; progression: Progression; onSelect: (id: CombatProficiencyId) => void }) {
-  const progress = getProficiencyProgress(progression, definition.id)
-  const level = getProficiencyLevel(progression, definition.id)
-  const xp = progress?.totalXp ?? 0
-  const previous = level > 0 ? proficiencyXpForLevel(level) : 0
-  const next = level >= definition.maxLevel ? previous : level > 0 ? proficiencyXpForLevel(level + 1) : proficiencyXpForLevel(1)
-  const percent = next <= previous ? 100 : ((xp - previous) / (next - previous)) * 100
-  const levelLabel = level > 0 ? `Lv ${level} / ${definition.maxLevel}` : 'UNTRAINED'
-  const tooltip = { id: `proficiency.${definition.id}`, title: definition.name, subtitle: `${definition.category === 'magic' ? 'Magic' : definition.category === 'melee' ? 'Melee' : 'Ranged'} proficiency`, description: definition.description, rows: [{ label: 'Level', value: levelLabel, tone: level > 0 ? 'blue' as const : 'default' as const }, { label: 'XP', value: `${Math.floor(xp).toLocaleString()}${level >= definition.maxLevel ? '' : ` / ${next.toLocaleString()}`}`, tone: 'gold' as const }], notes: [active ? 'Active Weapon Proficiency' : '', definition.category === 'magic' ? 'Spell Available' : ''].filter(Boolean) }
+  const storedProgress = getProficiencyProgress(progression, definition.id)
+  const xp = storedProgress?.totalXp ?? 0
+  const levelProgress = getProficiencyLevelProgress(xp, definition.maxLevel)
+  const percent = levelProgress.progressFraction * 100
+  const levelLabel = levelProgress.level > 0 ? `Lv ${levelProgress.level} / ${definition.maxLevel}` : 'UNTRAINED'
+  const tooltipXp = levelProgress.isMaxLevel ? `${Math.floor(xp).toLocaleString()} XP` : levelProgress.level === 0 ? `${Math.floor(xp).toLocaleString()} XP` : `${Math.floor(xp).toLocaleString()} / ${levelProgress.nextLevelXp.toLocaleString()} XP`
+  const tooltip = { id: `proficiency.${definition.id}`, title: definition.name, subtitle: `${definition.category === 'magic' ? 'Magic' : definition.category === 'melee' ? 'Melee' : 'Ranged'} proficiency`, description: definition.description, rows: [{ label: 'Level', value: levelLabel, tone: levelProgress.level > 0 ? 'blue' as const : 'default' as const }, { label: 'XP', value: tooltipXp, tone: 'gold' as const }], notes: [active ? 'Active Weapon Proficiency' : '', definition.category === 'magic' ? 'Spell Available' : ''].filter(Boolean) }
   const content = <button type="button" className={`proficiency-tile ${selected ? 'is-selected' : ''} ${active ? 'is-active' : ''}`} onClick={() => onSelect(definition.id)} aria-pressed={selected} data-debug-kind="proficiency-tile" data-debug-legacy-kind="proficiency-row" data-debug-proficiency-id={definition.id} data-debug-label={definition.name}><span className="proficiency-tile-top"><PlaceholderArt icon={definition.icon} size="small" variant={active ? 'gold' : selected ? 'blue' : 'muted'} />{(active || definition.category === 'magic') && <span className={`proficiency-tile-indicator ${active ? 'is-active' : 'is-spell'}`} aria-label={active ? 'Active weapon proficiency' : 'Spell available'}>{active ? 'A' : '✦'}</span>}</span><strong className="proficiency-tile-name">{definition.name}</strong><small>{levelLabel}</small><ProgressBar value={Math.max(0, Math.min(100, percent))} variant="experience" ariaLabel={`${definition.name} XP progress`} /></button>
   return <GameTooltip content={tooltip}>{content}</GameTooltip>
 }
 
-function SelectedHeader({ definition, progression, equipped, activeWeapon }: { definition: typeof proficiencyDefinitions[number]; progression: Progression; equipped: boolean; activeWeapon?: string }) {
-  const progress = getProficiencyProgress(progression, definition.id)
-  const level = getProficiencyLevel(progression, definition.id)
-  const xp = progress?.totalXp ?? 0
-  const currentThreshold = level > 0 ? proficiencyXpForLevel(level) : 0
-  const nextThreshold = level >= definition.maxLevel ? currentThreshold : proficiencyXpForLevel(Math.max(1, level + 1))
-  const percent = nextThreshold <= currentThreshold ? 100 : ((xp - currentThreshold) / (nextThreshold - currentThreshold)) * 100
+function SelectedHeaderLegacy({ definition, progression, equipped, activeWeapon }: { definition: typeof proficiencyDefinitions[number]; progression: Progression; equipped: boolean; activeWeapon?: string }) {
+  const storedProgress = getProficiencyProgress(progression, definition.id)
+  const xp = storedProgress?.totalXp ?? 0
+  const levelProgress = getProficiencyLevelProgress(xp, definition.maxLevel)
+  const levelLabel = levelProgress.level > 0 ? `Lv ${levelProgress.level} / ${definition.maxLevel}` : 'UNTRAINED'
+  const nextLevelLabel = levelProgress.isMaxLevel ? 'MAX LEVEL' : `${levelProgress.xpToNextLevel.toLocaleString()} XP to next level`
+  const level = levelProgress.level
+  const percent = levelProgress.progressFraction * 100
   return <div className="selected-proficiency-header" data-debug-kind="selected-proficiency" data-debug-proficiency-id={definition.id}><div className="selected-proficiency-heading"><div><span className="tiny-label">{equipped ? 'ACTIVE WEAPON PROFICIENCY' : definition.category === 'magic' ? 'MAGIC PROFICIENCY' : 'WEAPON PROFICIENCY'}</span><h3>{level > 0 ? `Lv ${level} / ${definition.maxLevel}` : 'UNTRAINED'}</h3></div>{equipped && <span className="proficiency-active-badge"><Check size={12} /> ACTIVE</span>}</div>{level > 0 ? <><div className="selected-xp-line"><span>Current XP {Math.floor(xp).toLocaleString()}</span><strong>{getProficiencyXpToNextLevel(progression, definition.id).toLocaleString()} XP to next level</strong></div><ProgressBar value={Math.max(0, Math.min(100, percent))} variant="experience" showValue ariaLabel={`${definition.name} selected XP progress`} /><small className="selected-lifetime-xp">Lifetime Proficiency XP: {Math.floor(xp).toLocaleString()}{activeWeapon && equipped ? ` · Equipped item: ${activeWeapon}` : ''}</small></> : <p className="untrained-copy">Use a {definition.category === 'magic' ? 'spell from' : ''} {definition.name} to begin gaining Proficiency XP.</p>}</div>
 }
 
-function PerkTree({ definition, perks, progression, selectedPerkId, onSelectPerk }: { definition: typeof proficiencyDefinitions[number]; perks: ProficiencyPerkDefinition[]; progression: Progression; selectedPerkId: string; onSelectPerk: (id: string) => void }) {
+function SelectedHeader({ definition, progression, equipped, activeWeapon }: { definition: typeof proficiencyDefinitions[number]; progression: Progression; equipped: boolean; activeWeapon?: string }) {
+  const storedProgress = getProficiencyProgress(progression, definition.id)
+  const xp = storedProgress?.totalXp ?? 0
+  const levelProgress = getProficiencyLevelProgress(xp, definition.maxLevel)
+  const levelLabel = levelProgress.level > 0 ? `Lv ${levelProgress.level} / ${definition.maxLevel}` : 'UNTRAINED'
+  const nextLevelLabel = levelProgress.isMaxLevel ? 'MAX LEVEL' : `${levelProgress.xpToNextLevel.toLocaleString()} XP to next level`
+  return <div className="selected-proficiency-header" data-debug-kind="selected-proficiency" data-debug-proficiency-id={definition.id} data-debug-progress={levelProgress.progressFraction} data-debug-total-xp={xp} data-debug-level={levelProgress.level}><div className="selected-proficiency-heading"><div><span className="tiny-label">{equipped ? 'ACTIVE WEAPON PROFICIENCY' : definition.category === 'magic' ? 'MAGIC PROFICIENCY' : 'WEAPON PROFICIENCY'}</span><h3 className="proficiency-active-level">{levelLabel}</h3></div>{equipped && <span className="proficiency-active-badge"><Check size={12} /> ACTIVE</span>}</div><div className="selected-xp-line"><span>Current XP {Math.floor(xp).toLocaleString()}</span><strong>{nextLevelLabel}</strong></div><ProgressBar value={levelProgress.progressFraction * 100} variant="experience" showValue ariaLabel={`${definition.name} selected XP progress`} /><small className="selected-lifetime-xp">Lifetime Proficiency XP: {Math.floor(xp).toLocaleString()}{activeWeapon && equipped ? ` / Equipped item: ${activeWeapon}` : ''}</small>{levelProgress.level === 0 && <p className="untrained-copy">Use a {definition.category === 'magic' ? 'spell from' : ''} {definition.name} to begin gaining Proficiency XP.</p>}</div>
+}
+
+function PerkTree({ definition, perks, progression, selectedPerkId, onSelectPerk, pan, onPanChange }: { definition: typeof proficiencyDefinitions[number]; perks: ProficiencyPerkDefinition[]; progression: Progression; selectedPerkId: string; onSelectPerk: (id: string) => void; pan?: TreePan; onPanChange: (pan: TreePan) => void }) {
   const selectedPerk = perks.find((perk) => perk.id === selectedPerkId) ?? perks[0]
   const byId = useMemo(() => Object.fromEntries(perks.map((perk) => [perk.id, perk])), [perks])
+  const viewportRef = useRef<HTMLDivElement | null>(null)
+  const cameraRef = useRef<HTMLDivElement | null>(null)
+  const interactionRef = useRef<{ pointerId: number; startPointerX: number; startPointerY: number; startPanX: number; startPanY: number; didPan: boolean } | null>(null)
+  const suppressClickRef = useRef(false)
+  const [isPanning, setIsPanning] = useState(false)
+  const { hideTooltip } = useTooltip()
+  const currentPan = pan ?? { x: 0, y: 0 }
+
+  const clampPan = (next: TreePan) => {
+    const viewport = viewportRef.current
+    const camera = cameraRef.current
+    if (!viewport || !camera) return next
+    const minX = viewport.clientWidth - camera.offsetWidth - PAN_PADDING
+    const maxX = PAN_PADDING
+    const minY = viewport.clientHeight - camera.offsetHeight - PAN_PADDING
+    const maxY = PAN_PADDING
+    return { x: Math.max(minX, Math.min(maxX, next.x)), y: Math.max(minY, Math.min(maxY, next.y)) }
+  }
+
+  const rootPosition = () => {
+    const root = perks.find((perk) => perk.prerequisiteRules.length === 0) ?? perks.reduce((lowest, perk) => perk.presentation.row < lowest.presentation.row ? perk : lowest, perks[0])
+    return graphPoint(root)
+  }
+
+  const centerTree = () => {
+    const viewport = viewportRef.current
+    if (!viewport) return
+    const root = rootPosition()
+    onPanChange(clampPan({ x: viewport.clientWidth / 2 - root.x, y: viewport.clientHeight * .72 - root.y }))
+  }
+
+  useEffect(() => {
+    if (pan) return
+    const frame = window.requestAnimationFrame(() => centerTree())
+    return () => window.cancelAnimationFrame(frame)
+  }, [definition.id])
+
+  const updateFromPointer = (event: React.PointerEvent<HTMLDivElement>) => {
+    const interaction = interactionRef.current
+    if (!interaction || interaction.pointerId !== event.pointerId) return
+    const deltaX = event.clientX - interaction.startPointerX
+    const deltaY = event.clientY - interaction.startPointerY
+    if (!interaction.didPan && Math.hypot(deltaX, deltaY) < PAN_THRESHOLD) return
+    if (!interaction.didPan) {
+      interaction.didPan = true
+      suppressClickRef.current = true
+      setIsPanning(true)
+      hideTooltip()
+    }
+    event.preventDefault()
+    onPanChange(clampPan({ x: interaction.startPanX + deltaX, y: interaction.startPanY + deltaY }))
+  }
+
+  const stopPointerPan = (event: React.PointerEvent<HTMLDivElement>) => {
+    const interaction = interactionRef.current
+    if (!interaction || interaction.pointerId !== event.pointerId) return
+    const viewport = viewportRef.current
+    if (viewport?.hasPointerCapture?.(event.pointerId)) viewport.releasePointerCapture(event.pointerId)
+    interactionRef.current = null
+    setIsPanning(false)
+  }
+
+  const handlePointerDown = (event: React.PointerEvent<HTMLDivElement>) => {
+    if ((event.target as Element).closest('[data-perk-node]')) return
+    if (event.button !== 0 && event.pointerType === 'mouse') return
+    suppressClickRef.current = false
+    const point = pan ?? clampPan({ x: 0, y: 0 })
+    interactionRef.current = { pointerId: event.pointerId, startPointerX: event.clientX, startPointerY: event.clientY, startPanX: point.x, startPanY: point.y, didPan: false }
+    const viewport = viewportRef.current
+    if (viewport?.setPointerCapture) viewport.setPointerCapture(event.pointerId)
+  }
+
+  const handleWheel = (event: React.WheelEvent<HTMLDivElement>) => {
+    event.preventDefault()
+    const horizontal = event.shiftKey ? event.deltaX || event.deltaY : event.deltaX
+    const vertical = event.shiftKey ? 0 : event.deltaY
+    onPanChange(clampPan({ x: currentPan.x - horizontal, y: currentPan.y - vertical }))
+  }
+
+  const handleKeyDown = (event: React.KeyboardEvent<HTMLDivElement>) => {
+    const deltas: Record<string, TreePan> = { ArrowLeft: { x: 40, y: 0 }, ArrowRight: { x: -40, y: 0 }, ArrowUp: { x: 0, y: 40 }, ArrowDown: { x: 0, y: -40 } }
+    const delta = deltas[event.key]
+    if (!delta) return
+    event.preventDefault()
+    onPanChange(clampPan({ x: currentPan.x + delta.x, y: currentPan.y + delta.y }))
+  }
+
+  const handleClickCapture = (event: React.MouseEvent<HTMLDivElement>) => {
+    if (!suppressClickRef.current) return
+    suppressClickRef.current = false
+    event.preventDefault()
+    event.stopPropagation()
+  }
+
   return <div className="perk-tree-region" data-debug-kind="perk-tree" data-debug-proficiency-id={definition.id}>
-    <div className="perk-tree-viewport combatbound-scroll" data-debug-kind="perk-tree-viewport" aria-label={`${definition.name} perk graph`}>
+    <div className="perk-tree-camera-header"><span className="tiny-label">MAP VIEW</span><small>Drag empty space to explore</small><GameTooltip content={{ id: `perk-tree-center.${definition.id}`, title: 'Center Perk Tree', description: 'Return the camera to the root area.' }}><button type="button" className="perk-tree-center" onClick={centerTree} data-debug-action="center-perk-tree" aria-label="Center Perk Tree">CENTER</button></GameTooltip></div>
+    <div ref={viewportRef} className={`perk-tree-viewport ${isPanning ? 'is-panning' : ''}`} data-debug-kind="perk-tree-viewport" data-debug-pan-x={Math.round(currentPan.x)} data-debug-pan-y={Math.round(currentPan.y)} aria-label={`${definition.name} perk graph`} tabIndex={0} onPointerDown={handlePointerDown} onPointerMove={updateFromPointer} onPointerUp={stopPointerPan} onPointerCancel={stopPointerPan} onWheel={handleWheel} onKeyDown={handleKeyDown} onClickCapture={handleClickCapture}>
+      <div ref={cameraRef} className="perk-tree-camera" style={{ transform: `translate3d(${currentPan.x}px, ${currentPan.y}px, 0)` }} data-debug-kind="perk-tree-camera" data-debug-pan-x={Math.round(currentPan.x)} data-debug-pan-y={Math.round(currentPan.y)} data-perk-tree-pan-surface>
       <div className="perk-tree-canvas" style={{ height: GRAPH_HEIGHT }} data-debug-kind="perk-tree-canvas">
         <svg className="perk-tree-connectors" viewBox={`0 0 ${GRAPH_WIDTH} ${GRAPH_HEIGHT}`} preserveAspectRatio="none" aria-hidden="true">
           {perks.flatMap((perk) => perk.prerequisiteRules.flatMap((rule, ruleIndex) => rule.requirements.map((requirement, requirementIndex) => {
@@ -136,8 +247,19 @@ function PerkTree({ definition, perks, progression, selectedPerkId, onSelectPerk
         </svg>
         {perks.map((perk) => <PerkNode key={perk.id} perk={perk} progression={progression} selected={perk.id === selectedPerk?.id} onSelect={onSelectPerk} />)}
       </div>
+      </div>
     </div>
   </div>
+}
+
+function PerkNodeLegacy({ perk, progression, selected, onSelect }: { perk: ProficiencyPerkDefinition; progression: Progression; selected: boolean; onSelect: (id: string) => void }) {
+  const state = getPerkPurchaseState(progression, perk.id, perkById)
+  const rank = state.currentRank
+  const visualStatus = rank > 0 && state.status !== 'maxed' ? 'purchased-partial' : state.status
+  const point = graphPoint(perk)
+  const positionStyle = { left: `${(point.x / GRAPH_WIDTH) * 100}%`, top: `${(point.y / GRAPH_HEIGHT) * 100}%` }
+  const content = <button type="button" className={`perk-tree-node is-${visualStatus} ${selected ? 'is-selected' : ''}`} style={positionStyle} onClick={() => onSelect(perk.id)} data-perk-node data-debug-kind="perk-node" data-debug-legacy-kind="proficiency-perk" data-debug-perk-id={perk.id} data-debug-state={statusLabel[visualStatus]} data-debug-label={perk.name} aria-label={`${perk.name}, ${statusLabel[visualStatus]}`}><strong className="perk-node-name">{perk.name}</strong><small className="perk-node-rank">R {rank}/{perk.maxRank}</small></button>
+  return <GameTooltip content={{ id: `perk-node.${perk.id}`, title: perk.name, subtitle: `${perk.branch} · ${statusLabel[visualStatus]}`, description: perk.description, rows: [{ label: 'Rank', value: `${rank} / ${perk.maxRank}`, tone: rank > 0 ? 'green' : 'default' }, { label: 'Level', value: `Proficiency Lv ${perk.requiredProficiencyLevel}`, tone: state.status === 'level-locked' ? 'red' : 'blue' }, { label: 'Cost', value: state.status === 'maxed' ? 'Complete' : `${perk.costPerRank} point / rank`, tone: 'gold' }] }}>{content}</GameTooltip>
 }
 
 function PerkNode({ perk, progression, selected, onSelect }: { perk: ProficiencyPerkDefinition; progression: Progression; selected: boolean; onSelect: (id: string) => void }) {
@@ -146,8 +268,8 @@ function PerkNode({ perk, progression, selected, onSelect }: { perk: Proficiency
   const visualStatus = rank > 0 && state.status !== 'maxed' ? 'purchased-partial' : state.status
   const point = graphPoint(perk)
   const positionStyle = { left: `${(point.x / GRAPH_WIDTH) * 100}%`, top: `${(point.y / GRAPH_HEIGHT) * 100}%` }
-  const content = <button type="button" className={`perk-tree-node is-${visualStatus} ${selected ? 'is-selected' : ''}`} style={positionStyle} onClick={() => onSelect(perk.id)} data-debug-kind="perk-node" data-debug-legacy-kind="proficiency-perk" data-debug-perk-id={perk.id} data-debug-state={statusLabel[visualStatus]} data-debug-label={perk.name} aria-label={`${perk.name}, ${statusLabel[visualStatus]}`}><span className="perk-node-icon"><PlaceholderArt icon={perk.presentation.icon} size="small" variant={state.status === 'available' || rank > 0 ? 'gold' : 'muted'} /></span><strong>{perk.name}</strong><small>R {rank}/{perk.maxRank}</small></button>
-  return <GameTooltip content={{ id: `perk-node.${perk.id}`, title: perk.name, subtitle: `${perk.branch} · ${statusLabel[visualStatus]}`, description: perk.description, rows: [{ label: 'Rank', value: `${rank} / ${perk.maxRank}`, tone: rank > 0 ? 'green' : 'default' }, { label: 'Level', value: `Proficiency Lv ${perk.requiredProficiencyLevel}`, tone: state.status === 'level-locked' ? 'red' : 'blue' }, { label: 'Cost', value: state.status === 'maxed' ? 'Complete' : `${perk.costPerRank} point / rank`, tone: 'gold' }] }}>{content}</GameTooltip>
+  const content = <button type="button" className={`perk-tree-node is-${visualStatus} ${selected ? 'is-selected' : ''}`} style={positionStyle} onClick={() => onSelect(perk.id)} data-perk-node data-debug-kind="perk-node" data-debug-legacy-kind="proficiency-perk" data-debug-perk-id={perk.id} data-debug-state={statusLabel[visualStatus]} data-debug-label={perk.name} aria-label={`${perk.name}, ${statusLabel[visualStatus]}`}><strong className="perk-node-name">{perk.name}</strong><small className="perk-node-rank">R {rank}/{perk.maxRank}</small></button>
+  return <GameTooltip content={{ id: `perk-node.${perk.id}`, title: perk.name, subtitle: `${perk.branch} / ${statusLabel[visualStatus]}`, description: perk.description, rows: [{ label: 'Rank', value: `${rank} / ${perk.maxRank}`, tone: rank > 0 ? 'green' : 'default' }, { label: 'Level', value: `Proficiency Lv ${perk.requiredProficiencyLevel}`, tone: state.status === 'level-locked' ? 'red' : 'blue' }, { label: 'Cost', value: state.status === 'maxed' ? 'Complete' : `${perk.costPerRank} point / rank`, tone: 'gold' }] }}>{content}</GameTooltip>
 }
 
 function PerkDetailsPanel({ perk, progression, availablePoints, onPurchase }: { perk: ProficiencyPerkDefinition; progression: Progression; availablePoints: number; onPurchase: (perkId: string) => void }) {

@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { combatStatReferenceById } from '../game/data/combatGlossary'
 import { proficiencyById } from '../game/data/proficiencies'
-import { formatCombatStatValue, formatItemStat } from '../game/presentation/statFormatting'
+import { formatCombatStatValue, formatHealthWithBarrier, formatItemStat } from '../game/presentation/statFormatting'
 
 describe('combat reference metadata', () => {
   it('keeps the important stat distinctions explicit', () => {
@@ -27,5 +27,10 @@ describe('combat reference metadata', () => {
     expect(formatItemStat('attackInterval', 2.4).value).toBe('2.4s')
     expect(formatItemStat('fireResistance', 0.2)).toMatchObject({ value: '+20%', tone: 'green' })
     expect(formatItemStat('fireResistance', -0.2)).toMatchObject({ value: '-20%', tone: 'red' })
+  })
+
+  it('shows absorb shields beside current and maximum health', () => {
+    expect(formatHealthWithBarrier(173, 270, 70)).toBe('173 / 270 (+70)')
+    expect(formatHealthWithBarrier(173, 270, 0)).toBe('173 / 270')
   })
 })

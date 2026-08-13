@@ -70,6 +70,9 @@ export const effectDefinitions = deepFreeze<EffectDefinition[]>([
     beneficial: true,
   },
   {
+    id: 'effect.earth-barrier', name: 'Earthen Ward', description: 'A Stone Ward that absorbs incoming damage.', icon: 'shield', kind: 'barrier', tags: ['beneficial', 'barrier', 'earth'], durationSeconds: 8, stacking: { mode: 'replace-stronger', maxStacks: 1 }, barrierAmount: 45, persistence: 'between-enemies', beneficial: true,
+  },
+  {
     id: 'effect.disruptive-shield',
     name: 'Disruptive Shield',
     description: 'A short-lived interruption barrier.',
@@ -126,6 +129,45 @@ export const effectDefinitions = deepFreeze<EffectDefinition[]>([
   },
   {
     id: 'effect.opening-created', name: 'Opening Created', description: 'Accuracy gained after an interrupt.', icon: 'target', kind: 'buff', tags: ['beneficial', 'disruption'], durationSeconds: 4, stacking: { mode: 'refresh', maxStacks: 1 }, statModifiers: [{ stat: 'accuracy', operation: 'flat', value: 5 }], persistence: 'between-enemies', beneficial: true,
+  },
+  {
+    id: 'effect.concussed', name: 'Concussed', description: 'A harmful impact debuff that reduces Accuracy and slows Attack Interval.', icon: 'hammer', kind: 'debuff', tags: ['harmful', 'physical', 'control', 'concussed'], durationSeconds: 4, stacking: { mode: 'refresh', maxStacks: 1 }, statModifiers: [{ stat: 'accuracy', operation: 'flat', value: -5 }, { stat: 'attackInterval', operation: 'addPercent', value: .05 }], persistence: 'enemy-life',
+  },
+  {
+    id: 'effect.chilled', name: 'Chilled', description: 'Water magic slows the target. Chilled can stack and refresh.', icon: 'droplets', kind: 'debuff', tags: ['harmful', 'water', 'frost', 'chilled'], durationSeconds: 5, stacking: { mode: 'stack-refresh', maxStacks: 3 }, statModifiers: [{ stat: 'attackInterval', operation: 'addPercent', value: .03 }], cleanseTags: ['harmful', 'water', 'chilled'], persistence: 'enemy-life',
+  },
+  {
+    id: 'effect.shocked', name: 'Shocked', description: 'Air magic leaves the target exposed to follow-up attacks.', icon: 'zap', kind: 'debuff', tags: ['harmful', 'air', 'shock', 'shocked'], durationSeconds: 5, stacking: { mode: 'refresh', maxStacks: 1 }, statModifiers: [{ stat: 'evasion', operation: 'flat', value: -8 }], cleanseTags: ['harmful', 'air', 'shocked'], persistence: 'enemy-life',
+  },
+  {
+    id: 'effect.cursed', name: 'Cursed', description: 'Darkness magic weakens the target\'s Accuracy.', icon: 'moon', kind: 'debuff', tags: ['harmful', 'darkness', 'curse', 'cursed'], durationSeconds: 6, stacking: { mode: 'refresh', maxStacks: 1 }, statModifiers: [{ stat: 'accuracy', operation: 'flat', value: -5 }], cleanseTags: ['harmful', 'darkness', 'curse', 'cursed'], persistence: 'enemy-life',
+  },
+  {
+    id: 'effect.shadow-decay', name: 'Shadow Decay', description: 'Darkness periodically damages the target and can stack.', icon: 'moon', kind: 'debuff', tags: ['harmful', 'darkness', 'decay', 'dot'], durationSeconds: 6, stacking: { mode: 'stack-refresh', maxStacks: 3 }, periodic: { intervalSeconds: 2, operation: { type: 'damage', damageType: 'darkness', baseAmount: 7, canCrit: false } }, cleanseTags: ['harmful', 'darkness', 'decay'], persistence: 'enemy-life',
+  },
+  {
+    id: 'effect.water-mist', name: 'Water Mist', description: 'A brief Water-authored veil that improves Evasion.', icon: 'droplets', kind: 'buff', tags: ['beneficial', 'water', 'mist'], durationSeconds: 4, stacking: { mode: 'refresh', maxStacks: 1 }, statModifiers: [{ stat: 'evasion', operation: 'flat', value: 4 }, { stat: 'dodgeChance', operation: 'flat', value: .02 }], persistence: 'between-enemies', beneficial: true,
+  },
+  {
+    id: 'effect.air-windstep', name: 'Windstep', description: 'A brief Air-authored mobility window.', icon: 'wind', kind: 'buff', tags: ['beneficial', 'air', 'wind'], durationSeconds: 3, stacking: { mode: 'refresh', maxStacks: 1 }, statModifiers: [{ stat: 'evasion', operation: 'flat', value: 4 }, { stat: 'dodgeChance', operation: 'flat', value: .02 }], persistence: 'between-enemies', beneficial: true,
+  },
+  {
+    id: 'effect.earth-fortified', name: 'Earth Fortified', description: 'Earth magic reinforces the Hunter.', icon: 'mountain', kind: 'buff', tags: ['beneficial', 'earth', 'fortified'], durationSeconds: 5, stacking: { mode: 'refresh', maxStacks: 1 }, statModifiers: [{ stat: 'armor', operation: 'flat', value: 4 }, { stat: 'statusResistance', operation: 'flat', value: .03 }], persistence: 'between-enemies', beneficial: true,
+  },
+  {
+    id: 'effect.light-purity', name: 'Light Purity', description: 'Light magic briefly improves Status Resistance.', icon: 'sun', kind: 'buff', tags: ['beneficial', 'light', 'purity'], durationSeconds: 5, stacking: { mode: 'refresh', maxStacks: 1 }, statModifiers: [{ stat: 'statusResistance', operation: 'flat', value: .03 }], persistence: 'between-enemies', beneficial: true,
+  },
+  {
+    id: 'effect.dagger-evasion', name: 'Dagger Evasion', description: 'A brief evasive window after avoiding an attack.', icon: 'wind', kind: 'buff', tags: ['beneficial', 'dagger'], durationSeconds: 3, stacking: { mode: 'refresh', maxStacks: 1 }, statModifiers: [{ stat: 'dodgeChance', operation: 'flat', value: .06 }, { stat: 'attackInterval', operation: 'addPercent', value: -.05 }], persistence: 'between-enemies', beneficial: true,
+  },
+  {
+    id: 'effect.mobile-archer', name: 'Mobile Archer', description: 'A short mobility window after an enemy avoids your shot.', icon: 'bow', kind: 'buff', tags: ['beneficial', 'shortbow'], durationSeconds: 3, stacking: { mode: 'refresh', maxStacks: 1 }, statModifiers: [{ stat: 'dodgeChance', operation: 'flat', value: .04 }, { stat: 'attackInterval', operation: 'addPercent', value: -.04 }], persistence: 'between-enemies', beneficial: true,
+  },
+  {
+    id: 'effect.guarded-counter', name: 'Guarded Counter', description: 'A brief damage window after a successful Block.', icon: 'shield', kind: 'buff', tags: ['beneficial', 'mace'], durationSeconds: 4, stacking: { mode: 'refresh', maxStacks: 1 }, statModifiers: [{ stat: 'attackPower', operation: 'addPercent', value: .08 }], persistence: 'between-enemies', beneficial: true,
+  },
+  {
+    id: 'effect.counterweight', name: 'Counterweight', description: 'A brief faster attack window after a successful Block.', icon: 'timer', kind: 'buff', tags: ['beneficial', 'mace'], durationSeconds: 3, stacking: { mode: 'refresh', maxStacks: 1 }, statModifiers: [{ stat: 'attackInterval', operation: 'addPercent', value: -.08 }], persistence: 'between-enemies', beneficial: true,
   },
 ])
 

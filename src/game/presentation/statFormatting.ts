@@ -15,13 +15,18 @@ export function formatSignedNumber(value: number) { return value > 0 ? `+${Math.
 export function formatSignedPercent(value: number) { return formatPercent(value, true) }
 export function formatMultiplierAsPercent(value: number) { return formatPercent(value) }
 export function formatResistance(value: number) { return formatPercent(value, true) }
+export function formatHealthWithBarrier(current: number, max: number, barrier = 0) {
+  const health = `${Math.floor(current).toLocaleString()} / ${Math.floor(max).toLocaleString()}`
+  const absorbShield = Math.max(0, Math.floor(barrier))
+  return absorbShield > 0 ? `${health} (+${absorbShield.toLocaleString()})` : health
+}
 
 const labelAliases: Record<string, string> = {
   attack: 'Attack Power', defense: 'Armor', dodge: 'Dodge Chance', parry: 'Parry Chance', block: 'Block Chance',
   maxHealth: 'Max Health', attackPower: 'Attack Power', accuracy: 'Accuracy', attackInterval: 'Attack Interval', armor: 'Armor', evasion: 'Evasion',
   critChance: 'Critical Hit Chance', critDamage: 'Critical Hit Damage', dodgeChance: 'Dodge Chance', parryChance: 'Parry Chance', blockChance: 'Block Chance', blockPower: 'Block Power',
   maxStamina: 'Max Stamina', staminaRegen: 'Stamina Regeneration', maxMana: 'Max Mana', manaRegen: 'Mana Regeneration', statusResistance: 'Status Resistance',
-  physicalResistance: 'Physical Resistance', fireResistance: 'Fire Resistance', earthResistance: 'Earth Resistance', airResistance: 'Air Resistance', natureResistance: 'Nature Resistance', mysticResistance: 'Mystic Resistance',
+  physicalResistance: 'Physical Resistance', fireResistance: 'Fire Resistance', waterResistance: 'Water Resistance', earthResistance: 'Earth Resistance', airResistance: 'Air Resistance', lightResistance: 'Light Resistance', darknessResistance: 'Darkness Resistance', natureResistance: 'Nature Resistance', mysticResistance: 'Mystic Resistance',
   currentHealth: 'Current Health', stamina: 'Stamina', mana: 'Mana', barrier: 'Barrier', hitChance: 'Hit Chance',
 }
 

@@ -1,5 +1,5 @@
 import type { CombatantRef, DamageType, StatModifier } from './combatTypes'
-import type { ProgressionCredit } from '../progression/progressionTypes'
+import type { CombatProficiencyId, ProgressionCredit } from '../progression/progressionTypes'
 
 export type EffectKind = 'buff' | 'debuff' | 'status' | 'barrier'
 export type EffectStackingMode = 'refresh' | 'stack-refresh' | 'extend' | 'replace-stronger' | 'independent'
@@ -45,6 +45,8 @@ export interface ActiveEffectInstance {
   appliedSequence: number
   snapshot?: { power?: number; periodicPowerMultiplier?: number }
   progressionCredit?: ProgressionCredit
+  /** School/weapon ownership for source-aware perk modifiers. */
+  sourceProficiencyId?: CombatProficiencyId
   runtimeValues?: { absorbRemaining?: number }
 }
 

@@ -15,6 +15,8 @@ import type {
   WeaponProficiencyId,
 } from './progressionTypes'
 
+const scopedDefinitionCache = new WeakMap<object, Map<CombatProficiencyId, ProficiencyPerkDefinition[]>>()
+
 export function getPurchasedPerkRank(progression: ProgressionState, perkId: string) {
   return Math.max(0, progression.purchasedPerks[perkId] ?? 0)
 }
@@ -77,7 +79,17 @@ export function purchasePerk(progression: ProgressionState, perkId: string, defi
 }
 
 function activeEffects(progression: ProgressionState, proficiencyId: CombatProficiencyId, definitions: Record<string, ProficiencyPerkDefinition>) {
-  return Object.values(definitions).filter((perk) => perk.proficiencyId === proficiencyId).flatMap((perk) => {
+  let byProficiency = scopedDefinitionCache.get(definitions)
+  if (!byProficiency) {
+    byProficiency = new Map()
+    for (const perk of Object.values(definitions)) {
+      const current = byProficiency.get(perk.proficiencyId) ?? []
+      current.push(perk)
+      byProficiency.set(perk.proficiencyId, current)
+    }
+    scopedDefinitionCache.set(definitions, byProficiency)
+  }
+  return (byProficiency.get(proficiencyId) ?? []).flatMap((perk) => {
     const rank = getPurchasedPerkRank(progression, perk.id)
     return rank > 0 ? perk.effects.map((effect) => ({ effect, rank })) : []
   })
@@ -105,7 +117,7 @@ export function getActiveProficiencyStatModifiers(
   const modifiers: StatModifier[] = []
   for (const { effect, rank } of activeEffects(progression, proficiencyId, definitions)) {
     if (effect.type === 'statModifier') modifiers.push(toStatModifier(effect, rank))
-    if (effect.type === 'weaponAttackIntervalModifier' && proficiencyId === 'one-handed-sword') modifiers.push({ stat: 'attackInterval', operation: 'addPercent', value: effect.valuePerRank * rank })
+    if (effect.type === 'weaponAttackIntervalModifier') modifiers.push({ stat: 'attackInterval', operation: 'addPercent', value: effect.valuePerRank * rank })
     if (effect.type === 'conditionalStatModifier') {
       const matches = effect.condition.type === 'active-barrier' ? context.barrierActive === true
         : effect.condition.type === 'stamina-above' ? (context.staminaFraction ?? 0) >= (effect.condition.fraction ?? 0)
@@ -169,6 +181,46 @@ export function getWeaponHitResourceHooks(progression: ProgressionState, profici
 export function getWeaponHitAdvanceHooks(progression: ProgressionState, proficiencyId: WeaponProficiencyId | null, definitions: Record<string, ProficiencyPerkDefinition> = perkById) {
   if (!proficiencyId) return [] as Array<{ chance: number; fraction: number }>
   return activeEffects(progression, proficiencyId, definitions).flatMap(({ effect, rank }) => effect.type === 'weaponOnHitAdvanceAttack' ? [{ chance: Math.min(1, effect.chancePerRank * rank), fraction: effect.fraction }] : [])
+}
+
+export interface WeaponAttackModifiers {
+  armorPenetrationPercent: number
+  armorPenetrationFlat: number
+  blockChancePenetration: number
+  blockPowerPenetration: number
+  secondaryTargetFraction: number
+  secondaryTargetCount: number
+}
+
+/** Aggregates attack-local weapon effects. These are applied to one hit only. */
+export function getWeaponAttackModifiers(progression: ProgressionState, proficiencyId: WeaponProficiencyId | null, definitions: Record<string, ProficiencyPerkDefinition> = perkById): WeaponAttackModifiers {
+  const result: WeaponAttackModifiers = { armorPenetrationPercent: 0, armorPenetrationFlat: 0, blockChancePenetration: 0, blockPowerPenetration: 0, secondaryTargetFraction: 0, secondaryTargetCount: 0 }
+  if (!proficiencyId) return result
+  for (const { effect, rank } of activeEffects(progression, proficiencyId, definitions)) {
+    if (effect.type === 'weaponArmorPenetrationModifier') {
+      if (effect.mode === 'percent') result.armorPenetrationPercent += effect.valuePerRank * rank
+      else result.armorPenetrationFlat += effect.valuePerRank * rank
+    }
+    if (effect.type === 'weaponBlockPenetrationModifier') {
+      if (effect.stat === 'blockChance') result.blockChancePenetration += effect.valuePerRank * rank
+      else result.blockPowerPenetration += effect.valuePerRank * rank
+    }
+    if (effect.type === 'weaponSecondaryTargetDamage') {
+      result.secondaryTargetFraction += effect.fractionPerRank * rank
+      result.secondaryTargetCount = Math.max(result.secondaryTargetCount, effect.maxAdditionalTargets)
+    }
+  }
+  return result
+}
+
+export function getWeaponDodgeEffectHooks(progression: ProgressionState, proficiencyId: WeaponProficiencyId | null, definitions: Record<string, ProficiencyPerkDefinition> = perkById) {
+  if (!proficiencyId) return [] as Array<{ effectId: string; durationSeconds?: number }>
+  return activeEffects(progression, proficiencyId, definitions).flatMap(({ effect, rank }) => effect.type === 'onDodgeApplyEffect' ? Array.from({ length: rank }, () => ({ effectId: effect.effectId, durationSeconds: effect.durationSeconds })) : [])
+}
+
+export function getWeaponBlockEffectHooks(progression: ProgressionState, proficiencyId: WeaponProficiencyId | null, definitions: Record<string, ProficiencyPerkDefinition> = perkById) {
+  if (!proficiencyId) return [] as Array<{ effectId: string; durationSeconds?: number }>
+  return activeEffects(progression, proficiencyId, definitions).flatMap(({ effect, rank }) => effect.type === 'onBlockApplyEffect' ? Array.from({ length: rank }, () => ({ effectId: effect.effectId, durationSeconds: effect.durationSeconds })) : [])
 }
 
 export function getTechniqueStaminaDrainMultiplier(progression: ProgressionState, proficiencyId: WeaponProficiencyId | null, definitions: Record<string, ProficiencyPerkDefinition> = perkById) {
@@ -247,11 +299,11 @@ function activeMagicEffects(progression: ProgressionState, proficiencyId: MagicP
 }
 
 export function getActiveGlobalMagicStatModifiers(progression: ProgressionState, definitions: Record<string, ProficiencyPerkDefinition> = perkById): StatModifier[] {
-  return (['fire-magic', 'warding-magic', 'disruption-magic'] as MagicProficiencyId[]).flatMap((id) => getActiveProficiencyStatModifiers(progression, id, definitions))
+  return (['fire-magic', 'water-magic', 'air-magic', 'earth-magic', 'light-magic', 'darkness-magic'] as MagicProficiencyId[]).flatMap((id) => getActiveProficiencyStatModifiers(progression, id, definitions))
 }
 
 export function getConditionalMagicStatModifiers(progression: ProgressionState, barrierActive: boolean, definitions: Record<string, ProficiencyPerkDefinition> = perkById): StatModifier[] {
-  return (['fire-magic', 'warding-magic', 'disruption-magic'] as MagicProficiencyId[]).flatMap((id) => getConditionalProficiencyStatModifiers(progression, id, { barrierActive }, definitions))
+  return (['fire-magic', 'water-magic', 'air-magic', 'earth-magic', 'light-magic', 'darkness-magic'] as MagicProficiencyId[]).flatMap((id) => getConditionalProficiencyStatModifiers(progression, id, { barrierActive }, definitions))
 }
 
 export interface EffectiveMagicModifiers {
@@ -270,10 +322,19 @@ export interface EffectiveMagicModifiers {
   effectPeriodicPowerPercent: Record<string, number>
   effectDurationBonus: Record<string, number>
   effectMaxStacksBonus: Record<string, number>
+  spellCriticalChance: number
+  healingPercent: number
+  healingOverTimePercent: number
+  lifeDrainFraction: number
+  damageBasedManaRestoreFraction: number
+  spellArmorPenetrationPercent: number
+  spellArmorPenetrationFlat: number
+  spellSecondaryTargetFraction: number
+  spellSecondaryTargetCount: number
 }
 
 export function getEffectiveMagicModifiers(progression: ProgressionState, proficiencyId: MagicProficiencyId, definitions: Record<string, ProficiencyPerkDefinition> = perkById): EffectiveMagicModifiers {
-  const result: EffectiveMagicModifiers = { spellDamagePercent: 0, spellFlatDamage: 0, manaCostPercent: 0, cooldownPercent: 0, accuracy: 0, barrierAmountPercent: 0, barrierAmountFlat: 0, barrierDurationBonus: 0, barrierDurationPercent: 0, canCrit: false, spellCriticalDamagePercent: 0, conditionalCriticalChance: 0, effectPeriodicPowerPercent: {}, effectDurationBonus: {}, effectMaxStacksBonus: {} }
+  const result: EffectiveMagicModifiers = { spellDamagePercent: 0, spellFlatDamage: 0, manaCostPercent: 0, cooldownPercent: 0, accuracy: 0, barrierAmountPercent: 0, barrierAmountFlat: 0, barrierDurationBonus: 0, barrierDurationPercent: 0, canCrit: false, spellCriticalDamagePercent: 0, conditionalCriticalChance: 0, effectPeriodicPowerPercent: {}, effectDurationBonus: {}, effectMaxStacksBonus: {}, spellCriticalChance: 0, healingPercent: 0, healingOverTimePercent: 0, lifeDrainFraction: 0, damageBasedManaRestoreFraction: 0, spellArmorPenetrationPercent: 0, spellArmorPenetrationFlat: 0, spellSecondaryTargetFraction: 0, spellSecondaryTargetCount: 0 }
   for (const { effect, rank } of activeMagicEffects(progression, proficiencyId, definitions)) {
     if (effect.type === 'spellDamageModifier') result.spellDamagePercent += effect.valuePerRank * rank
     if (effect.type === 'spellFlatDamageModifier') result.spellFlatDamage += effect.valuePerRank * rank
@@ -288,6 +349,19 @@ export function getEffectiveMagicModifiers(progression: ProgressionState, profic
     }
     if (effect.type === 'spellCanCrit' || effect.type === 'spellCritEligibility') result.canCrit = true
     if (effect.type === 'spellCriticalDamageModifier') result.spellCriticalDamagePercent += effect.valuePerRank * rank
+    if (effect.type === 'spellCriticalChanceModifier') result.spellCriticalChance += effect.valuePerRank * rank
+    if (effect.type === 'spellHealingModifier') result.healingPercent += effect.valuePerRank * rank
+    if (effect.type === 'spellHealingOverTimeModifier') result.healingOverTimePercent += effect.valuePerRank * rank
+    if (effect.type === 'spellLifeDrainModifier') result.lifeDrainFraction += effect.valuePerRank * rank
+    if (effect.type === 'spellDamageBasedManaRestore') result.damageBasedManaRestoreFraction += effect.valuePerRank * rank
+    if (effect.type === 'spellArmorPenetrationModifier') {
+      if (effect.mode === 'percent') result.spellArmorPenetrationPercent += effect.valuePerRank * rank
+      else result.spellArmorPenetrationFlat += effect.valuePerRank * rank
+    }
+    if (effect.type === 'spellSecondaryTargetDamage') {
+      result.spellSecondaryTargetFraction += effect.fractionPerRank * rank
+      result.spellSecondaryTargetCount = Math.max(result.spellSecondaryTargetCount, effect.maxAdditionalTargets)
+    }
     if (effect.type === 'appliedEffectPeriodicPowerModifier' || effect.type === 'appliedEffectPeriodicDamageModifier') result.effectPeriodicPowerPercent[effect.effectId] = (result.effectPeriodicPowerPercent[effect.effectId] ?? 0) + effect.valuePerRank * rank
     if (effect.type === 'appliedEffectDurationModifier') result.effectDurationBonus[effect.effectId] = (result.effectDurationBonus[effect.effectId] ?? 0) + effect.valuePerRank * rank
     if (effect.type === 'appliedEffectMaxStacksModifier') result.effectMaxStacksBonus[effect.effectId] = (result.effectMaxStacksBonus[effect.effectId] ?? 0) + effect.valuePerRank * rank
@@ -334,6 +408,22 @@ export function getSpellCastEffectHooks(progression: ProgressionState, proficien
   return activeMagicEffects(progression, proficiencyId, definitions).flatMap(({ effect }) => effect.type === 'onSpellCastApplyEffect' ? [{ effectId: effect.effectId, durationSeconds: effect.durationSeconds }] : [])
 }
 
+export function getSpellHitEffectHooks(progression: ProgressionState, proficiencyId: MagicProficiencyId, definitions: Record<string, ProficiencyPerkDefinition> = perkById) {
+  return activeMagicEffects(progression, proficiencyId, definitions).flatMap(({ effect, rank }) => effect.type === 'onSpellHitApplyEffect' ? [{ effectId: effect.effectId, chance: Math.min(1, effect.chancePerRank * rank), secondaryOnly: effect.secondaryOnly }] : [])
+}
+
+export function getMagicCleanseHooks(progression: ProgressionState, proficiencyId: MagicProficiencyId, definitions: Record<string, ProficiencyPerkDefinition> = perkById) {
+  return activeMagicEffects(progression, proficiencyId, definitions).flatMap(({ effect, rank }) => effect.type === 'onSuccessfulCleanseRestoreResource' ? [{ resource: effect.resource, amount: effect.amountPerRank * rank }] : [])
+}
+
+export function getMagicCleanseEffectHooks(progression: ProgressionState, proficiencyId: MagicProficiencyId, definitions: Record<string, ProficiencyPerkDefinition> = perkById) {
+  return activeMagicEffects(progression, proficiencyId, definitions).flatMap(({ effect, rank }) => effect.type === 'onSuccessfulCleanseApplyEffect' ? Array.from({ length: rank }, () => ({ effectId: effect.effectId, durationSeconds: effect.durationSeconds })) : [])
+}
+
+export function getSpellLifeDrainFraction(progression: ProgressionState, proficiencyId: MagicProficiencyId, definitions: Record<string, ProficiencyPerkDefinition> = perkById) {
+  return getEffectiveMagicModifiers(progression, proficiencyId, definitions).lifeDrainFraction
+}
+
 export function getProficiencyXpMultiplier(progression: ProgressionState, proficiencyId: MagicProficiencyId, reasonType: 'successful-interrupt', definitions: Record<string, ProficiencyPerkDefinition> = perkById) {
   return 1 + activeMagicEffects(progression, proficiencyId, definitions).reduce((sum, { effect, rank }) => sum + (effect.type === 'proficiencyXpModifier' && effect.reasonType === reasonType ? effect.valuePerRank * rank : 0), 0)
 }
@@ -351,9 +441,9 @@ export interface SuccessfulInterruptHooks {
   barrierAmount: number
 }
 
-export function getSuccessfulInterruptHooks(progression: ProgressionState, definitions: Record<string, ProficiencyPerkDefinition> = perkById): SuccessfulInterruptHooks {
+export function getSuccessfulInterruptHooks(progression: ProgressionState, definitions: Record<string, ProficiencyPerkDefinition> = perkById, proficiencyId: MagicProficiencyId = 'air-magic'): SuccessfulInterruptHooks {
   const hooks: SuccessfulInterruptHooks = { restoreMana: 0, restoreStamina: 0, effects: [], statEffects: [], cooldownMultiplier: 1, enemyAttackDelay: 0, reduceSpellCooldownFraction: 0, reduceSpellCooldownSeconds: 0, refundManaFraction: 0, barrierAmount: 0 }
-  for (const { effect, rank } of activeMagicEffects(progression, 'disruption-magic', definitions)) {
+  for (const { effect, rank } of activeMagicEffects(progression, proficiencyId, definitions)) {
     if (effect.type === 'onSuccessfulInterruptRestoreMana') hooks.restoreMana += effect.amountPerRank * rank
     if (effect.type === 'onSuccessfulInterruptRestoreStamina') hooks.restoreStamina += effect.amountPerRank * rank
     if (effect.type === 'onSuccessfulInterruptApplyEffect') for (let i = 0; i < rank; i += 1) hooks.effects.push({ effectId: effect.effectId, durationMultiplier: effect.durationMultiplier })
@@ -369,8 +459,9 @@ export function getSuccessfulInterruptHooks(progression: ProgressionState, defin
   return hooks
 }
 
-export function getBarrierAbsorbResourceRestore(progression: ProgressionState, resource: 'mana' | 'stamina', definitions: Record<string, ProficiencyPerkDefinition> = perkById) {
-  return activeMagicEffects(progression, 'warding-magic', definitions).reduce((sum, { effect, rank }) => sum + (effect.type === 'onBarrierAbsorbRestoreMana' && resource === 'mana' ? effect.amountPerRank * rank : effect.type === 'barrierAbsorbResourceRestore' && effect.resource === resource ? effect.amountPerRank * rank : 0), 0)
+export function getBarrierAbsorbResourceRestore(progression: ProgressionState, resource: 'mana' | 'stamina', definitions: Record<string, ProficiencyPerkDefinition> = perkById, proficiencyId?: MagicProficiencyId) {
+  const schools = proficiencyId ? [proficiencyId] : ['fire-magic', 'water-magic', 'air-magic', 'earth-magic', 'light-magic', 'darkness-magic'] as MagicProficiencyId[]
+  return schools.flatMap((id) => activeMagicEffects(progression, id, definitions)).reduce((sum, { effect, rank }) => sum + (effect.type === 'onBarrierAbsorbRestoreMana' && resource === 'mana' ? effect.amountPerRank * rank : effect.type === 'barrierAbsorbResourceRestore' && effect.resource === resource ? effect.amountPerRank * rank : 0), 0)
 }
 
 export function getBarrierAbsorbManaRestore(progression: ProgressionState, definitions: Record<string, ProficiencyPerkDefinition> = perkById) {

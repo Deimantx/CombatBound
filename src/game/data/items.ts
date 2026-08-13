@@ -29,8 +29,11 @@ export interface ItemDefinition {
     blockPower?: number
     physicalResistance?: number
     fireResistance?: number
+    waterResistance?: number
     earthResistance?: number
     airResistance?: number
+    lightResistance?: number
+    darknessResistance?: number
     natureResistance?: number
     mysticResistance?: number
   }

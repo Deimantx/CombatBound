@@ -13,15 +13,17 @@ export type WeaponProficiencyId =
   | 'longbow'
   | 'crossbow'
 
-export type MagicProficiencyId = 'fire-magic' | 'warding-magic' | 'disruption-magic'
+export type MagicProficiencyId = 'fire-magic' | 'water-magic' | 'air-magic' | 'earth-magic' | 'light-magic' | 'darkness-magic'
 export type CombatProficiencyId = WeaponProficiencyId | MagicProficiencyId
 export type ProficiencyCategory = 'melee' | 'ranged' | 'magic'
-export type ProgressionCreditMode = 'hp-damage' | 'barrier-absorb' | 'successful-interrupt'
+export type ProgressionCreditMode = 'hp-damage' | 'barrier-absorb' | 'successful-interrupt' | 'effective-healing' | 'successful-cleanse'
 
 export type ProficiencyXpReason =
   | { type: 'effective-hp-damage'; amount: number }
   | { type: 'barrier-absorption'; amount: number }
   | { type: 'successful-interrupt'; danger: 'low' | 'medium' | 'high' | 'critical' }
+  | { type: 'effective-healing'; amount: number }
+  | { type: 'successful-cleanse'; weight: number }
 
 export interface ProgressionCredit {
   proficiencyId: CombatProficiencyId
@@ -84,6 +86,14 @@ export type ProficiencyPerkEffect =
       type: 'spellDamageModifier' | 'spellManaCostModifier' | 'spellCooldownModifier' | 'spellAccuracyModifier'
       valuePerRank: number
     }
+  | { type: 'spellCriticalChanceModifier' | 'spellHealingModifier' | 'spellHealingOverTimeModifier' | 'spellLifeDrainModifier' | 'spellDamageBasedManaRestore'; valuePerRank: number }
+  | { type: 'spellArmorPenetrationModifier'; mode: 'flat' | 'percent'; valuePerRank: number }
+  | { type: 'spellSecondaryTargetDamage'; fractionPerRank: number; maxAdditionalTargets: number }
+  | { type: 'spellOnEffectiveHealingResourceRestore'; resource: 'mana' | 'stamina'; amountPerRank: number; divisor?: number }
+  | { type: 'onSuccessfulCleanseRestoreResource'; resource: 'mana' | 'stamina'; amountPerRank: number }
+  | { type: 'onSuccessfulCleanseApplyEffect'; effectId: string; durationSeconds?: number }
+  | { type: 'sourceEffectOutgoingDamageModifier'; effectId: string; valuePerRank: number }
+  | { type: 'onSpellHitApplyEffect'; effectId: string; chancePerRank: number; secondaryOnly?: boolean }
   | {
       type: 'appliedEffectPeriodicPowerModifier' | 'appliedEffectDurationModifier'
       effectId: string
@@ -126,6 +136,11 @@ export type ProficiencyPerkEffect =
       condition: { type: 'active-barrier' | 'active-technique' | 'stamina-above' | 'player-hp-below'; fraction?: number }
     }
   | { type: 'weaponDamageModifier' | 'weaponAttackIntervalModifier'; valuePerRank: number }
+  | { type: 'weaponArmorPenetrationModifier'; mode: 'flat' | 'percent'; valuePerRank: number }
+  | { type: 'weaponBlockPenetrationModifier'; stat: 'blockChance' | 'blockPower'; valuePerRank: number }
+  | { type: 'weaponSecondaryTargetDamage'; fractionPerRank: number; maxAdditionalTargets: number }
+  | { type: 'onDodgeApplyEffect'; effectId: string; durationSeconds?: number }
+  | { type: 'onBlockApplyEffect'; effectId: string; durationSeconds?: number }
   | { type: 'weaponFlatDamageModifier'; valuePerRank: number }
   | { type: 'weaponOnHitResourceRestore'; resource: 'stamina' | 'mana'; amountPerRank: number; chancePerRank?: number }
   | { type: 'weaponConditionalDamageModifier'; operation: 'addPercent' | 'multiply'; valuePerRank: number; condition: { type: 'targetHpAbove' | 'targetHpBelow' | 'targetHasEffect' | 'targetHasEffectAndHpBelow'; fraction?: number; effectId?: string } }

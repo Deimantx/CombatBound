@@ -12,7 +12,7 @@ describe('combat information surfaces', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Equipment' }))
     const toggle = screen.getByRole('button', { name: /Hunter Combat Stats/ })
     expect(toggle).toHaveAttribute('aria-expanded', 'true')
-    for (const label of ['Attack Power', 'Accuracy', 'Attack Interval', 'Critical Hit Chance', 'Critical Hit Damage', 'Max Health', 'Armor', 'Evasion', 'Dodge Chance', 'Parry Chance', 'Block Chance', 'Block Power', 'Status Resistance', 'Max Stamina', 'Stamina Regeneration', 'Max Mana', 'Mana Regeneration', 'Physical Resistance', 'Fire Resistance', 'Earth Resistance', 'Air Resistance', 'Nature Resistance', 'Mystic Resistance']) expect(screen.getByText(label)).toBeInTheDocument()
+    for (const label of ['Attack Power', 'Accuracy', 'Attack Interval', 'Critical Hit Chance', 'Critical Hit Damage', 'Max Health', 'Armor', 'Evasion', 'Dodge Chance', 'Parry Chance', 'Block Chance', 'Block Power', 'Status Resistance', 'Max Stamina', 'Stamina Regeneration', 'Max Mana', 'Mana Regeneration', 'Physical Resistance', 'Fire Resistance', 'Water Resistance', 'Air Resistance', 'Earth Resistance', 'Light Resistance', 'Darkness Resistance', 'Nature Resistance', 'Mystic Resistance']) expect(screen.getByText(label)).toBeInTheDocument()
     const offenseToggle = screen.getByRole('button', { name: 'OFFENSE' })
     expect(offenseToggle).toHaveAttribute('aria-expanded', 'true')
     fireEvent.click(offenseToggle)

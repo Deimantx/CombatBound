@@ -1,11 +1,11 @@
-import type { GameSaveV2 } from './saveTypes'
+import type { GameSaveV3 } from './saveTypes'
 import { proficiencyById } from '../data/proficiencies'
 import { perkById } from '../data/proficiencyPerks'
 
 function isRecord(value: unknown): value is Record<string, unknown> { return Boolean(value) && typeof value === 'object' && !Array.isArray(value) }
 
-export function isGameSave(value: unknown): value is GameSaveV2 {
-  if (!isRecord(value) || value.version !== 2 || typeof value.gold !== 'number' || !isRecord(value.progression) || !isRecord(value.inventory) || !isRecord(value.equipment) || !isRecord(value.collection) || !isRecord(value.settings)) return false
+export function isGameSave(value: unknown): value is GameSaveV3 {
+  if (!isRecord(value) || value.version !== 3 || typeof value.gold !== 'number' || !isRecord(value.progression) || !isRecord(value.inventory) || !isRecord(value.equipment) || !isRecord(value.collection) || !isRecord(value.settings)) return false
   const progression = value.progression
   if (!isRecord(progression.proficiencies) || typeof progression.masteryXp !== 'number' || progression.masteryXp < 0 || !isRecord(progression.purchasedPerks)) return false
   for (const [id, progress] of Object.entries(progression.proficiencies)) if (!proficiencyById[id] || !isRecord(progress) || progress.proficiencyId !== id || typeof progress.totalXp !== 'number' || progress.totalXp < 0) return false

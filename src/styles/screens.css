@@ -51,8 +51,14 @@
 .proficiency-empty strong { color: var(--text-dim); font-size: 12px; }
 .proficiency-empty span { font-size: 10px; }
 .perk-tree-region { min-width: 0; width: 100%; }
-.perk-tree-viewport { background: rgba(9,13,16,.46); border: 1px solid var(--line-soft); border-radius: 8px; height: clamp(470px, 66vh, 760px); min-width: 0; overflow-x: hidden; overflow-y: auto; position: relative; width: 100%; }
-.perk-tree-canvas { background-image: linear-gradient(rgba(70,83,91,.09) 1px, transparent 1px), linear-gradient(90deg, rgba(70,83,91,.09) 1px, transparent 1px); background-size: 46px 46px; min-width: 0; position: relative; width: 100%; }
+.perk-tree-camera-header { align-items: center; display: flex; gap: 8px; min-height: 28px; }
+.perk-tree-camera-header small { color: var(--muted); font-size: 9px; }
+.perk-tree-center { background: var(--panel-3); border: 1px solid var(--line); border-radius: 5px; color: var(--muted); cursor: pointer; font-size: 8px; font-weight: 800; letter-spacing: .08em; margin-left: auto; padding: 5px 8px; }
+.perk-tree-center:hover { border-color: var(--gold); color: var(--gold-bright); }
+.perk-tree-viewport { background: rgba(9,13,16,.46); border: 1px solid var(--line-soft); border-radius: 8px; cursor: grab; height: clamp(470px, 66vh, 760px); min-width: 0; overflow: hidden; position: relative; touch-action: none; user-select: none; width: 100%; }
+.perk-tree-viewport.is-panning { cursor: grabbing; }
+.perk-tree-camera { height: 1100px; position: relative; width: max(100%, 1000px); will-change: transform; }
+.perk-tree-canvas { background-image: linear-gradient(rgba(70,83,91,.09) 1px, transparent 1px), linear-gradient(90deg, rgba(70,83,91,.09) 1px, transparent 1px); background-size: 46px 46px; height: 1100px; min-width: 0; position: relative; width: 100%; }
 .perk-tree-connectors { height: 100%; left: 0; overflow: visible; pointer-events: none; position: absolute; top: 0; width: 100%; }
 .perk-tree-edge { stroke: rgba(126,145,158,.32); stroke-width: 2; }
 .perk-tree-edge.is-active { stroke: var(--gold); stroke-width: 2.5; }
@@ -62,7 +68,6 @@
 .perk-tree-node.is-purchased-partial { border-color: rgba(103,184,129,.62); }
 .perk-tree-node.is-maxed { background: rgba(38,67,47,.8); border-color: rgba(103,184,129,.8); }
 .perk-tree-node.is-level-locked, .perk-tree-node.is-prerequisite-locked, .perk-tree-node.is-points-locked { opacity: .72; }
-.perk-node-icon { height: 22px; }
 .perk-tree-node strong { display: -webkit-box; font-size: 9px; line-height: 1.1; max-width: 100%; overflow: hidden; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
 .perk-tree-node small { color: var(--muted); font-size: 8px; }
 .perk-tree-details { background: var(--panel-2); border: 1px solid var(--line-soft); border-radius: 8px; display: flex; flex-direction: column; gap: 10px; min-width: 0; padding: 12px; }
@@ -86,7 +91,11 @@
 .perk-details-lock.is-available { background: var(--gold-soft); color: var(--gold-bright); }
 .perk-details-lock.is-maxed { background: var(--green-soft); color: var(--green); }
 .perk-details-lock.is-level-locked, .perk-details-lock.is-prerequisite-locked, .perk-details-lock.is-points-locked { background: var(--red-soft); color: var(--red); }
-.perk-tree-details .full-button { margin-top: auto; }
+.perk-details-panel > .perk-details-lock { margin-top: auto; }
+.perk-tree-details .full-button { background: var(--panel-2); border: 0; border-radius: 0 0 7px 7px; border-top: 1px solid var(--line-soft); color: var(--muted); cursor: not-allowed; margin: 0 -12px -12px; min-height: 46px; padding: 0 12px; position: sticky; bottom: 0; width: calc(100% + 24px); z-index: 2; }
+.perk-tree-details .full-button:disabled { background: var(--panel-3); border-color: var(--line); color: var(--muted); opacity: 1; }
+.perk-tree-details .full-button:not(:disabled) { background: var(--gold-soft); border-color: var(--gold); color: var(--gold-bright); cursor: pointer; }
+.perk-tree-details .full-button:not(:disabled):hover { background: rgba(213,170,98,.24); }
 @media (max-width: 1200px) { .proficiencies-layout { grid-template-columns: minmax(250px, 260px) minmax(0, 1fr) minmax(250px, 270px); } }
 @media (max-width: 900px) { .proficiencies-layout { grid-template-columns: 1fr; } .proficiencies-selector { order: 0; } .selected-proficiency-panel { order: 1; } .perk-details-panel, .perk-details-empty { order: 2; min-height: 0; } }
 @media (max-width: 700px) { .perk-tree-workspace { grid-template-columns: 1fr; } .perk-tree-details { min-height: 0; } }
@@ -96,6 +105,40 @@
 .combatbound-scroll::-webkit-scrollbar-track { background: transparent; }
 .combatbound-scroll::-webkit-scrollbar-thumb { background: var(--line); border-radius: 999px; }
 .combatbound-scroll::-webkit-scrollbar-thumb:hover { background: var(--bronze); }
+
+/* Proficiencies readability pass: local typography only. */
+.proficiencies-screen .panel-title { font-size: 16px; }
+.proficiencies-screen .panel-subtitle { font-size: 13px; }
+.proficiencies-screen .tiny-label { font-size: 12px; }
+.proficiencies-screen .mastery-metric small { font-size: 11px; }
+.proficiencies-screen .proficiency-tile { min-height: 86px; padding: 7px 5px 6px; }
+.proficiencies-screen .proficiency-tile-name { font-size: 11px; line-height: 1.15; }
+.proficiencies-screen .proficiency-tile > small { font-size: 10px; }
+.proficiencies-screen .proficiency-tile .progress-track { background: #0e1214; border-color: rgba(53,64,71,.62); }
+.proficiencies-screen .proficiency-tile .progress-fill { min-width: 0; }
+.proficiencies-screen .proficiency-active-badge { font-size: 11px; }
+.proficiencies-screen .selected-xp-line { font-size: 12px; }
+.proficiencies-screen .selected-xp-line strong { font-size: 12px; }
+.proficiencies-screen .selected-lifetime-xp, .proficiencies-screen .untrained-copy { font-size: 12px; }
+.proficiencies-screen .proficiency-active-level { font-size: 18px; }
+.proficiencies-screen .perk-tree-heading { flex-wrap: wrap; gap: 8px; }
+.proficiencies-screen .perk-tree-heading small { font-size: 11px; }
+.proficiencies-screen .perk-tree-camera-header { flex-wrap: wrap; min-height: 32px; }
+.proficiencies-screen .perk-tree-camera-header small { font-size: 11px; }
+.proficiencies-screen .perk-tree-center { font-size: 10px; min-height: 30px; padding: 7px 12px; }
+.proficiencies-screen .perk-tree-node { gap: 4px; height: 68px; padding: 6px 5px; width: clamp(82px, 12%, 112px); }
+.proficiencies-screen .perk-tree-node strong { display: -webkit-box; font-size: 11px; line-height: 1.15; max-width: 100%; overflow-wrap: anywhere; overflow: hidden; -webkit-box-orient: vertical; -webkit-line-clamp: 2; white-space: normal; }
+.proficiencies-screen .perk-tree-node small { font-size: 10px; }
+.proficiencies-screen .perk-tree-details { gap: 12px; }
+.proficiencies-screen .perk-details-heading h3 { font-size: 17px; }
+.proficiencies-screen .perk-details-status { font-size: 10px; }
+.proficiencies-screen .perk-tree-details p { font-size: 12px; }
+.proficiencies-screen .perk-details-grid { grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr); }
+.proficiencies-screen .perk-details-grid span, .proficiencies-screen .perk-details-grid strong { font-size: 11px; }
+.proficiencies-screen .perk-details-grid strong { min-width: 0; overflow-wrap: anywhere; }
+.proficiencies-screen .perk-details-prerequisites small { font-size: 11px; }
+.proficiencies-screen .perk-details-lock { font-size: 11px; }
+.proficiencies-screen .perk-tree-details .full-button { font-size: 14px; min-height: 48px; }
 .home-overview-grid { display: grid; gap: 14px; grid-template-columns: minmax(0, 1.15fr) minmax(360px, .85fr); }
 .home-secondary-grid { display: grid; gap: 14px; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(260px, .75fr); margin-top: 14px; }
 .overview-primary { align-items: center; display: flex; gap: 15px; }

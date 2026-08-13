@@ -215,8 +215,8 @@ describe('gameplay domain', () => {
     const interrupted = castSpell(preparing, 'spell.disrupting-pulse', stats, context)
     expect(interrupted.combat.enemies.find((enemy) => enemy.instanceId === archer!.instanceId)?.currentAction).toBeNull()
     expect(interrupted.combat.mana).toBe(65)
-    expect(interrupted.progression.proficiencies['disruption-magic']?.totalXp).toBe(50)
-    expect(interrupted.combat.session.proficiencyXpGained['disruption-magic']).toBe(50)
+    expect(interrupted.progression.proficiencies['air-magic']?.totalXp).toBe(50)
+    expect(interrupted.combat.session.proficiencyXpGained['air-magic']).toBe(50)
   })
 
   it('consumes a potion only when it restores health', () => {
