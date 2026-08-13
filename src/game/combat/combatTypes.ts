@@ -3,13 +3,94 @@ export type CombatStopReason = 'manual' | 'defeat' | 'safety' | 'consumablesDepl
 export type StanceId = 'high' | 'mid' | 'low'
 export type TechniqueId = 'careful-positioning' | 'heightened-reflexes'
 export type SpellTargetMode = 'self' | 'selectedEnemy' | 'allEnemies'
-export type DamageType = 'physical' | 'fire'
+export type DamageType = 'physical' | 'fire' | 'earth' | 'air' | 'nature' | 'mystic' | 'true'
+
+export type CombatantRef =
+  | { kind: 'player' }
+  | { kind: 'enemy'; instanceId: string }
+
+export type CombatStatKey =
+  | 'maxHealth'
+  | 'attackPower'
+  | 'accuracy'
+  | 'attackInterval'
+  | 'armor'
+  | 'evasion'
+  | 'critChance'
+  | 'critDamage'
+  | 'dodgeChance'
+  | 'parryChance'
+  | 'blockChance'
+  | 'blockPower'
+  | 'energyRegen'
+  | 'adrenalineGeneration'
+  | 'statusResistance'
+
+export interface CombatStats {
+  maxHealth: number
+  attackPower: number
+  accuracy: number
+  attackInterval: number
+  armor: number
+  evasion: number
+  critChance: number
+  critDamage: number
+  dodgeChance: number
+  parryChance: number
+  blockChance: number
+  blockPower: number
+  maxEnergy: number
+  energyRegen: number
+  maxAdrenaline: number
+  adrenalineGeneration: number
+  statusResistance: number
+  resistances: Partial<Record<DamageType, number>>
+}
+
+export interface StatModifier {
+  stat: CombatStatKey
+  operation: 'flat' | 'addPercent' | 'multiply'
+  value: number
+}
 
 export interface DefensiveEligibility {
+  canMiss?: boolean
   dodgeable: boolean
   parryable: boolean
   blockable: boolean
+}
+
+export interface DamageComponent {
+  damageType: DamageType
+  scaling?: { sourceStat: 'attackPower'; multiplier: number }
+  flatDamage?: number
+  minMultiplier?: number
+  maxMultiplier?: number
+  minDamage?: number
+  maxDamage?: number
+  canCrit: boolean
+  ignoresArmor?: boolean
+  ignoresResistance?: boolean
+  ignoresBarrier?: boolean
+}
+
+export interface CombatActionDefinition {
+  id: string
+  name: string
+  description: string
+  icon?: string
+  sourceType: 'player' | 'enemy'
+  targetMode: 'self' | 'selectedEnemy' | 'player'
+  preparationSeconds: number
+  cooldownSeconds: number
   interruptible: boolean
+  danger?: 'low' | 'medium' | 'high' | 'critical'
+  weight?: number
+  accuracyModifier?: number
+  guaranteedHit?: boolean
+  defensiveEligibility: Omit<DefensiveEligibility, 'canMiss'>
+  damage?: DamageComponent[]
+  applyEffects?: Array<{ effectId: string; chance: number }>
 }
 
 export interface EnemyActionDefinition extends DefensiveEligibility {
@@ -20,12 +101,19 @@ export interface EnemyActionDefinition extends DefensiveEligibility {
   cooldownSeconds: number
   damageMultiplier: number
   danger: 'low' | 'medium' | 'high'
+  interruptible: boolean
+  weight?: number
+  damage?: DamageComponent[]
+  applyEffects?: Array<{ effectId: string; chance: number }>
 }
 
 export interface EnemyActionRuntime {
   actionId: string
   remainingSeconds: number
   totalSeconds: number
+  source?: CombatantRef
+  target?: CombatantRef
+  startedSequence?: number
 }
 
 export interface EnemyTraitDefinition {
@@ -47,21 +135,26 @@ export interface EnemyDefinition {
   family: string
   familyId?: string
   maxHealth: number
-  attack: number
+  attackPower: number
   accuracy: number
-  defense: number
+  armor: number
+  evasion: number
   attackInterval: number
-  dodge: number
-  parry: number
-  block: number
+  dodgeChance: number
+  parryChance: number
+  blockChance: number
+  blockPower: number
+  resistances: Partial<Record<DamageType, number>>
   traits: EnemyTraitDefinition[]
   actions: EnemyActionDefinition[]
   baseXp: number
   loot: LootEntry[]
-  weaknesses: string[]
-  resistances: string[]
   icon: string
   accent: 'red' | 'blue' | 'gold'
+  /** Compatibility labels for older collection/UI data. Combat math uses resistances. */
+  weaknesses?: string[]
+  /** Compatibility labels for older collection/UI data. Combat math uses resistances. */
+  resistanceLabels?: string[]
 }
 
 export interface EnemyCombatInstance {
@@ -74,6 +167,7 @@ export interface EnemyCombatInstance {
   attackInterval: number
   specialCooldownRemaining: number
   currentAction: EnemyActionRuntime | null
+  effects: import('./combatEffectTypes').ActiveEffectInstance[]
   defeated: boolean
   rewardResolved: boolean
 }
@@ -84,11 +178,44 @@ export interface SpellRuntime {
   autoEnabled: boolean
 }
 
+export type CombatEventType =
+  | 'actionStarted'
+  | 'actionInterrupted'
+  | 'actionResolved'
+  | 'attackMissed'
+  | 'attackDodged'
+  | 'attackParried'
+  | 'attackBlocked'
+  | 'criticalHit'
+  | 'damageDealt'
+  | 'damageAbsorbed'
+  | 'healingDone'
+  | 'effectApplied'
+  | 'effectRefreshed'
+  | 'effectStacked'
+  | 'effectTicked'
+  | 'effectRemoved'
+  | 'effectExpired'
+  | 'effectCleansed'
+  | 'combatantDefeated'
+  | 'enemyDefeated'
+  | 'groupCleared'
+  | 'recoveryStarted'
+  | 'huntStopped'
+
 export interface CombatLogEntry {
   id: number
   text: string
   type: 'player' | 'enemy' | 'system'
   time: string
+}
+
+export interface CombatEventRecord {
+  id: number
+  type: CombatEventType
+  source?: CombatantRef
+  target?: CombatantRef
+  data?: Record<string, number | string | boolean | null>
 }
 
 export interface CombatSession {
@@ -111,6 +238,7 @@ export interface CombatState {
   groupNumber: number
   enemies: EnemyCombatInstance[]
   selectedEnemyInstanceId: string | null
+  playerEffects: import('./combatEffectTypes').ActiveEffectInstance[]
   playerHp: number
   maxPlayerHp: number
   playerAttackTimer: number
@@ -123,14 +251,15 @@ export interface CombatState {
   stanceCooldownRemaining: number
   techniques: Record<TechniqueId, boolean>
   spells: SpellRuntime[]
-  shield: number
   potionCooldownRemaining: number
   recoveryRemaining: number
   stopReason: CombatStopReason | null
   lastDamageSource: string | null
   log: CombatLogEntry[]
+  events: CombatEventRecord[]
   session: CombatSession
   eventSequence: number
+  effectSequence: number
 }
 
 export interface CombatRng { next: () => number }
@@ -138,9 +267,26 @@ export interface CombatRng { next: () => number }
 export interface CombatContext {
   enemies: Record<string, EnemyDefinition>
   locations: Record<string, import('../world/worldTypes').CombatLocationDefinition>
-  spells: Record<string, { id: string; name: string; cost: number; cooldownSeconds: number; targetMode: SpellTargetMode; damage: number; description: string }>
+  spells: Record<string, import('../data/spells').SpellDefinition>
   items: Record<string, { id: string; name: string }>
+  effects: Record<string, import('./combatEffectTypes').EffectDefinition>
   rng: CombatRng
 }
 
-export interface CombatEvent { text: string; type: CombatLogEntry['type'] }
+export interface CombatEvent {
+  text: string
+  type: CombatLogEntry['type']
+  eventType?: CombatEventType
+  source?: CombatantRef
+  target?: CombatantRef
+  data?: Record<string, number | string | boolean | null>
+}
+
+export type {
+  ActiveEffectInstance,
+  EffectDefinition,
+  EffectKind,
+  EffectPersistence,
+  EffectStackingMode,
+  PeriodicOperation,
+} from './combatEffectTypes'

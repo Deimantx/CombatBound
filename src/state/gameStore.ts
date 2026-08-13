@@ -1,5 +1,5 @@
 import { create } from 'zustand'
-import { advanceCombat, castSpell as engineCastSpell, createCombatContext, selectEnemy as engineSelectEnemy, setStance as engineSetStance, startHunt as engineStartHunt, syncCombatStats, toggleTechnique as engineToggleTechnique, useHealingPotion } from '../game/combat/combatEngine'
+import { advanceCombat, castSpell as engineCastSpell, createCombatContext, selectEnemy as engineSelectEnemy, setStance as engineSetStance, startHunt as engineStartHunt, stopHunt as engineStopHunt, syncCombatStats, toggleTechnique as engineToggleTechnique, useHealingPotion } from '../game/combat/combatEngine'
 import { calculateHunterCombatStats } from '../game/equipment/derivedStats'
 import { itemById } from '../game/data/items'
 import { combatLocationById } from '../game/data/world/combatLocations'
@@ -88,7 +88,7 @@ function selectionUi(selection: ReturnType<typeof cascadeSelection>, state: Game
 export const useGameStore = create<GameStoreState>((set, get) => {
   const ui: UiState = { screen: 'home', selectedContinentId: defaultSelection.continentId, selectedRegionId: defaultSelection.regionId, selectedAreaId: defaultSelection.areaId, selectedCombatLocationId: defaultSelection.combatLocationId, inventoryFilter: 'All', selectedInventoryItemId: 'item.training-sword', selectedEquipmentSlot: 'weapon', selectedCollectionEntryId: 'enemy.grey-wolf', collectionTab: 'Items', combatOverviewTab: 'Session Summary', reducedMotion: saved?.settings.reducedMotion ?? false, showInspectorButton: saved?.settings.showInspectorButton ?? true }
   const selectWorldNode = (selection: Partial<ReturnType<typeof cascadeSelection>>) => set((state) => flatState(state.game, selectionUi(cascadeSelection(selection), state)))
-  const runHunt = () => set((state) => { const totalLevel = Object.values(state.game.progression.skills).reduce((sum, skill) => sum + skill.level, 0); if (!isCombatLocationAvailable(state.selectedCombatLocationId, totalLevel)) return state; const stats = calculateHunterCombatStats(state.game.equipment, state.game.progression, state.game.combat.stance, state.game.combat.techniques); const prepared = { ...state.game, combat: { ...state.game.combat, playerHp: stats.maxHealth, energy: stats.maxEnergy, shield: 0, stopReason: null } }; const game = engineStartHunt(prepared, state.selectedCombatLocationId, stats, context); return flatState(game, state) })
+  const runHunt = () => set((state) => { const totalLevel = Object.values(state.game.progression.skills).reduce((sum, skill) => sum + skill.level, 0); if (!isCombatLocationAvailable(state.selectedCombatLocationId, totalLevel)) return state; const stats = calculateHunterCombatStats(state.game.equipment, state.game.progression, state.game.combat.stance, state.game.combat.techniques); const prepared = { ...state.game, combat: { ...state.game.combat, playerHp: stats.maxHealth, energy: stats.maxEnergy, stopReason: null } }; const game = engineStartHunt(prepared, state.selectedCombatLocationId, stats, context); return flatState(game, state) })
   return {
     ...flatState(hydratedGame, ui),
     setScreen: (screen) => set({ screen }),
@@ -98,7 +98,7 @@ export const useGameStore = create<GameStoreState>((set, get) => {
     selectCombatLocation: (id) => { if (combatLocationById[id]) selectWorldNode(selectionForLocation(id)) },
     startHunt: runHunt,
     switchHunt: runHunt,
-    stopHunt: () => set((state) => flatState({ ...state.game, combat: { ...state.game.combat, phase: 'stopped', stopReason: 'manual', recoveryRemaining: 0, enemies: state.game.combat.enemies.map((enemy) => ({ ...enemy, currentAction: null })) } }, state)),
+    stopHunt: () => set((state) => flatState({ ...state.game, combat: engineStopHunt(state.game.combat, context.effects) }, state)),
     startCombat: runHunt,
     stopCombat: () => get().stopHunt(),
     tickCombat: (delta) => set((state) => { const stats = calculateHunterCombatStats(state.game.equipment, state.game.progression, state.game.combat.stance, state.game.combat.techniques); const game = advanceCombat(state.game, delta, context, stats); if (game.combat.session.enemiesDefeated !== state.game.combat.session.enemiesDefeated) savePermanent(game, { reducedMotion: state.reducedMotion, showInspectorButton: state.showInspectorButton }); return flatState(game, state) }),

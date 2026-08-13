@@ -21,10 +21,11 @@
 .icon-button:hover { background: var(--panel-hover); color: var(--text); }
 .text-button { background: transparent; border: 0; color: var(--gold); cursor: pointer; font-size: 11px; padding: 0; }
 .text-button:hover { color: var(--gold-bright); }
-.progress-wrap { min-width: 0; width: 100%; }
+.progress-wrap { display: block; min-width: 0; width: 100%; }
 .progress-meta { align-items: center; color: var(--muted); display: flex; font-size: 11px; justify-content: space-between; margin-bottom: 5px; }
-.progress-track { background: #0e1214; border: 1px solid rgba(53,64,71,.62); border-radius: 99px; height: 7px; overflow: hidden; position: relative; }
+.progress-track { background: #0e1214; border: 1px solid rgba(53,64,71,.62); border-radius: 99px; height: 7px; overflow: hidden; position: relative; width: 100%; }
 .progress-fill { background: var(--gold); border-radius: inherit; display: block; height: 100%; transition: width .3s ease; }
+.is-attack-resetting .progress-fill { transition: none; }
 .progress-health .progress-fill { background: linear-gradient(90deg, #a34c4b, var(--red)); }
 .progress-attack .progress-fill { background: var(--blue); }
 .progress-resource .progress-fill { background: var(--blue); }
@@ -62,6 +63,16 @@
 .art-muted { background: var(--panel-2); border-color: var(--line); color: var(--muted); }
 .empty-state { align-items: center; color: var(--muted); display: flex; flex-direction: column; gap: 7px; justify-content: center; min-height: 150px; text-align: center; }
 .empty-state p { max-width: 280px; }
+.combat-effects-inspector { border-top: 1px solid rgba(53,64,71,.42); margin-top: 14px; padding-top: 12px; }
+.combat-effect-row { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+.combat-effect-empty { color: var(--muted); font-size: 10px; }
+.combat-effect-chip { align-items: center; background: var(--panel-2); border: 1px solid var(--line-soft); border-radius: 6px; display: inline-flex; gap: 4px; max-width: 100%; padding: 5px 6px; }
+.combat-effect-chip.effect-debuff, .combat-effect-chip.effect-status { border-color: rgba(201,111,104,.34); }
+.combat-effect-chip.effect-barrier, .combat-effect-chip.effect-buff { border-color: rgba(213,170,98,.34); }
+.combat-effect-icon { align-items: center; background: var(--gold-soft); border-radius: 4px; color: var(--gold); display: inline-flex; font-size: 9px; font-weight: 800; height: 16px; justify-content: center; width: 16px; }
+.combat-effect-chip strong { font-size: 10px; }
+.combat-effect-chip em { color: var(--gold); font-size: 9px; font-style: normal; }
+.combat-effect-chip small { color: var(--muted); font-size: 9px; }
 .empty-mark { color: var(--gold); font-size: 24px; }
 .dialog-backdrop { align-items: center; background: rgba(5,7,8,.72); display: flex; inset: 0; justify-content: center; position: fixed; z-index: 50; }
 .confirm-dialog { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; box-shadow: var(--shadow); max-width: 400px; padding: 22px; width: calc(100% - 40px); }

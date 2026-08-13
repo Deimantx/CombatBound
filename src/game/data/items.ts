@@ -10,14 +10,31 @@ export interface ItemDefinition {
   rarity: ItemRarity
   description: string
   icon: string
-  stats?: { attack?: number; accuracy?: number; maxHealth?: number; defense?: number; attackInterval?: number }
+  stats?: {
+    attackPower?: number
+    attack?: number
+    accuracy?: number
+    armor?: number
+    defense?: number
+    evasion?: number
+    maxHealth?: number
+    attackInterval?: number
+    critChance?: number
+    critDamage?: number
+    dodgeChance?: number
+    parryChance?: number
+    blockChance?: number
+    blockPower?: number
+    fireResistance?: number
+    natureResistance?: number
+  }
 }
 
 export const itemDefinitions = deepFreeze<ItemDefinition[]>([
-  { id: 'item.training-sword', name: 'Training Sword', category: 'weapon', rarity: 'common', description: 'A dependable starter weapon.', icon: 'sword', stats: { attack: 8, accuracy: 5, attackInterval: 2.4 } },
-  { id: 'item.hunter-sword', name: 'Hunter Sword', category: 'weapon', rarity: 'uncommon', description: 'A sharper prototype weapon from repeated hunts.', icon: 'sword', stats: { attack: 14, accuracy: 8, attackInterval: 2.2 } },
-  { id: 'item.training-armor', name: 'Training Armor', category: 'armor', rarity: 'common', description: 'Light armor for a new hunter.', icon: 'shield', stats: { maxHealth: 20, defense: 8 } },
-  { id: 'item.hunter-armor', name: 'Hunter Armor', category: 'armor', rarity: 'uncommon', description: 'A sturdier armor set recovered from a difficult encounter.', icon: 'shield', stats: { maxHealth: 40, defense: 15 } },
+  { id: 'item.training-sword', name: 'Training Sword', category: 'weapon', rarity: 'common', description: 'A dependable starter weapon.', icon: 'sword', stats: { attackPower: 8, accuracy: 5, attackInterval: 2.4 } },
+  { id: 'item.hunter-sword', name: 'Hunter Sword', category: 'weapon', rarity: 'uncommon', description: 'A sharper prototype weapon from repeated hunts.', icon: 'sword', stats: { attackPower: 14, accuracy: 8, attackInterval: 2.2 } },
+  { id: 'item.training-armor', name: 'Training Armor', category: 'armor', rarity: 'common', description: 'Light armor for a new hunter.', icon: 'shield', stats: { maxHealth: 20, armor: 8 } },
+  { id: 'item.hunter-armor', name: 'Hunter Armor', category: 'armor', rarity: 'uncommon', description: 'A sturdier armor set recovered from a difficult encounter.', icon: 'shield', stats: { maxHealth: 40, armor: 15 } },
   { id: 'item.healing-potion', name: 'Healing Potion', category: 'consumable', rarity: 'common', description: 'Restores health during combat.', icon: 'cross' },
   { id: 'item.wolf-fang', name: 'Wolf Fang', category: 'material', rarity: 'common', description: 'A small trophy from a Grey Wolf.', icon: 'target' },
   { id: 'item.wolf-pelt', name: 'Wolf Pelt', category: 'material', rarity: 'uncommon', description: 'A useful hunting material.', icon: 'cube' },

@@ -12,20 +12,47 @@ export const combatBalance = {
   baseMaxHealth: 250, // [TUNING] Prototype value.
   baseAttack: 20, // [TUNING] Prototype value.
   baseAccuracy: 70, // [TUNING] Prototype value.
-  baseDefense: 35, // [TUNING] Prototype value.
+  baseArmor: 35, // [TUNING] Prototype value.
+  baseEvasion: 35, // [TUNING] Prototype value.
   baseAttackInterval: 2.4, // [TUNING] Prototype value.
   baseCritChance: 0.05, // [TUNING] Prototype value.
   baseCritDamage: 1.5, // [TUNING] Prototype value.
-  baseDodge: 0.03, // [TUNING] Prototype value.
-  baseParry: 0.03, // [TUNING] Prototype value.
-  baseBlock: 0, // [TUNING] Prototype value.
+  baseDodgeChance: 0.03, // [TUNING] Prototype value.
+  baseParryChance: 0.03, // [TUNING] Prototype value.
+  baseBlockChance: 0, // [TUNING] Prototype value.
+  baseBlockPower: 0.5, // [TUNING] Prototype value.
   baseEnergy: 100, // [TUNING] Prototype value.
   baseEnergyRegen: 5, // [TUNING] Prototype value.
   baseAdrenaline: 100, // [TUNING] Prototype value.
   techniqueDrain: 3, // [TUNING] Prototype value.
   adrenalinePerDamage: 0.25, // [TUNING] Prototype value.
   adrenalinePerDamageTaken: 0.2, // [TUNING] Prototype value.
-  blockReduction: 0.5, // [TUNING] Prototype value.
+  baseStatusResistance: 0, // [TUNING] Prototype value.
+  basePhysicalResistance: 0, // [TUNING] Prototype value.
+  baseFireResistance: 0, // [TUNING] Prototype value.
+  baseDamageVarianceMin: 0.9, // [TUNING] Prototype value.
+  baseDamageVarianceMax: 1.1, // [TUNING] Prototype value.
+  baseHitChance: 0.75, // [TUNING] Prototype value.
+  hitChanceRelativeScale: 0.45, // [TUNING] Prototype value.
+  minHitChance: 0.15, // [TUNING] Prototype value.
+  maxHitChance: 0.98, // [TUNING] Prototype value.
+  armorConstant: 100, // [TUNING] Prototype value.
+  minResistance: -0.75, // [TUNING] Prototype value.
+  maxResistance: 0.8, // [TUNING] Prototype value.
+  maxStatusResistance: 0.75, // [TUNING] Prototype value.
+  maxCritChance: 1, // [TUNING] Prototype value.
+  maxAvoidanceChance: 1, // [TUNING] Prototype value.
+  minimumAttackInterval: 0.05, // [TUNING] Prototype value.
+  burnDuration: 6, // [TUNING] Prototype value.
+  burnInterval: 2, // [TUNING] Prototype value.
+  burnDamage: 5, // [TUNING] Prototype value.
+  bleedDuration: 6, // [TUNING] Prototype value.
+  bleedInterval: 2, // [TUNING] Prototype value.
+  bleedDamage: 4, // [TUNING] Prototype value.
+  armorBrokenDuration: 6, // [TUNING] Prototype value.
+  exposedDuration: 6, // [TUNING] Prototype value.
+  protectiveSignDuration: 10, // [TUNING] Prototype value.
+  protectiveSignAmount: 65, // [TUNING] Prototype value.
   spellCooldown: 8, // [TUNING] Prototype value.
 } as const
 

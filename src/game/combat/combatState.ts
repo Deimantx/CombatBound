@@ -10,7 +10,7 @@ export function instantiateEnemies(enemyIds: string[], groupNumber: number): Ene
     const duplicateNumber = (counts.get(enemyId) ?? 0) + 1
     counts.set(enemyId, duplicateNumber)
     const suffix = duplicateNumber > 1 ? ` ${String.fromCharCode(64 + duplicateNumber)}` : ''
-    return { instanceId: `${enemyId}#group-${groupNumber}-${index + 1}`, enemyId, displayName: `${definition.name}${suffix}`, currentHealth: definition.maxHealth, maxHealth: definition.maxHealth, attackTimer: definition.attackInterval, attackInterval: definition.attackInterval, specialCooldownRemaining: 0, currentAction: null, defeated: false, rewardResolved: false }
+    return { instanceId: `${enemyId}#group-${groupNumber}-${index + 1}`, enemyId, displayName: `${definition.name}${suffix}`, currentHealth: definition.maxHealth, maxHealth: definition.maxHealth, attackTimer: definition.attackInterval, attackInterval: definition.attackInterval, specialCooldownRemaining: 0, currentAction: null, effects: [], defeated: false, rewardResolved: false }
   })
 }
 
@@ -20,7 +20,7 @@ export function createCombatState(): CombatState {
     phase: 'inactive', combatLocationId: null, groupNumber: 0, enemies: [], selectedEnemyInstanceId: null,
     playerHp: combatBalance.baseMaxHealth, maxPlayerHp: combatBalance.baseMaxHealth, playerAttackTimer: combatBalance.baseAttackInterval, playerAttackInterval: combatBalance.baseAttackInterval,
     energy: combatBalance.baseEnergy, maxEnergy: combatBalance.baseEnergy, adrenaline: 0, maxAdrenaline: combatBalance.baseAdrenaline,
-    stance: 'mid', stanceCooldownRemaining: 0, techniques: { 'careful-positioning': false, 'heightened-reflexes': false }, spells, shield: 0, potionCooldownRemaining: 0, recoveryRemaining: 0, stopReason: null, lastDamageSource: null,
-    log: [], session: { elapsedSeconds: 0, groupClears: 0, enemiesDefeated: 0, damageDealt: 0, damageTaken: 0, healing: 0, xpGained: 0, itemsGained: 0, lootGained: {}, goldGained: 0, highestHit: 0 }, eventSequence: 0,
+    stance: 'mid', stanceCooldownRemaining: 0, techniques: { 'careful-positioning': false, 'heightened-reflexes': false }, spells, playerEffects: [], potionCooldownRemaining: 0, recoveryRemaining: 0, stopReason: null, lastDamageSource: null,
+    log: [], events: [], session: { elapsedSeconds: 0, groupClears: 0, enemiesDefeated: 0, damageDealt: 0, damageTaken: 0, healing: 0, xpGained: 0, itemsGained: 0, lootGained: {}, goldGained: 0, highestHit: 0 }, eventSequence: 0, effectSequence: 0,
   }
 }
