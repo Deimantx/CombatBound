@@ -75,7 +75,7 @@ export function HeroWindow({
             <X size={16} />
           </button>
         </header>
-        <div className="hero-window-body">{children}</div>
+        <div className="hero-window-body combatbound-scroll">{children}</div>
       </div>
     </div>
   );

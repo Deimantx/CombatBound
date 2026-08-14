@@ -34,7 +34,12 @@ import {
   clearGameSave,
 } from "../game/persistence/saveGame";
 import type { StanceId, TechniqueId } from "../game/combat/combatTypes";
-import { normalizeSpellbook } from "../game/spellbook/spellbookLogic";
+import {
+  equipSpellToSlot as equipSpellToSlotState,
+  moveEquippedSpell as moveEquippedSpellState,
+  normalizeSpellbook,
+  unequipSpellSlot as unequipSpellSlotState,
+} from "../game/spellbook/spellbookLogic";
 import { createInitialCombatAutomation } from "../game/automation/automationTypes";
 import {
   addAutomationCondition,
@@ -102,6 +107,9 @@ interface GameStoreState {
   castSpell: (spellId: string) => void;
   executeAction: (actionId: string) => void;
   setSpellSlot: (slot: number, spellId: string | null) => void;
+  equipSpellToSlot: (spellId: string, slot: number) => void;
+  moveEquippedSpell: (sourceSlot: number, targetSlot: number) => void;
+  unequipSpellSlot: (slot: number) => void;
   toggleAutomation: () => void;
   toggleAutomationRule: (ruleId: string) => void;
   setAutomationEnabled: (enabled: boolean) => void;
@@ -463,92 +471,53 @@ export const useGameStore = create<GameStoreState>((set, get) => {
       }),
     setSpellSlot: (slot, spellId) =>
       set((state) => {
-        if (
-          state.game.combat.phase === "active" ||
-          state.game.combat.phase === "recovery"
-        )
-          return state;
-        if (
-          slot < 0 ||
-          slot >= COMBAT_SPELL_SLOT_COUNT ||
-          (spellId !== null &&
-            !state.game.spellbook.knownSpellIds.includes(spellId))
-        )
-          return state;
-        const equippedSpellSlots = Array.from(
-          { length: COMBAT_SPELL_SLOT_COUNT },
-          (_, index) => state.game.spellbook.equippedSpellSlots[index] ?? null,
-        );
-        const existingSlot = spellId === null
-          ? -1
-          : equippedSpellSlots.findIndex(
-              (equippedId, index) => index !== slot && equippedId === spellId,
-            );
-        if (existingSlot >= 0)
-          equippedSpellSlots[existingSlot] = equippedSpellSlots[slot] ?? null;
-        equippedSpellSlots[slot] = spellId;
-        const game = {
-          ...state.game,
-          spellbook: { ...state.game.spellbook, equippedSpellSlots },
-        };
-        savePermanent(game, {
-          reducedMotion: state.reducedMotion,
-          showInspectorButton: state.showInspectorButton,
-        });
+        if (state.game.combat.phase === "active" || state.game.combat.phase === "recovery") return state;
+        const spellbook = spellId === null
+          ? unequipSpellSlotState(state.game.spellbook, slot)
+          : equipSpellToSlotState(state.game.spellbook, spellId, slot);
+        if (spellbook === state.game.spellbook) return state;
+        const game = { ...state.game, spellbook };
+        savePermanent(game, { reducedMotion: state.reducedMotion, showInspectorButton: state.showInspectorButton });
+        return flatState(game, state);
+      }),
+    equipSpellToSlot: (spellId, slot) =>
+      set((state) => {
+        if (state.game.combat.phase === "active" || state.game.combat.phase === "recovery") return state;
+        const spellbook = equipSpellToSlotState(state.game.spellbook, spellId, slot);
+        if (spellbook === state.game.spellbook) return state;
+        const game = { ...state.game, spellbook };
+        savePermanent(game, { reducedMotion: state.reducedMotion, showInspectorButton: state.showInspectorButton });
+        return flatState(game, state);
+      }),
+    moveEquippedSpell: (sourceSlot, targetSlot) =>
+      set((state) => {
+        if (state.game.combat.phase === "active" || state.game.combat.phase === "recovery") return state;
+        const spellbook = moveEquippedSpellState(state.game.spellbook, sourceSlot, targetSlot);
+        if (spellbook === state.game.spellbook) return state;
+        const game = { ...state.game, spellbook };
+        savePermanent(game, { reducedMotion: state.reducedMotion, showInspectorButton: state.showInspectorButton });
         return flatState(game, state);
       }),
     swapSpellSlots: (first, second) =>
       set((state) => {
-        if (
-          state.game.combat.phase === "active" ||
-          state.game.combat.phase === "recovery" ||
-          first < 0 ||
-          second < 0 ||
-          first >= COMBAT_SPELL_SLOT_COUNT ||
-          second >= COMBAT_SPELL_SLOT_COUNT
-        )
-          return state;
-        const equippedSpellSlots = [
-          ...state.game.spellbook.equippedSpellSlots,
-        ];
-        [equippedSpellSlots[first], equippedSpellSlots[second]] = [
-          equippedSpellSlots[second] ?? null,
-          equippedSpellSlots[first] ?? null,
-        ];
-        const game = {
-          ...state.game,
-          spellbook: { ...state.game.spellbook, equippedSpellSlots },
-        };
-        savePermanent(game, {
-          reducedMotion: state.reducedMotion,
-          showInspectorButton: state.showInspectorButton,
-        });
+        if (state.game.combat.phase === "active" || state.game.combat.phase === "recovery") return state;
+        const spellbook = moveEquippedSpellState(state.game.spellbook, first, second);
+        if (spellbook === state.game.spellbook) return state;
+        const game = { ...state.game, spellbook };
+        savePermanent(game, { reducedMotion: state.reducedMotion, showInspectorButton: state.showInspectorButton });
+        return flatState(game, state);
+      }),
+    unequipSpellSlot: (slot) =>
+      set((state) => {
+        if (state.game.combat.phase === "active" || state.game.combat.phase === "recovery") return state;
+        const spellbook = unequipSpellSlotState(state.game.spellbook, slot);
+        if (spellbook === state.game.spellbook) return state;
+        const game = { ...state.game, spellbook };
+        savePermanent(game, { reducedMotion: state.reducedMotion, showInspectorButton: state.showInspectorButton });
         return flatState(game, state);
       }),
     unequipSpell: (slot) =>
-      set((state) => {
-        if (
-          state.game.combat.phase === "active" ||
-          state.game.combat.phase === "recovery" ||
-          slot < 0 ||
-          slot >= COMBAT_SPELL_SLOT_COUNT
-        )
-          return state;
-        const equippedSpellSlots = Array.from(
-          { length: COMBAT_SPELL_SLOT_COUNT },
-          (_, index) => state.game.spellbook.equippedSpellSlots[index] ?? null,
-        );
-        equippedSpellSlots[slot] = null;
-        const game = {
-          ...state.game,
-          spellbook: { ...state.game.spellbook, equippedSpellSlots },
-        };
-        savePermanent(game, {
-          reducedMotion: state.reducedMotion,
-          showInspectorButton: state.showInspectorButton,
-        });
-        return flatState(game, state);
-      }),
+      get().unequipSpellSlot(slot),
     toggleAutomation: () =>
       set((state) => {
         return commitAutomation(

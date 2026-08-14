@@ -1,4 +1,4 @@
-import { ArrowDown, ArrowUp, Plus, Trash2 } from "lucide-react";
+import { ArrowDown, ArrowUp, BookOpen, Plus, Trash2 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { effectDefinitions } from "../../../../game/data/effects";
 import { createCombatPreviewContext } from "../../../../game/combat/combatEngine";
@@ -8,6 +8,7 @@ import type { AutomationCondition, AutomationRule } from "../../../../game/autom
 import { useGameStore } from "../../../../state/gameStore";
 import type { GameState } from "../../../../game/gameState";
 import { ConfirmDialog } from "../../../components/ConfirmDialog";
+import { AutomationInstructions } from "./AutomationInstructions";
 
 const fractionTypes = new Set([
   "player-hp-below", "player-hp-above", "mana-below", "mana-above",
@@ -50,6 +51,7 @@ export function AutomationWindow({ game, initialActionId, createRule = false }: 
   const [selectedRuleId, setSelectedRuleId] = useState<string | null>(game.combatAutomation.rules[0]?.id ?? null);
   const [draftRule, setDraftRule] = useState<AutomationRule | null>(null);
   const [pendingDeleteRuleId, setPendingDeleteRuleId] = useState<string | null>(null);
+  const [view, setView] = useState<"editor" | "instructions">("editor");
   useEffect(() => {
     if (createRule) {
       const actionId = initialActionId && actions.some((action) => action.id === initialActionId)
@@ -87,17 +89,19 @@ export function AutomationWindow({ game, initialActionId, createRule = false }: 
     setPendingDeleteRuleId(null);
     setSelectedRuleId(null);
   };
+  if (view === "instructions") return <AutomationInstructions onBack={() => setView("editor")} />;
   return (
     <>
       <div className="automation-window" data-debug-kind="automation-window">
       <div className="automation-master-controls">
+        <button className="button button-ghost automation-instructions-button" onClick={() => setView("instructions")} data-debug-kind="automation-instructions-button"><BookOpen size={13} /> INSTRUCTIONS</button>
         <button className={`button ${game.combatAutomation.enabled ? "button-primary" : "button-ghost"}`} onClick={() => setAutomationEnabled(!game.combatAutomation.enabled)} data-debug-kind="automation-master-toggle">MASTER AUTOMATION · {game.combatAutomation.enabled ? "ENABLED" : "DISABLED"}</button>
         <button className={`button ${game.combatAutomation.overrideManualTarget ? "button-primary" : "button-ghost"}`} onClick={() => setAutomationOverride(!game.combatAutomation.overrideManualTarget)}>AUTO TARGET OVERRIDE · {game.combatAutomation.overrideManualTarget ? "ON" : "OFF"}</button>
         <span className="muted-copy">{summary.enabledRuleCount} / {summary.totalRuleCount} rules active · {summary.invalidRuleCount} need attention</span>
       </div>
       <p className="automation-explanation">Rules are checked from highest priority to lowest. The first rule whose conditions are true and whose action can currently be used executes. If an action cannot be used, lower-priority rules are still checked.</p>
       <div className="automation-editor-layout">
-        <section className="automation-rule-list" aria-label="Automation rules">
+        <section className="automation-rule-list combatbound-scroll" aria-label="Automation rules">
           <div className="section-title"><span className="tiny-label">RULES</span><button className="button button-ghost" onClick={addNewRule}><Plus size={13} /> ADD RULE</button></div>
           {[...game.combatAutomation.rules].sort((a, b) => a.priority - b.priority || a.id.localeCompare(b.id)).map((rule) => {
             const action = actions.find((candidate) => candidate.id === rule.actionId);
@@ -106,7 +110,7 @@ export function AutomationWindow({ game, initialActionId, createRule = false }: 
           })}
           <div className="target-priority-list"><div className="section-title"><span className="tiny-label">TARGET PRIORITY</span></div>{[...game.combatAutomation.targetPriorityRules].sort((a, b) => a.priority - b.priority).map((priority, index, list) => <div className="target-priority-row" key={priority.id}><span>{priority.priority} {targetCriterionLabel(priority.criterion)}</span><button className={`button button-ghost compact ${priority.enabled ? "is-active" : ""}`} onClick={() => setPriorityEnabled(priority.id, !priority.enabled)}>{priority.enabled ? "ON" : "OFF"}</button><button className="icon-button compact" aria-label="Move target priority up" disabled={index === 0} onClick={() => movePriority(priority.id, "up")}><ArrowUp size={12} /></button><button className="icon-button compact" aria-label="Move target priority down" disabled={index === list.length - 1} onClick={() => movePriority(priority.id, "down")}><ArrowDown size={12} /></button></div>)}</div>
         </section>
-        <section className="automation-editor" aria-label="Automation rule editor">
+        <section className="automation-editor combatbound-scroll" aria-label="Automation rule editor">
           {draftRule ? <RuleEditor key={draftRule.id} rule={draftRule} actions={actions} isDraft onSave={saveDraft} onCancel={() => setDraftRule(null)} /> : selectedRule ? <RuleEditor key={selectedRule.id} rule={selectedRule} actions={actions} onSave={(patch) => updateRule(selectedRule.id, patch)} onDelete={() => setPendingDeleteRuleId(selectedRule.id)} onToggle={(enabled) => setRuleEnabled(selectedRule.id, enabled)} onMove={(direction) => moveRule(selectedRule.id, direction)} onCancel={() => undefined} /> : <span className="muted-copy">Select a rule or add one to begin.</span>}
         </section>
       </div>

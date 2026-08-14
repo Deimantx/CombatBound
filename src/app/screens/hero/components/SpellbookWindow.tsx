@@ -16,15 +16,30 @@ import { useGameStore } from "../../../../state/gameStore";
 import { PlaceholderArt } from "../../../components/PlaceholderArt";
 
 type SchoolFilter = "all" | (typeof magicSchoolOrder)[number];
+type SpellDragPayload =
+  | { kind: "known-spell"; spellId: string }
+  | { kind: "loadout-spell"; spellId: string; sourceSlot: number };
+type DragDropState = "idle" | "valid" | "invalid" | "over";
+interface SpellDragState {
+  payload: SpellDragPayload | null;
+  overSlot: number | null;
+  overKnownList: boolean;
+  dropState: DragDropState;
+}
+const emptyDragState: SpellDragState = { payload: null, overSlot: null, overKnownList: false, dropState: "idle" };
 
 export function SpellbookWindow({ game, onOpenAutomation }: { game: GameState; onOpenAutomation: (actionId?: string, createRule?: boolean) => void }) {
   const setSpellSlot = useGameStore((state) => state.setSpellSlot);
+  const equipSpellToSlot = useGameStore((state) => state.equipSpellToSlot);
+  const moveEquippedSpell = useGameStore((state) => state.moveEquippedSpell);
+  const unequipSpellSlot = useGameStore((state) => state.unequipSpellSlot);
   const swapSpellSlots = useGameStore((state) => state.swapSpellSlots);
   const unequipSpell = useGameStore((state) => state.unequipSpell);
   const combatLocked = game.combat.phase === "active" || game.combat.phase === "recovery";
   const [filter, setFilter] = useState<SchoolFilter>("all");
   const [selectedSpellId, setSelectedSpellId] = useState(game.spellbook.knownSpellIds[0] ?? "");
   const [selectedSlot, setSelectedSlot] = useState(0);
+  const [dragState, setDragState] = useState<SpellDragState>(emptyDragState);
   const context = useMemo(() => createCombatPreviewContext(), []);
   const stats = calculateHunterCombatStats(game.equipment, game.progression, game.combat.stance, game.combat.techniques);
   const knownSpells = game.spellbook.knownSpellIds
@@ -42,6 +57,47 @@ export function SpellbookWindow({ game, onOpenAutomation }: { game: GameState; o
   const selectedRules = selectedSpell
     ? game.combatAutomation.rules.filter((rule) => rule.actionId === selectedSpell.id)
     : [];
+  const dragging = Boolean(dragState.payload);
+  const clearDrag = () => setDragState(emptyDragState);
+  const startDrag = (event: React.DragEvent, payload: SpellDragPayload) => {
+    if (combatLocked) {
+      event.preventDefault();
+      return;
+    }
+    event.dataTransfer.effectAllowed = "move";
+    event.dataTransfer.setData("text/plain", payload.spellId);
+    setDragState({ payload, overSlot: null, overKnownList: false, dropState: "idle" });
+  };
+  const slotDropIsValid = (slot: number) => {
+    const payload = dragState.payload;
+    if (!payload || combatLocked) return false;
+    if (payload.kind === "known-spell") return game.spellbook.knownSpellIds.includes(payload.spellId);
+    return payload.sourceSlot !== slot && game.spellbook.equippedSpellSlots[payload.sourceSlot] === payload.spellId;
+  };
+  const slotDropState = (slot: number): DragDropState =>
+    dragState.overSlot !== slot ? "idle" : dragState.dropState;
+  const handleSlotDrop = (slot: number) => {
+    const payload = dragState.payload;
+    if (!payload || !slotDropIsValid(slot)) {
+      clearDrag();
+      return;
+    }
+    if (payload.kind === "known-spell") {
+      equipSpellToSlot(payload.spellId, slot);
+    } else {
+      moveEquippedSpell(payload.sourceSlot, slot);
+    }
+    setSelectedSpellId(payload.spellId);
+    setSelectedSlot(slot);
+    clearDrag();
+  };
+  const handleKnownListDrop = () => {
+    const payload = dragState.payload;
+    if (payload?.kind === "loadout-spell" && !combatLocked && game.spellbook.equippedSpellSlots[payload.sourceSlot] === payload.spellId)
+      unequipSpellSlot(payload.sourceSlot);
+    clearDrag();
+  };
+  const knownListDropIsValid = dragState.payload?.kind === "loadout-spell" && !combatLocked;
 
   return (
     <div className="spellbook-window" data-debug-kind="spellbook-window">
@@ -50,6 +106,7 @@ export function SpellbookWindow({ game, onOpenAutomation }: { game: GameState; o
       </div>
       <section className="spellbook-loadout" aria-label="Combat spell loadout">
         <div className="section-title"><span className="tiny-label">COMBAT LOADOUT</span><span>{game.spellbook.equippedSpellSlots.filter(Boolean).length} / {COMBAT_SPELL_SLOT_COUNT} equipped</span></div>
+        <p className="spellbook-dnd-hint">Drag known Spells into slots · drag slots to reorder</p>
         <div className="hero-spell-loadout">
           {Array.from({ length: COMBAT_SPELL_SLOT_COUNT }, (_, slot) => {
             const spellId = game.spellbook.equippedSpellSlots[slot] ?? null;
@@ -58,16 +115,25 @@ export function SpellbookWindow({ game, onOpenAutomation }: { game: GameState; o
             return (
               <button
                 key={slot}
-                className={`hero-spell-slot ${selectedSlot === slot ? "is-selected" : ""}`}
+                className={`hero-spell-slot ${selectedSlot === slot ? "is-selected" : ""} ${dragState.payload?.kind === "loadout-spell" && dragState.payload.sourceSlot === slot ? "is-dragging" : ""} ${dragState.overSlot === slot ? "is-drop-target" : ""} ${dragState.overSlot === slot && dragState.dropState === "valid" ? "is-drop-valid" : ""} ${dragState.overSlot === slot && dragState.dropState === "invalid" ? "is-drop-invalid" : ""}`}
                 onClick={() => setSelectedSlot(slot)}
-                disabled={false}
+                draggable={Boolean(spell) && !combatLocked}
+                onDragStart={(event) => spell && startDrag(event, { kind: "loadout-spell", spellId: spell.id, sourceSlot: slot })}
+                onDragEnter={(event) => { event.preventDefault(); if (dragState.payload) setDragState((current) => ({ ...current, overSlot: slot, dropState: "over" })); }}
+                onDragOver={(event) => { event.preventDefault(); const valid = slotDropIsValid(slot); event.dataTransfer.dropEffect = valid ? "move" : "none"; setDragState((current) => ({ ...current, overSlot: slot, dropState: valid ? "valid" : "invalid" })); }}
+                onDragLeave={(event) => { if (!event.currentTarget.contains(event.relatedTarget as Node)) setDragState((current) => ({ ...current, overSlot: null, dropState: "idle" })); }}
+                onDrop={(event) => { event.preventDefault(); handleSlotDrop(slot); }}
+                onDragEnd={clearDrag}
                 data-debug-kind="spell-loadout-slot"
                 data-debug-slot={slot}
                 data-debug-spell-id={spellId ?? undefined}
+                data-debug-dragging={dragState.payload?.kind === "loadout-spell" && dragState.payload.sourceSlot === slot ? "true" : "false"}
+                data-debug-drop-state={slotDropState(slot)}
               >
                 <span className="hero-spell-slot-number">{slot + 1}</span>
                 {spell ? <PlaceholderArt icon={spell.icon} size="small" variant="gold" /> : <span className="hero-spell-empty"><Sparkles size={16} /></span>}
                 <strong>{spell?.name ?? "EMPTY"}</strong>
+                {!spell && dragging && <span className="hero-spell-drop-copy">DROP SPELL HERE</span>}
                 <small>{spell ? `${school?.label} · ${getSpellActionView(game, spell.id, stats, context).effectiveManaCost} Mana` : "Choose Spell"}</small>
                 {spell && !combatLocked && <span className="hero-spell-slot-remove" onClick={(event) => { event.stopPropagation(); unequipSpell(slot); }}><X size={11} /></span>}
               </button>
@@ -84,14 +150,24 @@ export function SpellbookWindow({ game, onOpenAutomation }: { game: GameState; o
         })}
       </div>
       <div className="spellbook-browser">
-        <section className="spellbook-list" aria-label="Known spells">
-          <div className="section-title"><span className="tiny-label">KNOWN SPELLS</span><span>{visibleSpells.length}</span></div>
+        <section
+          className={`spellbook-list combatbound-scroll ${dragState.overKnownList ? "is-unequip-target" : ""}`}
+          aria-label="Known spells"
+          onDragEnter={(event) => { event.preventDefault(); if (dragState.payload) setDragState((current) => ({ ...current, overKnownList: true, dropState: "over" })); }}
+          onDragOver={(event) => { event.preventDefault(); const valid = Boolean(knownListDropIsValid); event.dataTransfer.dropEffect = valid ? "move" : "none"; setDragState((current) => ({ ...current, overKnownList: true, dropState: valid ? "valid" : "invalid" })); }}
+          onDragLeave={(event) => { if (!event.currentTarget.contains(event.relatedTarget as Node)) setDragState((current) => ({ ...current, overKnownList: false, dropState: "idle" })); }}
+          onDrop={(event) => { event.preventDefault(); handleKnownListDrop(); }}
+          data-debug-kind="spell-unequip-dropzone"
+          data-debug-dragging={dragging ? "true" : "false"}
+          data-debug-drop-state={dragState.overKnownList ? dragState.dropState : "idle"}
+        >
+          <div className="section-title"><span className="tiny-label">KNOWN SPELLS</span><span>{knownListDropIsValid ? "DROP HERE TO UNEQUIP" : visibleSpells.length}</span></div>
           {visibleSpells.map((spell) => {
             const school = getMagicSchoolPresentation(spell.magicProficiencyId);
             const view = getSpellActionView(game, spell.id, stats, context);
             const equippedSlot = game.spellbook.equippedSpellSlots.findIndex((id) => id === spell.id);
             return (
-              <button key={spell.id} className={`known-spell-card ${selectedSpell?.id === spell.id ? "is-selected" : ""}`} onClick={() => setSelectedSpellId(spell.id)} data-debug-kind="spellbook-spell" data-debug-spell-id={spell.id} data-debug-school={spell.magicProficiencyId} data-debug-equipped-slot={equippedSlot >= 0 ? equippedSlot : undefined}>
+              <button key={spell.id} className={`known-spell-card ${selectedSpell?.id === spell.id ? "is-selected" : ""} ${dragState.payload?.kind === "known-spell" && dragState.payload.spellId === spell.id ? "is-dragging" : ""}`} onClick={() => setSelectedSpellId(spell.id)} draggable={!combatLocked} onDragStart={(event) => startDrag(event, { kind: "known-spell", spellId: spell.id })} onDragEnd={clearDrag} data-debug-kind="spellbook-spell" data-debug-spell-id={spell.id} data-debug-school={spell.magicProficiencyId} data-debug-equipped-slot={equippedSlot >= 0 ? equippedSlot : undefined} data-debug-draggable={!combatLocked} data-debug-dragging={dragState.payload?.kind === "known-spell" && dragState.payload.spellId === spell.id ? "true" : "false"}>
                 <PlaceholderArt icon={spell.icon} size="small" variant={school.accent === "fire" ? "gold" : "blue"} />
                 <span><strong>{spell.name}</strong><small>{school.fullLabel} · {view.effectiveManaCost} Mana · {view.effectiveSpell?.cooldownSeconds.toFixed(1)}s</small><em>{spell.damage > 0 ? "Damage" : spell.barrierAmount ? "Barrier" : "Utility"}{spell.applyEffects?.length ? ` · ${spell.applyEffects.map((effect) => effectById[effect.effectId]?.name ?? effect.effectId).join(", ")}` : ""}</em></span>
                 {equippedSlot >= 0 && <b>EQUIPPED {equippedSlot + 1}</b>}
