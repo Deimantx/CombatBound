@@ -11,7 +11,7 @@ import type { SpellDefinition } from "../data/spells";
 import { stanceDefinitions } from "../data/stances";
 import type { TechniqueId } from "../combat/combatTypes";
 import type { ProgressionState } from "../progression/progressionTypes";
-import { calculateEffectiveSpell } from "../progression/spellProgression";
+import { calculateEffectiveSpell, type SpellCalculationContext } from "../progression/spellProgression";
 import { techniqueDefinitions } from "../data/techniques";
 import { proficiencyById } from "../data/proficiencies";
 import {
@@ -291,9 +291,10 @@ export function buildEffectTooltip(
 export function buildSpellTooltip(
   spell: SpellDefinition,
   progression?: ProgressionState,
+  context?: SpellCalculationContext,
 ): TooltipModel {
   const effective = progression
-    ? calculateEffectiveSpell(spell, progression)
+    ? calculateEffectiveSpell(spell, progression, context)
     : spell;
   const rows: TooltipRow[] = [
     {

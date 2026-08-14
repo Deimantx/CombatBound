@@ -12,7 +12,7 @@ export interface NavigationItem {
 export const navigationItems: NavigationItem[] = [
   { id: 'home', label: 'Home', icon: House, description: 'Combat overview' },
   { id: 'combat', label: 'Combat', icon: Swords, description: 'Fight and select targets' },
-  { id: 'equipment', label: 'Equipment', icon: ShieldCheck, description: 'Manage combat loadout' },
+  { id: 'hero', label: 'Hero', icon: ShieldCheck, description: 'Equipment, spells and combat setup' },
   { id: 'proficiencies', label: 'Proficiencies', icon: Sparkles, description: 'Train weapons and spend Perks' },
   { id: 'inventory', label: 'Inventory', icon: Backpack, description: 'Review carried items' },
   { id: 'collection', label: 'Collection Log', icon: BookOpen, description: 'Track discoveries' },
@@ -23,7 +23,7 @@ export const navigationItems: NavigationItem[] = [
 export const screenTitles: Record<ScreenId, { title: string; subtitle: string }> = {
   home: { title: 'Home', subtitle: 'A clear view of your combat journey.' },
   combat: { title: 'Combat', subtitle: 'Hunt enemy groups, manage combat decisions, and survive repeated encounters.' },
-  equipment: { title: 'Equipment', subtitle: 'Manage your current combat loadout.' },
+  hero: { title: 'Hero', subtitle: 'Prepare your equipment, magic and combat behavior.' },
   proficiencies: { title: 'Proficiencies', subtitle: 'Improve the weapons you actually use.' },
   inventory: { title: 'Inventory', subtitle: 'Review carried items and equipment.' },
   collection: { title: 'Collection Log', subtitle: 'Track the items and targets you have discovered.' },

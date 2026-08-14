@@ -36,12 +36,30 @@ import {
 import type { StanceId, TechniqueId } from "../game/combat/combatTypes";
 import { normalizeSpellbook } from "../game/spellbook/spellbookLogic";
 import { createInitialCombatAutomation } from "../game/automation/automationTypes";
+import {
+  addAutomationCondition,
+  addAutomationRule,
+  deleteAutomationRule,
+  moveAutomationRule,
+  moveTargetPriority,
+  normalizeCombatAutomation,
+  removeAutomationCondition,
+  setAutomationEnabled,
+  setAutomationOverrideManualTarget,
+  setAutomationRuleEnabled,
+  setTargetPriorityEnabled,
+  updateAutomationCondition,
+  updateAutomationRule,
+} from "../game/automation/automationLogic";
+import { COMBAT_SPELL_SLOT_COUNT } from "../game/spellbook/spellbookTypes";
 import type { EquipmentSlot } from "../game/equipment/equipmentTypes";
-import type { ScreenId } from "../shared/types";
+import type { HeroWindowRequest, ScreenId } from "../shared/types";
+import type { AutomationCondition, AutomationRule } from "../game/automation/automationTypes";
 
 interface GameStoreState {
   game: GameState;
   screen: ScreenId;
+  heroWindowRequest: HeroWindowRequest | null;
   selectedContinentId: string;
   selectedRegionId: string;
   selectedAreaId: string;
@@ -66,6 +84,8 @@ interface GameStoreState {
   reducedMotion: boolean;
   showInspectorButton: boolean;
   setScreen: (screen: ScreenId) => void;
+  openHeroWindow: (window: HeroWindowRequest["window"], options?: Omit<HeroWindowRequest, "window">) => void;
+  clearHeroWindowRequest: () => void;
   selectContinent: (id: string) => void;
   selectRegion: (id: string) => void;
   selectArea: (id: string) => void;
@@ -84,6 +104,20 @@ interface GameStoreState {
   setSpellSlot: (slot: number, spellId: string | null) => void;
   toggleAutomation: () => void;
   toggleAutomationRule: (ruleId: string) => void;
+  setAutomationEnabled: (enabled: boolean) => void;
+  setAutomationOverrideManualTarget: (enabled: boolean) => void;
+  addAutomationRule: (rule: Partial<AutomationRule> & Pick<AutomationRule, "actionId">) => void;
+  updateAutomationRule: (ruleId: string, patch: Partial<Omit<AutomationRule, "id">>) => void;
+  deleteAutomationRule: (ruleId: string) => void;
+  setAutomationRuleEnabled: (ruleId: string, enabled: boolean) => void;
+  moveAutomationRule: (ruleId: string, direction: "up" | "down") => void;
+  addAutomationCondition: (ruleId: string, condition: AutomationCondition) => void;
+  updateAutomationCondition: (ruleId: string, index: number, condition: AutomationCondition) => void;
+  removeAutomationCondition: (ruleId: string, index: number) => void;
+  setTargetPriorityEnabled: (priorityId: string, enabled: boolean) => void;
+  moveTargetPriority: (priorityId: string, direction: "up" | "down") => void;
+  swapSpellSlots: (first: number, second: number) => void;
+  unequipSpell: (slot: number) => void;
   usePotion: () => void;
   purchaseProficiencyPerk: (perkId: string) => void;
   equipItem: (itemId: string, slot: EquipmentSlot) => void;
@@ -118,14 +152,16 @@ const hydratedGame: GameState = saved
       collection: saved.collection,
       gold: saved.gold,
       spellbook: normalizeSpellbook(saved.spellbook),
-      combatAutomation:
+      combatAutomation: normalizeCombatAutomation(
         saved.combatAutomation ?? createInitialCombatAutomation(),
+      ),
     })
   : initial;
 
 type UiState = Pick<
   GameStoreState,
   | "screen"
+  | "heroWindowRequest"
   | "selectedContinentId"
   | "selectedRegionId"
   | "selectedAreaId"
@@ -147,6 +183,7 @@ function flatState(
   GameStoreState,
   | "game"
   | "screen"
+  | "heroWindowRequest"
   | "selectedContinentId"
   | "selectedRegionId"
   | "selectedAreaId"
@@ -208,7 +245,7 @@ function savePermanent(
   settings: { reducedMotion: boolean; showInspectorButton: boolean },
 ) {
   saveGame({
-    version: 4,
+    version: 5,
     progression: game.progression,
     inventory: game.inventory,
     equipment: game.equipment,
@@ -237,12 +274,14 @@ function selectionUi(
     combatOverviewTab: state.combatOverviewTab,
     reducedMotion: state.reducedMotion,
     showInspectorButton: state.showInspectorButton,
+    heroWindowRequest: state.heroWindowRequest,
   };
 }
 
 export const useGameStore = create<GameStoreState>((set, get) => {
   const ui: UiState = {
     screen: "home",
+    heroWindowRequest: null,
     selectedContinentId: defaultSelection.continentId,
     selectedRegionId: defaultSelection.regionId,
     selectedAreaId: defaultSelection.areaId,
@@ -262,6 +301,17 @@ export const useGameStore = create<GameStoreState>((set, get) => {
     set((state) =>
       flatState(state.game, selectionUi(cascadeSelection(selection), state)),
     );
+  const commitAutomation = (
+    state: GameStoreState,
+    combatAutomation: GameState["combatAutomation"],
+  ) => {
+    const game = { ...state.game, combatAutomation: normalizeCombatAutomation(combatAutomation) };
+    savePermanent(game, {
+      reducedMotion: state.reducedMotion,
+      showInspectorButton: state.showInspectorButton,
+    });
+    return flatState(game, state);
+  };
   const runHunt = () =>
     set((state) => {
       const masteryLevel = masteryLevelForXp(state.game.progression.masteryXp);
@@ -289,7 +339,9 @@ export const useGameStore = create<GameStoreState>((set, get) => {
     });
   return {
     ...flatState(hydratedGame, ui),
-    setScreen: (screen) => set({ screen }),
+    setScreen: (screen) => set({ screen, heroWindowRequest: null }),
+    openHeroWindow: (window, options) => set({ screen: "hero", heroWindowRequest: { window, ...options } }),
+    clearHeroWindowRequest: () => set({ heroWindowRequest: null }),
     selectContinent: (id) => {
       if (continentById[id]) selectWorldNode({ continentId: id });
     },
@@ -418,20 +470,75 @@ export const useGameStore = create<GameStoreState>((set, get) => {
           return state;
         if (
           slot < 0 ||
-          slot > 5 ||
+          slot >= COMBAT_SPELL_SLOT_COUNT ||
           (spellId !== null &&
             !state.game.spellbook.knownSpellIds.includes(spellId))
         )
           return state;
+        const equippedSpellSlots = Array.from(
+          { length: COMBAT_SPELL_SLOT_COUNT },
+          (_, index) => state.game.spellbook.equippedSpellSlots[index] ?? null,
+        );
+        const existingSlot = spellId === null
+          ? -1
+          : equippedSpellSlots.findIndex(
+              (equippedId, index) => index !== slot && equippedId === spellId,
+            );
+        if (existingSlot >= 0)
+          equippedSpellSlots[existingSlot] = equippedSpellSlots[slot] ?? null;
+        equippedSpellSlots[slot] = spellId;
+        const game = {
+          ...state.game,
+          spellbook: { ...state.game.spellbook, equippedSpellSlots },
+        };
+        savePermanent(game, {
+          reducedMotion: state.reducedMotion,
+          showInspectorButton: state.showInspectorButton,
+        });
+        return flatState(game, state);
+      }),
+    swapSpellSlots: (first, second) =>
+      set((state) => {
         if (
-          spellId !== null &&
-          state.game.spellbook.equippedSpellSlots.some(
-            (equippedId, index) => index !== slot && equippedId === spellId,
-          )
+          state.game.combat.phase === "active" ||
+          state.game.combat.phase === "recovery" ||
+          first < 0 ||
+          second < 0 ||
+          first >= COMBAT_SPELL_SLOT_COUNT ||
+          second >= COMBAT_SPELL_SLOT_COUNT
         )
           return state;
-        const equippedSpellSlots = [...state.game.spellbook.equippedSpellSlots];
-        equippedSpellSlots[slot] = spellId;
+        const equippedSpellSlots = [
+          ...state.game.spellbook.equippedSpellSlots,
+        ];
+        [equippedSpellSlots[first], equippedSpellSlots[second]] = [
+          equippedSpellSlots[second] ?? null,
+          equippedSpellSlots[first] ?? null,
+        ];
+        const game = {
+          ...state.game,
+          spellbook: { ...state.game.spellbook, equippedSpellSlots },
+        };
+        savePermanent(game, {
+          reducedMotion: state.reducedMotion,
+          showInspectorButton: state.showInspectorButton,
+        });
+        return flatState(game, state);
+      }),
+    unequipSpell: (slot) =>
+      set((state) => {
+        if (
+          state.game.combat.phase === "active" ||
+          state.game.combat.phase === "recovery" ||
+          slot < 0 ||
+          slot >= COMBAT_SPELL_SLOT_COUNT
+        )
+          return state;
+        const equippedSpellSlots = Array.from(
+          { length: COMBAT_SPELL_SLOT_COUNT },
+          (_, index) => state.game.spellbook.equippedSpellSlots[index] ?? null,
+        );
+        equippedSpellSlots[slot] = null;
         const game = {
           ...state.game,
           spellbook: { ...state.game.spellbook, equippedSpellSlots },
@@ -444,36 +551,126 @@ export const useGameStore = create<GameStoreState>((set, get) => {
       }),
     toggleAutomation: () =>
       set((state) => {
-        const game = {
-          ...state.game,
-          combatAutomation: {
-            ...state.game.combatAutomation,
-            enabled: !state.game.combatAutomation.enabled,
-          },
-        };
-        savePermanent(game, {
-          reducedMotion: state.reducedMotion,
-          showInspectorButton: state.showInspectorButton,
-        });
-        return flatState(game, state);
+        return commitAutomation(
+          state,
+          setAutomationEnabled(
+            state.game.combatAutomation,
+            !state.game.combatAutomation.enabled,
+          ),
+        );
       }),
     toggleAutomationRule: (ruleId) =>
       set((state) => {
-        const game = {
-          ...state.game,
-          combatAutomation: {
-            ...state.game.combatAutomation,
-            rules: state.game.combatAutomation.rules.map((rule) =>
-              rule.id === ruleId ? { ...rule, enabled: !rule.enabled } : rule,
-            ),
-          },
-        };
-        savePermanent(game, {
-          reducedMotion: state.reducedMotion,
-          showInspectorButton: state.showInspectorButton,
-        });
-        return flatState(game, state);
+        const rule = state.game.combatAutomation.rules.find(
+          (candidate) => candidate.id === ruleId,
+        );
+        return rule
+          ? commitAutomation(
+              state,
+              setAutomationRuleEnabled(
+                state.game.combatAutomation,
+                ruleId,
+                !rule.enabled,
+              ),
+            )
+          : state;
       }),
+    setAutomationEnabled: (enabled) =>
+      set((state) =>
+        commitAutomation(
+          state,
+          setAutomationEnabled(state.game.combatAutomation, enabled),
+        ),
+      ),
+    setAutomationOverrideManualTarget: (enabled) =>
+      set((state) =>
+        commitAutomation(
+          state,
+          setAutomationOverrideManualTarget(
+            state.game.combatAutomation,
+            enabled,
+          ),
+        ),
+      ),
+    addAutomationRule: (rule) =>
+      set((state) =>
+        commitAutomation(
+          state,
+          addAutomationRule(state.game.combatAutomation, rule),
+        ),
+      ),
+    updateAutomationRule: (ruleId, patch) =>
+      set((state) =>
+        commitAutomation(
+          state,
+          updateAutomationRule(state.game.combatAutomation, ruleId, patch),
+        ),
+      ),
+    deleteAutomationRule: (ruleId) =>
+      set((state) =>
+        commitAutomation(
+          state,
+          deleteAutomationRule(state.game.combatAutomation, ruleId),
+        ),
+      ),
+    setAutomationRuleEnabled: (ruleId, enabled) =>
+      set((state) =>
+        commitAutomation(
+          state,
+          setAutomationRuleEnabled(state.game.combatAutomation, ruleId, enabled),
+        ),
+      ),
+    moveAutomationRule: (ruleId, direction) =>
+      set((state) =>
+        commitAutomation(
+          state,
+          moveAutomationRule(state.game.combatAutomation, ruleId, direction),
+        ),
+      ),
+    addAutomationCondition: (ruleId, condition) =>
+      set((state) =>
+        commitAutomation(
+          state,
+          addAutomationCondition(state.game.combatAutomation, ruleId, condition),
+        ),
+      ),
+    updateAutomationCondition: (ruleId, index, condition) =>
+      set((state) =>
+        commitAutomation(
+          state,
+          updateAutomationCondition(
+            state.game.combatAutomation,
+            ruleId,
+            index,
+            condition,
+          ),
+        ),
+      ),
+    removeAutomationCondition: (ruleId, index) =>
+      set((state) =>
+        commitAutomation(
+          state,
+          removeAutomationCondition(state.game.combatAutomation, ruleId, index),
+        ),
+      ),
+    setTargetPriorityEnabled: (priorityId, enabled) =>
+      set((state) =>
+        commitAutomation(
+          state,
+          setTargetPriorityEnabled(
+            state.game.combatAutomation,
+            priorityId,
+            enabled,
+          ),
+        ),
+      ),
+    moveTargetPriority: (priorityId, direction) =>
+      set((state) =>
+        commitAutomation(
+          state,
+          moveTargetPriority(state.game.combatAutomation, priorityId, direction),
+        ),
+      ),
     usePotion: () =>
       set((state) => {
         const stats = calculateHunterCombatStats(

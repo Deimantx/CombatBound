@@ -15,9 +15,8 @@ export interface CombatInteractionDefinition {
     sourceActionId?: string;
   };
   requirements: {
-    targetHasEffectIds?: string[];
-    targetHasEffectTags?: string[];
-    sourceHasEffectTags?: string[];
+    all?: InteractionRequirement[];
+    any?: InteractionRequirement[];
   };
   result: {
     damageMultiplier?: number;
@@ -27,6 +26,11 @@ export interface CombatInteractionDefinition {
   };
 }
 
+export type InteractionRequirement =
+  | { type: "target-effect-id"; value: string }
+  | { type: "target-effect-tag"; value: string }
+  | { type: "source-effect-tag"; value: string };
+
 export const combatInteractionDefinitions: CombatInteractionDefinition[] = [
   {
     id: "interaction.thermal-shock",
@@ -34,7 +38,7 @@ export const combatInteractionDefinitions: CombatInteractionDefinition[] = [
     description:
       "Fire damage against Chilled targets deals +25% damage and consumes Chilled.",
     trigger: { sourceKind: "spell", damageType: "fire" },
-    requirements: { targetHasEffectIds: ["effect.chilled"] },
+    requirements: { all: [{ type: "target-effect-id", value: "effect.chilled" }] },
     result: { damageMultiplier: 1.25, consumeEffectIds: ["effect.chilled"] },
   },
   {
@@ -43,7 +47,7 @@ export const combatInteractionDefinitions: CombatInteractionDefinition[] = [
     description:
       "Water damage against Burning targets deals +15% damage, consumes Burn, and applies Exposed.",
     trigger: { sourceKind: "spell", damageType: "water" },
-    requirements: { targetHasEffectIds: ["effect.burn"] },
+    requirements: { all: [{ type: "target-effect-id", value: "effect.burn" }] },
     result: {
       damageMultiplier: 1.15,
       consumeEffectIds: ["effect.burn"],
@@ -55,7 +59,7 @@ export const combatInteractionDefinitions: CombatInteractionDefinition[] = [
     name: "Conductive Disruption",
     description: "Disrupting Pulse applies Shocked to a Chilled target.",
     trigger: { sourceKind: "spell", sourceActionId: "spell.disrupting-pulse" },
-    requirements: { targetHasEffectIds: ["effect.chilled"] },
+    requirements: { all: [{ type: "target-effect-id", value: "effect.chilled" }] },
     result: { applyEffectIds: ["effect.shocked"] },
   },
   {
@@ -64,7 +68,7 @@ export const combatInteractionDefinitions: CombatInteractionDefinition[] = [
     description:
       "Earth damage against Shocked targets deals +20% damage and consumes Shocked.",
     trigger: { sourceKind: "spell", damageType: "earth" },
-    requirements: { targetHasEffectIds: ["effect.shocked"] },
+    requirements: { all: [{ type: "target-effect-id", value: "effect.shocked" }] },
     result: { damageMultiplier: 1.2, consumeEffectIds: ["effect.shocked"] },
   },
   {
@@ -72,16 +76,12 @@ export const combatInteractionDefinitions: CombatInteractionDefinition[] = [
     name: "Umbral Exploit",
     description: "Darkness damage against Exposed targets deals +15% damage.",
     trigger: { sourceKind: "spell", damageType: "darkness" },
-    requirements: { targetHasEffectIds: ["effect.exposed"] },
-    result: { damageMultiplier: 1.15 },
-  },
-  {
-    id: "interaction.umbral-exploit-armor",
-    name: "Umbral Exploit",
-    description:
-      "Darkness damage against Armor Broken targets deals +15% damage.",
-    trigger: { sourceKind: "spell", sourceActionId: "spell.shadow-bolt" },
-    requirements: { targetHasEffectIds: ["effect.armor-broken"] },
+    requirements: {
+      any: [
+        { type: "target-effect-id", value: "effect.exposed" },
+        { type: "target-effect-id", value: "effect.armor-broken" },
+      ],
+    },
     result: { damageMultiplier: 1.15 },
   },
   {
@@ -90,7 +90,12 @@ export const combatInteractionDefinitions: CombatInteractionDefinition[] = [
     description:
       "Protective Sign cleanses one harmful Darkness or Curse effect.",
     trigger: { sourceKind: "spell", sourceActionId: "spell.protective-sign" },
-    requirements: { targetHasEffectTags: ["darkness", "curse"] },
+    requirements: {
+      any: [
+        { type: "target-effect-tag", value: "darkness" },
+        { type: "target-effect-tag", value: "curse" },
+      ],
+    },
     result: { consumeEffectTags: ["darkness", "curse"] },
   },
 ];
@@ -106,7 +111,7 @@ export function resolveCombatInteractions(
 ) {
   const sourceKind =
     packet.progressionSource?.type === "spell" ? "spell" : undefined;
-  return definitions.filter((definition) => {
+  const matched = definitions.filter((definition) => {
     if (definition.trigger.sourceKind !== sourceKind) return false;
     if (
       definition.trigger.damageType &&
@@ -122,19 +127,20 @@ export function resolveCombatInteractions(
     const tags = targetEffects.flatMap(
       (effect) => effects[effect.effectId]?.tags ?? [],
     );
-    if (
-      definition.requirements.targetHasEffectIds?.some(
-        (id) => !ids.includes(id),
-      )
-    )
-      return false;
-    if (
-      definition.requirements.targetHasEffectTags?.length &&
-      !definition.requirements.targetHasEffectTags.some((tag) =>
-        tags.includes(tag),
-      )
-    )
-      return false;
+    const matches = (requirement: InteractionRequirement) =>
+      requirement.type === "target-effect-id"
+        ? ids.includes(requirement.value)
+        : requirement.type === "target-effect-tag"
+          ? tags.includes(requirement.value)
+          : false;
+    const all = definition.requirements.all ?? [];
+    const any = definition.requirements.any ?? [];
+    return all.every(matches) && (any.length === 0 || any.some(matches));
+  });
+  const seen = new Set<string>();
+  return matched.filter((definition) => {
+    if (seen.has(definition.id)) return false;
+    seen.add(definition.id);
     return true;
   });
 }

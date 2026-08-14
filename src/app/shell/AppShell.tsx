@@ -5,7 +5,7 @@ import { TopStatusBar } from './TopStatusBar'
 import { useGameStore } from '../../state/gameStore'
 import { HomeScreen } from '../screens/home/HomeScreen'
 import { CombatScreen } from '../screens/combat/CombatScreen'
-import { EquipmentScreen } from '../screens/equipment/EquipmentScreen'
+import { HeroScreen } from '../screens/hero/HeroScreen'
 import { ProficienciesScreen } from '../screens/proficiencies/ProficienciesScreen'
 import { InventoryScreen } from '../screens/inventory/InventoryScreen'
 import { CollectionScreen } from '../screens/collection/CollectionScreen'
@@ -50,7 +50,7 @@ export function AppShell() {
     writeInspectorPreferences({ showButton: showInspectorButton })
   }, [reducedMotion, showInspectorButton])
 
-  const content = { home: <HomeScreen />, combat: <CombatScreen />, equipment: <EquipmentScreen />, proficiencies: <ProficienciesScreen />, inventory: <InventoryScreen />, collection: <CollectionScreen />, settings: <SettingsScreen />, info: <InfoScreen /> }[screen]
+  const content = { home: <HomeScreen />, combat: <CombatScreen />, hero: <HeroScreen />, proficiencies: <ProficienciesScreen />, inventory: <InventoryScreen />, collection: <CollectionScreen />, settings: <SettingsScreen />, info: <InfoScreen /> }[screen]
 
   return <div className="app-shell"><Sidebar /><div className="app-frame"><TopStatusBar onInspect={() => setInspectorOpen(true)} /><main className="screen-content" data-ui-region="content">{content}</main><BottomActivityBar /></div>{inspectorOpen && <UiInspector onExit={() => setInspectorOpen(false)} />}</div>
 }

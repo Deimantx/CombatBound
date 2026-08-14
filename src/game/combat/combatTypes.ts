@@ -369,6 +369,8 @@ export interface CombatState {
   session: CombatSession;
   eventSequence: number;
   effectSequence: number;
+  lastAutomationAction?: { actionId: string; elapsedSeconds: number };
+  lastAutomationFailure?: string;
 }
 
 export interface CombatRng {

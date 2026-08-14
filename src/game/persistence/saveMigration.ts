@@ -7,9 +7,11 @@ import type {
   CombatProficiencyId,
   ProgressionState,
 } from "../progression/progressionTypes";
-import type { GameSaveV3, GameSaveV4 } from "./saveTypes";
+import type { GameSaveV3, GameSaveV4, GameSaveV5 } from "./saveTypes";
 import { createInitialCombatAutomation } from "../automation/automationTypes";
-import { createInitialSpellbook } from "../spellbook/spellbookLogic";
+import { normalizeSpellbook } from "../spellbook/spellbookLogic";
+import { spellDefinitions } from "../data/spells";
+import { normalizeCombatAutomation } from "../automation/automationLogic";
 
 interface LegacySkillProgress {
   totalXp?: number;
@@ -135,8 +137,31 @@ export function migrateV3Save(value: unknown): GameSaveV4 | null {
     ...old,
     version: 4,
     equipment: migrateEquipment(old.equipment),
-    spellbook: createInitialSpellbook(),
+    spellbook: {
+      knownSpellIds: spellDefinitions.map((spell) => spell.id),
+      equippedSpellSlots: spellDefinitions.map((spell) => spell.id),
+    },
     combatAutomation: createInitialCombatAutomation(),
+  };
+}
+
+export function migrateV4Save(value: unknown): GameSaveV5 | null {
+  if (
+    !isRecord(value) ||
+    value.version !== 4 ||
+    !isRecord(value.progression) ||
+    !isRecord(value.spellbook) ||
+    !isRecord(value.combatAutomation) ||
+    !sharedSaveShape(value)
+  )
+    return null;
+  const old = value as unknown as GameSaveV4;
+  return {
+    ...old,
+    version: 5,
+    equipment: migrateEquipment(old.equipment),
+    spellbook: normalizeSpellbook(old.spellbook),
+    combatAutomation: normalizeCombatAutomation(old.combatAutomation),
   };
 }
 

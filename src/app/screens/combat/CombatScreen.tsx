@@ -19,9 +19,7 @@ export function CombatScreen() {
   const castSpell = useGameStore((state) => state.castSpell);
   const executeAction = useGameStore((state) => state.executeAction);
   const toggleAutomation = useGameStore((state) => state.toggleAutomation);
-  const toggleAutomationRule = useGameStore(
-    (state) => state.toggleAutomationRule,
-  );
+  const openHeroWindow = useGameStore((state) => state.openHeroWindow);
   const usePotion = useGameStore((state) => state.usePotion);
   const overviewTab = useGameStore((state) => state.combatOverviewTab);
   const setOverviewTab = useGameStore((state) => state.setCombatOverviewTab);
@@ -65,7 +63,8 @@ export function CombatScreen() {
           onUseAction={executeAction}
           onUsePotion={usePotion}
           onToggleAutomation={toggleAutomation}
-          onToggleAutomationRule={toggleAutomationRule}
+          onManageHero={() => openHeroWindow("automation")}
+          onManageSpellbook={() => openHeroWindow("spellbook")}
           onStartHunt={startHunt}
           onStopHunt={stopHunt}
         />

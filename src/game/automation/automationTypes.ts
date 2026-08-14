@@ -1,23 +1,32 @@
+export type AutomationFractionConditionType =
+  | "player-hp-below"
+  | "player-hp-above"
+  | "mana-below"
+  | "mana-above"
+  | "stamina-below"
+  | "stamina-above"
+  | "target-hp-below"
+  | "target-hp-above";
+
+export type AutomationEffectConditionType =
+  | "target-has-effect"
+  | "target-missing-effect"
+  | "player-has-effect"
+  | "player-missing-effect";
+
 export type AutomationCondition =
   | { type: "always" }
+  | { type: AutomationFractionConditionType; fraction: number }
+  | { type: AutomationEffectConditionType; effectId: string }
+  | { type: "barrier-below"; fraction: number }
+  | { type: "barrier-missing" }
+  | { type: "target-casting" }
+  | { type: "target-interruptible" }
   | {
-      type:
-        | "player-hp-below"
-        | "player-hp-above"
-        | "mana-below"
-        | "mana-above"
-        | "stamina-below"
-        | "stamina-above"
-        | "barrier-below"
-        | "barrier-missing"
-        | "target-has-effect"
-        | "target-missing-effect"
-        | "target-casting"
-        | "target-interruptible"
-        | "target-danger-at-least"
-        | "alive-enemies-at-least";
-      value?: number | string;
-    };
+      type: "target-danger-at-least";
+      danger: "low" | "medium" | "high" | "critical";
+    }
+  | { type: "alive-enemies-at-least"; count: number };
 
 export interface AutomationRule {
   id: string;
@@ -36,12 +45,18 @@ export type TargetPriorityCriterion =
   | "lowest-evasion"
   | "first-living";
 
+export interface TargetPriorityRule {
+  id: string;
+  criterion: TargetPriorityCriterion;
+  enabled: boolean;
+  priority: number;
+}
+
 export interface CombatAutomationState {
   enabled: boolean;
   rules: AutomationRule[];
-  targetPriorityRules: TargetPriorityCriterion[];
+  targetPriorityRules: TargetPriorityRule[];
   overrideManualTarget: boolean;
-  lastInvalidReason?: string;
 }
 
 export function createInitialCombatAutomation(): CombatAutomationState {
@@ -54,7 +69,7 @@ export function createInitialCombatAutomation(): CombatAutomationState {
         priority: 10,
         enabled: true,
         conditions: [
-          { type: "player-hp-below", value: 0.7 },
+          { type: "player-hp-below", fraction: 0.7 },
           { type: "barrier-missing" },
         ],
       },
@@ -63,10 +78,10 @@ export function createInitialCombatAutomation(): CombatAutomationState {
         actionId: "consumable.healing-potion",
         priority: 20,
         enabled: true,
-        conditions: [{ type: "player-hp-below", value: 0.35 }],
+        conditions: [{ type: "player-hp-below", fraction: 0.35 }],
       },
     ],
-    targetPriorityRules: [
+    targetPriorityRules: ([
       "interruptible-casting",
       "highest-danger-casting",
       "elite",
@@ -74,7 +89,12 @@ export function createInitialCombatAutomation(): CombatAutomationState {
       "lowest-health",
       "lowest-evasion",
       "first-living",
-    ],
+    ] as TargetPriorityCriterion[]).map((criterion, index) => ({
+      id: `target-priority.${criterion}`,
+      criterion,
+      enabled: true,
+      priority: (index + 1) * 10,
+    })),
     overrideManualTarget: false,
   };
 }

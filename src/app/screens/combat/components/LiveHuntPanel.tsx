@@ -9,7 +9,7 @@ import {
   Timer,
   Zap,
 } from "lucide-react";
-import { useState, type ReactNode } from "react";
+import { useMemo, useState, type ReactNode } from "react";
 import { enemyById } from "../../../../game/data/enemies";
 import { effectById } from "../../../../game/data/effects";
 import { spellDefinitions } from "../../../../game/data/spells";
@@ -20,7 +20,9 @@ import {
 } from "../../../../game/presentation/tooltipBuilders";
 import { formatHealthWithBarrier } from "../../../../game/presentation/statFormatting";
 import { getSelectedTargetMatchup } from "../../../../game/combat/combatSelectors";
-import { calculateEffectiveSpell } from "../../../../game/progression/spellProgression";
+import { createCombatPreviewContext } from "../../../../game/combat/combatEngine";
+import { buildEffectiveSpellContext, getSpellActionView } from "../../../../game/combat/playerActions";
+import { COMBAT_SPELL_SLOT_COUNT } from "../../../../game/spellbook/spellbookTypes";
 import {
   defensiveActionDefinitions,
   validatePlayerAction,
@@ -60,7 +62,8 @@ interface LiveHuntPanelProps {
   onUseAction: (actionId: string) => void;
   onUsePotion: () => void;
   onToggleAutomation: () => void;
-  onToggleAutomationRule: (ruleId: string) => void;
+  onManageHero: () => void;
+  onManageSpellbook: () => void;
   onStartHunt: () => void;
   onStopHunt: () => void;
 }
@@ -76,7 +79,8 @@ export function LiveHuntPanel({
   onUseAction,
   onUsePotion,
   onToggleAutomation,
-  onToggleAutomationRule,
+  onManageHero,
+  onManageSpellbook,
   onStartHunt,
   onStopHunt,
 }: LiveHuntPanelProps) {
@@ -84,6 +88,7 @@ export function LiveHuntPanel({
   const active = combat.phase === "active" || combat.phase === "recovery";
   const alive = combat.enemies.filter((enemy) => !enemy.defeated).length;
   const [logExpanded, setLogExpanded] = useState(false);
+  const actionContext = useMemo(() => createCombatPreviewContext(), []);
   const selectedAction = selectedEnemy?.currentAction
     ? selectedDefinition.actions.find(
         (action) => action.id === selectedEnemy.currentAction?.actionId,
@@ -267,8 +272,12 @@ export function LiveHuntPanel({
             <span>Disrupting Pulse can stop {selectedAction.name}.</span>
           </div>
         )}
-        <div className="spell-grid">
-          {game.spellbook.equippedSpellSlots.map((spellId, slot) => {
+        <div className="combat-action-sections">
+          <section className="combat-action-section">
+            <div className="section-title"><span className="tiny-label">MAGIC</span><small>{COMBAT_SPELL_SLOT_COUNT} loadout slots</small></div>
+            <div className="spell-grid">
+          {Array.from({ length: COMBAT_SPELL_SLOT_COUNT }, (_, slot) => {
+            const spellId = game.spellbook.equippedSpellSlots[slot] ?? null;
             const spell = spellDefinitions.find(
               (candidate) => candidate.id === spellId,
             );
@@ -288,22 +297,13 @@ export function LiveHuntPanel({
                   />
                   <span>
                     <strong>Empty Spell Slot</strong>
-                    <small>Configure in Equipment</small>
+                     <small>Configure in Hero</small>
                   </span>
                 </button>
               );
             const runtime = combat.actionCooldowns[spell.id];
-            const effectiveSpell = calculateEffectiveSpell(
-              spell,
-              game.progression,
-              selectedEnemy
-                ? {
-                    targetHpFraction:
-                      selectedEnemy.currentHealth / selectedEnemy.maxHealth,
-                    targetEffects: selectedEnemy.effects,
-                  }
-                : undefined,
-            );
+            const spellView = getSpellActionView(game, spell.id, stats, actionContext);
+            const effectiveSpell = spellView.effectiveSpell!;
             const state = getSpellUiState(
               spell,
               runtime,
@@ -336,30 +336,26 @@ export function LiveHuntPanel({
             return state.enabled ? (
               <GameTooltip
                 key={spell.id}
-                content={buildSpellTooltip(spell, game.progression)}
+                 content={buildSpellTooltip(spell, game.progression, buildEffectiveSpellContext(game, spell))}
               >
                 {button}
               </GameTooltip>
             ) : (
               <GameTooltip
                 key={spell.id}
-                content={buildSpellTooltip(spell, game.progression)}
+                 content={buildSpellTooltip(spell, game.progression, buildEffectiveSpellContext(game, spell))}
               >
                 <span className="spell-tooltip-host">{button}</span>
               </GameTooltip>
             );
           })}
+            </div>
+          </section>
+          <section className="combat-action-section">
+            <div className="section-title"><span className="tiny-label">ACTIVE DEFENSE</span><small>Stamina actions</small></div>
+            <div className="spell-grid">
           {defensiveActionDefinitions.map((action) => {
-            const validation = validatePlayerAction(game, action.id, stats, {
-              enemies: enemyById,
-              locations: {},
-              spells: Object.fromEntries(
-                spellDefinitions.map((spell) => [spell.id, spell]),
-              ),
-              items: {},
-              effects: effectById,
-              rng: { next: () => 0.5 },
-            });
+            const validation = validatePlayerAction(game, action.id, stats, actionContext);
             const enabled = validation.valid;
             return (
               <button
@@ -389,6 +385,11 @@ export function LiveHuntPanel({
               </button>
             );
           })}
+            </div>
+          </section>
+          <section className="combat-action-section combat-consumable-section">
+            <div className="section-title"><span className="tiny-label">CONSUMABLE</span><small>Combat items</small></div>
+            <div className="spell-grid">
           <GameTooltip
             content={{
               id: "item.healing-potion",
@@ -421,6 +422,8 @@ export function LiveHuntPanel({
               </button>
             </span>
           </GameTooltip>
+            </div>
+          </section>
         </div>
       </div>
       <div className="automation-controls" data-debug-kind="combat-automation">
@@ -434,28 +437,11 @@ export function LiveHuntPanel({
             {game.combatAutomation.enabled ? "ENABLED" : "DISABLED"}
           </button>
         </div>
-        <div className="automation-rule-list">
-          {game.combatAutomation.rules.map((rule) => (
-            <button
-              key={rule.id}
-              className={
-                "automation-rule " +
-                (rule.enabled ? "is-enabled" : "is-disabled")
-              }
-              onClick={() => onToggleAutomationRule(rule.id)}
-              data-debug-kind="automation-rule"
-              data-debug-rule-id={rule.id}
-            >
-              <span>
-                #{rule.priority} {rule.actionId}
-              </span>
-              <small>{rule.enabled ? "ON" : "OFF"}</small>
-            </button>
-          ))}
-        </div>
-        {game.combatAutomation.lastInvalidReason && (
+        <div className="automation-summary-row"><span>{game.combatAutomation.rules.filter((rule) => rule.enabled).length} RULES ACTIVE</span><span>AUTO TARGET OVERRIDE {game.combatAutomation.overrideManualTarget ? "ON" : "OFF"}</span><span>{game.combat.lastAutomationAction ? `LAST AUTO ACTION · ${game.combat.lastAutomationAction.actionId}` : "NO AUTO ACTION YET"}</span></div>
+        <div className="automation-summary-actions"><small className="muted-copy">Manage priorities, conditions and spell loadout from the Hero screen.</small><span className="hero-inline-actions"><button className="button button-ghost" onClick={onManageSpellbook}>SPELLBOOK</button><button className="button button-ghost" onClick={onManageHero}>MANAGE IN HERO</button></span></div>
+        {game.combat.lastAutomationFailure && (
           <small className="automation-invalid">
-            Last invalid: {game.combatAutomation.lastInvalidReason}
+            Last invalid: {game.combat.lastAutomationFailure}
           </small>
         )}
       </div>

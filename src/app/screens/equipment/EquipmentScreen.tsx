@@ -11,7 +11,6 @@ import {
 import { useId, useState } from "react";
 import { itemDefinitions, type ItemDefinition } from "../../../game/data/items";
 import { proficiencyById } from "../../../game/data/proficiencies";
-import { spellDefinitions } from "../../../game/data/spells";
 import { getEquippedWeaponProficiency } from "../../../game/progression/progressionSelectors";
 import { getProficiencyLevel } from "../../../game/progression/proficiencyProgression";
 import { calculateHunterCombatStats } from "../../../game/equipment/derivedStats";
@@ -34,7 +33,7 @@ import { PlaceholderArt } from "../../components/PlaceholderArt";
 import { StatLine } from "../../components/StatLine";
 import { ScreenHeading } from "../../shell/ScreenHeading";
 
-const statGroups: Array<{
+export const statGroups: Array<{
   id: CombatReferenceCategory;
   title: string;
   keys: string[];
@@ -132,12 +131,11 @@ function persistEquipmentStatGroupState(
   }
 }
 
-export function EquipmentScreen() {
+export function EquipmentScreen({ embedded = false }: { embedded?: boolean } = {}) {
   const game = useGameStore((state) => state.game);
   const selectedSlot = useGameStore((state) => state.selectedEquipmentSlot);
   const selectSlot = useGameStore((state) => state.selectEquipmentSlot);
   const equipItem = useGameStore((state) => state.equipItem);
-  const setSpellSlot = useGameStore((state) => state.setSpellSlot);
   const selected = equipmentSlots.includes(selectedSlot as EquipmentSlot)
     ? (selectedSlot as EquipmentSlot)
     : "weapon";
@@ -184,8 +182,8 @@ export function EquipmentScreen() {
         : undefined;
 
   return (
-    <div className="screen equipment-screen" data-debug-screen="equipment">
-      <ScreenHeading screen="equipment" />
+    <div className="screen equipment-screen" data-debug-screen={embedded ? "hero" : "equipment"}>
+      {!embedded && <ScreenHeading screen="hero" />}
       <div className="equipment-layout">
         <Panel
           title="Equipment loadout"
@@ -196,7 +194,7 @@ export function EquipmentScreen() {
           }
           icon={ShieldCheck}
           panelId="equipmentLoadout"
-          screen="equipment"
+          screen="hero"
           className="equipment-loadout"
         >
           <div className="loadout-topline">
@@ -309,60 +307,12 @@ export function EquipmentScreen() {
           </div>
         </Panel>
 
-        <Panel
-          title="Spellbook & combat loadout"
-          subtitle={
-            combatLocked
-              ? "Spell loadout is locked during combat."
-              : "Choose up to six known spells for the Combat action bar."
-          }
-          icon={Sparkles}
-          panelId="spellbookLoadout"
-          screen="equipment"
-          className="spellbook-loadout"
-        >
-          <div className="spellbook-slots">
-            {game.spellbook.equippedSpellSlots.map((spellId, slot) => {
-              const spell = spellId
-                ? spellDefinitions.find((candidate) => candidate.id === spellId)
-                : undefined;
-              return (
-                <label className="spellbook-slot" key={slot}>
-                  <span className="tiny-label">SLOT {slot + 1}</span>
-                  <select
-                    value={spellId ?? ""}
-                    disabled={combatLocked}
-                    onChange={(event) =>
-                      setSpellSlot(slot, event.target.value || null)
-                    }
-                    data-debug-kind="spellbook-slot"
-                    data-debug-slot={slot}
-                  >
-                    <option value="">Empty</option>
-                    {game.spellbook.knownSpellIds.map((knownId) => {
-                      const known = spellDefinitions.find(
-                        (candidate) => candidate.id === knownId,
-                      );
-                      return known ? (
-                        <option value={known.id} key={known.id}>
-                          {known.name}
-                        </option>
-                      ) : null;
-                    })}
-                  </select>
-                  <small>{spell?.description ?? "No spell equipped."}</small>
-                </label>
-              );
-            })}
-          </div>
-        </Panel>
-
         <CollapsiblePanel
           title="Hunter Combat Stats"
           subtitle="All derived values used by live combat"
           icon={Swords}
           panelId="equipmentStats"
-          screen="equipment"
+          screen="hero"
           className="equipment-stats"
           summary={
             <>
@@ -400,7 +350,7 @@ export function EquipmentScreen() {
           subtitle={`Owned ${slotLabels[selected]} candidates`}
           icon={Sword}
           panelId="equipmentCandidates"
-          screen="equipment"
+          screen="hero"
           actions={
             <span className="target-count">{candidates.length} owned</span>
           }
@@ -446,7 +396,7 @@ export function EquipmentScreen() {
   );
 }
 
-function EquipmentStatGroup({
+export function EquipmentStatGroup({
   group,
   valueFor,
   detailFor,

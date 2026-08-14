@@ -5,6 +5,7 @@ export const combatBalance = {
   recoveryHealthPerSecond: 15, // [TUNING] Prototype value.
   stanceSwitchCooldown: 2, // [TUNING] Prototype value.
   potionCooldown: 5, // [TUNING] Prototype value.
+  standardGlobalCooldown: 0.75, // [TUNING] Shared player action GCD.
   autoPotionThreshold: 0.35, // [TUNING] Prototype value.
   safetyStopThreshold: 0.2, // [TUNING] Prototype value.
   healingPotionAmount: 70, // [TUNING] Prototype value.

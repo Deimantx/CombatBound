@@ -1,4 +1,9 @@
-export type ScreenId = 'home' | 'combat' | 'equipment' | 'proficiencies' | 'inventory' | 'collection' | 'settings' | 'info'
+export type ScreenId = 'home' | 'combat' | 'hero' | 'proficiencies' | 'inventory' | 'collection' | 'settings' | 'info'
+export interface HeroWindowRequest {
+  window: 'equipment' | 'spellbook' | 'automation' | 'stats'
+  actionId?: string
+  createRule?: boolean
+}
 
 export type ActivityType = 'idle' | 'combat'
 

@@ -13,6 +13,19 @@ export interface GameSaveV4 {
   collection: CollectionState;
   gold: number;
   settings: { reducedMotion: boolean; showInspectorButton: boolean };
+  /** V4 deliberately retained the six-slot loadout shape. */
+  spellbook: { knownSpellIds: string[]; equippedSpellSlots: Array<string | null> };
+  combatAutomation: CombatAutomationState;
+}
+
+export interface GameSaveV5 {
+  version: 5;
+  progression: ProgressionState;
+  inventory: InventoryState;
+  equipment: EquipmentState;
+  collection: CollectionState;
+  gold: number;
+  settings: { reducedMotion: boolean; showInspectorButton: boolean };
   spellbook: SpellbookState;
   combatAutomation: CombatAutomationState;
 }

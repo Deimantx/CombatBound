@@ -89,7 +89,12 @@ import {
   evaluateAutomation,
   selectAutomationTarget,
 } from "../automation/automationLogic";
-import { validatePlayerAction, potionAction } from "./playerActions";
+import {
+  buildEffectiveSpellContext,
+  getEffectivePlayerActionCost,
+  validatePlayerAction,
+  potionAction,
+} from "./playerActions";
 import type { GameState } from "../gameState";
 import type {
   ActiveEffectInstance,
@@ -151,6 +156,11 @@ export function createCombatContext(rng: CombatContext["rng"]): CombatContext {
     rng,
     interactions: [],
   };
+}
+
+/** Read-only domain context for previews and editors; it contains no UI-fabricated data. */
+export function createCombatPreviewContext(): CombatContext {
+  return createCombatContext({ next: () => 0.5 });
 }
 
 function playerBaseStats(stats: HunterCombatStats): CombatStats {
@@ -553,8 +563,9 @@ export function executePlayerAction(
           ? "effect.braced"
           : undefined;
   if (!effectId) return game;
-  const manaCost = 0;
-  const staminaCost = action.resourceCost?.stamina ?? 0;
+  const cost = getEffectivePlayerActionCost(game, action, stats, context);
+  const manaCost = cost.mana;
+  const staminaCost = cost.stamina;
   let next = {
     ...game,
     combat: {
@@ -568,7 +579,7 @@ export function executePlayerAction(
         typeof action.globalCooldown === "number"
           ? action.globalCooldown
           : action.globalCooldown === "standard"
-            ? 0.75
+              ? combatBalance.standardGlobalCooldown
             : 0,
     },
   };
@@ -613,17 +624,7 @@ export function castSpell(
   const effectiveSpell = calculateEffectiveSpell(
     spell,
     game.progression,
-    target
-      ? {
-          targetHpFraction: target.currentHealth / target.maxHealth,
-          targetEffects: target.effects,
-          manaFraction: combat.maxMana > 0 ? combat.mana / combat.maxMana : 1,
-          equipmentContext,
-        }
-      : {
-          manaFraction: combat.maxMana > 0 ? combat.mana / combat.maxMana : 1,
-          equipmentContext,
-        },
+    buildEffectiveSpellContext(game, spell),
   );
   if (combat.mana < effectiveSpell.manaCost) return game;
   const targetRef: CombatantRef = target
@@ -649,7 +650,7 @@ export function castSpell(
         ...combat.actionCooldowns,
         [spellId]: effectiveSpell.cooldownSeconds,
       },
-      globalCooldownRemaining: 0.75,
+      globalCooldownRemaining: combatBalance.standardGlobalCooldown,
     },
   };
   next.combat = event(next.combat, {
@@ -1881,12 +1882,26 @@ function advanceStep(
       "automation",
     );
     combat = game.combat;
+    if (game.combat !== combat || decision.actionId) {
+      game = {
+        ...game,
+        combat: {
+          ...game.combat,
+          lastAutomationAction: {
+            actionId: decision.actionId,
+            elapsedSeconds: game.combat.session.elapsedSeconds,
+          },
+          lastAutomationFailure: undefined,
+        },
+      };
+      combat = game.combat;
+    }
   } else if (decision.invalid) {
     game = {
       ...game,
-      combatAutomation: {
-        ...game.combatAutomation,
-        lastInvalidReason: decision.invalid.reason,
+      combat: {
+        ...game.combat,
+        lastAutomationFailure: decision.invalid.reason,
       },
     };
   }
@@ -2435,13 +2450,24 @@ function advanceEnemySpecials(
       kind: "enemy",
       instanceId: current.instanceId,
     };
-    const phase = [...(definition.phases ?? [])]
-      .sort((a, b) => b.hpThreshold - a.hpThreshold)
-      .find(
-        (candidate) =>
-          current.currentHealth / current.maxHealth <= candidate.hpThreshold &&
-          current.phaseId !== candidate.phaseId,
-      );
+    const phases = [...(definition.phases ?? [])].sort(
+      (a, b) => b.hpThreshold - a.hpThreshold,
+    );
+    const currentPhaseIndex = current.phaseId
+      ? phases.findIndex((candidate) => candidate.phaseId === current.phaseId)
+      : -1;
+    const desiredPhaseIndex = phases.reduce(
+      (deepest, candidate, index) =>
+        current.currentHealth / Math.max(1, current.maxHealth) <=
+          candidate.hpThreshold
+          ? index
+          : deepest,
+      -1,
+    );
+    const phase =
+      desiredPhaseIndex > currentPhaseIndex
+        ? phases[desiredPhaseIndex]
+        : undefined;
     if (phase) {
       current = {
         ...current,

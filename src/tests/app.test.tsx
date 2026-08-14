@@ -24,7 +24,7 @@ describe('application shell', () => {
 
   it('opens every navigation destination', () => {
     render(<App />)
-    for (const label of ['Home', 'Combat', 'Equipment', 'Inventory', 'Collection Log', 'Settings', 'Info']) {
+    for (const label of ['Home', 'Combat', 'Hero', 'Inventory', 'Collection Log', 'Settings', 'Info']) {
       fireEvent.click(screen.getByRole('button', { name: label }))
       expect(screen.getByRole('heading', { name: label === 'Collection Log' ? 'Collection Log' : label })).toBeInTheDocument()
     }

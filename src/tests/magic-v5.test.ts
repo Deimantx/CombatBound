@@ -59,7 +59,7 @@ describe('Magic Schools V5', () => {
     const earth = castSpell({ ...started, combat: { ...started.combat, selectedEnemyInstanceId: target.instanceId, mana: 100 } }, 'spell.stone-spike', stats as never, createCombatContext({ next: () => .1 }))
     expect(earth.progression.proficiencies['earth-magic']?.totalXp).toBeGreaterThan(0)
     expect(earth.combat.enemies[0].effects.some((effect) => effect.effectId === 'effect.armor-broken')).toBe(true)
-    const darkness = castSpell({ ...started, combat: { ...started.combat, selectedEnemyInstanceId: target.instanceId, mana: 100 } }, 'spell.shadow-bolt', stats as never, fixedContext)
+    const darkness = castSpell({ ...started, spellbook: { ...started.spellbook, equippedSpellSlots: [...started.spellbook.equippedSpellSlots.slice(0, 4), 'spell.shadow-bolt'] }, combat: { ...started.combat, selectedEnemyInstanceId: target.instanceId, mana: 100 } }, 'spell.shadow-bolt', stats as never, fixedContext)
     expect(darkness.progression.proficiencies['darkness-magic']?.totalXp).toBeGreaterThan(0)
     expect(darkness.combat.enemies[0].effects.find((effect) => effect.effectId === 'effect.shadow-decay')?.sourceProficiencyId).toBe('darkness-magic')
   })
