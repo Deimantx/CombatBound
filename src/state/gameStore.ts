@@ -38,7 +38,7 @@ interface GameStoreState {
   selectedEquipmentSlot: string
   selectedCollectionEntryId: string
   collectionTab: 'Items' | 'Targets'
-  combatOverviewTab: 'Session Summary' | 'Rewards' | 'Progression'
+  combatOverviewTab: 'Session Summary' | 'Loot' | 'Progression'
   reducedMotion: boolean
   showInspectorButton: boolean
   setScreen: (screen: ScreenId) => void
@@ -64,7 +64,7 @@ interface GameStoreState {
   selectEquipmentSlot: (slotId: string) => void
   selectCollectionEntry: (entryId: string) => void
   setCollectionTab: (tab: 'Items' | 'Targets') => void
-  setCombatOverviewTab: (tab: 'Session Summary' | 'Rewards' | 'Progression') => void
+  setCombatOverviewTab: (tab: 'Session Summary' | 'Loot' | 'Progression') => void
   setReducedMotion: (value: boolean) => void
   setShowInspectorButton: (value: boolean) => void
   resetGameplay: () => void

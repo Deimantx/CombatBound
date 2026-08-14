@@ -10,8 +10,9 @@ import { combatLocationById } from '../data/world/combatLocations'
 import { itemById } from '../data/items'
 import { combatBalance, clamp } from './combatBalance'
 import { componentFromAttack, resolveDamage, applyBarrierToDamage, type DamagePacket } from './combatDamage'
-import { calculateEffectiveCombatStats, calculateEnemyBaseCombatStats, normalizeCombatStats } from './combatStats'
+import { normalizeCombatStats } from './combatStats'
 import { applyEffectById, absorbDamage, advanceEffectTimers, cleanseEffects, getBarrierAmount, updateActiveEffects } from './combatEffects'
+import { getEnemyEffectiveCombatStats, getPlayerEffectiveCombatStats } from './combatSelectors'
 import { interruptAction, selectNextEnemyAction } from './combatActions'
 import { instantiateEnemies } from './combatState'
 import { generateCombatGroup } from './combatGroupGenerator'
@@ -19,7 +20,7 @@ import { firstLivingEnemy, livingEnemies, selectNextTarget } from './combatTarge
 import { resolveEnemyReward, resolveLocationClearReward } from './combatRewards'
 import { awardProficiencyXp, calculateProficiencyXpAward, discoverProficiency } from '../progression/proficiencyProgression'
 import { masteryLevelForXp } from '../progression/masteryProgression'
-import { applyProficiencyStatModifiers, getBarrierAbsorbResourceRestore, getConditionalMagicStatModifiers, getConditionalProficiencyStatModifiers, getEffectiveMagicModifiers, getMagicCleanseEffectHooks, getMagicCleanseHooks, getParryEffectHooks, getProficiencyXpMultiplier, getSpellCastEffectHooks, getSpellHitEffectHooks, getSpellHpDamageResourceHooks, getSpellLifeDrainFraction, getStanceSwitchCooldownMultiplier, getStanceSwitchEffectHooks, getSuccessfulInterruptHooks, getTechniqueStaminaDrainMultiplier, getWeaponAttackModifiers, getWeaponBlockEffectHooks, getWeaponDamageMultiplier, getWeaponDodgeEffectHooks, getWeaponHitAdvanceHooks, getWeaponHitEffectHooks, getWeaponHitResourceHooks } from '../progression/perkProgression'
+import { getBarrierAbsorbResourceRestore, getEffectiveMagicModifiers, getMagicCleanseEffectHooks, getMagicCleanseHooks, getParryEffectHooks, getProficiencyXpMultiplier, getSpellCastEffectHooks, getSpellHitEffectHooks, getSpellHpDamageResourceHooks, getSpellLifeDrainFraction, getStanceSwitchCooldownMultiplier, getStanceSwitchEffectHooks, getSuccessfulInterruptHooks, getTechniqueStaminaDrainMultiplier, getWeaponAttackModifiers, getWeaponBlockEffectHooks, getWeaponDamageMultiplier, getWeaponDodgeEffectHooks, getWeaponHitAdvanceHooks, getWeaponHitEffectHooks, getWeaponHitResourceHooks } from '../progression/perkProgression'
 import { calculateEffectiveSpell } from '../progression/spellProgression'
 import { getEquippedWeaponProficiency } from '../progression/progressionSelectors'
 import { perkById } from '../data/proficiencyPerks'
@@ -47,13 +48,7 @@ function playerBaseStats(stats: HunterCombatStats): CombatStats {
 }
 
 function getPlayerStats(combat: CombatState, stats: HunterCombatStats, context: CombatContext, progression?: GameState['progression']) {
-  const base = calculateEffectiveCombatStats(playerBaseStats(stats), combat.playerEffects, context.effects)
-  if (!progression) return base
-  const barrierActive = getBarrierAmount(combat.playerEffects, context.effects) > 0
-  const activeTechniqueCount = Object.values(combat.techniques).filter(Boolean).length
-  const weapon = stats.weaponProficiencyId ?? null
-  const dynamicWeapon = getConditionalProficiencyStatModifiers(progression, weapon, { stance: combat.stance, activeTechniqueCount, staminaFraction: combat.maxStamina > 0 ? combat.stamina / combat.maxStamina : 0, playerHpFraction: combat.maxPlayerHp > 0 ? combat.playerHp / combat.maxPlayerHp : 1, barrierActive }, perkById)
-  return applyProficiencyStatModifiers(base, [...dynamicWeapon, ...getConditionalMagicStatModifiers(progression, barrierActive, perkById)])
+  return getPlayerEffectiveCombatStats(combat, stats, progression, context.effects)
 }
 
 function awardCombatXp(game: GameState, proficiencyId: CombatProficiencyId, amount: number) {
@@ -101,8 +96,7 @@ function awardBarrierCredits(game: GameState, absorptions: Array<{ effectId: str
 }
 
 function getEnemyStats(combat: CombatState, enemy: EnemyCombatInstance, context: CombatContext) {
-  const definition = context.enemies[enemy.enemyId]
-  return calculateEffectiveCombatStats(calculateEnemyBaseCombatStats(definition), enemy.effects, context.effects)
+  return getEnemyEffectiveCombatStats(enemy, context.effects)
 }
 
 function clearEndedHuntEffects(combat: CombatState, definitions: Record<string, EffectDefinition>) {

@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { itemById } from '../game/data/items'
 import { createInitialGameState } from '../game/gameState'
-import { calculateAvailablePerkPoints, calculateEarnedPerkPoints, perkPointCost, totalMasteryXpForPerkPoints } from '../game/progression/masteryProgression'
+import { calculateAvailablePerkPoints, calculateEarnedPerkPoints, getMasteryLevelProgress, perkPointCost, totalMasteryXpForPerkPoints } from '../game/progression/masteryProgression'
 import { applyProficiencyStatModifiers, getActiveProficiencyStatModifiers, purchasePerk } from '../game/progression/perkProgression'
 import { discoverProficiency, awardProficiencyXp, getProficiencyLevelProgress, proficiencyLevelForXp, proficiencyXpForLevel } from '../game/progression/proficiencyProgression'
 import { migrateLegacySave } from '../game/persistence/saveMigration'
@@ -24,6 +24,14 @@ describe('weapon proficiency progression', () => {
     expect(getProficiencyLevelProgress(levelTwoXp)).toMatchObject({ level: 2, currentLevelXp: levelTwoXp, xpIntoLevel: 0, progressFraction: 0 })
     expect(getProficiencyLevelProgress(midwayXp).progressFraction).toBeCloseTo((midwayXp - levelTwoXp) / (proficiencyXpForLevel(3) - levelTwoXp))
     expect(getProficiencyLevelProgress(proficiencyXpForLevel(100))).toMatchObject({ level: 100, progressFraction: 1, isMaxLevel: true, xpToNextLevel: 0 })
+  })
+
+  it('calculates honest mastery level progress for session UI', () => {
+    expect(getMasteryLevelProgress(0)).toMatchObject({ level: 1, currentLevelXp: 0, nextLevelXp: 100, progressFraction: 0, xpToNextLevel: 100, isMaxLevel: false })
+    expect(getMasteryLevelProgress(50).progressFraction).toBeCloseTo(.5)
+    expect(getMasteryLevelProgress(100)).toMatchObject({ level: 2, currentLevelXp: 100, progressFraction: 0, isMaxLevel: false })
+    expect(getMasteryLevelProgress(100).xpToNextLevel).toBeGreaterThan(0)
+    expect(getMasteryLevelProgress(Number.MAX_SAFE_INTEGER)).toMatchObject({ level: 100, progressFraction: 1, xpToNextLevel: 0, isMaxLevel: true })
   })
 
   it('awards equal proficiency and mastery XP and reports threshold gains', () => {

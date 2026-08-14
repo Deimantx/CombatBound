@@ -11,6 +11,37 @@ export function masteryLevelForXp(totalXp: number) {
   return level
 }
 
+export interface MasteryLevelProgress {
+  level: number
+  currentLevelXp: number
+  nextLevelXp: number
+  xpIntoLevel: number
+  xpRequiredForLevel: number
+  progressFraction: number
+  xpToNextLevel: number
+  isMaxLevel: boolean
+}
+
+export function getMasteryLevelProgress(totalXp: number): MasteryLevelProgress {
+  const safeXp = Math.max(0, Number.isFinite(totalXp) ? totalXp : 0)
+  const level = masteryLevelForXp(safeXp)
+  const currentLevelXp = masteryXpForLevel(level)
+  const isMaxLevel = level >= MAX_MASTERY_LEVEL
+  const nextLevelXp = isMaxLevel ? currentLevelXp : masteryXpForLevel(level + 1)
+  const xpRequiredForLevel = Math.max(0, nextLevelXp - currentLevelXp)
+  const xpIntoLevel = Math.max(0, safeXp - currentLevelXp)
+  return {
+    level,
+    currentLevelXp,
+    nextLevelXp,
+    xpIntoLevel,
+    xpRequiredForLevel,
+    progressFraction: isMaxLevel ? 1 : xpRequiredForLevel > 0 ? Math.max(0, Math.min(1, xpIntoLevel / xpRequiredForLevel)) : 0,
+    xpToNextLevel: isMaxLevel ? 0 : Math.max(0, nextLevelXp - safeXp),
+    isMaxLevel,
+  }
+}
+
 export function masteryXpToNextLevel(progression: ProgressionState) {
   const level = masteryLevelForXp(progression.masteryXp)
   return level >= MAX_MASTERY_LEVEL ? 0 : Math.max(0, masteryXpForLevel(level + 1) - progression.masteryXp)

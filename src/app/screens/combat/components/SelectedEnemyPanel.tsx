@@ -10,11 +10,17 @@ import { formatPercent, combatProgress } from './combatUi'
 import { EffectChips } from './EffectChips'
 import { buildStatTooltip } from '../../../../game/presentation/tooltipBuilders'
 import { formatResistance, labelForStatKey } from '../../../../game/presentation/statFormatting'
+import { calculateHunterCombatStats } from '../../../../game/equipment/derivedStats'
+import { getEnemyEffectiveCombatStats, getSelectedTargetMatchup } from '../../../../game/combat/combatSelectors'
 import { GameTooltip } from '../../../components/tooltip/GameTooltip'
+import { MatchupSummary } from './CombatMatchupReadout'
 
 export function SelectedEnemyPanel({ game, selectedEnemy }: { game: GameState; selectedEnemy?: EnemyCombatInstance }) {
   const combat = game.combat
   const definition = selectedEnemy ? enemyById[selectedEnemy.enemyId] : undefined
+  const hunterStats = calculateHunterCombatStats(game.equipment, game.progression, combat.stance, combat.techniques)
+  const matchup = getSelectedTargetMatchup(combat, hunterStats, game.progression, selectedEnemy)
+  const enemyStats = selectedEnemy ? getEnemyEffectiveCombatStats(selectedEnemy) : undefined
 
   return (
     <Panel title="Selected enemy" subtitle="Current runtime target" icon={Target} panelId="targetCombat" screen="combat" className={`target-combat-panel ${selectedEnemy ? 'has-target' : ''} ${selectedEnemy?.currentAction ? 'has-target-action' : ''}`}>
@@ -34,16 +40,17 @@ export function SelectedEnemyPanel({ game, selectedEnemy }: { game: GameState; s
           </div>
           <ProgressBar value={(selectedEnemy.currentHealth / selectedEnemy.maxHealth) * 100} variant="health" className="target-health-bar" ariaLabel={`Selected target ${selectedEnemy.displayName} health`} />
         </div></GameTooltip>
+        {matchup && <MatchupSummary matchup={matchup} />}
         <div className="target-stat-grid">
-          <TargetStat label="Attack Power" value={definition.attackPower} statKey="attackPower" statValue={definition.attackPower} />
-          <TargetStat label="Accuracy" value={definition.accuracy} statKey="accuracy" statValue={definition.accuracy} />
-          <TargetStat label="Armor" value={definition.armor} statKey="armor" statValue={definition.armor} />
-          <TargetStat label="Evasion" value={definition.evasion} statKey="evasion" statValue={definition.evasion} />
-          <TargetStat label="Attack Interval" value={`${definition.attackInterval.toFixed(1)}s`} statKey="attackInterval" statValue={definition.attackInterval} />
-          <TargetStat label="Dodge Chance" value={formatPercent(definition.dodgeChance)} statKey="dodgeChance" statValue={definition.dodgeChance} />
+          <TargetStat label="Attack Power" value={Math.round(enemyStats?.attackPower ?? definition.attackPower)} statKey="attackPower" statValue={enemyStats?.attackPower ?? definition.attackPower} />
+          <TargetStat label="Accuracy" value={Math.round(enemyStats?.accuracy ?? definition.accuracy)} statKey="accuracy" statValue={enemyStats?.accuracy ?? definition.accuracy} />
+          <TargetStat label="Armor" value={Math.round(enemyStats?.armor ?? definition.armor)} statKey="armor" statValue={enemyStats?.armor ?? definition.armor} />
+          <TargetStat label="Evasion" value={Math.round(enemyStats?.evasion ?? definition.evasion)} statKey="evasion" statValue={enemyStats?.evasion ?? definition.evasion} />
+          <TargetStat label="Attack Interval" value={`${(enemyStats?.attackInterval ?? definition.attackInterval).toFixed(1)}s`} statKey="attackInterval" statValue={enemyStats?.attackInterval ?? definition.attackInterval} />
+          <TargetStat label="Dodge Chance" value={formatPercent(enemyStats?.dodgeChance ?? definition.dodgeChance)} statKey="dodgeChance" statValue={enemyStats?.dodgeChance ?? definition.dodgeChance} />
         </div>
         <div className="combat-effects-inspector"><div className="section-title"><span className="tiny-label">ACTIVE EFFECTS</span><small>{selectedEnemy.effects.length}</small></div><EffectChips effects={selectedEnemy.effects} debugId="enemy" /></div>
-        {definition.parryChance > 0 || definition.blockChance > 0 ? <div className="target-defenses"><span>Parry {formatPercent(definition.parryChance)}</span><span>Block {formatPercent(definition.blockChance)}</span></div> : null}
+        {(enemyStats?.parryChance ?? definition.parryChance) > 0 || (enemyStats?.blockChance ?? definition.blockChance) > 0 ? <div className="target-defenses"><span>Parry {formatPercent(enemyStats?.parryChance ?? definition.parryChance)}</span><span>Block {formatPercent(enemyStats?.blockChance ?? definition.blockChance)}</span></div> : null}
         <div className="trait-section">
           <span className="tiny-label">TRAITS</span>
           {definition.traits.map((trait) => <div className="trait-row" key={trait.id}><strong>{trait.name}</strong><small>{trait.description}</small></div>)}
