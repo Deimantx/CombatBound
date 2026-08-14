@@ -32,7 +32,6 @@ export const combatBalance = {
   baseDamageVarianceMin: 0.9, // [TUNING] Prototype value.
   baseDamageVarianceMax: 1.1, // [TUNING] Prototype value.
   baseHitChance: 0.75, // [TUNING] Prototype value.
-  hitChanceRelativeScale: 0.45, // [TUNING] Prototype value.
   minHitChance: 0.15, // [TUNING] Prototype value.
   maxHitChance: 0.98, // [TUNING] Prototype value.
   armorConstant: 100, // [TUNING] Prototype value.
@@ -40,7 +39,12 @@ export const combatBalance = {
   maxResistance: 0.8, // [TUNING] Prototype value.
   maxStatusResistance: 0.75, // [TUNING] Prototype value.
   maxCritChance: 1, // [TUNING] Prototype value.
-  maxAvoidanceChance: 1, // [TUNING] Prototype value.
+  dodgeSoftCap: 0.25, // [TUNING] Diminishing returns threshold.
+  dodgeHardCap: 0.5, // [TUNING] Diminishing returns ceiling.
+  parrySoftCap: 0.25, // [TUNING] Diminishing returns threshold.
+  parryHardCap: 0.5, // [TUNING] Diminishing returns ceiling.
+  blockSoftCap: 0.4, // [TUNING] Diminishing returns threshold.
+  blockHardCap: 0.7, // [TUNING] Diminishing returns ceiling.
   minimumAttackInterval: 0.05, // [TUNING] Prototype value.
   burnDuration: 6, // [TUNING] Prototype value.
   burnInterval: 2, // [TUNING] Prototype value.

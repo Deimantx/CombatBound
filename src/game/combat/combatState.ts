@@ -1,26 +1,80 @@
-import { combatBalance } from './combatBalance'
-import type { CombatState, EnemyCombatInstance, SpellRuntime } from './combatTypes'
-import { enemyById } from '../data/enemies'
-import { spellDefinitions } from '../data/spells'
+import { combatBalance } from "./combatBalance";
+import type { CombatState, EnemyCombatInstance } from "./combatTypes";
+import { enemyById } from "../data/enemies";
 
-export function instantiateEnemies(enemyIds: string[], groupNumber: number): EnemyCombatInstance[] {
-  const counts = new Map<string, number>()
+export function instantiateEnemies(
+  enemyIds: string[],
+  groupNumber: number,
+): EnemyCombatInstance[] {
+  const counts = new Map<string, number>();
   return enemyIds.map((enemyId, index) => {
-    const definition = enemyById[enemyId]
-    const duplicateNumber = (counts.get(enemyId) ?? 0) + 1
-    counts.set(enemyId, duplicateNumber)
-    const suffix = duplicateNumber > 1 ? ` ${String.fromCharCode(64 + duplicateNumber)}` : ''
-    return { instanceId: `${enemyId}#group-${groupNumber}-${index + 1}`, enemyId, displayName: `${definition.name}${suffix}`, currentHealth: definition.maxHealth, maxHealth: definition.maxHealth, attackTimer: definition.attackInterval, attackInterval: definition.attackInterval, specialCooldownRemaining: 0, currentAction: null, effects: [], defeated: false, rewardResolved: false }
-  })
+    const definition = enemyById[enemyId];
+    const duplicateNumber = (counts.get(enemyId) ?? 0) + 1;
+    counts.set(enemyId, duplicateNumber);
+    const suffix =
+      duplicateNumber > 1
+        ? ` ${String.fromCharCode(64 + duplicateNumber)}`
+        : "";
+    return {
+      instanceId: `${enemyId}#group-${groupNumber}-${index + 1}`,
+      enemyId,
+      displayName: `${definition.name}${suffix}`,
+      currentHealth: definition.maxHealth,
+      maxHealth: definition.maxHealth,
+      attackTimer: definition.attackInterval,
+      attackInterval: definition.attackInterval,
+      actionCooldowns: {},
+      phaseId: null,
+      currentAction: null,
+      effects: [],
+      defeated: false,
+      rewardResolved: false,
+    };
+  });
 }
 
 export function createCombatState(): CombatState {
-  const spells: SpellRuntime[] = spellDefinitions.map((spell) => ({ spellId: spell.id, cooldownRemaining: 0, autoEnabled: spell.id === 'spell.protective-sign' }))
   return {
-    phase: 'inactive', combatLocationId: null, groupNumber: 0, enemies: [], selectedEnemyInstanceId: null,
-    playerHp: combatBalance.baseMaxHealth, maxPlayerHp: combatBalance.baseMaxHealth, playerAttackTimer: combatBalance.baseAttackInterval, playerAttackInterval: combatBalance.baseAttackInterval,
-    stamina: combatBalance.baseMaxStamina, maxStamina: combatBalance.baseMaxStamina, mana: combatBalance.baseMaxMana, maxMana: combatBalance.baseMaxMana,
-    stance: 'mid', stanceCooldownRemaining: 0, techniques: { 'careful-positioning': false, 'heightened-reflexes': false }, spells, playerEffects: [], potionCooldownRemaining: 0, recoveryRemaining: 0, stopReason: null, lastDamageSource: null,
-    log: [], events: [], session: { elapsedSeconds: 0, groupClears: 0, enemiesDefeated: 0, damageDealt: 0, damageTaken: 0, healing: 0, proficiencyXpGained: {}, masteryXpGained: 0, itemsGained: 0, lootGained: {}, goldGained: 0, highestHit: 0 }, eventSequence: 0, effectSequence: 0,
-  }
+    phase: "inactive",
+    combatLocationId: null,
+    groupNumber: 0,
+    enemies: [],
+    selectedEnemyInstanceId: null,
+    playerHp: combatBalance.baseMaxHealth,
+    maxPlayerHp: combatBalance.baseMaxHealth,
+    playerAttackTimer: combatBalance.baseAttackInterval,
+    playerAttackInterval: combatBalance.baseAttackInterval,
+    stamina: combatBalance.baseMaxStamina,
+    maxStamina: combatBalance.baseMaxStamina,
+    mana: combatBalance.baseMaxMana,
+    maxMana: combatBalance.baseMaxMana,
+    stance: "mid",
+    stanceCooldownRemaining: 0,
+    techniques: { "careful-positioning": false, "heightened-reflexes": false },
+    actionCooldowns: {},
+    globalCooldownRemaining: 0,
+    playerEffects: [],
+    potionCooldownRemaining: 0,
+    recoveryRemaining: 0,
+    stopReason: null,
+    lastDamageSource: null,
+    log: [],
+    events: [],
+    session: {
+      elapsedSeconds: 0,
+      groupClears: 0,
+      enemiesDefeated: 0,
+      damageDealt: 0,
+      damageTaken: 0,
+      healing: 0,
+      proficiencyXpGained: {},
+      masteryXpGained: 0,
+      itemsGained: 0,
+      lootGained: {},
+      goldGained: 0,
+      highestHit: 0,
+    },
+    eventSequence: 0,
+    effectSequence: 0,
+  };
 }

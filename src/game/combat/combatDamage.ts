@@ -11,6 +11,7 @@ export interface DamagePacket extends DamageComponent {
   defensiveEligibility?: DefensiveEligibility
   guaranteedHit?: boolean
   progressionSource?: DamageProgressionSource
+  sourceActionId?: string
   damageMultiplier?: number
   criticalDamageMultiplier?: number
   criticalChanceBonus?: number

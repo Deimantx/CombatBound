@@ -189,7 +189,7 @@ describe('gameplay domain', () => {
     const game = createInitialGameState()
     const stats = { ...statsFor(game), accuracy: 10000 }
     const started = startHunt(game, 'location.wolf-den', stats, fixedContext)
-    const prepared = { ...started, combat: { ...started.combat, mana: 100, playerAttackTimer: 100, enemies: started.combat.enemies.map((enemy) => ({ ...enemy, attackTimer: 100, specialCooldownRemaining: 100 })) } }
+    const prepared = { ...started, combat: { ...started.combat, mana: 100, playerAttackTimer: 100, enemies: started.combat.enemies.map((enemy) => ({ ...enemy, attackTimer: 100, actionCooldowns: { 'action.charged-shot': 100 } })) } }
     const cast = castSpell(prepared, 'spell.flame-blast', stats, fixedContext)
     const before = cast.progression.proficiencies['fire-magic']?.totalXp ?? 0
     const advanced = advanceCombat(cast, 2.1, fixedContext, stats)

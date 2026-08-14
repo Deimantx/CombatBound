@@ -1,115 +1,626 @@
-import { ArrowRight, Check, ChevronDown, Shield, ShieldCheck, Sparkles, Sword, Swords } from 'lucide-react'
-import { useId, useState } from 'react'
-import { itemDefinitions, type ItemDefinition } from '../../../game/data/items'
-import { proficiencyById } from '../../../game/data/proficiencies'
-import { getEquippedWeaponProficiency } from '../../../game/progression/progressionSelectors'
-import { getProficiencyLevel } from '../../../game/progression/proficiencyProgression'
-import { calculateHunterCombatStats } from '../../../game/equipment/derivedStats'
-import { calculateArmorMitigation } from '../../../game/combat/combatMath'
-import { getDefensiveEquipmentContext } from '../../../game/equipment/defensiveEquipment'
-import type { EquipmentSlot } from '../../../game/equipment/equipmentTypes'
-import type { CombatReferenceCategory } from '../../../game/data/combatGlossary'
-import { formatCombatStatValue, formatItemStats, formatPercent, labelForStatKey } from '../../../game/presentation/statFormatting'
-import { buildItemTooltip } from '../../../game/presentation/tooltipBuilders'
-import { useGameStore } from '../../../state/gameStore'
-import { CollapsiblePanel } from '../../components/CollapsiblePanel'
-import { GameTooltip } from '../../components/tooltip/GameTooltip'
-import { Panel } from '../../components/Panel'
-import { PlaceholderArt } from '../../components/PlaceholderArt'
-import { StatLine } from '../../components/StatLine'
-import { ScreenHeading } from '../../shell/ScreenHeading'
+import {
+  ArrowRight,
+  Check,
+  ChevronDown,
+  Shield,
+  ShieldCheck,
+  Sparkles,
+  Sword,
+  Swords,
+} from "lucide-react";
+import { useId, useState } from "react";
+import { itemDefinitions, type ItemDefinition } from "../../../game/data/items";
+import { proficiencyById } from "../../../game/data/proficiencies";
+import { spellDefinitions } from "../../../game/data/spells";
+import { getEquippedWeaponProficiency } from "../../../game/progression/progressionSelectors";
+import { getProficiencyLevel } from "../../../game/progression/proficiencyProgression";
+import { calculateHunterCombatStats } from "../../../game/equipment/derivedStats";
+import { calculateArmorMitigation } from "../../../game/combat/combatMath";
+import { getDefensiveEquipmentContext } from "../../../game/equipment/defensiveEquipment";
+import type { EquipmentSlot } from "../../../game/equipment/equipmentTypes";
+import type { CombatReferenceCategory } from "../../../game/data/combatGlossary";
+import {
+  formatCombatStatValue,
+  formatItemStats,
+  formatPercent,
+  labelForStatKey,
+} from "../../../game/presentation/statFormatting";
+import { buildItemTooltip } from "../../../game/presentation/tooltipBuilders";
+import { useGameStore } from "../../../state/gameStore";
+import { CollapsiblePanel } from "../../components/CollapsiblePanel";
+import { GameTooltip } from "../../components/tooltip/GameTooltip";
+import { Panel } from "../../components/Panel";
+import { PlaceholderArt } from "../../components/PlaceholderArt";
+import { StatLine } from "../../components/StatLine";
+import { ScreenHeading } from "../../shell/ScreenHeading";
 
-const statGroups: Array<{ id: CombatReferenceCategory; title: string; keys: string[] }> = [
-  { id: 'offense', title: 'OFFENSE', keys: ['attackPower', 'accuracy', 'attackInterval', 'critChance', 'critDamage'] },
-  { id: 'defense', title: 'DEFENSE', keys: ['maxHealth', 'armor', 'evasion', 'dodgeChance', 'parryChance', 'blockChance', 'blockPower', 'statusResistance', 'healthRegen'] },
-  { id: 'resources', title: 'RESOURCES', keys: ['maxStamina', 'staminaRegen', 'maxMana', 'manaRegen'] },
-  { id: 'resistances', title: 'RESISTANCES', keys: ['physicalResistance', 'fireResistance', 'waterResistance', 'airResistance', 'earthResistance', 'lightResistance', 'darknessResistance', 'natureResistance', 'mysticResistance'] },
-]
+const statGroups: Array<{
+  id: CombatReferenceCategory;
+  title: string;
+  keys: string[];
+}> = [
+  {
+    id: "offense",
+    title: "OFFENSE",
+    keys: [
+      "attackPower",
+      "accuracy",
+      "attackInterval",
+      "critChance",
+      "critDamage",
+    ],
+  },
+  {
+    id: "defense",
+    title: "DEFENSE",
+    keys: [
+      "maxHealth",
+      "armor",
+      "evasion",
+      "dodgeChance",
+      "parryChance",
+      "blockChance",
+      "blockPower",
+      "statusResistance",
+      "healthRegen",
+    ],
+  },
+  {
+    id: "resources",
+    title: "RESOURCES",
+    keys: ["maxStamina", "staminaRegen", "maxMana", "manaRegen"],
+  },
+  {
+    id: "resistances",
+    title: "RESISTANCES",
+    keys: [
+      "physicalResistance",
+      "fireResistance",
+      "waterResistance",
+      "airResistance",
+      "earthResistance",
+      "lightResistance",
+      "darknessResistance",
+      "natureResistance",
+      "mysticResistance",
+    ],
+  },
+];
 
-const EQUIPMENT_STAT_GROUPS_STORAGE_KEY = 'combatbound-equipment-stat-groups'
-const equipmentSlots: EquipmentSlot[] = ['weapon', 'offhand', 'head', 'chest', 'hands', 'feet']
-const slotLabels: Record<EquipmentSlot, string> = { weapon: 'Weapon', offhand: 'Offhand', head: 'Head', chest: 'Chest', hands: 'Hands', feet: 'Feet' }
-type EquipmentStatGroupId = (typeof statGroups)[number]['id']
-type EquipmentStatGroupState = Partial<Record<EquipmentStatGroupId, boolean>>
+const EQUIPMENT_STAT_GROUPS_STORAGE_KEY = "combatbound-equipment-stat-groups";
+const equipmentSlots: EquipmentSlot[] = [
+  "weapon",
+  "offhand",
+  "head",
+  "chest",
+  "hands",
+  "feet",
+];
+const slotLabels: Record<EquipmentSlot, string> = {
+  weapon: "Weapon",
+  offhand: "Offhand",
+  head: "Head",
+  chest: "Chest",
+  hands: "Hands",
+  feet: "Feet",
+};
+type EquipmentStatGroupId = (typeof statGroups)[number]["id"];
+type EquipmentStatGroupState = Partial<Record<EquipmentStatGroupId, boolean>>;
 
 function readEquipmentStatGroupState(): EquipmentStatGroupState {
   try {
-    const saved = window.localStorage.getItem(EQUIPMENT_STAT_GROUPS_STORAGE_KEY)
-    return saved ? JSON.parse(saved) as EquipmentStatGroupState : {}
+    const saved = window.localStorage.getItem(
+      EQUIPMENT_STAT_GROUPS_STORAGE_KEY,
+    );
+    return saved ? (JSON.parse(saved) as EquipmentStatGroupState) : {};
   } catch {
-    return {}
+    return {};
   }
 }
 
-function persistEquipmentStatGroupState(id: EquipmentStatGroupId, open: boolean) {
+function persistEquipmentStatGroupState(
+  id: EquipmentStatGroupId,
+  open: boolean,
+) {
   try {
-    window.localStorage.setItem(EQUIPMENT_STAT_GROUPS_STORAGE_KEY, JSON.stringify({ ...readEquipmentStatGroupState(), [id]: open }))
+    window.localStorage.setItem(
+      EQUIPMENT_STAT_GROUPS_STORAGE_KEY,
+      JSON.stringify({ ...readEquipmentStatGroupState(), [id]: open }),
+    );
   } catch {
     // Storage is optional; the component state still works for the current mount.
   }
 }
 
 export function EquipmentScreen() {
-  const game = useGameStore((state) => state.game)
-  const selectedSlot = useGameStore((state) => state.selectedEquipmentSlot)
-  const selectSlot = useGameStore((state) => state.selectEquipmentSlot)
-  const equipItem = useGameStore((state) => state.equipItem)
-  const selected = equipmentSlots.includes(selectedSlot as EquipmentSlot) ? selectedSlot as EquipmentSlot : 'weapon'
-  const combatLocked = game.combat.phase === 'active' || game.combat.phase === 'recovery'
-  const equippedId = game.equipment.slots[selected]
-  const equipped = itemDefinitions.find((item) => item.id === equippedId) ?? itemDefinitions[0]
-  const candidates = itemDefinitions.filter((item) => item.equipmentSlot === selected && (game.inventory.quantities[item.id] ?? 0) > 0)
-  const stats = calculateHunterCombatStats(game.equipment, game.progression, game.combat.stance, game.combat.techniques)
-  const equippedProficiency = getEquippedWeaponProficiency(game.equipment)
-  const equippedProficiencyName = equippedProficiency ? proficiencyById[equippedProficiency]?.name : undefined
-  const equippedProficiencyLevel = equippedProficiency ? getProficiencyLevel(game.progression, equippedProficiency) : 0
-  const resistance = (key: string) => stats.resistances[key.replace('Resistance', '').toLowerCase() as keyof typeof stats.resistances] ?? 0
-  const valueFor = (key: string) => key.endsWith('Resistance') ? resistance(key) : stats[key as keyof typeof stats] as number
-  const defensiveContext = getDefensiveEquipmentContext(game.equipment)
-  const detailFor = (key: string) => key === 'armor' ? `${formatCombatStatValue(key, valueFor(key))} · ${formatPercent(calculateArmorMitigation(stats.armor))} Physical direct mitigation` : key === 'attackInterval' ? `${formatCombatStatValue(key, valueFor(key))} · ${(1 / stats.attackInterval).toFixed(2)} attacks/sec` : undefined
+  const game = useGameStore((state) => state.game);
+  const selectedSlot = useGameStore((state) => state.selectedEquipmentSlot);
+  const selectSlot = useGameStore((state) => state.selectEquipmentSlot);
+  const equipItem = useGameStore((state) => state.equipItem);
+  const setSpellSlot = useGameStore((state) => state.setSpellSlot);
+  const selected = equipmentSlots.includes(selectedSlot as EquipmentSlot)
+    ? (selectedSlot as EquipmentSlot)
+    : "weapon";
+  const combatLocked =
+    game.combat.phase === "active" || game.combat.phase === "recovery";
+  const equippedId = game.equipment.slots[selected];
+  const equipped =
+    itemDefinitions.find((item) => item.id === equippedId) ??
+    itemDefinitions[0];
+  const candidates = itemDefinitions.filter(
+    (item) =>
+      item.equipmentSlot === selected &&
+      (game.inventory.quantities[item.id] ?? 0) > 0,
+  );
+  const stats = calculateHunterCombatStats(
+    game.equipment,
+    game.progression,
+    game.combat.stance,
+    game.combat.techniques,
+  );
+  const equippedProficiency = getEquippedWeaponProficiency(game.equipment);
+  const equippedProficiencyName = equippedProficiency
+    ? proficiencyById[equippedProficiency]?.name
+    : undefined;
+  const equippedProficiencyLevel = equippedProficiency
+    ? getProficiencyLevel(game.progression, equippedProficiency)
+    : 0;
+  const resistance = (key: string) =>
+    stats.resistances[
+      key
+        .replace("Resistance", "")
+        .toLowerCase() as keyof typeof stats.resistances
+    ] ?? 0;
+  const valueFor = (key: string) =>
+    key.endsWith("Resistance")
+      ? resistance(key)
+      : (stats[key as keyof typeof stats] as number);
+  const defensiveContext = getDefensiveEquipmentContext(game.equipment);
+  const detailFor = (key: string) =>
+    key === "armor"
+      ? `${formatCombatStatValue(key, valueFor(key))} · ${formatPercent(calculateArmorMitigation(stats.armor))} Physical direct mitigation`
+      : key === "attackInterval"
+        ? `${formatCombatStatValue(key, valueFor(key))} · ${(1 / stats.attackInterval).toFixed(2)} attacks/sec`
+        : undefined;
 
-  return <div className="screen equipment-screen" data-debug-screen="equipment">
-    <ScreenHeading screen="equipment" />
-    <div className="equipment-layout">
-      <Panel title="Equipment loadout" subtitle={combatLocked ? 'Viewing is allowed · Stop combat to change equipment.' : 'Combat-only equipment slots'} icon={ShieldCheck} panelId="equipmentLoadout" screen="equipment" className="equipment-loadout">
-        <div className="loadout-topline"><div className="loadout-avatar"><Shield size={32} /></div><div><h3>Vanguard</h3><p>{equippedProficiencyName ? `${equippedProficiencyName} · Lv ${equippedProficiencyLevel}` : 'No weapon proficiency'} · {stats.attackPower} Attack Power</p></div><span className="loadout-rating"><Sparkles size={14} /> {stats.maxHealth} Max HP</span></div>
-        <div className="equipment-slots">{equipmentSlots.map((slot) => { const item = itemDefinitions.find((candidate) => candidate.id === game.equipment.slots[slot]); const active = selected === slot; return <GameTooltip key={slot} content={item ? buildItemTooltip(item, { equipped: true, quantity: game.inventory.quantities[item.id] ?? 0, defensiveContext }) : { id: `equipment-slot.${slot}`, title: `${slotLabels[slot]} slot`, description: 'An equipment slot for the Hunter.' }}><button className={`equipment-slot ${active ? 'is-selected' : ''}`} onClick={() => selectSlot(slot)} data-debug-kind="equipment-slot" data-debug-slot={slot} data-debug-item-id={item?.id} data-debug-label={slotLabels[slot]}><span className="slot-label">{slotLabels[slot]}</span><PlaceholderArt icon={item?.icon ?? 'shield'} size="medium" variant={active ? 'gold' : 'muted'} /><strong>{item?.name ?? 'Empty'}</strong><small>{active ? 'Selected' : item?.rarity ?? 'Empty'}</small>{active && <span className="selected-check"><Check size={12} /></span>}</button></GameTooltip> })}</div>
-        <div className="defensive-training-summary" data-debug-kind="defensive-training-summary"><span className="tiny-label">ARMOR TRAINING</span><div><TrainingRate label="Light Armor" pieces={defensiveContext.lightArmorPieces} rate={defensiveContext.lightArmorPieces / 4} proficiencyId="light-armor" /><TrainingRate label="Medium Armor" pieces={defensiveContext.mediumArmorPieces} rate={defensiveContext.mediumArmorPieces / 4} proficiencyId="medium-armor" /><TrainingRate label="Heavy Armor" pieces={defensiveContext.heavyArmorPieces} rate={defensiveContext.heavyArmorPieces / 4} proficiencyId="heavy-armor" /><TrainingRate label="Shield" pieces={defensiveContext.shieldEquipped ? 1 : 0} rate={defensiveContext.shieldEquipped ? 1 : 0} proficiencyId="shield" shield /></div></div>
-        <div className="loadout-total"><span>Total combat rating</span><strong>{stats.attackPower}</strong><span className="text-green">{combatLocked ? 'Locked during combat' : 'Ready to equip'}</span></div>
-      </Panel>
+  return (
+    <div className="screen equipment-screen" data-debug-screen="equipment">
+      <ScreenHeading screen="equipment" />
+      <div className="equipment-layout">
+        <Panel
+          title="Equipment loadout"
+          subtitle={
+            combatLocked
+              ? "Viewing is allowed · Stop combat to change equipment."
+              : "Combat-only equipment slots"
+          }
+          icon={ShieldCheck}
+          panelId="equipmentLoadout"
+          screen="equipment"
+          className="equipment-loadout"
+        >
+          <div className="loadout-topline">
+            <div className="loadout-avatar">
+              <Shield size={32} />
+            </div>
+            <div>
+              <h3>Vanguard</h3>
+              <p>
+                {equippedProficiencyName
+                  ? `${equippedProficiencyName} · Lv ${equippedProficiencyLevel}`
+                  : "No weapon proficiency"}{" "}
+                · {stats.attackPower} Attack Power
+              </p>
+            </div>
+            <span className="loadout-rating">
+              <Sparkles size={14} /> {stats.maxHealth} Max HP
+            </span>
+          </div>
+          <div className="equipment-slots">
+            {equipmentSlots.map((slot) => {
+              const item = itemDefinitions.find(
+                (candidate) => candidate.id === game.equipment.slots[slot],
+              );
+              const active = selected === slot;
+              return (
+                <GameTooltip
+                  key={slot}
+                  content={
+                    item
+                      ? buildItemTooltip(item, {
+                          equipped: true,
+                          quantity: game.inventory.quantities[item.id] ?? 0,
+                          defensiveContext,
+                        })
+                      : {
+                          id: `equipment-slot.${slot}`,
+                          title: `${slotLabels[slot]} slot`,
+                          description: "An equipment slot for the Hunter.",
+                        }
+                  }
+                >
+                  <button
+                    className={`equipment-slot ${active ? "is-selected" : ""}`}
+                    onClick={() => selectSlot(slot)}
+                    data-debug-kind="equipment-slot"
+                    data-debug-slot={slot}
+                    data-debug-item-id={item?.id}
+                    data-debug-label={slotLabels[slot]}
+                  >
+                    <span className="slot-label">{slotLabels[slot]}</span>
+                    <PlaceholderArt
+                      icon={item?.icon ?? "shield"}
+                      size="medium"
+                      variant={active ? "gold" : "muted"}
+                    />
+                    <strong>{item?.name ?? "Empty"}</strong>
+                    <small>
+                      {active ? "Selected" : (item?.rarity ?? "Empty")}
+                    </small>
+                    {active && (
+                      <span className="selected-check">
+                        <Check size={12} />
+                      </span>
+                    )}
+                  </button>
+                </GameTooltip>
+              );
+            })}
+          </div>
+          <div
+            className="defensive-training-summary"
+            data-debug-kind="defensive-training-summary"
+          >
+            <span className="tiny-label">ARMOR TRAINING</span>
+            <div>
+              <TrainingRate
+                label="Light Armor"
+                pieces={defensiveContext.lightArmorPieces}
+                rate={defensiveContext.lightArmorPieces / 4}
+                proficiencyId="light-armor"
+              />
+              <TrainingRate
+                label="Medium Armor"
+                pieces={defensiveContext.mediumArmorPieces}
+                rate={defensiveContext.mediumArmorPieces / 4}
+                proficiencyId="medium-armor"
+              />
+              <TrainingRate
+                label="Heavy Armor"
+                pieces={defensiveContext.heavyArmorPieces}
+                rate={defensiveContext.heavyArmorPieces / 4}
+                proficiencyId="heavy-armor"
+              />
+              <TrainingRate
+                label="Shield"
+                pieces={defensiveContext.shieldEquipped ? 1 : 0}
+                rate={defensiveContext.shieldEquipped ? 1 : 0}
+                proficiencyId="shield"
+                shield
+              />
+            </div>
+          </div>
+          <div className="loadout-total">
+            <span>Total combat rating</span>
+            <strong>{stats.attackPower}</strong>
+            <span className="text-green">
+              {combatLocked ? "Locked during combat" : "Ready to equip"}
+            </span>
+          </div>
+        </Panel>
 
-      <CollapsiblePanel title="Hunter Combat Stats" subtitle="All derived values used by live combat" icon={Swords} panelId="equipmentStats" screen="equipment" className="equipment-stats" summary={<><span>Attack Power {stats.attackPower}</span><span>Armor {Math.round(stats.armor)}</span><span>Accuracy {Math.round(stats.accuracy)}</span><span>Max Health {Math.round(stats.maxHealth)}</span></>}>
-        <div className="equipment-stat-groups">{statGroups.map((group) => <EquipmentStatGroup key={group.id} group={group} valueFor={valueFor} detailFor={detailFor} />)}</div>
-        <div className="stat-tip"><Sparkles size={14} /><span>Preparation matters<br /><small>Temporary combat effects are shown on the Combat screen.</small></span></div>
-      </CollapsiblePanel>
+        <Panel
+          title="Spellbook & combat loadout"
+          subtitle={
+            combatLocked
+              ? "Spell loadout is locked during combat."
+              : "Choose up to six known spells for the Combat action bar."
+          }
+          icon={Sparkles}
+          panelId="spellbookLoadout"
+          screen="equipment"
+          className="spellbook-loadout"
+        >
+          <div className="spellbook-slots">
+            {game.spellbook.equippedSpellSlots.map((spellId, slot) => {
+              const spell = spellId
+                ? spellDefinitions.find((candidate) => candidate.id === spellId)
+                : undefined;
+              return (
+                <label className="spellbook-slot" key={slot}>
+                  <span className="tiny-label">SLOT {slot + 1}</span>
+                  <select
+                    value={spellId ?? ""}
+                    disabled={combatLocked}
+                    onChange={(event) =>
+                      setSpellSlot(slot, event.target.value || null)
+                    }
+                    data-debug-kind="spellbook-slot"
+                    data-debug-slot={slot}
+                  >
+                    <option value="">Empty</option>
+                    {game.spellbook.knownSpellIds.map((knownId) => {
+                      const known = spellDefinitions.find(
+                        (candidate) => candidate.id === knownId,
+                      );
+                      return known ? (
+                        <option value={known.id} key={known.id}>
+                          {known.name}
+                        </option>
+                      ) : null;
+                    })}
+                  </select>
+                  <small>{spell?.description ?? "No spell equipped."}</small>
+                </label>
+              );
+            })}
+          </div>
+        </Panel>
 
-      <Panel title="Compatible items" subtitle={`Owned ${slotLabels[selected]} candidates`} icon={Sword} panelId="equipmentCandidates" screen="equipment" actions={<span className="target-count">{candidates.length} owned</span>}>
-        <div className="candidate-list">{candidates.map((item) => <CandidateItem key={item.id} item={item} equipped={item.id === equippedId} locked={combatLocked} onEquip={() => equipItem(item.id, selected)} quantity={game.inventory.quantities[item.id] ?? 0} />)}</div>
-        <div className="comparison-box"><span className="tiny-label">COMPARISON</span><div><span>Equipped</span><strong>{equipped.name}</strong><em>{formatItemStats(equipped.stats ?? {}).map((stat) => `${stat.label} ${stat.value}`).join(' · ') || 'No combat stats'}</em></div><ArrowRight size={15} /><div className="comparison-placeholder"><span>{combatLocked ? 'Equipment locked' : 'Select an item above'}</span><small>{combatLocked ? 'Stop combat before equipping.' : 'Click a candidate to equip it.'}</small></div></div>
-      </Panel>
+        <CollapsiblePanel
+          title="Hunter Combat Stats"
+          subtitle="All derived values used by live combat"
+          icon={Swords}
+          panelId="equipmentStats"
+          screen="equipment"
+          className="equipment-stats"
+          summary={
+            <>
+              <span>Attack Power {stats.attackPower}</span>
+              <span>Armor {Math.round(stats.armor)}</span>
+              <span>Accuracy {Math.round(stats.accuracy)}</span>
+              <span>Max Health {Math.round(stats.maxHealth)}</span>
+            </>
+          }
+        >
+          <div className="equipment-stat-groups">
+            {statGroups.map((group) => (
+              <EquipmentStatGroup
+                key={group.id}
+                group={group}
+                valueFor={valueFor}
+                detailFor={detailFor}
+              />
+            ))}
+          </div>
+          <div className="stat-tip">
+            <Sparkles size={14} />
+            <span>
+              Preparation matters
+              <br />
+              <small>
+                Temporary combat effects are shown on the Combat screen.
+              </small>
+            </span>
+          </div>
+        </CollapsiblePanel>
+
+        <Panel
+          title="Compatible items"
+          subtitle={`Owned ${slotLabels[selected]} candidates`}
+          icon={Sword}
+          panelId="equipmentCandidates"
+          screen="equipment"
+          actions={
+            <span className="target-count">{candidates.length} owned</span>
+          }
+        >
+          <div className="candidate-list">
+            {candidates.map((item) => (
+              <CandidateItem
+                key={item.id}
+                item={item}
+                equipped={item.id === equippedId}
+                locked={combatLocked}
+                onEquip={() => equipItem(item.id, selected)}
+                quantity={game.inventory.quantities[item.id] ?? 0}
+              />
+            ))}
+          </div>
+          <div className="comparison-box">
+            <span className="tiny-label">COMPARISON</span>
+            <div>
+              <span>Equipped</span>
+              <strong>{equipped.name}</strong>
+              <em>
+                {formatItemStats(equipped.stats ?? {})
+                  .map((stat) => `${stat.label} ${stat.value}`)
+                  .join(" · ") || "No combat stats"}
+              </em>
+            </div>
+            <ArrowRight size={15} />
+            <div className="comparison-placeholder">
+              <span>
+                {combatLocked ? "Equipment locked" : "Select an item above"}
+              </span>
+              <small>
+                {combatLocked
+                  ? "Stop combat before equipping."
+                  : "Click a candidate to equip it."}
+              </small>
+            </div>
+          </div>
+        </Panel>
+      </div>
     </div>
-  </div>
+  );
 }
 
-function EquipmentStatGroup({ group, valueFor, detailFor }: { group: typeof statGroups[number]; valueFor: (key: string) => number; detailFor: (key: string) => string | undefined }) {
-  const [open, setOpen] = useState(() => readEquipmentStatGroupState()[group.id] ?? true)
-  const generatedId = useId().replace(/:/g, '')
-  const contentId = `equipment-stat-group-${group.id}-${generatedId}`
-  return <section className={`equipment-stat-group ${open ? 'is-open' : 'is-collapsed'}`} data-debug-panel-section={group.id}>
-    <button type="button" className="equipment-stat-group-toggle" onClick={() => setOpen((value) => { const next = !value; persistEquipmentStatGroupState(group.id, next); return next })} aria-expanded={open} aria-controls={contentId} data-debug-kind="collapsible-stat-group" data-debug-panel-section={group.id} data-debug-label={group.title}>
-      <h3>{group.title}</h3><ChevronDown size={16} className={`equipment-stat-group-chevron ${open ? 'is-open' : ''}`} aria-hidden="true" />
+function EquipmentStatGroup({
+  group,
+  valueFor,
+  detailFor,
+}: {
+  group: (typeof statGroups)[number];
+  valueFor: (key: string) => number;
+  detailFor: (key: string) => string | undefined;
+}) {
+  const [open, setOpen] = useState(
+    () => readEquipmentStatGroupState()[group.id] ?? true,
+  );
+  const generatedId = useId().replace(/:/g, "");
+  const contentId = `equipment-stat-group-${group.id}-${generatedId}`;
+  return (
+    <section
+      className={`equipment-stat-group ${open ? "is-open" : "is-collapsed"}`}
+      data-debug-panel-section={group.id}
+    >
+      <button
+        type="button"
+        className="equipment-stat-group-toggle"
+        onClick={() =>
+          setOpen((value) => {
+            const next = !value;
+            persistEquipmentStatGroupState(group.id, next);
+            return next;
+          })
+        }
+        aria-expanded={open}
+        aria-controls={contentId}
+        data-debug-kind="collapsible-stat-group"
+        data-debug-panel-section={group.id}
+        data-debug-label={group.title}
+      >
+        <h3>{group.title}</h3>
+        <ChevronDown
+          size={16}
+          className={`equipment-stat-group-chevron ${open ? "is-open" : ""}`}
+          aria-hidden="true"
+        />
+      </button>
+      <div
+        id={contentId}
+        className="equipment-stat-group-content"
+        hidden={!open}
+        aria-hidden={!open}
+      >
+        <div
+          className={
+            group.id === "resistances"
+              ? "equipment-resistance-grid"
+              : "stat-stack"
+          }
+        >
+          {group.keys.map((key) => {
+            const value = valueFor(key);
+            return (
+              <StatLine
+                key={key}
+                label={labelForStatKey(key)}
+                value={formatCombatStatValue(key, value)}
+                detail={detailFor(key)}
+                accent={
+                  key.endsWith("Resistance")
+                    ? value > 0
+                      ? "green"
+                      : value < 0
+                        ? "red"
+                        : undefined
+                    : key === "attackPower"
+                      ? "gold"
+                      : undefined
+                }
+                statKey={key}
+                statValue={value}
+              />
+            );
+          })}
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function CandidateItem({
+  item,
+  equipped,
+  locked,
+  onEquip,
+  quantity,
+}: {
+  item: ItemDefinition;
+  equipped: boolean;
+  locked: boolean;
+  onEquip: () => void;
+  quantity: number;
+}) {
+  const button = (
+    <button
+      className={`candidate-item ${equipped ? "is-equipped" : ""}`}
+      onClick={onEquip}
+      disabled={locked}
+      data-debug-kind="equipment-candidate"
+      data-debug-target-id={item.id}
+      data-debug-item-id={item.id}
+      data-debug-label={item.name}
+    >
+      <PlaceholderArt
+        icon={item.icon}
+        size="small"
+        variant={
+          item.rarity === "rare"
+            ? "gold"
+            : item.rarity === "uncommon"
+              ? "blue"
+              : "muted"
+        }
+      />
+      <span>
+        <strong>{item.name}</strong>
+        <small>
+          {formatItemStats(item.stats ?? {})
+            .map((stat) => `${stat.label} ${stat.value}`)
+            .join(" · ") || item.description}
+        </small>
+      </span>
+      {equipped ? (
+        <span className="equipped-label">
+          <Check size={13} /> Equipped
+        </span>
+      ) : (
+        <ArrowRight size={15} />
+      )}
     </button>
-    <div id={contentId} className="equipment-stat-group-content" hidden={!open} aria-hidden={!open}>
-      <div className={group.id === 'resistances' ? 'equipment-resistance-grid' : 'stat-stack'}>{group.keys.map((key) => { const value = valueFor(key); return <StatLine key={key} label={labelForStatKey(key)} value={formatCombatStatValue(key, value)} detail={detailFor(key)} accent={key.endsWith('Resistance') ? value > 0 ? 'green' : value < 0 ? 'red' : undefined : key === 'attackPower' ? 'gold' : undefined} statKey={key} statValue={value} /> })}</div>
-    </div>
-  </section>
+  );
+  return locked ? (
+    <GameTooltip content={buildItemTooltip(item, { quantity, equipped })}>
+      <span className="candidate-tooltip-host">{button}</span>
+    </GameTooltip>
+  ) : (
+    <GameTooltip content={buildItemTooltip(item, { quantity, equipped })}>
+      {button}
+    </GameTooltip>
+  );
 }
 
-function CandidateItem({ item, equipped, locked, onEquip, quantity }: { item: ItemDefinition; equipped: boolean; locked: boolean; onEquip: () => void; quantity: number }) {
-  const button = <button className={`candidate-item ${equipped ? 'is-equipped' : ''}`} onClick={onEquip} disabled={locked} data-debug-kind="equipment-candidate" data-debug-target-id={item.id} data-debug-item-id={item.id} data-debug-label={item.name}><PlaceholderArt icon={item.icon} size="small" variant={item.rarity === 'rare' ? 'gold' : item.rarity === 'uncommon' ? 'blue' : 'muted'} /><span><strong>{item.name}</strong><small>{formatItemStats(item.stats ?? {}).map((stat) => `${stat.label} ${stat.value}`).join(' · ') || item.description}</small></span>{equipped ? <span className="equipped-label"><Check size={13} /> Equipped</span> : <ArrowRight size={15} />}</button>
-  return locked ? <GameTooltip content={buildItemTooltip(item, { quantity, equipped })}><span className="candidate-tooltip-host">{button}</span></GameTooltip> : <GameTooltip content={buildItemTooltip(item, { quantity, equipped })}>{button}</GameTooltip>
-}
-
-function TrainingRate({ label, pieces, rate, proficiencyId, shield = false }: { label: string; pieces: number; rate: number; proficiencyId: string; shield?: boolean }) {
-  return <span data-debug-defensive-proficiency={proficiencyId} data-debug-armor-piece-count={pieces} data-debug-training-rate={rate}><strong>{label}</strong><small>{shield ? (pieces > 0 ? 'Equipped' : 'Not equipped') : `${pieces}/4 pieces`} · {rate.toFixed(2)}× XP</small></span>
+function TrainingRate({
+  label,
+  pieces,
+  rate,
+  proficiencyId,
+  shield = false,
+}: {
+  label: string;
+  pieces: number;
+  rate: number;
+  proficiencyId: string;
+  shield?: boolean;
+}) {
+  return (
+    <span
+      data-debug-defensive-proficiency={proficiencyId}
+      data-debug-armor-piece-count={pieces}
+      data-debug-training-rate={rate}
+    >
+      <strong>{label}</strong>
+      <small>
+        {shield
+          ? pieces > 0
+            ? "Equipped"
+            : "Not equipped"
+          : `${pieces}/4 pieces`}{" "}
+        · {rate.toFixed(2)}× XP
+      </small>
+    </span>
+  );
 }

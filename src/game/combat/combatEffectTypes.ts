@@ -22,6 +22,7 @@ export interface EffectDefinition {
     maxStacks: number
   }
   statModifiers?: StatModifier[]
+  resistanceModifiers?: Array<{ damageType: DamageType; operation: 'flat' | 'multiply'; value: number }>
   periodic?: {
     intervalSeconds: number
     operation: PeriodicOperation
