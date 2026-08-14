@@ -17,11 +17,13 @@ export function AutomationInstructions({ onBack }: { onBack: () => void }) {
         <nav className="automation-instructions-toc" aria-label="Automation instructions contents">
           <span className="tiny-label">ON THIS PAGE</span>
           <a href="#quick-start">Quick Start</a>
+          <a href="#automation-presets">Automation Presets</a>
           <a href="#rules">Rules</a>
           <a href="#priority">Priority</a>
           <a href="#conditions">Conditions</a>
           <a href="#targeting">Targeting</a>
           <a href="#resources">Resources</a>
+          <a href="#choosing-an-action">Choosing an Action</a>
           <a href="#weapon-skills">Weapon Skills</a>
           <a href="#examples">Examples</a>
           <a href="#mistakes">Common Mistakes</a>
@@ -34,6 +36,14 @@ export function AutomationInstructions({ onBack }: { onBack: () => void }) {
           <p>Each Rule means: <strong>when these conditions are true, try to use this Action.</strong> Rules are checked from the smallest Priority number to the largest.</p>
           <div className="instruction-example"><strong>Priority 10 · Protective Sign</strong><span>IF Player HP is below 60% AND Barrier is missing</span><small>When both requirements are true, the Hunter tries to create a Barrier.</small></div>
           <div className="instruction-callout tip"><strong>TIP</strong><span>Start with one survival Rule, test it in Combat, then add offensive Rules below it.</span></div>
+        </section>
+
+        <section id="automation-presets" data-debug-help-section="automation-presets">
+          <h4>Automation Presets</h4>
+          <p>Automation Presets save the current Rules, their priorities and enabled states, Conditions, Target Priority order and enabled states, and Auto Target Override. There are ten persistent slots, and each slot stores an independent snapshot.</p>
+          <p>Use <strong>SAVE CURRENT</strong> for an empty slot, <strong>OVERWRITE</strong> to replace an existing slot, <strong>RENAME</strong> to give it a clear name, and <strong>LOAD</strong> to apply it. Loading keeps the Master Automation switch, equipment, spellbook, combat abilities, stance, techniques, inventory, stats, resources, cooldowns, and live combat target unchanged.</p>
+          <div className="instruction-callout important"><strong>IMPORTANT</strong><span>Presets are configuration snapshots, not live links. Missing or unequipped actions remain saved in the preset and are shown as unavailable until the required loadout or equipment is restored.</span></div>
+          <p>Presets can be saved, overwritten, renamed, or loaded while a Hunt is active. Loading changes future automation decisions without resetting combat runtime or action cooldowns.</p>
         </section>
 
         <section id="what-automation-does" data-debug-help-section="what-automation-does">
@@ -99,8 +109,14 @@ export function AutomationInstructions({ onBack }: { onBack: () => void }) {
         <section id="weapon-skills" data-debug-help-section="weapon-skills">
           <h4>Weapon Skills</h4>
           <p>Weapon Skills are Stamina-based active abilities tied to the currently equipped weapon proficiency. Equip them in Hero → Combat Abilities before Automation can use them.</p>
-          <p>The prototype One-Handed Sword kit includes Swift Cut, Precision Thrust, Flowing Step, Sweeping Cut, and Opening Feint. They appear under the Weapon Skills · One-Handed Sword action group.</p>
+          <p>In the Action picker, expand <strong>WEAPON SKILLS</strong> and then the relevant Weapon Proficiency. The prototype One-Handed Sword group contains Swift Cut, Precision Thrust, Flowing Step, Sweeping Cut, and Opening Feint.</p>
           <p>Changing to another weapon preserves the rules and slots, but Sword skills become inactive until a One-Handed Sword is equipped again.</p>
+        </section>
+
+        <section id="choosing-an-action" data-debug-help-section="choosing-an-action">
+          <h4>Choosing an Action</h4>
+          <p>Actions are organized by type. Magic is grouped by Magic School, Weapon Skills by Weapon Proficiency, and defensive or consumable actions by their root category.</p>
+          <p>Expand a category to browse it, or use <strong>Search actions...</strong> to find a name, effect, resource, tag, Magic School, or weapon directly. A known action may still show <strong>NOT EQUIPPED</strong>; you can create the Rule now, but it will not execute until the action is equipped and otherwise usable.</p>
         </section>
 
         <section id="resources" data-debug-help-section="resources">

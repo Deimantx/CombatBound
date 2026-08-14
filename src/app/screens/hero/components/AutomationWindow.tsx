@@ -2,14 +2,18 @@ import { ArrowDown, ArrowUp, BookOpen, Plus, Trash2 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { effectDefinitions } from "../../../../game/data/effects";
 import { createCombatPreviewContext } from "../../../../game/combat/combatEngine";
+import type { PlayerActionDefinition } from "../../../../game/combat/combatTypes";
 import { getPlayerActionDefinitions, isCombatAbilityLoadoutAction } from "../../../../game/combat/playerActions";
 import { getCombatAbilityAvailability } from "../../../../game/combatAbilities/combatAbilitySelectors";
 import { getAutomationSummary } from "../../../../game/automation/automationLogic";
 import type { AutomationCondition, AutomationRule } from "../../../../game/automation/automationTypes";
+import { buildPlayerActionCatalogue, type ActionCatalogueGroup } from "../../../../game/presentation/playerActionCatalogue";
 import { useGameStore } from "../../../../state/gameStore";
 import type { GameState } from "../../../../game/gameState";
+import { ActionCataloguePicker } from "../../../components/ActionCataloguePicker";
 import { ConfirmDialog } from "../../../components/ConfirmDialog";
 import { AutomationInstructions } from "./AutomationInstructions";
+import { AutomationPresetsPanel } from "./AutomationPresetsPanel";
 
 const fractionTypes = new Set([
   "player-hp-below", "player-hp-above", "mana-below", "mana-above",
@@ -40,6 +44,9 @@ const conditionOptions: Array<{ value: AutomationCondition["type"]; label: strin
 export function AutomationWindow({ game, initialActionId, createRule = false }: { game: GameState; initialActionId?: string; createRule?: boolean }) {
   const context = useMemo(() => createCombatPreviewContext(), []);
   const actions = useMemo(() => getPlayerActionDefinitions(game, context).filter((action) => action.kind !== "basic-attack" && (action.kind !== "spell" || game.spellbook.knownSpellIds.includes(action.id))), [context, game.spellbook.knownSpellIds]);
+  const actionCatalogue = useMemo(() => buildPlayerActionCatalogue(actions, {
+    getItemState: (action) => getActionCatalogueItemState(game, action),
+  }), [actions, game.equipment, game.combatAbilities.activeSlots, game.spellbook.equippedSpellSlots, game.inventory.quantities]);
   const setAutomationEnabled = useGameStore((state) => state.setAutomationEnabled);
   const setAutomationOverride = useGameStore((state) => state.setAutomationOverrideManualTarget);
   const addRule = useGameStore((state) => state.addAutomationRule);
@@ -90,6 +97,15 @@ export function AutomationWindow({ game, initialActionId, createRule = false }: 
     setPendingDeleteRuleId(null);
     setSelectedRuleId(null);
   };
+  const handlePresetLoaded = (slot: number) => {
+    const preset = game.combatAutomationPresets.slots[slot];
+    setDraftRule(null);
+    setSelectedRuleId(
+      preset
+        ? [...preset.config.rules].sort((a, b) => a.priority - b.priority || a.id.localeCompare(b.id))[0]?.id ?? null
+        : null,
+    );
+  };
   if (view === "instructions") return <AutomationInstructions onBack={() => setView("editor")} />;
   return (
     <>
@@ -100,6 +116,7 @@ export function AutomationWindow({ game, initialActionId, createRule = false }: 
         <button className={`button ${game.combatAutomation.overrideManualTarget ? "button-primary" : "button-ghost"}`} onClick={() => setAutomationOverride(!game.combatAutomation.overrideManualTarget)}>AUTO TARGET OVERRIDE · {game.combatAutomation.overrideManualTarget ? "ON" : "OFF"}</button>
         <span className="muted-copy">{summary.enabledRuleCount} / {summary.totalRuleCount} rules active · {summary.invalidRuleCount} need attention</span>
       </div>
+      <AutomationPresetsPanel game={game} actions={actions} onLoaded={handlePresetLoaded} />
       <p className="automation-explanation">Rules are checked from highest priority to lowest. The first rule whose conditions are true and whose action can currently be used executes. If an action cannot be used, lower-priority rules are still checked.</p>
       <div className="automation-editor-layout">
         <section className="automation-rule-list combatbound-scroll" aria-label="Automation rules">
@@ -124,7 +141,7 @@ export function AutomationWindow({ game, initialActionId, createRule = false }: 
           <div className="target-priority-list"><div className="section-title"><span className="tiny-label">TARGET PRIORITY</span></div>{[...game.combatAutomation.targetPriorityRules].sort((a, b) => a.priority - b.priority).map((priority, index, list) => <div className="target-priority-row" key={priority.id}><span>{priority.priority} {targetCriterionLabel(priority.criterion)}</span><button className={`button button-ghost compact ${priority.enabled ? "is-active" : ""}`} onClick={() => setPriorityEnabled(priority.id, !priority.enabled)}>{priority.enabled ? "ON" : "OFF"}</button><button className="icon-button compact" aria-label="Move target priority up" disabled={index === 0} onClick={() => movePriority(priority.id, "up")}><ArrowUp size={12} /></button><button className="icon-button compact" aria-label="Move target priority down" disabled={index === list.length - 1} onClick={() => movePriority(priority.id, "down")}><ArrowDown size={12} /></button></div>)}</div>
         </section>
         <section className="automation-editor combatbound-scroll" aria-label="Automation rule editor">
-          {draftRule ? <RuleEditor key={draftRule.id} rule={draftRule} actions={actions} isDraft onSave={saveDraft} onCancel={() => setDraftRule(null)} /> : selectedRule ? <RuleEditor key={selectedRule.id} rule={selectedRule} actions={actions} onSave={(patch) => updateRule(selectedRule.id, patch)} onDelete={() => setPendingDeleteRuleId(selectedRule.id)} onToggle={(enabled) => setRuleEnabled(selectedRule.id, enabled)} onMove={(direction) => moveRule(selectedRule.id, direction)} onCancel={() => undefined} /> : <span className="muted-copy">Select a rule or add one to begin.</span>}
+          {draftRule ? <RuleEditor key={draftRule.id} rule={draftRule} actions={actions} catalogue={actionCatalogue} isDraft onSave={saveDraft} onCancel={() => setDraftRule(null)} /> : selectedRule ? <RuleEditor key={selectedRule.id} rule={selectedRule} actions={actions} catalogue={actionCatalogue} onSave={(patch) => updateRule(selectedRule.id, patch)} onDelete={() => setPendingDeleteRuleId(selectedRule.id)} onToggle={(enabled) => setRuleEnabled(selectedRule.id, enabled)} onMove={(direction) => moveRule(selectedRule.id, direction)} onCancel={() => undefined} /> : <span className="muted-copy">Select a rule or add one to begin.</span>}
         </section>
       </div>
     </div>
@@ -133,7 +150,7 @@ export function AutomationWindow({ game, initialActionId, createRule = false }: 
   );
 }
 
-function RuleEditor({ rule, actions, isDraft = false, onSave, onDelete, onToggle, onMove, onCancel }: { rule: AutomationRule; actions: ReturnType<typeof getPlayerActionDefinitions>; isDraft?: boolean; onSave: (patch: Partial<Omit<AutomationRule, "id">>) => void; onDelete?: () => void; onToggle?: (enabled: boolean) => void; onMove?: (direction: "up" | "down") => void; onCancel: () => void }) {
+function RuleEditor({ rule, actions, catalogue, isDraft = false, onSave, onDelete, onToggle, onMove, onCancel }: { rule: AutomationRule; actions: ReturnType<typeof getPlayerActionDefinitions>; catalogue: ActionCatalogueGroup[]; isDraft?: boolean; onSave: (patch: Partial<Omit<AutomationRule, "id">>) => void; onDelete?: () => void; onToggle?: (enabled: boolean) => void; onMove?: (direction: "up" | "down") => void; onCancel: () => void }) {
   const [draft, setDraft] = useState<AutomationRule>(rule);
   useEffect(() => setDraft(rule), [rule]);
   const updateCondition = (index: number, condition: AutomationCondition) => setDraft((current) => ({ ...current, conditions: current.conditions.map((entry, entryIndex) => entryIndex === index ? condition : entry) }));
@@ -141,7 +158,7 @@ function RuleEditor({ rule, actions, isDraft = false, onSave, onDelete, onToggle
   const removeCondition = (index: number) => setDraft((current) => ({ ...current, conditions: current.conditions.filter((_, entryIndex) => entryIndex !== index) }));
   return <div className="automation-rule-editor-content" data-debug-kind="automation-rule-editor">
     <div className="editor-heading"><div><span className="tiny-label">RULE EDITOR</span><h3>{(actions.find((action) => action.id === draft.actionId)?.name ?? draft.actionId) || "Missing action"}</h3></div><span className={`automation-config-status ${actions.some((action) => action.id === draft.actionId) ? "is-ready" : "is-invalid"}`}>{actions.some((action) => action.id === draft.actionId) ? (draft.actionId.startsWith("spell.") ? "READY / LOADOUT STATUS SHOWN" : "READY") : "INVALID CONFIG · MISSING ACTION"}</span></div>
-    <label className="hero-field"><span>Action</span><select value={draft.actionId} onChange={(event) => setDraft((current) => ({ ...current, actionId: event.target.value }))} data-hero-window-focus><option value="">Choose action</option><optgroup label="SPELLS">{actions.filter((action) => action.kind === "spell").map((action) => <option key={action.id} value={action.id}>{action.name}</option>)}</optgroup><optgroup label="WEAPON SKILLS · ONE-HANDED SWORD">{actions.filter((action) => action.kind === "weapon-skill").map((action) => <option key={action.id} value={action.id}>{action.name}</option>)}</optgroup><optgroup label="ACTIVE DEFENSE">{actions.filter((action) => action.kind === "defensive").map((action) => <option key={action.id} value={action.id}>{action.name}</option>)}</optgroup><optgroup label="CONSUMABLES">{actions.filter((action) => action.kind === "consumable").map((action) => <option key={action.id} value={action.id}>{action.name}</option>)}</optgroup></select></label>
+    <div className="hero-field"><span>Action</span><ActionCataloguePicker value={draft.actionId} catalogue={catalogue} onChange={(actionId) => setDraft((current) => ({ ...current, actionId }))} /></div>
     <label className="hero-field"><span>Priority</span><input type="number" min="1" value={draft.priority} onChange={(event) => setDraft((current) => ({ ...current, priority: Number(event.target.value) }))} /></label>
     <div className="section-title"><span className="tiny-label">CONDITIONS · ALL MUST MATCH</span><button className="button button-ghost" onClick={addCondition}><Plus size={13} /> ADD CONDITION</button></div>
     {draft.conditions.map((condition, index) => <ConditionEditor key={index} condition={condition} onChange={(next) => updateCondition(index, next)} onRemove={() => removeCondition(index)} />)}
@@ -173,4 +190,37 @@ function conditionLabel(condition: AutomationCondition) {
 
 function targetCriterionLabel(criterion: string) {
   return criterion.split("-").map((part) => part.charAt(0).toUpperCase() + part.slice(1)).join(" ");
+}
+
+function getActionCatalogueItemState(game: GameState, action: PlayerActionDefinition) {
+  if (action.kind === "spell") {
+    const slot = game.spellbook.equippedSpellSlots.findIndex((id) => id === action.id);
+    return {
+      equipped: slot >= 0,
+      available: true,
+      statusLabel: slot >= 0 ? `EQUIPPED ${slot + 1}` : "NOT EQUIPPED",
+    };
+  }
+
+  if (isCombatAbilityLoadoutAction(action)) {
+    const slot = game.combatAbilities.activeSlots.findIndex((id) => id === action.id);
+    const availability = getCombatAbilityAvailability(game, action.id);
+    const equipmentStatus = availability.usable ? "" : ` · ${availability.label}`;
+    return {
+      equipped: slot >= 0,
+      available: availability.usable,
+      statusLabel: `${slot >= 0 ? `EQUIPPED ${slot + 1}` : "NOT EQUIPPED"}${equipmentStatus}`,
+    };
+  }
+
+  if (action.kind === "consumable" && action.sourceItemId) {
+    const quantity = game.inventory.quantities[action.sourceItemId] ?? 0;
+    return {
+      equipped: false,
+      available: quantity > 0,
+      statusLabel: quantity > 0 ? `AVAILABLE · ${quantity}` : "OUT OF STOCK",
+    };
+  }
+
+  return { equipped: false, available: true, statusLabel: "KNOWN" };
 }

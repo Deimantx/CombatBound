@@ -1,5 +1,5 @@
-import { Sparkles, Swords, X, Zap } from "lucide-react";
-import { useMemo, useState } from "react";
+import { Search, Sparkles, Swords, X, Zap } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
 import {
   getActionById,
   getEffectivePlayerActionCost,
@@ -11,6 +11,10 @@ import { getDefensiveEquipmentContext } from "../../../../game/equipment/defensi
 import { calculateHunterCombatStats } from "../../../../game/equipment/derivedStats";
 import { calculateHitChance } from "../../../../game/combat/combatMath";
 import { getEnemyEffectiveCombatStats, getPlayerEffectiveCombatStats } from "../../../../game/combat/combatSelectors";
+import { proficiencyById } from "../../../../game/data/proficiencies";
+import { getEquippedWeaponProficiency } from "../../../../game/progression/progressionSelectors";
+import { getProficiencyLevel } from "../../../../game/progression/proficiencyProgression";
+import { getWeaponSkillGroups, type WeaponSkillGroup } from "../../../../game/presentation/weaponSkillCatalogue";
 import {
   getCombatAbilityAvailability,
   getCombatAbilityEquippedSlot,
@@ -26,6 +30,7 @@ import type { TechniqueId } from "../../../../game/combat/combatTypes";
 import type { GameState } from "../../../../game/gameState";
 import { useGameStore } from "../../../../state/gameStore";
 import { PlaceholderArt } from "../../../components/PlaceholderArt";
+import { CatalogueAccordionGroup } from "../../../components/CatalogueAccordionGroup";
 import { GameTooltip } from "../../../components/tooltip/GameTooltip";
 import { buildCombatAbilityTooltip } from "../../../../game/presentation/tooltipBuilders";
 
@@ -66,17 +71,21 @@ export function CombatAbilitiesWindow({
   );
   const entries = getKnownCombatAbilities(game);
   const [filter, setFilter] = useState<LibraryFilter>("all");
+  const [query, setQuery] = useState("");
   const [selectedId, setSelectedId] = useState("defense.guard");
   const [selectedActiveSlot, setSelectedActiveSlot] = useState(0);
   const [selectedTechniqueSlot, setSelectedTechniqueSlot] = useState(0);
   const [drag, setDrag] = useState<DragState>(emptyDrag);
-  const visibleEntries = entries.filter((entry) => {
+  const [expandedGroups, setExpandedGroups] = useState<Set<string>>(() => new Set(["all.core", "all.weapon-skills", "all.active-defense"]));
+  const weaponSkillGroups = useMemo(() => getWeaponSkillGroups(), []);
+  const normalizedQuery = query.trim().toLowerCase();
+  const filteredEntries = entries.filter((entry) => {
     if (filter === "all") return true;
     if (filter === "core") return entry.kind === "core";
     if (filter === "active-defense") return entry.kind === "active-action" && entry.category === "active-defense";
     if (filter === "weapon-skills") return entry.kind === "active-action" && entry.category === "weapon-skill";
     return entry.kind === "technique";
-  });
+  }).filter((entry) => combatAbilityEntryMatchesQuery(entry, normalizedQuery));
   const selectedEntry = entries.find((entry) =>
     entry.kind === "core"
       ? entry.id === selectedId
@@ -84,6 +93,22 @@ export function CombatAbilitiesWindow({
         ? entry.actionId === selectedId
         : entry.techniqueId === selectedId,
   );
+  const equippedWeaponProficiency = getEquippedWeaponProficiency(game.equipment);
+  const defaultWeaponGroupId = getDefaultWeaponGroupId(game, entries, selectedId, weaponSkillGroups);
+  useEffect(() => {
+    if ((filter !== "weapon-skills" && filter !== "all") || !defaultWeaponGroupId) return;
+    setExpandedGroups((current) => current.has(defaultWeaponGroupId) ? current : new Set([...current, defaultWeaponGroupId]));
+  }, [defaultWeaponGroupId, filter]);
+  const toggleGroup = (groupId: string) => {
+    if (drag.payload) return;
+    setExpandedGroups((current) => {
+      const next = new Set(current);
+      if (next.has(groupId)) next.delete(groupId);
+      else next.add(groupId);
+      return next;
+    });
+  };
+  const isGroupExpanded = (groupId: string) => Boolean(normalizedQuery) || expandedGroups.has(groupId);
   const clearDrag = () => setDrag(emptyDrag);
   const startDrag = (event: React.DragEvent, payload: CombatAbilityDragPayload) => {
     if (combatLocked) {
@@ -139,6 +164,61 @@ export function CombatAbilitiesWindow({
     clearDrag();
   };
   const libraryDropValid = drag.payload?.sourceSlot !== undefined;
+  const entryKey = (entry: CombatAbilityCatalogueEntry) => entry.kind === "core" ? entry.id : entry.kind === "active-action" ? entry.actionId : entry.techniqueId;
+  const renderEntry = (entry: CombatAbilityCatalogueEntry) => <LibraryEntry
+    key={entryKey(entry)}
+    entry={entry}
+    game={game}
+    selected={selectedEntry === entry}
+    drag={drag}
+    combatLocked={combatLocked}
+    onSelect={() => setSelectedId(entryKey(entry))}
+    onDragStart={startDrag}
+    onDragEnd={clearDrag}
+  />;
+  const renderWeaponGroups = () => weaponSkillGroups.map((group) => {
+    const groupEntries = filteredEntries.filter((entry) => entry.kind === "active-action" && entry.category === "weapon-skill" && entry.proficiencyId === group.proficiencyId);
+    if (!groupEntries.length) return null;
+    const authoredEntries = entries.filter((entry) => entry.kind === "active-action" && entry.category === "weapon-skill" && entry.proficiencyId === group.proficiencyId);
+    const equippedCount = authoredEntries.filter((entry) => entry.kind === "active-action" && game.combatAbilities.activeSlots.includes(entry.actionId)).length;
+    const groupId = `weapon.${group.proficiencyId}`;
+    const level = getProficiencyLevel(game.progression, group.proficiencyId);
+    return <CatalogueAccordionGroup
+      key={groupId}
+      id={groupId}
+      label={group.name}
+      icon={group.icon}
+      count={groupEntries.length}
+      expanded={isGroupExpanded(groupId)}
+      onToggle={() => toggleGroup(groupId)}
+      className="combat-ability-weapon-group"
+      debugGroupType="weapon"
+      debugProficiencyId={group.proficiencyId}
+      meta={<span className="combat-ability-group-meta"><span>{authoredEntries.length} skills · {equippedCount} equipped · Lv {level}</span>{equippedWeaponProficiency === group.proficiencyId && <em>CURRENT WEAPON</em>}</span>}
+    >
+      {groupEntries.map(renderEntry)}
+    </CatalogueAccordionGroup>;
+  });
+  const renderAllSection = (id: string, label: string, icon: string, sectionEntries: CombatAbilityCatalogueEntry[], children?: React.ReactNode) => {
+    if (!sectionEntries.length) return null;
+    return <CatalogueAccordionGroup id={`all.${id}`} label={label} icon={icon} count={sectionEntries.length} expanded={isGroupExpanded(`all.${id}`)} onToggle={() => toggleGroup(`all.${id}`)}>{children ?? sectionEntries.map(renderEntry)}</CatalogueAccordionGroup>;
+  };
+  const renderLibrary = () => {
+    if (filter === "weapon-skills") return renderWeaponGroups();
+    if (filter === "all") {
+      const core = filteredEntries.filter((entry) => entry.kind === "core");
+      const weapons = filteredEntries.filter((entry) => entry.kind === "active-action" && entry.category === "weapon-skill");
+      const defenses = filteredEntries.filter((entry) => entry.kind === "active-action" && entry.category === "active-defense");
+      const techniques = filteredEntries.filter((entry) => entry.kind === "technique");
+      return <>
+        {renderAllSection("core", "CORE", "cross", core)}
+        {renderAllSection("weapon-skills", "WEAPON SKILLS", "sword", weapons, renderWeaponGroups())}
+        {renderAllSection("active-defense", "ACTIVE DEFENSE", "shield", defenses)}
+        {renderAllSection("techniques", "TECHNIQUES", "spark", techniques)}
+      </>;
+    }
+    return filteredEntries.map(renderEntry);
+  };
 
   return (
     <div className="combat-abilities-window" data-debug-kind="combat-abilities-window">
@@ -220,18 +300,12 @@ export function CombatAbilitiesWindow({
         data-debug-drop-state={drag.target === "library" ? drag.state : "idle"}
       >
         <section className="combat-ability-library combatbound-scroll" aria-label="Combat ability library" onDragOver={(event) => setTarget("library", event)} onDrop={(event) => { event.preventDefault(); handleDrop("library"); }}>
-          <div className="section-title"><span className="tiny-label">ABILITY LIBRARY</span><span>{visibleEntries.length}</span></div>
-          {visibleEntries.map((entry) => <LibraryEntry
-            key={entry.kind === "core" ? entry.id : entry.kind === "active-action" ? entry.actionId : entry.techniqueId}
-            entry={entry}
-            game={game}
-            selected={selectedEntry === entry}
-            drag={drag}
-            combatLocked={combatLocked}
-            onSelect={() => setSelectedId(entry.kind === "core" ? entry.id : entry.kind === "active-action" ? entry.actionId : entry.techniqueId)}
-            onDragStart={startDrag}
-            onDragEnd={clearDrag}
-          />)}
+          <div className="section-title"><span className="tiny-label">ABILITY LIBRARY</span><span>{filteredEntries.length}{normalizedQuery ? " matches" : ""}</span></div>
+          <label className="catalogue-search combat-ability-search">
+            <Search size={13} aria-hidden="true" />
+            <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search abilities..." aria-label="Search abilities" data-debug-kind="combat-ability-search" />
+          </label>
+          {filteredEntries.length ? renderLibrary() : <p className="catalogue-no-results">No combat abilities match “{query}”.</p>}
           {libraryDropValid && <div className="combat-ability-unequip-copy"><X size={13} /> DROP HERE TO UNEQUIP</div>}
         </section>
         <CombatAbilityDetails
@@ -251,6 +325,39 @@ export function CombatAbilitiesWindow({
       </div>
     </div>
   );
+}
+
+function combatAbilityEntryMatchesQuery(entry: CombatAbilityCatalogueEntry, normalizedQuery: string) {
+  if (!normalizedQuery) return true;
+  const proficiencyName = entry.kind === "active-action" && entry.proficiencyId
+    ? proficiencyById[entry.proficiencyId]?.name ?? entry.proficiencyId
+    : "";
+  const category = entry.kind === "core"
+    ? "core combat"
+    : entry.kind === "technique"
+      ? "technique sustained stamina dodge parry accuracy"
+      : entry.category === "weapon-skill"
+        ? "weapon skill stamina"
+        : "active defense stamina";
+  const tags = entry.kind === "active-action" && entry.category === "weapon-skill"
+    ? weaponSkillById[entry.actionId]?.tags.join(" ") ?? ""
+    : "";
+  return [entry.kind === "core" ? entry.id : "", entry.kind === "active-action" ? entry.actionId : "", entry.kind === "technique" ? entry.techniqueId : "", entry.name, entry.description, proficiencyName, category, tags].join(" ").toLowerCase().includes(normalizedQuery);
+}
+
+function getDefaultWeaponGroupId(
+  game: GameState,
+  entries: CombatAbilityCatalogueEntry[],
+  selectedId: string,
+  groups: WeaponSkillGroup[],
+) {
+  const selected = entries.find((entry) => entry.kind === "active-action" && entry.category === "weapon-skill" && entry.actionId === selectedId);
+  if (selected?.kind === "active-action" && selected.proficiencyId) return `weapon.${selected.proficiencyId}`;
+  const equippedWeapon = getEquippedWeaponProficiency(game.equipment);
+  if (equippedWeapon && groups.some((group) => group.proficiencyId === equippedWeapon)) return `weapon.${equippedWeapon}`;
+  const equippedSkill = entries.find((entry) => entry.kind === "active-action" && entry.category === "weapon-skill" && game.combatAbilities.activeSlots.includes(entry.actionId));
+  if (equippedSkill?.kind === "active-action" && equippedSkill.proficiencyId) return `weapon.${equippedSkill.proficiencyId}`;
+  return groups[0] ? `weapon.${groups[0].proficiencyId}` : undefined;
 }
 
 function LoadoutSlot({

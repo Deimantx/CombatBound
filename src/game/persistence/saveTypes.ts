@@ -4,6 +4,7 @@ import type { InventoryState } from "../inventory/inventoryTypes";
 import type { ProgressionState } from "../progression/progressionTypes";
 import type { SpellbookState } from "../spellbook/spellbookTypes";
 import type { CombatAutomationState } from "../automation/automationTypes";
+import type { CombatAutomationPresetsState } from "../automation/automationPresets";
 import type { CombatAbilityLoadoutState } from "../combatAbilities/combatAbilityTypes";
 
 export interface GameSaveV4 {
@@ -41,6 +42,20 @@ export interface GameSaveV6 {
   settings: { reducedMotion: boolean; showInspectorButton: boolean };
   spellbook: SpellbookState;
   combatAutomation: CombatAutomationState;
+  combatAbilities: CombatAbilityLoadoutState;
+}
+
+export interface GameSaveV7 {
+  version: 7;
+  progression: ProgressionState;
+  inventory: InventoryState;
+  equipment: EquipmentState;
+  collection: CollectionState;
+  gold: number;
+  settings: { reducedMotion: boolean; showInspectorButton: boolean };
+  spellbook: SpellbookState;
+  combatAutomation: CombatAutomationState;
+  combatAutomationPresets: CombatAutomationPresetsState;
   combatAbilities: CombatAbilityLoadoutState;
 }
 

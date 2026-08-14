@@ -32,6 +32,7 @@ import {
   loadGameSave,
   saveGame,
   clearGameSave,
+  CURRENT_SAVE_VERSION,
 } from "../game/persistence/saveGame";
 import type { StanceId, TechniqueId } from "../game/combat/combatTypes";
 import {
@@ -51,6 +52,13 @@ import {
   unequipTechnique as unequipTechniqueState,
 } from "../game/combatAbilities/combatAbilityLogic";
 import { createInitialCombatAutomation } from "../game/automation/automationTypes";
+import {
+  clearAutomationPreset,
+  loadAutomationPreset as loadAutomationPresetConfig,
+  normalizeCombatAutomationPresets,
+  renameAutomationPreset,
+  saveCurrentAutomationToPreset,
+} from "../game/automation/automationPresets";
 import {
   addAutomationCondition,
   addAutomationRule,
@@ -141,6 +149,10 @@ interface GameStoreState {
   removeAutomationCondition: (ruleId: string, index: number) => void;
   setTargetPriorityEnabled: (priorityId: string, enabled: boolean) => void;
   moveTargetPriority: (priorityId: string, direction: "up" | "down") => void;
+  saveAutomationPreset: (slot: number, name?: string) => void;
+  loadAutomationPreset: (slot: number) => void;
+  renameAutomationPreset: (slot: number, name: string) => void;
+  clearAutomationPreset: (slot: number) => void;
   swapSpellSlots: (first: number, second: number) => void;
   unequipSpell: (slot: number) => void;
   usePotion: () => void;
@@ -179,6 +191,9 @@ const hydratedGame: GameState = saved
       spellbook: normalizeSpellbook(saved.spellbook),
       combatAutomation: normalizeCombatAutomation(
         saved.combatAutomation ?? createInitialCombatAutomation(),
+      ),
+      combatAutomationPresets: normalizeCombatAutomationPresets(
+        saved.combatAutomationPresets,
       ),
       combatAbilities: normalizeCombatAbilityLoadout(
         saved.combatAbilities ?? createInitialCombatAbilityLoadout(),
@@ -273,7 +288,7 @@ function savePermanent(
   settings: { reducedMotion: boolean; showInspectorButton: boolean },
 ) {
   saveGame({
-    version: 6,
+    version: CURRENT_SAVE_VERSION,
     progression: game.progression,
     inventory: game.inventory,
     equipment: game.equipment,
@@ -282,6 +297,7 @@ function savePermanent(
     settings,
     spellbook: game.spellbook,
     combatAutomation: game.combatAutomation,
+    combatAutomationPresets: game.combatAutomationPresets,
     combatAbilities: game.combatAbilities,
   });
 }
@@ -732,6 +748,70 @@ export const useGameStore = create<GameStoreState>((set, get) => {
           moveTargetPriority(state.game.combatAutomation, priorityId, direction),
         ),
       ),
+    saveAutomationPreset: (slot, name) =>
+      set((state) => {
+        const combatAutomationPresets = saveCurrentAutomationToPreset(
+          state.game.combatAutomationPresets,
+          slot,
+          state.game.combatAutomation,
+          name,
+        );
+        if (combatAutomationPresets === state.game.combatAutomationPresets)
+          return state;
+        const game = { ...state.game, combatAutomationPresets };
+        savePermanent(game, {
+          reducedMotion: state.reducedMotion,
+          showInspectorButton: state.showInspectorButton,
+        });
+        return flatState(game, state);
+      }),
+    loadAutomationPreset: (slot) =>
+      set((state) => {
+        const preset = state.game.combatAutomationPresets.slots[slot];
+        if (!preset) return state;
+        const combatAutomation = loadAutomationPresetConfig(
+          state.game.combatAutomationPresets,
+          slot,
+          state.game.combatAutomation,
+        );
+        const game = { ...state.game, combatAutomation };
+        savePermanent(game, {
+          reducedMotion: state.reducedMotion,
+          showInspectorButton: state.showInspectorButton,
+        });
+        return flatState(game, state);
+      }),
+    renameAutomationPreset: (slot, name) =>
+      set((state) => {
+        const combatAutomationPresets = renameAutomationPreset(
+          state.game.combatAutomationPresets,
+          slot,
+          name,
+        );
+        if (combatAutomationPresets === state.game.combatAutomationPresets)
+          return state;
+        const game = { ...state.game, combatAutomationPresets };
+        savePermanent(game, {
+          reducedMotion: state.reducedMotion,
+          showInspectorButton: state.showInspectorButton,
+        });
+        return flatState(game, state);
+      }),
+    clearAutomationPreset: (slot) =>
+      set((state) => {
+        const combatAutomationPresets = clearAutomationPreset(
+          state.game.combatAutomationPresets,
+          slot,
+        );
+        if (combatAutomationPresets === state.game.combatAutomationPresets)
+          return state;
+        const game = { ...state.game, combatAutomationPresets };
+        savePermanent(game, {
+          reducedMotion: state.reducedMotion,
+          showInspectorButton: state.showInspectorButton,
+        });
+        return flatState(game, state);
+      }),
     usePotion: () =>
       set((state) => {
         const stats = calculateHunterCombatStats(
