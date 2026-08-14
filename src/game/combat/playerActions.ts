@@ -9,6 +9,10 @@ import type {
   PlayerActionDefinition,
 } from "./combatTypes";
 import { getBarrierAmount } from "./combatEffects";
+import { isCombatAbilityLoadoutActionKind } from "../combatAbilities/combatAbilityTypes";
+import { weaponSkillDefinitions } from "../data/weaponSkills";
+import { getEquippedWeaponProficiency } from "../progression/progressionSelectors";
+import { getProficiencyLevel } from "../progression/proficiencyProgression";
 
 export const defensiveActionDefinitions: PlayerActionDefinition[] = [
   {
@@ -73,6 +77,24 @@ export const potionAction: PlayerActionDefinition = {
   sourceItemId: "item.healing-potion",
 };
 
+export const weaponSkillActionDefinitions: PlayerActionDefinition[] =
+  weaponSkillDefinitions.map((skill) => ({
+    id: skill.id,
+    kind: "weapon-skill" as const,
+    name: skill.name,
+    description: skill.description,
+    icon: skill.icon,
+    targetMode: "selected-enemy" as const,
+    cooldown: skill.cooldownSeconds,
+    globalCooldown: skill.globalCooldown,
+    resourceCost: { stamina: skill.staminaCost },
+    sourceWeaponSkillId: skill.id,
+  }));
+
+export function getActiveAbilityActionDefinitions() {
+  return [...defensiveActionDefinitions, ...weaponSkillActionDefinitions];
+}
+
 export function getPlayerActionDefinitions(
   game: GameState,
   context: CombatContext,
@@ -95,7 +117,7 @@ export function getPlayerActionDefinitions(
   return [
     basicAttackAction,
     ...spells,
-    ...defensiveActionDefinitions,
+    ...getActiveAbilityActionDefinitions(),
     potionAction,
   ];
 }
@@ -108,6 +130,10 @@ export function getActionById(
   return getPlayerActionDefinitions(game, context).find(
     (action) => action.id === actionId,
   );
+}
+
+export function isCombatAbilityLoadoutAction(action: PlayerActionDefinition) {
+  return isCombatAbilityLoadoutActionKind(action.kind);
 }
 
 export interface ActionValidationResult {
@@ -181,6 +207,29 @@ export function validatePlayerAction(
   if (combat.phase !== "active")
     return { valid: false, reason: "combat-inactive", action };
   if (!action) return { valid: false, reason: "combat-inactive" };
+  if (
+    isCombatAbilityLoadoutAction(action) &&
+    !game.combatAbilities.activeSlots.includes(action.id)
+  )
+    return { valid: false, reason: "ability-not-equipped", action };
+  if (action.sourceWeaponSkillId) {
+    const skill = weaponSkillDefinitions.find(
+      (candidate) => candidate.id === action.sourceWeaponSkillId,
+    );
+    if (!skill) return { valid: false, reason: "weapon-requirement", action };
+    if (getEquippedWeaponProficiency(game.equipment) !== skill.proficiencyId)
+      return { valid: false, reason: "weapon-requirement", action };
+    if (
+      combatBalance.enforceWeaponSkillLevelRequirements &&
+      getProficiencyLevel(game.progression, skill.unlock.proficiencyId) <
+        skill.unlock.level
+    )
+      return {
+        valid: false,
+        reason: "proficiency-level-requirement",
+        action,
+      };
+  }
   if (action.kind === "spell") {
     if (!game.spellbook.knownSpellIds.includes(action.id))
       return { valid: false, reason: "spell-not-known", action };
@@ -290,6 +339,8 @@ export function getSpellActionView(
 export const standardGlobalCooldown = combatBalance.standardGlobalCooldown;
 
 export function reasonLabel(reason?: ActionValidationReason) {
+  if (reason === "weapon-requirement") return "REQUIRES ONE-HANDED SWORD";
+  if (reason === "proficiency-level-requirement") return "REQUIRES PROFICIENCY LEVEL";
   return reason ? reason.replaceAll("-", " ").toUpperCase() : "READY";
 }
 

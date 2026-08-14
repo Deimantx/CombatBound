@@ -20,6 +20,10 @@ import {
   createInitialCombatAutomation,
   type CombatAutomationState,
 } from "./automation/automationTypes";
+import {
+  createInitialCombatAbilityLoadout,
+} from "./combatAbilities/combatAbilityLogic";
+import type { CombatAbilityLoadoutState } from "./combatAbilities/combatAbilityTypes";
 
 export interface GameState {
   combat: CombatState;
@@ -30,6 +34,7 @@ export interface GameState {
   gold: number;
   spellbook: SpellbookState;
   combatAutomation: CombatAutomationState;
+  combatAbilities: CombatAbilityLoadoutState;
 }
 
 export function createInitialGameState(): GameState {
@@ -53,5 +58,6 @@ export function createInitialGameState(): GameState {
     gold: 0,
     spellbook: createInitialSpellbook(),
     combatAutomation: createInitialCombatAutomation(),
+    combatAbilities: createInitialCombatAbilityLoadout(),
   };
 }

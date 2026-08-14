@@ -5,8 +5,9 @@ import type { CombatProficiencyId, ProficiencyDefinition } from '../progression/
 
 const authoredPerkIds = (proficiencyId: CombatProficiencyId) => proficiencyPerkDefinitions.filter((perk) => perk.proficiencyId === proficiencyId).map((perk) => perk.id)
 
+// TODO(V8.3): One-Handed Sword perk tree Bleed branch needs a future identity pass.
 const baseDefinitions: ProficiencyDefinition[] = [
-  { id: 'one-handed-sword', name: 'One-Handed Sword', category: 'melee', description: 'Balanced, accurate swordplay with critical, parry, and Bleed potential.', icon: 'sword', maxLevel: MAX_PROFICIENCY_LEVEL, perkIds: authoredPerkIds('one-handed-sword') },
+  { id: 'one-handed-sword', name: 'One-Handed Sword', category: 'melee', description: 'Balanced, accurate swordplay focused on precision, parry, tempo, and fluid positioning.', icon: 'sword', maxLevel: MAX_PROFICIENCY_LEVEL, perkIds: authoredPerkIds('one-handed-sword') },
   { id: 'one-handed-axe', name: 'One-Handed Axe', category: 'melee', description: 'Aggressive direct damage with Bleed and Armor-breaking potential.', icon: 'axe', maxLevel: MAX_PROFICIENCY_LEVEL, perkIds: authoredPerkIds('one-handed-axe') },
   { id: 'one-handed-mace', name: 'One-Handed Mace', category: 'melee', description: 'Heavy impact and Armor-crushing pressure against armored targets.', icon: 'hammer', maxLevel: MAX_PROFICIENCY_LEVEL, perkIds: authoredPerkIds('one-handed-mace') },
   { id: 'dagger', name: 'Dagger', category: 'melee', description: 'Fast precision strikes with Critical Hit and Bleed potential.', icon: 'sword', maxLevel: MAX_PROFICIENCY_LEVEL, perkIds: authoredPerkIds('dagger') },

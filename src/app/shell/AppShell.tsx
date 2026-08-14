@@ -17,6 +17,11 @@ import { readInspectorPreferences, writeInspectorPreferences } from '../debug/ui
 export function AppShell() {
   const screen = useGameStore((state) => state.screen)
   const combatActive = useGameStore((state) => state.combatActive)
+  const outOfCombatRecoveryActive = useGameStore((state) => {
+    const combat = state.game.combat
+    if (combat.phase !== 'inactive' && combat.phase !== 'stopped') return false
+    return combat.playerHp < combat.maxPlayerHp || combat.stamina < combat.maxStamina || combat.mana < combat.maxMana
+  })
   const tickCombat = useGameStore((state) => state.tickCombat)
   const reducedMotion = useGameStore((state) => state.reducedMotion)
   const showInspectorButton = useGameStore((state) => state.showInspectorButton)
@@ -25,10 +30,10 @@ export function AppShell() {
   const [inspectorOpen, setInspectorOpen] = useState(false)
 
   useEffect(() => {
-    if (!combatActive) return
+    if (!combatActive && !outOfCombatRecoveryActive) return
     const interval = window.setInterval(() => tickCombat(0.1), 100)
     return () => window.clearInterval(interval)
-  }, [combatActive, tickCombat])
+  }, [combatActive, outOfCombatRecoveryActive, tickCombat])
 
   useEffect(() => {
     document.documentElement.dataset.reducedMotion = reducedMotion ? 'true' : 'false'

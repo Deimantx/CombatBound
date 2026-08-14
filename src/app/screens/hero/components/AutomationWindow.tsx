@@ -2,7 +2,8 @@ import { ArrowDown, ArrowUp, BookOpen, Plus, Trash2 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { effectDefinitions } from "../../../../game/data/effects";
 import { createCombatPreviewContext } from "../../../../game/combat/combatEngine";
-import { getPlayerActionDefinitions } from "../../../../game/combat/playerActions";
+import { getPlayerActionDefinitions, isCombatAbilityLoadoutAction } from "../../../../game/combat/playerActions";
+import { getCombatAbilityAvailability } from "../../../../game/combatAbilities/combatAbilitySelectors";
 import { getAutomationSummary } from "../../../../game/automation/automationLogic";
 import type { AutomationCondition, AutomationRule } from "../../../../game/automation/automationTypes";
 import { useGameStore } from "../../../../state/gameStore";
@@ -105,8 +106,20 @@ export function AutomationWindow({ game, initialActionId, createRule = false }: 
           <div className="section-title"><span className="tiny-label">RULES</span><button className="button button-ghost" onClick={addNewRule}><Plus size={13} /> ADD RULE</button></div>
           {[...game.combatAutomation.rules].sort((a, b) => a.priority - b.priority || a.id.localeCompare(b.id)).map((rule) => {
             const action = actions.find((candidate) => candidate.id === rule.actionId);
-            const inactive = rule.actionId.startsWith("spell.") && !game.spellbook.equippedSpellSlots.includes(rule.actionId);
-            return <button key={rule.id} className={`automation-rule-card ${selectedRuleId === rule.id && !draftRule ? "is-selected" : ""} ${rule.enabled ? "is-enabled" : "is-disabled"}`} onClick={() => { setDraftRule(null); setSelectedRuleId(rule.id); }} data-debug-kind="automation-rule" data-debug-rule-id={rule.id} data-debug-action-id={rule.actionId} data-debug-priority={rule.priority} data-debug-enabled={rule.enabled} data-debug-config-valid={Boolean(action)}>{(action?.name ?? rule.actionId) || "Missing action"}<small>{!action ? "INVALID CONFIG · MISSING ACTION" : inactive ? "INACTIVE · SPELL NOT EQUIPPED" : rule.enabled ? "READY" : "DISABLED"}</small></button>;
+            const abilityAvailability = action && isCombatAbilityLoadoutAction(action)
+              ? getCombatAbilityAvailability(game, rule.actionId)
+              : undefined;
+            const inactive = action?.kind === "spell"
+              ? !game.spellbook.equippedSpellSlots.includes(rule.actionId)
+              : action && isCombatAbilityLoadoutAction(action)
+                ? !game.combatAbilities.activeSlots.includes(rule.actionId) || !abilityAvailability?.usable
+                : false;
+            const inactiveLabel = action?.kind === "spell"
+              ? "INACTIVE · SPELL NOT EQUIPPED"
+              : abilityAvailability && !abilityAvailability.usable
+                ? `INACTIVE · ${abilityAvailability.label}`
+                : "INACTIVE · ABILITY NOT EQUIPPED";
+            return <button key={rule.id} className={`automation-rule-card ${selectedRuleId === rule.id && !draftRule ? "is-selected" : ""} ${rule.enabled ? "is-enabled" : "is-disabled"}`} onClick={() => { setDraftRule(null); setSelectedRuleId(rule.id); }} data-debug-kind="automation-rule" data-debug-rule-id={rule.id} data-debug-action-id={rule.actionId} data-debug-priority={rule.priority} data-debug-enabled={rule.enabled} data-debug-config-valid={Boolean(action)}>{(action?.name ?? rule.actionId) || "Missing action"}<small>{!action ? "INVALID CONFIG · MISSING ACTION" : inactive ? inactiveLabel : rule.enabled ? "READY" : "DISABLED"}</small></button>;
           })}
           <div className="target-priority-list"><div className="section-title"><span className="tiny-label">TARGET PRIORITY</span></div>{[...game.combatAutomation.targetPriorityRules].sort((a, b) => a.priority - b.priority).map((priority, index, list) => <div className="target-priority-row" key={priority.id}><span>{priority.priority} {targetCriterionLabel(priority.criterion)}</span><button className={`button button-ghost compact ${priority.enabled ? "is-active" : ""}`} onClick={() => setPriorityEnabled(priority.id, !priority.enabled)}>{priority.enabled ? "ON" : "OFF"}</button><button className="icon-button compact" aria-label="Move target priority up" disabled={index === 0} onClick={() => movePriority(priority.id, "up")}><ArrowUp size={12} /></button><button className="icon-button compact" aria-label="Move target priority down" disabled={index === list.length - 1} onClick={() => movePriority(priority.id, "down")}><ArrowDown size={12} /></button></div>)}</div>
         </section>
@@ -128,7 +141,7 @@ function RuleEditor({ rule, actions, isDraft = false, onSave, onDelete, onToggle
   const removeCondition = (index: number) => setDraft((current) => ({ ...current, conditions: current.conditions.filter((_, entryIndex) => entryIndex !== index) }));
   return <div className="automation-rule-editor-content" data-debug-kind="automation-rule-editor">
     <div className="editor-heading"><div><span className="tiny-label">RULE EDITOR</span><h3>{(actions.find((action) => action.id === draft.actionId)?.name ?? draft.actionId) || "Missing action"}</h3></div><span className={`automation-config-status ${actions.some((action) => action.id === draft.actionId) ? "is-ready" : "is-invalid"}`}>{actions.some((action) => action.id === draft.actionId) ? (draft.actionId.startsWith("spell.") ? "READY / LOADOUT STATUS SHOWN" : "READY") : "INVALID CONFIG · MISSING ACTION"}</span></div>
-    <label className="hero-field"><span>Action</span><select value={draft.actionId} onChange={(event) => setDraft((current) => ({ ...current, actionId: event.target.value }))} data-hero-window-focus><option value="">Choose action</option><optgroup label="SPELLS">{actions.filter((action) => action.kind === "spell").map((action) => <option key={action.id} value={action.id}>{action.name}</option>)}</optgroup><optgroup label="ACTIVE DEFENSE">{actions.filter((action) => action.kind === "defensive").map((action) => <option key={action.id} value={action.id}>{action.name}</option>)}</optgroup><optgroup label="CONSUMABLES">{actions.filter((action) => action.kind === "consumable").map((action) => <option key={action.id} value={action.id}>{action.name}</option>)}</optgroup></select></label>
+    <label className="hero-field"><span>Action</span><select value={draft.actionId} onChange={(event) => setDraft((current) => ({ ...current, actionId: event.target.value }))} data-hero-window-focus><option value="">Choose action</option><optgroup label="SPELLS">{actions.filter((action) => action.kind === "spell").map((action) => <option key={action.id} value={action.id}>{action.name}</option>)}</optgroup><optgroup label="WEAPON SKILLS · ONE-HANDED SWORD">{actions.filter((action) => action.kind === "weapon-skill").map((action) => <option key={action.id} value={action.id}>{action.name}</option>)}</optgroup><optgroup label="ACTIVE DEFENSE">{actions.filter((action) => action.kind === "defensive").map((action) => <option key={action.id} value={action.id}>{action.name}</option>)}</optgroup><optgroup label="CONSUMABLES">{actions.filter((action) => action.kind === "consumable").map((action) => <option key={action.id} value={action.id}>{action.name}</option>)}</optgroup></select></label>
     <label className="hero-field"><span>Priority</span><input type="number" min="1" value={draft.priority} onChange={(event) => setDraft((current) => ({ ...current, priority: Number(event.target.value) }))} /></label>
     <div className="section-title"><span className="tiny-label">CONDITIONS · ALL MUST MATCH</span><button className="button button-ghost" onClick={addCondition}><Plus size={13} /> ADD CONDITION</button></div>
     {draft.conditions.map((condition, index) => <ConditionEditor key={index} condition={condition} onChange={(next) => updateCondition(index, next)} onRemove={() => removeCondition(index)} />)}

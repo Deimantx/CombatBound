@@ -126,7 +126,7 @@ describe('gameplay domain', () => {
     expect(advanced.combat.log[0]?.text).toBe('Techniques deactivated: Stamina depleted.')
   })
 
-  it('accelerates Stamina but not Mana regeneration during group recovery', () => {
+  it('doubles Stamina and Mana regeneration during group recovery', () => {
     const game = createInitialGameState()
     const stats = { ...statsFor(game), staminaRegen: 5, manaRegen: 1 }
     const started = startHunt(game, 'location.wolf-den', stats, fixedContext)
@@ -135,8 +135,54 @@ describe('gameplay domain', () => {
     expect(cleared.combat.phase).toBe('recovery')
     const beforeRecovery = cleared.combat
     const recovering = advanceCombat(cleared, 1, fixedContext, stats)
-    expect(recovering.combat.stamina - beforeRecovery.stamina).toBeCloseTo(15, 5)
-    expect(recovering.combat.mana - beforeRecovery.mana).toBeCloseTo(1, 5)
+    expect(recovering.combat.stamina - beforeRecovery.stamina).toBeCloseTo(10, 5)
+    expect(recovering.combat.mana - beforeRecovery.mana).toBeCloseTo(2, 5)
+  })
+
+  it('regenerates 1% of max HP every 3 seconds while travelling between groups', () => {
+    const game = createInitialGameState()
+    const stats = statsFor(game)
+    const started = startHunt(game, 'location.wolf-den', stats, fixedContext)
+    const recovering = {
+      ...started,
+      combat: {
+        ...started.combat,
+        phase: 'recovery' as const,
+        recoveryRemaining: 2,
+        playerHp: started.combat.maxPlayerHp - 50,
+        stamina: 10,
+        mana: 10,
+      },
+    }
+    const advanced = advanceCombat(recovering, 1, fixedContext, stats)
+    expect(advanced.combat.playerHp - recovering.combat.playerHp).toBeCloseTo(
+      started.combat.maxPlayerHp * 0.01 / 3,
+      5,
+    )
+    expect(advanced.combat.stamina).toBeCloseTo(20, 5)
+    expect(advanced.combat.mana).toBeCloseTo(12, 5)
+  })
+
+  it('regenerates missing resources while stopped and not fighting', () => {
+    const game = createInitialGameState()
+    const stats = statsFor(game)
+    const stopped = {
+      ...game,
+      combat: {
+        ...game.combat,
+        phase: 'stopped' as const,
+        playerHp: game.combat.maxPlayerHp - 50,
+        stamina: 10,
+        mana: 10,
+      },
+    }
+    const advanced = advanceCombat(stopped, 1, fixedContext, stats)
+    expect(advanced.combat.playerHp - stopped.combat.playerHp).toBeCloseTo(
+      stats.maxHealth * 0.01 / 3,
+      5,
+    )
+    expect(advanced.combat.stamina).toBeCloseTo(20, 5)
+    expect(advanced.combat.mana).toBeCloseTo(12, 5)
   })
 
   it('preserves current resources when a recovery spawns the next group', () => {
@@ -148,7 +194,7 @@ describe('gameplay domain', () => {
     const nextGroup = advanceCombat(cleared, combatBalance.recoverySeconds + 0.01, fixedContext, stats)
     expect(nextGroup.combat.phase).toBe('active')
     expect(nextGroup.combat.stamina).toBeCloseTo(20, 5)
-    expect(nextGroup.combat.mana).toBeCloseTo(23.02, 5)
+    expect(nextGroup.combat.mana).toBeCloseTo(26.02, 5)
     expect(nextGroup.combat.stamina).toBeLessThan(nextGroup.combat.maxStamina)
   })
 

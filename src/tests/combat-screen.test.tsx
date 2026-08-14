@@ -49,6 +49,8 @@ describe('combat screen dashboard', () => {
     expect(screen.getByText('ENEMY GROUP')).toBeInTheDocument()
     expect(screen.getByText('YOUR ATTACK')).toBeInTheDocument()
     expect(screen.getByText(/Healing Potion/)).toBeInTheDocument()
+    expect(screen.queryByText('AUTOMATION')).not.toBeInTheDocument()
+    expect(screen.getByText('COMBAT ABILITIES')).toBeInTheDocument()
     expect(screen.getByRole('progressbar', { name: 'Player attack progress' })).toBeInTheDocument()
     expect(screen.getByRole('progressbar', { name: /^Selected target .+ health$/ })).toBeInTheDocument()
     expect(screen.getAllByRole('progressbar', { name: / health$/i }).length).toBeGreaterThan(1)

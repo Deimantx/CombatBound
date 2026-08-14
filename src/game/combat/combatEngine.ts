@@ -7,6 +7,7 @@ import {
 import { stanceDefinitions } from "../data/stances";
 import { techniqueDefinitions } from "../data/techniques";
 import { spellById } from "../data/spells";
+import { weaponSkillById } from "../data/weaponSkills";
 import { effectById } from "../data/effects";
 import { enemyById } from "../data/enemies";
 import { combatLocationById } from "../data/world/combatLocations";
@@ -85,6 +86,7 @@ import {
   combatInteractionDefinitions,
   resolveCombatInteractions,
 } from "./combatInteractions";
+import { canToggleTechnique } from "../combatAbilities/combatAbilitySelectors";
 import {
   evaluateAutomation,
   selectAutomationTarget,
@@ -181,6 +183,37 @@ function getPlayerStats(
     progression,
     context.effects,
   );
+}
+
+function recoverOutOfCombatResources(
+  combat: CombatState,
+  effective: ReturnType<typeof getPlayerStats>,
+  step: number,
+): CombatState {
+  const maxHealth = effective.maxHealth;
+  const maxStamina = effective.maxStamina;
+  const maxMana = effective.maxMana;
+  const healthRegen =
+    maxHealth * combatBalance.recoveryHealthFractionPerSecond * step;
+  const resourceMultiplier = combatBalance.recoveryResourceRegenMultiplier;
+
+  return {
+    ...combat,
+    maxPlayerHp: maxHealth,
+    playerHp: Math.min(maxHealth, combat.playerHp + healthRegen),
+    maxStamina,
+    stamina: clamp(
+      combat.stamina + effective.staminaRegen * resourceMultiplier * step,
+      0,
+      maxStamina,
+    ),
+    maxMana,
+    mana: clamp(
+      combat.mana + effective.manaRegen * resourceMultiplier * step,
+      0,
+      maxMana,
+    ),
+  };
 }
 
 function awardCombatXp(
@@ -530,12 +563,16 @@ export function setStance(
   return next;
 }
 
-export function toggleTechnique(combat: CombatState, technique: TechniqueId) {
+export function toggleTechnique(game: GameState, technique: TechniqueId) {
+  if (!canToggleTechnique(game, technique)) return game;
   return {
-    ...combat,
-    techniques: {
-      ...combat.techniques,
-      [technique]: !combat.techniques[technique],
+    ...game,
+    combat: {
+      ...game.combat,
+      techniques: {
+        ...game.combat.techniques,
+        [technique]: !game.combat.techniques[technique],
+      },
     },
   };
 }
@@ -554,6 +591,15 @@ export function executePlayerAction(
   const validation = validatePlayerAction(game, actionId, stats, context);
   if (!validation.valid || !validation.action) return game;
   const action = validation.action;
+  if (action.kind === "weapon-skill" && action.sourceWeaponSkillId)
+    return executeWeaponSkill(
+      game,
+      action,
+      weaponSkillById[action.sourceWeaponSkillId],
+      stats,
+      context,
+      source,
+    );
   const effectId =
     actionId === "defense.guard"
       ? "effect.guarding"
@@ -601,6 +647,118 @@ export function executePlayerAction(
     data: { actionId: action.id, manaCost },
   });
   return next;
+}
+
+function executeWeaponSkill(
+  game: GameState,
+  action: NonNullable<ReturnType<typeof validatePlayerAction>["action"]>,
+  skill: (typeof weaponSkillById)[string] | undefined,
+  stats: HunterCombatStats,
+  context: CombatContext,
+  source: "manual" | "automation",
+): GameState {
+  if (!skill) return game;
+  const target = game.combat.enemies.find(
+    (enemy) =>
+      enemy.instanceId === game.combat.selectedEnemyInstanceId &&
+      !enemy.defeated,
+  );
+  if (!target) return game;
+  const cost = getEffectivePlayerActionCost(game, action, stats, context);
+  const attackerStats = getPlayerStats(
+    game.combat,
+    stats,
+    context,
+    game.progression,
+  );
+  let next: GameState = {
+    ...game,
+    combat: {
+      ...game.combat,
+      stamina: game.combat.stamina - cost.stamina,
+      actionCooldowns: {
+        ...game.combat.actionCooldowns,
+        [action.id]: action.cooldown,
+      },
+      globalCooldownRemaining:
+        typeof action.globalCooldown === "number"
+          ? action.globalCooldown
+          : action.globalCooldown === "standard"
+            ? combatBalance.standardGlobalCooldown
+            : 0,
+    },
+  };
+  const sourceRef: CombatantRef = { kind: "player" };
+  const targetRef: CombatantRef = {
+    kind: "enemy",
+    instanceId: target.instanceId,
+  };
+  next.combat = event(next.combat, {
+    text: `${skill.name} used.`,
+    type: "player",
+    eventType:
+      source === "automation" ? "automationActionUsed" : "playerActionUsed",
+    source: sourceRef,
+    target: targetRef,
+    data: { actionId: action.id, staminaCost: cost.stamina },
+  });
+  const effectsToApply: Array<{
+    effectId: string;
+    chance: number;
+    options?: {
+      targetMode?: "source" | "target";
+      requireHpDamage?: boolean;
+      sourceProficiencyId?: CombatProficiencyId;
+    };
+  }> = [];
+  if (skill.selfEffectId)
+    effectsToApply.push({
+      effectId: skill.selfEffectId,
+      chance: 1,
+      options: {
+        targetMode: "source",
+        requireHpDamage: true,
+        sourceProficiencyId: skill.proficiencyId,
+      },
+    });
+  if (skill.targetEffectId)
+    effectsToApply.push({
+      effectId: skill.targetEffectId,
+      chance: 1,
+      options: {
+        targetMode: "target",
+        requireHpDamage: true,
+        sourceProficiencyId: skill.proficiencyId,
+      },
+    });
+  return damageEnemy(
+    next,
+    target,
+    {
+      ...componentFromAttack("physical", 1, skill.canCrit),
+      source: sourceRef,
+      target: targetRef,
+      sourceActionId: skill.id,
+      weaponSkillId: skill.id,
+      damageMultiplier: skill.damageMultiplier,
+      attackerAccuracy: attackerStats.accuracy + skill.accuracyModifier,
+      cleave: skill.cleave,
+      defensiveEligibility: {
+        canMiss: true,
+        dodgeable: true,
+        parryable: true,
+        blockable: true,
+      },
+      progressionSource: {
+        type: "equippedWeapon",
+        proficiencyEligible: true,
+      },
+    },
+    attackerStats,
+    context,
+    `You use ${skill.name} on ${target.displayName}`,
+    effectsToApply,
+  );
 }
 
 export function castSpell(
@@ -1090,6 +1248,8 @@ function applyEffectToGame(
     progressionCredit?: ProgressionCredit;
     sourceProficiencyId?: CombatProficiencyId;
     secondaryOnly?: boolean;
+    targetMode?: "source" | "target";
+    requireHpDamage?: boolean;
     durationBonusSeconds?: number;
     durationMultiplier?: number;
     periodicPowerMultiplier?: number;
@@ -1130,6 +1290,95 @@ function applyEffectToGame(
       data: { effectId, stacks: result.instance.stacks },
     }),
   };
+}
+
+function applyDerivedCleaveDamage(
+  game: GameState,
+  target: EnemyCombatInstance,
+  amount: number,
+  source: CombatantRef,
+  sourceActionId: string,
+  proficiencyId: CombatProficiencyId | null,
+  context: CombatContext,
+  prefix: string,
+) {
+  const current = game.combat.enemies.find(
+    (enemy) => enemy.instanceId === target.instanceId,
+  );
+  if (!current || current.defeated)
+    return {
+      game,
+      progressionResult: null as ReturnType<typeof awardProficiencyXp> | null,
+    };
+  const targetRef: CombatantRef = {
+    kind: "enemy",
+    instanceId: current.instanceId,
+  };
+  const barrierResult = absorbDamage(
+    game.combat,
+    targetRef,
+    Math.max(0, amount),
+    context.effects,
+  );
+  const healthDamage = Math.min(
+    current.currentHealth,
+    Math.max(0, amount - barrierResult.absorbed),
+  );
+  const defeated = current.currentHealth - healthDamage <= 0;
+  let next: GameState = {
+    ...game,
+    combat: {
+      ...barrierResult.combat,
+      enemies: barrierResult.combat.enemies.map((enemy) =>
+        enemy.instanceId === current.instanceId
+          ? {
+              ...enemy,
+              currentHealth: Math.max(0, enemy.currentHealth - healthDamage),
+              defeated,
+              currentAction: defeated ? null : enemy.currentAction,
+            }
+          : enemy,
+      ),
+      session: {
+        ...barrierResult.combat.session,
+        damageDealt: barrierResult.combat.session.damageDealt + healthDamage,
+        highestHit: Math.max(
+          barrierResult.combat.session.highestHit,
+          healthDamage,
+        ),
+      },
+    },
+  };
+  next = awardBarrierCredits(next, barrierResult.absorptions);
+  let progressionResult: ReturnType<typeof awardProficiencyXp> | null = null;
+  if (proficiencyId && healthDamage > 0) {
+    const awarded = awardCombatXp(
+      next,
+      proficiencyId,
+      calculateProficiencyXpAward({
+        type: "effective-hp-damage",
+        amount: healthDamage,
+      }),
+    );
+    next = awarded.game;
+    progressionResult = awarded.result;
+  }
+  next.combat = event(next.combat, {
+    text:
+      `${prefix} for ${healthDamage} damage${barrierResult.absorbed > 0 ? ` (${barrierResult.absorbed} absorbed)` : ""}.`,
+    type: "player",
+    eventType: healthDamage > 0 ? "damageDealt" : "damageAbsorbed",
+    source,
+    target: targetRef,
+    data: {
+      actionId: sourceActionId,
+      damage: healthDamage,
+      absorbed: barrierResult.absorbed,
+      derived: true,
+      critical: false,
+    },
+  });
+  return { game: next, progressionResult };
 }
 
 function applySpellInteractions(
@@ -1217,6 +1466,8 @@ function damageEnemy(
       progressionCredit?: ProgressionCredit;
       sourceProficiencyId?: CombatProficiencyId;
       secondaryOnly?: boolean;
+      targetMode?: "source" | "target";
+      requireHpDamage?: boolean;
       durationBonusSeconds?: number;
       durationMultiplier?: number;
       periodicPowerMultiplier?: number;
@@ -1286,9 +1537,10 @@ function damageEnemy(
       : null;
   const secondaryFraction =
     magicAttack?.spellSecondaryTargetFraction ??
-    weaponAttack.secondaryTargetFraction;
+    (packet.weaponSkillId ? 0 : weaponAttack.secondaryTargetFraction);
   const secondaryCount =
-    magicAttack?.spellSecondaryTargetCount ?? weaponAttack.secondaryTargetCount;
+    magicAttack?.spellSecondaryTargetCount ??
+    (packet.weaponSkillId ? 0 : weaponAttack.secondaryTargetCount);
   const armorPenetrationPercent =
     magicAttack?.spellArmorPenetrationPercent ??
     weaponAttack.armorPenetrationPercent;
@@ -1298,6 +1550,7 @@ function damageEnemy(
     {
       ...packet,
       damageMultiplier:
+        (packet.damageMultiplier ?? 1) *
         conditionalMultiplier *
         interactionMultiplier *
         (isSecondary ? secondaryFraction : 1),
@@ -1504,21 +1757,30 @@ function damageEnemy(
     for (const applied of effectsToApply)
       if (
         !(applied.options?.secondaryOnly && !isSecondary) &&
+        (!applied.options?.requireHpDamage || effectiveHealthDamage > 0) &&
         (applied.chance >= 1 || context.rng.next() < applied.chance)
-      )
+      ) {
+        const effectTarget =
+          applied.options?.targetMode === "source"
+            ? packet.source
+            : packet.target;
+        const effectTargetStats =
+          effectTarget.kind === "player" ? attackerStats : defenderStats;
         next = applyEffectToGame(
           next,
           applied.effectId,
           packet.source,
-          packet.target,
-          defenderStats,
+          effectTarget,
+          effectTargetStats,
           context,
           applied.options,
         );
+      }
     if (
       packet.progressionSource?.type === "equippedWeapon" &&
       packet.progressionSource.proficiencyEligible &&
-      effectiveHealthDamage > 0
+      effectiveHealthDamage > 0 &&
+      !packet.weaponSkillId
     ) {
       for (const applied of getWeaponHitEffectHooks(
         next.progression,
@@ -1571,7 +1833,7 @@ function damageEnemy(
             ),
           };
     }
-    if (resolution.outcome === "block" && weaponProficiencyId)
+    if (resolution.outcome === "block" && weaponProficiencyId && !packet.weaponSkillId)
       for (const hook of getWeaponBlockEffectHooks(
         next.progression,
         weaponProficiencyId,
@@ -1586,7 +1848,7 @@ function damageEnemy(
           context,
           { durationBonusSeconds: hook.durationSeconds },
         );
-  } else if (resolution.outcome === "dodge" && weaponProficiencyId) {
+  } else if (resolution.outcome === "dodge" && weaponProficiencyId && !packet.weaponSkillId) {
     for (const hook of getWeaponDodgeEffectHooks(
       next.progression,
       weaponProficiencyId,
@@ -1604,6 +1866,8 @@ function damageEnemy(
   }
   if (
     allowSecondary &&
+    !packet.cleave &&
+    !packet.weaponSkillId &&
     (weaponProficiencyId || magicAttack) &&
     secondaryCount > 0 &&
     (resolution.outcome === "hit" || resolution.outcome === "block")
@@ -1628,6 +1892,35 @@ function damageEnemy(
         false,
         true,
       );
+    }
+  }
+  if (
+    allowSecondary &&
+    packet.cleave &&
+    effectiveHealthDamage > 0 &&
+    (resolution.outcome === "hit" || resolution.outcome === "block")
+  ) {
+    const secondaryTargets = next.combat.enemies
+      .filter(
+        (enemy) => enemy.instanceId !== current.instanceId && !enemy.defeated,
+      )
+      .slice(0, Math.max(0, Math.floor(packet.cleave.maxSecondaryTargets)));
+    const derivedDamage =
+      effectiveHealthDamage * packet.cleave.primaryResolvedDamageFraction;
+    for (const secondaryTarget of secondaryTargets) {
+      const derived = applyDerivedCleaveDamage(
+        next,
+        secondaryTarget,
+        derivedDamage,
+        packet.source,
+        packet.sourceActionId ?? packet.weaponSkillId ?? "weapon-skill",
+        proficiencyId,
+        context,
+        `${prefix} (cleave)`,
+      );
+      next = derived.game;
+      if (derived.progressionResult)
+        progressionResults.push(derived.progressionResult);
     }
   }
   for (const progressionResult of progressionResults) {
@@ -1722,23 +2015,8 @@ function advanceStep(
     game = advanceCombatEffects(game, step, context, stats);
     combat = game.combat;
     const effective = getPlayerStats(combat, stats, context, game.progression);
-    const healed = Math.min(
-      effective.maxHealth,
-      combat.playerHp + combatBalance.recoveryHealthPerSecond * 3 * step,
-    );
     combat = {
-      ...combat,
-      playerHp: healed,
-      maxPlayerHp: effective.maxHealth,
-      stamina: clamp(
-        combat.stamina +
-          effective.staminaRegen *
-            step *
-            combatBalance.recoveryStaminaRegenMultiplier,
-        0,
-        combat.maxStamina,
-      ),
-      mana: clamp(combat.mana + effective.manaRegen * step, 0, combat.maxMana),
+      ...recoverOutOfCombatResources(combat, effective, step),
       recoveryRemaining: combat.recoveryRemaining - step,
       session: {
         ...combat.session,
@@ -1748,7 +2026,7 @@ function advanceStep(
     if (
       combat.recoveryRemaining <= 0 &&
       combat.combatLocationId &&
-      healed / effective.maxHealth >= combatBalance.safetyStopThreshold
+      combat.playerHp / effective.maxHealth >= combatBalance.safetyStopThreshold
     ) {
       const location = context.locations[combat.combatLocationId];
       const group = location
@@ -1771,6 +2049,13 @@ function advanceStep(
     } else if (combat.recoveryRemaining <= 0)
       combat = { ...combat, phase: "stopped", stopReason: "safety" };
     return { ...game, combat };
+  }
+  if (combat.phase === "inactive" || combat.phase === "stopped") {
+    const effective = getPlayerStats(combat, stats, context, game.progression);
+    return {
+      ...game,
+      combat: recoverOutOfCombatResources(combat, effective, step),
+    };
   }
   if (combat.phase !== "active") return game;
   combat = {

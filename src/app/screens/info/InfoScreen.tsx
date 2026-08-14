@@ -22,6 +22,7 @@ import { proficiencyPerkDefinitions } from "../../../game/data/proficiencyPerks"
 import { spellDefinitions } from "../../../game/data/spells";
 import { stanceDefinitions } from "../../../game/data/stances";
 import { techniqueDefinitions } from "../../../game/data/techniques";
+import { weaponSkillDefinitions } from "../../../game/data/weaponSkills";
 import { combatInteractionDefinitions } from "../../../game/combat/combatInteractions";
 import { CollapsiblePanel } from "../../components/CollapsiblePanel";
 import { Panel } from "../../components/Panel";
@@ -119,6 +120,18 @@ export function InfoScreen() {
           />
         </Panel>
         <Panel
+          title="Combat Abilities"
+          subtitle="Prepare non-magic actions in Hero"
+          icon={Zap}
+          panelId="infoCombatAbilities"
+          screen="info"
+          className="info-guide"
+        >
+          <GuideRow icon={Zap} title="Active Ability Loadout" copy="Active Abilities are equipped in Hero and spend Stamina when triggered. Only equipped abilities appear in Combat." />
+          <GuideRow icon={Shield} title="Technique Loadout" copy="Sustained Techniques are toggled during Combat and drain Stamina continuously while enabled." />
+          <GuideRow icon={Swords} title="Equipment requirements" copy="Known abilities remain visible even when unavailable. Hero shows whether the current equipment satisfies each requirement." />
+        </Panel>
+        <Panel
           title="Combat Resolution"
           subtitle="The current defensive order"
           icon={Crosshair}
@@ -148,6 +161,20 @@ export function InfoScreen() {
             A failed Accuracy check Misses before Dodge, Parry, Block, Armor, or
             Resistance. Barriers absorb incoming mitigated damage before HP.
           </p>
+        </Panel>
+        <Panel
+          title="Weapon Skills"
+          subtitle="Stamina abilities tied to weapon proficiency"
+          icon={Swords}
+          panelId="infoWeaponSkills"
+          screen="info"
+          className="info-guide"
+        >
+          <GuideRow icon={Swords} title="One-Handed Sword identity" copy="Accuracy, tempo, reliable damage, fluid positioning, and controlled cleave. These prototype skills do not add new Bleed or DoT mechanics." />
+          <GuideRow icon={Zap} title="How they work" copy="Equip Weapon Skills in Hero → Combat Abilities. They use Stamina, the matching weapon proficiency, standard cooldowns, and the canonical Accuracy / Crit / damage pipeline." />
+          <div className="skill-reference-grid">
+            {weaponSkillDefinitions.map((skill) => <div className="skill-reference-card" key={skill.id} data-debug-kind="info-weapon-skill" data-debug-action-id={skill.id} data-debug-proficiency-id={skill.proficiencyId}><strong>{skill.name}</strong><p>{skill.description}</p><small>{Math.round(skill.damageMultiplier * 100)}% damage · +{skill.accuracyModifier} Accuracy · {skill.staminaCost} Stamina · planned Lv {skill.unlock.level}</small></div>)}
+          </div>
         </Panel>
         <Panel
           title="Combat Stats Reference"

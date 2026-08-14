@@ -2,10 +2,11 @@
 export const combatBalance = {
   maxSimulationStepSeconds: 0.1, // [TUNING] Prototype value.
   recoverySeconds: 3, // [TUNING] Prototype value.
-  recoveryHealthPerSecond: 15, // [TUNING] Prototype value.
+  recoveryHealthFractionPerSecond: 0.01 / 3, // [TUNING] 1% of max HP every 3 seconds while out of combat.
   stanceSwitchCooldown: 2, // [TUNING] Prototype value.
   potionCooldown: 5, // [TUNING] Prototype value.
   standardGlobalCooldown: 0.75, // [TUNING] Shared player action GCD.
+  enforceWeaponSkillLevelRequirements: false, // [TUNING] Prototype weapon skills are unlocked for testing.
   autoPotionThreshold: 0.35, // [TUNING] Prototype value.
   safetyStopThreshold: 0.2, // [TUNING] Prototype value.
   healingPotionAmount: 70, // [TUNING] Prototype value.
@@ -23,7 +24,7 @@ export const combatBalance = {
   baseBlockPower: 0.5, // [TUNING] Prototype value.
   baseMaxStamina: 100, // [TUNING] Prototype value.
   baseStaminaRegen: 5, // [TUNING] Prototype value.
-  recoveryStaminaRegenMultiplier: 3, // [TUNING] Prototype value.
+  recoveryResourceRegenMultiplier: 2, // [TUNING] Faster Stamina and Mana regeneration while out of combat.
   baseMaxMana: 100, // [TUNING] Prototype value.
   baseManaRegen: 1, // [TUNING] Prototype value.
   baseStaminaDrain: 3, // [TUNING] Prototype value.

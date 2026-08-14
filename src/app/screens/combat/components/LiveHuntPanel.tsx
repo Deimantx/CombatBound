@@ -17,14 +17,17 @@ import { getBarrierAmount } from "../../../../game/combat/combatEffects";
 import {
   buildSpellTooltip,
   buildStatTooltip,
+  buildCombatAbilityTooltip,
 } from "../../../../game/presentation/tooltipBuilders";
 import { formatHealthWithBarrier } from "../../../../game/presentation/statFormatting";
 import { getSelectedTargetMatchup } from "../../../../game/combat/combatSelectors";
 import { createCombatPreviewContext } from "../../../../game/combat/combatEngine";
 import { buildEffectiveSpellContext, getSpellActionView } from "../../../../game/combat/playerActions";
 import { COMBAT_SPELL_SLOT_COUNT } from "../../../../game/spellbook/spellbookTypes";
+import { COMBAT_ABILITY_SLOT_COUNT } from "../../../../game/combatAbilities/combatAbilityTypes";
+import { getCombatAbilityAvailability, getKnownCombatAbilities } from "../../../../game/combatAbilities/combatAbilitySelectors";
 import {
-  defensiveActionDefinitions,
+  getActionById,
   validatePlayerAction,
   reasonLabel,
 } from "../../../../game/combat/playerActions";
@@ -61,9 +64,6 @@ interface LiveHuntPanelProps {
   onCastSpell: (spellId: string) => void;
   onUseAction: (actionId: string) => void;
   onUsePotion: () => void;
-  onToggleAutomation: () => void;
-  onManageHero: () => void;
-  onManageSpellbook: () => void;
   onStartHunt: () => void;
   onStopHunt: () => void;
 }
@@ -78,9 +78,6 @@ export function LiveHuntPanel({
   onCastSpell,
   onUseAction,
   onUsePotion,
-  onToggleAutomation,
-  onManageHero,
-  onManageSpellbook,
   onStartHunt,
   onStopHunt,
 }: LiveHuntPanelProps) {
@@ -352,12 +349,16 @@ export function LiveHuntPanel({
             </div>
           </section>
           <section className="combat-action-section">
-            <div className="section-title"><span className="tiny-label">ACTIVE DEFENSE</span><small>Stamina actions</small></div>
+            <div className="section-title"><span className="tiny-label">COMBAT ABILITIES</span><small>Stamina actions · {COMBAT_ABILITY_SLOT_COUNT} loadout slots</small></div>
             <div className="spell-grid">
-          {defensiveActionDefinitions.map((action) => {
+          {Array.from({ length: COMBAT_ABILITY_SLOT_COUNT }, (_, slot) => {
+            const actionId = game.combatAbilities.activeSlots[slot];
+            const action = actionId ? getActionById(game, actionId, actionContext) : undefined;
+            if (!action) return <button key={`empty-ability-slot-${slot}`} className="spell-button is-invalid" disabled data-debug-kind="combat-ability-empty-slot" data-debug-slot={slot}><PlaceholderArt icon="shield" size="small" variant="muted" /><span><strong>Empty Ability Slot</strong><small>Configure in Hero</small></span></button>;
             const validation = validatePlayerAction(game, action.id, stats, actionContext);
             const enabled = validation.valid;
-            return (
+            const entry = getKnownCombatAbilities(game).find((candidate) => candidate.kind === "active-action" && candidate.actionId === action.id);
+            const button = (
               <button
                 key={action.id}
                 className={
@@ -366,8 +367,9 @@ export function LiveHuntPanel({
                 }
                 onClick={() => onUseAction(action.id)}
                 disabled={!enabled}
-                data-debug-kind="defensive-action"
+                data-debug-kind={action.kind === "weapon-skill" ? "weapon-skill" : "combat-ability"}
                 data-debug-action-id={action.id}
+                data-debug-proficiency-id={entry?.kind === "active-action" ? entry.proficiencyId : undefined}
                 data-debug-label={action.name}
               >
                 <PlaceholderArt
@@ -384,6 +386,7 @@ export function LiveHuntPanel({
                 </span>
               </button>
             );
+            return entry ? <GameTooltip key={action.id} content={buildCombatAbilityTooltip(entry, { action, availability: getCombatAbilityAvailability(game, action.id), equippedSlot: slot })}>{button}</GameTooltip> : button;
           })}
             </div>
           </section>
@@ -425,25 +428,6 @@ export function LiveHuntPanel({
             </div>
           </section>
         </div>
-      </div>
-      <div className="automation-controls" data-debug-kind="combat-automation">
-        <div className="section-title">
-          <span className="tiny-label">AUTOMATION</span>
-          <button
-            className="button button-ghost"
-            onClick={onToggleAutomation}
-            data-debug-kind="automation-toggle"
-          >
-            {game.combatAutomation.enabled ? "ENABLED" : "DISABLED"}
-          </button>
-        </div>
-        <div className="automation-summary-row"><span>{game.combatAutomation.rules.filter((rule) => rule.enabled).length} RULES ACTIVE</span><span>AUTO TARGET OVERRIDE {game.combatAutomation.overrideManualTarget ? "ON" : "OFF"}</span><span>{game.combat.lastAutomationAction ? `LAST AUTO ACTION · ${game.combat.lastAutomationAction.actionId}` : "NO AUTO ACTION YET"}</span></div>
-        <div className="automation-summary-actions"><small className="muted-copy">Manage priorities, conditions and spell loadout from the Hero screen.</small><span className="hero-inline-actions"><button className="button button-ghost" onClick={onManageSpellbook}>SPELLBOOK</button><button className="button button-ghost" onClick={onManageHero}>MANAGE IN HERO</button></span></div>
-        {game.combat.lastAutomationFailure && (
-          <small className="automation-invalid">
-            Last invalid: {game.combat.lastAutomationFailure}
-          </small>
-        )}
       </div>
       <div className="hunt-control-row">
         <div>

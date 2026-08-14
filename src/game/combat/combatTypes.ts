@@ -116,6 +116,7 @@ export interface PlayerActionDefinition {
   };
   sourceSpellId?: string;
   sourceItemId?: string;
+  sourceWeaponSkillId?: string;
 }
 
 export type ActionValidationReason =
@@ -128,6 +129,9 @@ export type ActionValidationReason =
   | "target-defeated"
   | "spell-not-known"
   | "spell-not-equipped"
+  | "ability-not-equipped"
+  | "weapon-requirement"
+  | "proficiency-level-requirement"
   | "equipment-requirement"
   | "no-interruptible-action"
   | "full-health"

@@ -12,6 +12,13 @@ export interface DamagePacket extends DamageComponent {
   guaranteedHit?: boolean
   progressionSource?: DamageProgressionSource
   sourceActionId?: string
+  /** Stable weapon-skill identity used for skill-specific resolution policy. */
+  weaponSkillId?: string
+  /** Derived cleave is resolved from the primary HP result, not rolled again. */
+  cleave?: {
+    maxSecondaryTargets: number
+    primaryResolvedDamageFraction: number
+  }
   damageMultiplier?: number
   criticalDamageMultiplier?: number
   criticalChanceBonus?: number

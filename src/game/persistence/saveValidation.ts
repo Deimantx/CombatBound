@@ -1,4 +1,4 @@
-import type { GameSaveV5 } from "./saveTypes";
+import type { GameSaveV6 } from "./saveTypes";
 import { proficiencyById } from "../data/proficiencies";
 import { perkById } from "../data/proficiencyPerks";
 import { COMBAT_SPELL_SLOT_COUNT } from "../spellbook/spellbookTypes";
@@ -7,10 +7,10 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return Boolean(value) && typeof value === "object" && !Array.isArray(value);
 }
 
-export function isGameSave(value: unknown): value is GameSaveV5 {
+export function isGameSave(value: unknown): value is GameSaveV6 {
   if (
     !isRecord(value) ||
-    value.version !== 5 ||
+    value.version !== 6 ||
     typeof value.gold !== "number" ||
     !isRecord(value.progression) ||
     !isRecord(value.inventory) ||
@@ -18,7 +18,8 @@ export function isGameSave(value: unknown): value is GameSaveV5 {
     !isRecord(value.collection) ||
     !isRecord(value.settings) ||
     !isRecord(value.spellbook) ||
-    !isRecord(value.combatAutomation)
+    !isRecord(value.combatAutomation) ||
+    !isRecord(value.combatAbilities)
   )
     return false;
   const progression = value.progression;
@@ -58,6 +59,7 @@ export function isGameSave(value: unknown): value is GameSaveV5 {
   const settings = value.settings;
   const spellbook = value.spellbook;
   const automation = value.combatAutomation;
+  const combatAbilities = value.combatAbilities;
   if (
     !isRecord(inventory.quantities) ||
     !isRecord(equipment.slots) ||
@@ -74,7 +76,9 @@ export function isGameSave(value: unknown): value is GameSaveV5 {
   if (
     typeof automation.enabled !== "boolean" ||
     !Array.isArray(automation.rules) ||
-    !Array.isArray(automation.targetPriorityRules)
+    !Array.isArray(automation.targetPriorityRules) ||
+    !Array.isArray(combatAbilities.activeSlots) ||
+    !Array.isArray(combatAbilities.techniqueSlots)
   )
     return false;
   return (

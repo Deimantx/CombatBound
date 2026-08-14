@@ -1,4 +1,4 @@
-import { Bot, Shield, Sparkles, Swords } from "lucide-react";
+import { Bot, Shield, Sparkles, Swords, Zap } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { calculateHunterCombatStats } from "../../../game/equipment/derivedStats";
 import { getActiveWeaponProficiency } from "../../../game/progression/progressionSelectors";
@@ -17,6 +17,7 @@ import { EquipmentWindow } from "./components/EquipmentWindow";
 import { SpellbookWindow } from "./components/SpellbookWindow";
 import { AutomationWindow } from "./components/AutomationWindow";
 import { CombatStatsWindow } from "./components/CombatStatsWindow";
+import { CombatAbilitiesWindow } from "./components/CombatAbilitiesWindow";
 import type { HeroWindowRequest } from "../../../shared/types";
 
 export function HeroScreen() {
@@ -63,23 +64,24 @@ export function HeroScreen() {
           <div className="hero-resource-summary"><span>HP <strong>{Math.round(stats.maxHealth)}</strong></span><span>Stamina <strong>{Math.round(stats.maxStamina)}</strong></span><span>Mana <strong>{Math.round(stats.maxMana)}</strong></span></div>
         </div>
         <div className="hero-system-grid">
+          <HeroSystemCard system="abilities" title="COMBAT ABILITIES" description="Stamina abilities, weapon skills, defensive actions and sustained techniques" summary={<><strong>{game.combatAbilities.activeSlots.filter(Boolean).length} / 5 Active</strong><small>{game.combatAbilities.techniqueSlots.filter(Boolean).length} / 2 Techniques Â· 8 active abilities available</small></>} icon={Zap} onOpen={(opener) => openWindow("abilities", opener)} />
           <HeroSystemCard system="equipment" title="EQUIPMENT" description="Weapon, armor and defensive training" summary={<><strong>{equipmentContextSummary}</strong><small>View compatible owned items and armor rates</small></>} icon={Shield} onOpen={(opener) => openWindow("equipment", opener)} />
           <HeroSystemCard system="spellbook" title="SPELLBOOK" description="Known Magic and five-slot Combat loadout" summary={<><strong>{game.spellbook.knownSpellIds.length} Known · {game.spellbook.equippedSpellSlots.filter(Boolean).length} / 5 Equipped</strong><small>{schools.length ? schools.map((id) => getMagicSchoolPresentation(id!).label).join(" · ") : "No schools discovered"}</small></>} icon={Sparkles} onOpen={(opener) => openWindow("spellbook", opener)} />
           <HeroSystemCard system="automation" title="COMBAT AUTOMATION" description="Rules, priorities and targeting" summary={<><strong>{game.combatAutomation.enabled ? "ENABLED" : "DISABLED"} · {automationSummary.enabledRuleCount} / {automationSummary.totalRuleCount} active</strong><small>Auto Target Override: {game.combatAutomation.overrideManualTarget ? "ON" : "OFF"}{automationSummary.invalidRuleCount ? ` · ${automationSummary.invalidRuleCount} needs attention` : ""}</small></>} icon={Bot} onOpen={(opener) => openWindow("automation", opener)} />
           <HeroSystemCard system="stats" title="COMBAT STATS" description="All derived values used by combat" summary={<><strong>Attack {stats.attackPower} · Armor {Math.round(stats.armor)}</strong><small>Accuracy {Math.round(stats.accuracy)} · Max HP {Math.round(stats.maxHealth)}</small></>} icon={Swords} onOpen={(opener) => openWindow("stats", opener)} />
         </div>
       </section>
-      {windowId && <HeroWindow windowId={windowId} title={windowTitle(windowId)} subtitle={windowSubtitle(windowId)} icon={windowIcon(windowId)} onClose={closeWindow}>{windowId === "equipment" && <EquipmentWindow />}{windowId === "spellbook" && <SpellbookWindow game={game} onOpenAutomation={(actionId, createRule) => openWindow("automation", undefined, { actionId, createRule })} />}{windowId === "automation" && <AutomationWindow game={game} initialActionId={automationRequest?.actionId} createRule={automationRequest?.createRule} />}{windowId === "stats" && <CombatStatsWindow game={game} />}</HeroWindow>}
+      {windowId && <HeroWindow windowId={windowId} title={windowTitle(windowId)} subtitle={windowSubtitle(windowId)} icon={windowIcon(windowId)} onClose={closeWindow}>{windowId === "equipment" && <EquipmentWindow />}{windowId === "spellbook" && <SpellbookWindow game={game} onOpenAutomation={(actionId, createRule) => openWindow("automation", undefined, { actionId, createRule })} />}{windowId === "abilities" && <CombatAbilitiesWindow game={game} onOpenAutomation={(actionId, createRule) => openWindow("automation", undefined, { actionId, createRule })} />}{windowId === "automation" && <AutomationWindow game={game} initialActionId={automationRequest?.actionId} createRule={automationRequest?.createRule} />}{windowId === "stats" && <CombatStatsWindow game={game} />}</HeroWindow>}
     </div>
   );
 }
 
 function windowTitle(id: Exclude<HeroWindowId, null>) {
-  return id === "equipment" ? "EQUIPMENT" : id === "spellbook" ? "SPELLBOOK & MAGIC LOADOUT" : id === "automation" ? "COMBAT AUTOMATION" : "COMBAT STATS";
+  return id === "equipment" ? "EQUIPMENT" : id === "spellbook" ? "SPELLBOOK & MAGIC LOADOUT" : id === "abilities" ? "COMBAT ABILITIES" : id === "automation" ? "COMBAT AUTOMATION" : "COMBAT STATS";
 }
 function windowSubtitle(id: Exclude<HeroWindowId, null>) {
-  return id === "equipment" ? "Manage your current equipment and defensive training." : id === "spellbook" ? "Known spells and the five slots brought into Combat." : id === "automation" ? "Define exactly how the Hunter fights automatically." : "Every derived combat value from the current build.";
+  return id === "equipment" ? "Manage your current equipment and defensive training." : id === "spellbook" ? "Known spells and the five slots brought into Combat." : id === "abilities" ? "Choose the non-magic actions and techniques available in Combat." : id === "automation" ? "Define exactly how the Hunter fights automatically." : "Every derived combat value from the current build.";
 }
 function windowIcon(id: Exclude<HeroWindowId, null>) {
-  return id === "equipment" ? Shield : id === "spellbook" ? Sparkles : id === "automation" ? Bot : Swords;
+  return id === "equipment" ? Shield : id === "spellbook" ? Sparkles : id === "abilities" ? Zap : id === "automation" ? Bot : Swords;
 }

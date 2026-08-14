@@ -40,6 +40,16 @@ import {
   normalizeSpellbook,
   unequipSpellSlot as unequipSpellSlotState,
 } from "../game/spellbook/spellbookLogic";
+import {
+  createInitialCombatAbilityLoadout,
+  equipCombatAbility as equipCombatAbilityState,
+  equipTechnique as equipTechniqueState,
+  moveCombatAbility as moveCombatAbilityState,
+  moveTechnique as moveTechniqueState,
+  normalizeCombatAbilityLoadout,
+  unequipCombatAbility as unequipCombatAbilityState,
+  unequipTechnique as unequipTechniqueState,
+} from "../game/combatAbilities/combatAbilityLogic";
 import { createInitialCombatAutomation } from "../game/automation/automationTypes";
 import {
   addAutomationCondition,
@@ -110,6 +120,13 @@ interface GameStoreState {
   equipSpellToSlot: (spellId: string, slot: number) => void;
   moveEquippedSpell: (sourceSlot: number, targetSlot: number) => void;
   unequipSpellSlot: (slot: number) => void;
+  setCombatAbilitySlot: (slot: number, actionId: string | null) => void;
+  equipCombatAbility: (actionId: string, slot: number) => void;
+  moveCombatAbility: (sourceSlot: number, targetSlot: number) => void;
+  unequipCombatAbility: (slot: number) => void;
+  setTechniqueSlot: (slot: number, techniqueId: TechniqueId | null) => void;
+  moveTechnique: (sourceSlot: number, targetSlot: number) => void;
+  unequipTechnique: (slot: number) => void;
   toggleAutomation: () => void;
   toggleAutomationRule: (ruleId: string) => void;
   setAutomationEnabled: (enabled: boolean) => void;
@@ -162,6 +179,9 @@ const hydratedGame: GameState = saved
       spellbook: normalizeSpellbook(saved.spellbook),
       combatAutomation: normalizeCombatAutomation(
         saved.combatAutomation ?? createInitialCombatAutomation(),
+      ),
+      combatAbilities: normalizeCombatAbilityLoadout(
+        saved.combatAbilities ?? createInitialCombatAbilityLoadout(),
       ),
     })
   : initial;
@@ -253,7 +273,7 @@ function savePermanent(
   settings: { reducedMotion: boolean; showInspectorButton: boolean },
 ) {
   saveGame({
-    version: 5,
+    version: 6,
     progression: game.progression,
     inventory: game.inventory,
     equipment: game.equipment,
@@ -262,6 +282,7 @@ function savePermanent(
     settings,
     spellbook: game.spellbook,
     combatAutomation: game.combatAutomation,
+    combatAbilities: game.combatAbilities,
   });
 }
 function selectionUi(
@@ -429,10 +450,7 @@ export const useGameStore = create<GameStoreState>((set, get) => {
     toggleTechnique: (technique) =>
       set((state) =>
         flatState(
-          syncCombatStats({
-            ...state.game,
-            combat: engineToggleTechnique(state.game.combat, technique),
-          }),
+          syncCombatStats(engineToggleTechnique(state.game, technique)),
           state,
         ),
       ),
@@ -518,6 +536,80 @@ export const useGameStore = create<GameStoreState>((set, get) => {
       }),
     unequipSpell: (slot) =>
       get().unequipSpellSlot(slot),
+    setCombatAbilitySlot: (slot, actionId) =>
+      set((state) => {
+        if (state.game.combat.phase === "active" || state.game.combat.phase === "recovery") return state;
+        const combatAbilities = actionId === null
+          ? unequipCombatAbilityState(state.game.combatAbilities, slot)
+          : equipCombatAbilityState(state.game.combatAbilities, actionId, slot);
+        if (combatAbilities === state.game.combatAbilities) return state;
+        const game = { ...state.game, combatAbilities };
+        savePermanent(game, { reducedMotion: state.reducedMotion, showInspectorButton: state.showInspectorButton });
+        return flatState(game, state);
+      }),
+    equipCombatAbility: (actionId, slot) =>
+      set((state) => {
+        if (state.game.combat.phase === "active" || state.game.combat.phase === "recovery") return state;
+        const combatAbilities = equipCombatAbilityState(state.game.combatAbilities, actionId, slot);
+        if (combatAbilities === state.game.combatAbilities) return state;
+        const game = { ...state.game, combatAbilities };
+        savePermanent(game, { reducedMotion: state.reducedMotion, showInspectorButton: state.showInspectorButton });
+        return flatState(game, state);
+      }),
+    moveCombatAbility: (sourceSlot, targetSlot) =>
+      set((state) => {
+        if (state.game.combat.phase === "active" || state.game.combat.phase === "recovery") return state;
+        const combatAbilities = moveCombatAbilityState(state.game.combatAbilities, sourceSlot, targetSlot);
+        if (combatAbilities === state.game.combatAbilities) return state;
+        const game = { ...state.game, combatAbilities };
+        savePermanent(game, { reducedMotion: state.reducedMotion, showInspectorButton: state.showInspectorButton });
+        return flatState(game, state);
+      }),
+    unequipCombatAbility: (slot) =>
+      get().setCombatAbilitySlot(slot, null),
+    setTechniqueSlot: (slot, techniqueId) =>
+      set((state) => {
+        if (state.game.combat.phase === "active" || state.game.combat.phase === "recovery") return state;
+        const combatAbilities = techniqueId === null
+          ? unequipTechniqueState(state.game.combatAbilities, slot)
+          : equipTechniqueState(state.game.combatAbilities, techniqueId, slot);
+        if (combatAbilities === state.game.combatAbilities) return state;
+        const techniques = { ...state.game.combat.techniques };
+        for (const id of Object.keys(techniques) as TechniqueId[])
+          if (!combatAbilities.techniqueSlots.includes(id)) techniques[id] = false;
+        const game = {
+          ...state.game,
+          combatAbilities,
+          combat: { ...state.game.combat, techniques },
+        };
+        savePermanent(game, { reducedMotion: state.reducedMotion, showInspectorButton: state.showInspectorButton });
+        return flatState(game, state);
+      }),
+    moveTechnique: (sourceSlot, targetSlot) =>
+      set((state) => {
+        if (state.game.combat.phase === "active" || state.game.combat.phase === "recovery") return state;
+        const combatAbilities = moveTechniqueState(state.game.combatAbilities, sourceSlot, targetSlot);
+        if (combatAbilities === state.game.combatAbilities) return state;
+        const game = { ...state.game, combatAbilities };
+        savePermanent(game, { reducedMotion: state.reducedMotion, showInspectorButton: state.showInspectorButton });
+        return flatState(game, state);
+      }),
+    unequipTechnique: (slot) =>
+      set((state) => {
+        if (state.game.combat.phase === "active" || state.game.combat.phase === "recovery") return state;
+        const combatAbilities = unequipTechniqueState(state.game.combatAbilities, slot);
+        if (combatAbilities === state.game.combatAbilities) return state;
+        const techniques = { ...state.game.combat.techniques };
+        const removed = state.game.combatAbilities.techniqueSlots[slot];
+        if (removed) techniques[removed] = false;
+        const game = {
+          ...state.game,
+          combatAbilities,
+          combat: { ...state.game.combat, techniques },
+        };
+        savePermanent(game, { reducedMotion: state.reducedMotion, showInspectorButton: state.showInspectorButton });
+        return flatState(game, state);
+      }),
     toggleAutomation: () =>
       set((state) => {
         return commitAutomation(

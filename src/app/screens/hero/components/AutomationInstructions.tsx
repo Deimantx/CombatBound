@@ -22,6 +22,7 @@ export function AutomationInstructions({ onBack }: { onBack: () => void }) {
           <a href="#conditions">Conditions</a>
           <a href="#targeting">Targeting</a>
           <a href="#resources">Resources</a>
+          <a href="#weapon-skills">Weapon Skills</a>
           <a href="#examples">Examples</a>
           <a href="#mistakes">Common Mistakes</a>
           <a href="#glossary">Glossary</a>
@@ -95,12 +96,19 @@ export function AutomationInstructions({ onBack }: { onBack: () => void }) {
           <p>Loadout editing is locked during active and recovery Combat. You can still inspect known Spells and edit Automation while a Hunt continues.</p>
         </section>
 
+        <section id="weapon-skills" data-debug-help-section="weapon-skills">
+          <h4>Weapon Skills</h4>
+          <p>Weapon Skills are Stamina-based active abilities tied to the currently equipped weapon proficiency. Equip them in Hero → Combat Abilities before Automation can use them.</p>
+          <p>The prototype One-Handed Sword kit includes Swift Cut, Precision Thrust, Flowing Step, Sweeping Cut, and Opening Feint. They appear under the Weapon Skills · One-Handed Sword action group.</p>
+          <p>Changing to another weapon preserves the rules and slots, but Sword skills become inactive until a One-Handed Sword is equipped again.</p>
+        </section>
+
         <section id="resources" data-debug-help-section="resources">
           <h4>Global Cooldown</h4>
           <p>Many active actions share a short Global Cooldown. After one such action is used, another standard action must wait until that shared delay ends. An Action can also have its own longer cooldown.</p>
           <p>Automation checks both delays through the same validation used by manual Combat buttons. It will continue to lower-priority Rules when the preferred Action is not ready.</p>
           <h4 className="subheading">Mana and Stamina</h4>
-          <p>Magic uses Mana. Guard, Evasive Step, and Brace use Stamina. Use Mana above or Stamina above conditions to reserve resources for emergencies, and use low-resource Rules to decide when a defensive action should take priority.</p>
+          <p>Magic uses Mana. Weapon Skills, Guard, Evasive Step, and Brace use Stamina. Use Mana above or Stamina above conditions to reserve resources for emergencies, and use low-resource Rules to decide when a defensive action should take priority.</p>
         </section>
 
         <section id="effects" data-debug-help-section="effects">

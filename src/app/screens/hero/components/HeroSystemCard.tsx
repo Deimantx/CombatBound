@@ -8,7 +8,7 @@ export function HeroSystemCard({
   icon: Icon,
   onOpen,
 }: {
-  system: "equipment" | "spellbook" | "automation" | "stats";
+  system: "equipment" | "spellbook" | "abilities" | "automation" | "stats";
   title: string;
   description: string;
   summary: React.ReactNode;

@@ -3,6 +3,7 @@ import type {
   EffectDefinition,
   CombatStatKey,
   DamageType,
+  PlayerActionDefinition,
 } from "../combat/combatTypes";
 import type { ItemDefinition } from "../data/items";
 import { combatStatReferenceById } from "../data/combatGlossary";
@@ -14,6 +15,7 @@ import type { ProgressionState } from "../progression/progressionTypes";
 import { calculateEffectiveSpell, type SpellCalculationContext } from "../progression/spellProgression";
 import { techniqueDefinitions } from "../data/techniques";
 import { proficiencyById } from "../data/proficiencies";
+import { weaponSkillById } from "../data/weaponSkills";
 import {
   formatCombatStatValue,
   formatItemStats,
@@ -25,6 +27,8 @@ import {
 import type { DefensiveEquipmentContext } from "../equipment/defensiveEquipment";
 import type { TooltipModel, TooltipRow, TooltipTone } from "./tooltipTypes";
 import { combatInteractionDefinitions } from "../combat/combatInteractions";
+import type { CombatAbilityCatalogueEntry } from "../combatAbilities/combatAbilityTypes";
+import type { CombatAbilityAvailability } from "../combatAbilities/combatAbilitySelectors";
 
 const damageLabels: Record<DamageType, string> = {
   physical: "Physical",
@@ -414,6 +418,98 @@ export function buildTechniqueTooltip(id: TechniqueId): TooltipModel {
     description: technique.description,
     rows,
     notes: ["Automatically deactivates when Stamina reaches zero."],
+  };
+}
+
+export function buildCombatAbilityTooltip(
+  entry: CombatAbilityCatalogueEntry,
+  options: {
+    action?: PlayerActionDefinition;
+    availability?: CombatAbilityAvailability;
+    equippedSlot: number;
+    currentStaminaRegen?: number;
+  },
+): TooltipModel {
+  if (entry.kind === "core")
+    return {
+      id: `combat-ability.${entry.id}`,
+      icon: entry.icon,
+      title: entry.name,
+      subtitle: "Core Combat · Always Available",
+      description: entry.description,
+      rows: [
+        { label: "Resource", value: "None" },
+        { label: "Loadout", value: "Does not use a slot", tone: "gold" },
+      ],
+    };
+  if (entry.kind === "technique") {
+    const technique = techniqueDefinitions[entry.techniqueId];
+    return {
+      id: `combat-ability.${entry.techniqueId}`,
+      icon: entry.icon,
+      title: entry.name,
+      subtitle: "Sustained Technique",
+      description: entry.description,
+      rows: [
+        { label: "Stamina drain", value: `${technique.staminaDrainPerSecond.toFixed(1)} / sec`, tone: "blue" },
+        { label: "Equipped slot", value: options.equippedSlot >= 0 ? `Technique ${options.equippedSlot + 1}` : "Not equipped" },
+        ...(options.currentStaminaRegen !== undefined ? [{ label: "Current Regen", value: `${options.currentStaminaRegen.toFixed(1)} / sec`, tone: "gold" as const }] : []),
+      ],
+      notes: ["Toggle during Combat. Automatically shuts down at zero Stamina."],
+    };
+  }
+  const action = options.action;
+  const skill = action?.sourceWeaponSkillId
+    ? weaponSkillById[action.sourceWeaponSkillId]
+    : undefined;
+  const skillRows: TooltipRow[] = skill
+    ? [
+        {
+          label: "Proficiency",
+          value: proficiencyById[skill.proficiencyId]?.name ?? skill.proficiencyId,
+          tone: "blue",
+        },
+        {
+          label: "Planned unlock",
+          value: `${proficiencyById[skill.unlock.proficiencyId]?.name ?? skill.unlock.proficiencyId} Lv ${skill.unlock.level}`,
+          tone: "default",
+        },
+        { label: "Prototype", value: "Unlocked for testing", tone: "green" },
+        {
+          label: "Damage",
+          value: `${Math.round(skill.damageMultiplier * 100)}% weapon damage`,
+          tone: "red",
+        },
+        {
+          label: "Accuracy",
+          value: `${skill.accuracyModifier >= 0 ? "+" : ""}${skill.accuracyModifier}`,
+          tone: "gold",
+        },
+        ...(skill.selfEffectId
+          ? [{ label: "Effect", value: effectById[skill.selfEffectId]?.name ?? skill.selfEffectId, tone: "green" as const }]
+          : []),
+        ...(skill.targetEffectId
+          ? [{ label: "Target effect", value: effectById[skill.targetEffectId]?.name ?? skill.targetEffectId, tone: "red" as const }]
+          : []),
+        ...(skill.cleave
+          ? [{ label: "Cleave", value: `Up to ${skill.cleave.maxSecondaryTargets} additional targets at ${Math.round(skill.cleave.primaryResolvedDamageFraction * 100)}% resolved primary damage`, tone: "blue" as const }]
+          : []),
+      ]
+    : [];
+  return {
+    id: `combat-ability.${entry.actionId}`,
+    icon: entry.icon,
+    title: entry.name,
+    subtitle: entry.category === "active-defense" ? "Active Defense" : "Weapon Skill",
+    description: entry.description,
+    rows: [
+      ...skillRows,
+      { label: "Stamina cost", value: `${action?.resourceCost?.stamina ?? 0}`, tone: "gold" },
+      { label: "Cooldown", value: `${action?.cooldown.toFixed(1) ?? "0.0"}s`, tone: "blue" },
+      { label: "Global Cooldown", value: action?.globalCooldown === "none" ? "No" : "Yes" },
+      { label: "Requirement", value: options.availability?.requirement ?? "None" },
+      { label: "Equipped slot", value: options.equippedSlot >= 0 ? `Active ${options.equippedSlot + 1}` : "Not equipped" },
+    ],
   };
 }
 
