@@ -79,6 +79,14 @@ describe('proficiency perk tree viewport', () => {
     }
   })
 
+  it('shows all four defensive proficiencies in the DEFENSE section', () => {
+    openTree()
+    const defenseGroup = document.querySelector('[data-debug-kind="proficiency-group"][data-debug-category="defense"]')
+    expect(defenseGroup).toBeInTheDocument()
+    expect(defenseGroup?.querySelectorAll('[data-debug-kind="proficiency-tile"]')).toHaveLength(4)
+    for (const label of ['Light Armor', 'Medium Armor', 'Heavy Armor', 'Shield']) expect(screen.getByRole('button', { name: new RegExp(label) })).toBeInTheDocument()
+  })
+
   it('keeps tree nodes readable and preserves selected details', () => {
     const viewport = openTree()
     const node = viewport.querySelector('[data-perk-node]') as HTMLElement

@@ -22,7 +22,7 @@ export function createInitialGameState(): GameState {
     progression: createInitialProgression(),
     inventory: createInitialInventory(),
     equipment: createInitialEquipment(),
-    collection: { ...createInitialCollection(enemyDefinitions.map((enemy) => enemy.id)), discoveredItems: ['item.training-sword', 'item.training-armor', 'item.healing-potion'] },
+    collection: { ...createInitialCollection(enemyDefinitions.map((enemy) => enemy.id)), discoveredItems: ['item.training-sword', 'item.training-armor', 'item.training-hood', 'item.training-gloves', 'item.training-boots', 'item.training-shield', 'item.healing-potion'] },
     gold: 0,
   }
 }

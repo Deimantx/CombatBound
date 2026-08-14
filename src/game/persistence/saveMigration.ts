@@ -31,6 +31,13 @@ function isRecord(value: unknown): value is Record<string, unknown> { return Boo
 function xp(value: unknown) { return typeof value === 'number' && Number.isFinite(value) ? Math.max(0, value) : 0 }
 function sharedSaveShape(value: Record<string, unknown>) { return typeof value.gold === 'number' && isRecord(value.inventory) && isRecord(value.equipment) && isRecord(value.collection) && isRecord(value.settings) }
 
+export function migrateEquipment(value: EquipmentState): EquipmentState {
+  const slots = { ...(value.slots ?? {}) } as EquipmentState['slots']
+  if (!slots.chest && slots.armor) slots.chest = slots.armor
+  delete slots.armor
+  return { ...value, slots }
+}
+
 function migrateProgression(raw: LegacySaveV2['progression']): ProgressionState {
   const proficiencies: ProgressionState['proficiencies'] = {}
   for (const [rawId, value] of Object.entries(raw.proficiencies ?? {})) {
@@ -52,7 +59,7 @@ function migrateProgression(raw: LegacySaveV2['progression']): ProgressionState 
 export function migrateCurrentSave(value: unknown): GameSaveV3 | null {
   if (!isRecord(value) || value.version !== 2 || !isRecord(value.progression) || !isRecord(value.progression.proficiencies) || !sharedSaveShape(value)) return null
   const old = value as unknown as LegacySaveV2
-  return { version: 3, progression: migrateProgression(old.progression), inventory: old.inventory, equipment: old.equipment, collection: old.collection, gold: old.gold, settings: old.settings }
+  return { version: 3, progression: migrateProgression(old.progression), inventory: old.inventory, equipment: migrateEquipment(old.equipment), collection: old.collection, gold: old.gold, settings: old.settings }
 }
 
 export function migrateLegacySave(value: unknown): GameSaveV3 | null {
@@ -60,5 +67,5 @@ export function migrateLegacySave(value: unknown): GameSaveV3 | null {
   const old = value as unknown as LegacySaveV1
   const skillXp = Object.values(old.progression.skills).reduce((total, skill) => total + xp(skill.totalXp), 0)
   const swordXp = xp(old.progression.skills.swordsmanship?.totalXp)
-  return { version: 3, progression: { proficiencies: { 'one-handed-sword': { proficiencyId: 'one-handed-sword', totalXp: swordXp } }, masteryXp: skillXp, purchasedPerks: {} }, inventory: old.inventory, equipment: old.equipment, collection: old.collection, gold: old.gold, settings: old.settings }
+  return { version: 3, progression: { proficiencies: { 'one-handed-sword': { proficiencyId: 'one-handed-sword', totalXp: swordXp } }, masteryXp: skillXp, purchasedPerks: {} }, inventory: old.inventory, equipment: migrateEquipment(old.equipment), collection: old.collection, gold: old.gold, settings: old.settings }
 }

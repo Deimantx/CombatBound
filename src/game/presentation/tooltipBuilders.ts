@@ -10,6 +10,7 @@ import { calculateEffectiveSpell } from '../progression/spellProgression'
 import { techniqueDefinitions } from '../data/techniques'
 import { proficiencyById } from '../data/proficiencies'
 import { formatCombatStatValue, formatItemStats, formatPercent, formatSeconds, formatSignedNumber, labelForStatKey } from './statFormatting'
+import type { DefensiveEquipmentContext } from '../equipment/defensiveEquipment'
 import type { TooltipModel, TooltipRow, TooltipTone } from './tooltipTypes'
 
 const damageLabels: Record<DamageType, string> = { physical: 'Physical', fire: 'Fire', water: 'Water', air: 'Air', earth: 'Earth', light: 'Light', darkness: 'Darkness', nature: 'Nature', mystic: 'Mystic', true: 'True' }
@@ -19,9 +20,19 @@ const rarityLabels: Record<ItemDefinition['rarity'], string> = { common: 'Common
 
 const toneForValue = (value: number): TooltipTone => value > 0 ? 'green' : value < 0 ? 'red' : 'default'
 
-export function buildItemTooltip(item: ItemDefinition, options: { quantity?: number; equipped?: boolean } = {}): TooltipModel {
+export function buildItemTooltip(item: ItemDefinition, options: { quantity?: number; equipped?: boolean; defensiveContext?: DefensiveEquipmentContext } = {}): TooltipModel {
   const rows = formatItemStats(item.stats ?? {}).map((row) => ({ label: row.label, value: row.value, tone: row.tone }))
   if (item.weaponProficiencyId) rows.unshift({ label: 'Proficiency', value: proficiencyById[item.weaponProficiencyId]?.name ?? item.weaponProficiencyId, tone: 'blue' as TooltipTone })
+  if (item.defensiveProficiencyId) {
+    rows.unshift({ label: 'Training', value: item.defensiveProficiencyId === 'shield' ? '1.00× Shield XP per defensive event' : '0.25× per matching armor piece', tone: 'green' as TooltipTone })
+    rows.unshift({ label: 'Proficiency', value: proficiencyById[item.defensiveProficiencyId]?.name ?? item.defensiveProficiencyId, tone: 'blue' as TooltipTone })
+    if (item.equipmentSlot) rows.unshift({ label: 'Slot', value: item.equipmentSlot[0].toUpperCase() + item.equipmentSlot.slice(1), tone: 'default' as TooltipTone })
+    if (options.defensiveContext) {
+      const context = options.defensiveContext
+      const pieces = item.defensiveProficiencyId === 'light-armor' ? context.lightArmorPieces : item.defensiveProficiencyId === 'medium-armor' ? context.mediumArmorPieces : item.defensiveProficiencyId === 'heavy-armor' ? context.heavyArmorPieces : context.shieldEquipped ? 1 : 0
+      rows.unshift({ label: 'Current training', value: item.defensiveProficiencyId === 'shield' ? `${pieces > 0 ? '1.00' : '0.00'}×` : `${(pieces / 4).toFixed(2)}×`, tone: 'gold' as TooltipTone })
+    }
+  }
   return { id: item.id, icon: item.icon, title: item.name, subtitle: `${categoryLabels[item.category]} · ${rarityLabels[item.rarity]}`, tone: item.rarity === 'rare' ? 'gold' : item.rarity === 'uncommon' ? 'blue' : 'default', description: item.description, rows, notes: [options.quantity !== undefined ? `Owned: ${options.quantity}` : '', options.equipped ? 'Currently equipped' : ''].filter(Boolean) }
 }
 
@@ -35,7 +46,7 @@ export function buildStatTooltip(key: string, value: number, detail?: string): T
 
 export function buildProficiencyTooltip(proficiency: keyof typeof proficiencyById | (typeof proficiencyById)[keyof typeof proficiencyById]): TooltipModel {
   const definition = typeof proficiency === 'string' ? proficiencyById[proficiency] : proficiency
-  return { id: `proficiency.${definition.id}`, icon: definition.icon, title: definition.name, subtitle: `${definition.category === 'magic' ? 'Magic' : definition.category === 'melee' ? 'Melee' : 'Ranged'} proficiency`, description: definition.description, rows: [{ label: 'Maximum level', value: `${definition.maxLevel}`, tone: 'gold' }, { label: 'Perks authored', value: `${definition.perkIds.length}`, tone: 'blue' }] }
+  return { id: `proficiency.${definition.id}`, icon: definition.icon, title: definition.name, subtitle: `${definition.category === 'magic' ? 'Magic' : definition.category === 'melee' ? 'Melee' : definition.category === 'ranged' ? 'Ranged' : 'Defense'} proficiency`, description: definition.description, rows: [{ label: 'Maximum level', value: `${definition.maxLevel}`, tone: 'gold' }, { label: 'Perks authored', value: `${definition.perkIds.length}`, tone: 'blue' }] }
 }
 
 export function buildEffectTooltip(instance: ActiveEffectInstance, definition: EffectDefinition = effectById[instance.effectId]): TooltipModel {

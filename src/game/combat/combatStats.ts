@@ -24,6 +24,7 @@ export function normalizeCombatStats(stats: Partial<CombatStats> & Record<string
     maxMana: Math.max(0, finite(stats.maxMana, combatBalance.baseMaxMana)),
     manaRegen: finite(stats.manaRegen, combatBalance.baseManaRegen),
     statusResistance: clamp(finite(stats.statusResistance, combatBalance.baseStatusResistance), 0, combatBalance.maxStatusResistance),
+    healthRegen: Math.max(0, finite(stats.healthRegen, 0)),
     resistances: { ...(stats.resistances ?? {}) },
   }
 }
@@ -45,7 +46,7 @@ export function calculateEffectiveCombatStats(baseStats: CombatStats, activeEffe
     }
   }
 
-  const statKeys: Array<keyof CombatStats> = ['maxHealth', 'attackPower', 'accuracy', 'attackInterval', 'armor', 'evasion', 'critChance', 'critDamage', 'dodgeChance', 'parryChance', 'blockChance', 'blockPower', 'maxStamina', 'staminaRegen', 'maxMana', 'manaRegen', 'statusResistance']
+  const statKeys: Array<keyof CombatStats> = ['maxHealth', 'attackPower', 'accuracy', 'attackInterval', 'armor', 'evasion', 'critChance', 'critDamage', 'dodgeChance', 'parryChance', 'blockChance', 'blockPower', 'maxStamina', 'staminaRegen', 'maxMana', 'manaRegen', 'statusResistance', 'healthRegen']
   for (const stat of statKeys) {
     const base = result[stat]
     if (typeof base !== 'number') continue
@@ -67,6 +68,7 @@ export function calculateEffectiveCombatStats(baseStats: CombatStats, activeEffe
   result.blockChance = clamp(finite(result.blockChance), 0, combatBalance.maxAvoidanceChance)
   result.blockPower = clamp(finite(result.blockPower), 0, 0.95)
   result.statusResistance = clamp(finite(result.statusResistance), 0, combatBalance.maxStatusResistance)
+  result.healthRegen = Math.max(0, finite(result.healthRegen))
   return result
 }
 

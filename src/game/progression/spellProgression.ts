@@ -1,6 +1,7 @@
 import type { ActiveEffectInstance } from '../combat/combatEffectTypes'
 import type { SpellDefinition } from '../data/spells'
 import type { ProgressionState } from './progressionTypes'
+import type { DefensiveEquipmentContext } from '../equipment/defensiveEquipment'
 import { getConditionalMagicCooldownMultiplier, getConditionalMagicCritChance, getConditionalMagicDamageMultiplier, getConditionalMagicManaCostMultiplier, getEffectiveMagicModifiers } from './perkProgression'
 
 export interface EffectiveSpellDefinition extends SpellDefinition {
@@ -22,10 +23,11 @@ export interface SpellCalculationContext {
   targetHpFraction?: number
   targetEffects?: ActiveEffectInstance[]
   manaFraction?: number
+  equipmentContext?: DefensiveEquipmentContext
 }
 
 export function calculateEffectiveSpell(spell: SpellDefinition, progression: ProgressionState, context: SpellCalculationContext = {}): EffectiveSpellDefinition {
-  const modifiers = getEffectiveMagicModifiers(progression, spell.magicProficiencyId)
+  const modifiers = getEffectiveMagicModifiers(progression, spell.magicProficiencyId, undefined, context.equipmentContext)
   const targetEffectIds = (context.targetEffects ?? []).map((effect) => effect.effectId)
   const manaFraction = context.manaFraction ?? 1
   const conditionalDamage = getConditionalMagicDamageMultiplier(progression, spell.magicProficiencyId, context.targetHpFraction ?? 1, targetEffectIds, undefined, manaFraction)

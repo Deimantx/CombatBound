@@ -17,6 +17,7 @@ import { airMagicPerks } from './proficiencyPerkTrees/airMagic'
 import { earthMagicPerks } from './proficiencyPerkTrees/earthMagic'
 import { lightMagicPerks } from './proficiencyPerkTrees/lightMagic'
 import { darknessMagicPerks } from './proficiencyPerkTrees/darknessMagic'
+import { heavyArmorPerks, lightArmorPerks, mediumArmorPerks, shieldPerks } from './proficiencyPerkTrees/defensive'
 
 const any = (requirements: Array<[string, number]>, minimumSatisfied = 1): PerkPrerequisiteRule[] => [{ mode: 'any', requirements: requirements.map(([perkId, requiredRank]) => ({ perkId, requiredRank })), minimumSatisfied }]
 
@@ -110,7 +111,7 @@ const firePerks: ProficiencyPerkDefinition[] = [
   make(fire, 'Apex', 'master-of-flame', 'Master of Flame', 100, 1, 3, '+15% Fire damage, -10% Mana Cost, -10% cooldown, and +20% Burn damage.', [{ type: 'spellDamageModifier', valuePerRank: .15 }, { type: 'spellManaCostModifier', valuePerRank: -.1 }, { type: 'spellCooldownModifier', valuePerRank: -.1 }, { type: 'appliedEffectPeriodicDamageModifier', effectId: 'effect.burn', valuePerRank: .2 }], all([fireId('fire-magic-mastery'), 5], ...[]).concat(any([[fireId('sunfire'), 1], [fireId('living-inferno'), 1], [fireId('endless-cinder'), 1], [fireId('wildfire-cadence'), 1], [fireId('world-aflame'), 1]], 3)), pos(4, 10, 'capstone', 'crown')),
 ]
 
-export const proficiencyPerkDefinitions = deepFreeze<ProficiencyPerkDefinition[]>([...swordPerks, ...oneHandedAxePerks, ...oneHandedMacePerks, ...daggerPerks, ...twoHandedSwordPerks, ...twoHandedAxePerks, ...twoHandedHammerPerks, ...spearPerks, ...shortbowPerks, ...longbowPerks, ...crossbowPerks, ...firePerks, ...waterMagicPerks, ...airMagicPerks, ...earthMagicPerks, ...lightMagicPerks, ...darknessMagicPerks])
+export const proficiencyPerkDefinitions = deepFreeze<ProficiencyPerkDefinition[]>([...swordPerks, ...oneHandedAxePerks, ...oneHandedMacePerks, ...daggerPerks, ...twoHandedSwordPerks, ...twoHandedAxePerks, ...twoHandedHammerPerks, ...spearPerks, ...shortbowPerks, ...longbowPerks, ...crossbowPerks, ...firePerks, ...waterMagicPerks, ...airMagicPerks, ...earthMagicPerks, ...lightMagicPerks, ...darknessMagicPerks, ...lightArmorPerks, ...mediumArmorPerks, ...heavyArmorPerks, ...shieldPerks])
 
 for (const proficiencyId of [...new Set(proficiencyPerkDefinitions.map((perk) => perk.proficiencyId))]) assertValidPerkGraph(proficiencyPerkDefinitions, proficiencyId)
 

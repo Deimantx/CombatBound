@@ -13,6 +13,7 @@ import { perkById } from '../game/data/proficiencyPerks'
 import { cascadeSelection, getDefaultWorldSelection, isCombatLocationAvailable, selectionForLocation } from '../game/world/worldSelectors'
 import { loadGameSave, saveGame, clearGameSave } from '../game/persistence/saveGame'
 import type { StanceId, TechniqueId } from '../game/combat/combatTypes'
+import type { EquipmentSlot } from '../game/equipment/equipmentTypes'
 import type { ScreenId } from '../shared/types'
 
 interface GameStoreState {
@@ -58,7 +59,7 @@ interface GameStoreState {
   castSpell: (spellId: string) => void
   usePotion: () => void
   purchaseProficiencyPerk: (perkId: string) => void
-  equipItem: (itemId: string, slot: 'weapon' | 'armor') => void
+  equipItem: (itemId: string, slot: EquipmentSlot) => void
   setInventoryFilter: (filter: string) => void
   selectInventoryItem: (itemId: string) => void
   selectEquipmentSlot: (slotId: string) => void
@@ -112,7 +113,7 @@ export const useGameStore = create<GameStoreState>((set, get) => {
     castSpell: (spellId) => set((state) => { const stats = calculateHunterCombatStats(state.game.equipment, state.game.progression, state.game.combat.stance, state.game.combat.techniques); const game = engineCastSpell(state.game, spellId, stats, context); if (game.progression.masteryXp !== state.game.progression.masteryXp || Object.keys(game.progression.proficiencies).length !== Object.keys(state.game.progression.proficiencies).length) savePermanent(game, { reducedMotion: state.reducedMotion, showInspectorButton: state.showInspectorButton }); return flatState(game, state) }),
     usePotion: () => set((state) => { const stats = calculateHunterCombatStats(state.game.equipment, state.game.progression, state.game.combat.stance, state.game.combat.techniques); return flatState(useHealingPotion(state.game, stats), state) }),
     purchaseProficiencyPerk: (perkId) => set((state) => { const result = purchasePerk(state.game.progression, perkId, perkById); if (result.outcome !== 'purchased') return state; const game = syncCombatStats({ ...state.game, progression: result.progression }); savePermanent(game, { reducedMotion: state.reducedMotion, showInspectorButton: state.showInspectorButton }); return flatState(game, state) }),
-    equipItem: (itemId, slot) => set((state) => { if (state.game.combat.phase === 'active' || state.game.combat.phase === 'recovery' || !itemById[itemId]) return state; const item = itemById[itemId]; const progression = item.weaponProficiencyId ? discoverProficiency(state.game.progression, item.weaponProficiencyId) : state.game.progression; const game = syncCombatStats({ ...state.game, progression, equipment: { ...state.game.equipment, slots: { ...state.game.equipment.slots, [slot]: itemId } } }); savePermanent(game, { reducedMotion: state.reducedMotion, showInspectorButton: state.showInspectorButton }); return flatState(game, state) }),
+    equipItem: (itemId, slot) => set((state) => { if (state.game.combat.phase === 'active' || state.game.combat.phase === 'recovery' || !itemById[itemId]) return state; const item = itemById[itemId]; if (item.equipmentSlot !== slot) return state; const progression = item.weaponProficiencyId ? discoverProficiency(state.game.progression, item.weaponProficiencyId) : state.game.progression; const game = syncCombatStats({ ...state.game, progression, equipment: { ...state.game.equipment, slots: { ...state.game.equipment.slots, [slot]: itemId } } }); savePermanent(game, { reducedMotion: state.reducedMotion, showInspectorButton: state.showInspectorButton }); return flatState(game, state) }),
     setInventoryFilter: (inventoryFilter) => set({ inventoryFilter }),
     selectInventoryItem: (selectedInventoryItemId) => set({ selectedInventoryItemId }),
     selectEquipmentSlot: (selectedEquipmentSlot) => set({ selectedEquipmentSlot }),

@@ -4,6 +4,7 @@ export type StanceId = 'high' | 'mid' | 'low'
 export type TechniqueId = 'careful-positioning' | 'heightened-reflexes'
 export type SpellTargetMode = 'self' | 'selectedEnemy' | 'allEnemies'
 export type DamageType = 'physical' | 'fire' | 'water' | 'air' | 'earth' | 'light' | 'darkness' | 'nature' | 'mystic' | 'true'
+import type { ItemDefinition } from '../data/items'
 
 export type CombatantRef =
   | { kind: 'player' }
@@ -27,6 +28,7 @@ export type CombatStatKey =
   | 'maxMana'
   | 'manaRegen'
   | 'statusResistance'
+  | 'healthRegen'
 
 export interface CombatStats {
   maxHealth: number
@@ -46,6 +48,7 @@ export interface CombatStats {
   maxMana: number
   manaRegen: number
   statusResistance: number
+  healthRegen?: number
   resistances: Partial<Record<DamageType, number>>
 }
 
@@ -276,7 +279,7 @@ export interface CombatContext {
   enemies: Record<string, EnemyDefinition>
   locations: Record<string, import('../world/worldTypes').CombatLocationDefinition>
   spells: Record<string, import('../data/spells').SpellDefinition>
-  items: Record<string, { id: string; name: string }>
+  items: Record<string, ItemDefinition>
   effects: Record<string, import('./combatEffectTypes').EffectDefinition>
   rng: CombatRng
 }

@@ -14,8 +14,9 @@ export type WeaponProficiencyId =
   | 'crossbow'
 
 export type MagicProficiencyId = 'fire-magic' | 'water-magic' | 'air-magic' | 'earth-magic' | 'light-magic' | 'darkness-magic'
-export type CombatProficiencyId = WeaponProficiencyId | MagicProficiencyId
-export type ProficiencyCategory = 'melee' | 'ranged' | 'magic'
+export type DefensiveProficiencyId = 'light-armor' | 'medium-armor' | 'heavy-armor' | 'shield'
+export type CombatProficiencyId = WeaponProficiencyId | MagicProficiencyId | DefensiveProficiencyId
+export type ProficiencyCategory = 'melee' | 'ranged' | 'magic' | 'defense'
 export type ProgressionCreditMode = 'hp-damage' | 'barrier-absorb' | 'successful-interrupt' | 'effective-healing' | 'successful-cleanse'
 
 export type ProficiencyXpReason =
@@ -70,6 +71,31 @@ export type ProficiencyPerkEffect =
       stat: CombatStatKey
       operation: StatModifier['operation']
       valuePerRank: number
+    }
+  | {
+      type: 'equippedArmorStatModifier'
+      stat: CombatStatKey
+      operation: StatModifier['operation']
+      valuePerRankPerPiece: number
+      minimumPieces?: number
+    }
+  | {
+      type: 'equippedArmorResistanceModifier'
+      damageType: Exclude<import('../combat/combatTypes').DamageType, 'true'>
+      valuePerRankPerPiece: number
+      minimumPieces?: number
+    }
+  | {
+      type: 'equippedArmorSpellModifier'
+      modifier: 'damage' | 'manaCost' | 'cooldown' | 'accuracy' | 'barrierAmount' | 'barrierDuration'
+      valuePerRank: number
+      minimumPieces: number
+    }
+  | {
+      type: 'equippedArmorWeaponModifier'
+      modifier: 'damage' | 'attackInterval' | 'accuracy'
+      valuePerRank: number
+      minimumPieces: number
     }
   | {
       type: 'onWeaponHitApplyEffect'

@@ -25,6 +25,7 @@ import { calculateEffectiveSpell } from '../progression/spellProgression'
 import { getEquippedWeaponProficiency } from '../progression/progressionSelectors'
 import { perkById } from '../data/proficiencyPerks'
 import { proficiencyById } from '../data/proficiencies'
+import { calculateDefensiveTrainingAwards, getDefensiveEquipmentContext, type DefensiveTrainingEvent } from '../equipment/defensiveEquipment'
 import type { GameState } from '../gameState'
 import type { ActiveEffectInstance, EffectDefinition } from './combatEffectTypes'
 import type { CombatContext, CombatEvent, CombatEventType, CombatLogEntry, CombatState, CombatStats, CombatantRef, EnemyCombatInstance, StanceId, TechniqueId } from './combatTypes'
@@ -59,6 +60,17 @@ function awardCombatXp(game: GameState, proficiencyId: CombatProficiencyId, amou
     game: { ...game, progression: result.progression, combat: { ...game.combat, session: { ...game.combat.session, proficiencyXpGained: { ...game.combat.session.proficiencyXpGained, [proficiencyId]: current + result.proficiencyXpGained }, masteryXpGained: game.combat.session.masteryXpGained + result.proficiencyXpGained } } },
     result,
   }
+}
+
+/** Canonical defensive progression hook: invoke once after a direct enemy action resolves. */
+export function resolveDefensiveTrainingForEnemyAction(game: GameState, trainingEvent: DefensiveTrainingEvent, items = itemById) {
+  if (!trainingEvent.resolved) return game
+  const awards = calculateDefensiveTrainingAwards(getDefensiveEquipmentContext(game.equipment, items))
+  let next = game
+  for (const [proficiencyId, amount] of Object.entries(awards) as Array<[CombatProficiencyId, number]>) {
+    if (amount > 0) next = awardCombatXp(next, proficiencyId, amount).game
+  }
+  return next
 }
 
 function applyEffectiveHealing(game: GameState, proficiencyId: CombatProficiencyId, requestedAmount: number, source: CombatantRef, label: string, awardProgression = true) {
@@ -148,7 +160,8 @@ export function castSpell(game: GameState, spellId: string, stats: HunterCombatS
   if (!runtime || runtime.cooldownRemaining > 0) return game
   const target = combat.enemies.find((enemy) => enemy.instanceId === combat.selectedEnemyInstanceId && !enemy.defeated)
   if (spell.targetMode === 'selectedEnemy' && !target) return game
-  const effectiveSpell = calculateEffectiveSpell(spell, game.progression, target ? { targetHpFraction: target.currentHealth / target.maxHealth, targetEffects: target.effects, manaFraction: combat.maxMana > 0 ? combat.mana / combat.maxMana : 1 } : { manaFraction: combat.maxMana > 0 ? combat.mana / combat.maxMana : 1 })
+  const equipmentContext = getDefensiveEquipmentContext(game.equipment)
+  const effectiveSpell = calculateEffectiveSpell(spell, game.progression, target ? { targetHpFraction: target.currentHealth / target.maxHealth, targetEffects: target.effects, manaFraction: combat.maxMana > 0 ? combat.mana / combat.maxMana : 1, equipmentContext } : { manaFraction: combat.maxMana > 0 ? combat.mana / combat.maxMana : 1, equipmentContext })
   if (combat.mana < effectiveSpell.manaCost) return game
   const targetRef: CombatantRef = target ? { kind: 'enemy', instanceId: target.instanceId } : { kind: 'player' }
   const interruptActionDefinition = spell.interruptsAction && target?.currentAction ? context.enemies[target.enemyId]?.actions.find((candidate) => candidate.id === target.currentAction?.actionId) : undefined
@@ -158,7 +171,7 @@ export function castSpell(game: GameState, spellId: string, stats: HunterCombatS
   let next: GameState = { ...game, combat: { ...combat, mana: combat.mana - effectiveSpell.manaCost, spells: combat.spells.map((entry) => entry.spellId === spellId ? { ...entry, cooldownRemaining: effectiveSpell.cooldownSeconds } : entry) } }
   const source: CombatantRef = { kind: 'player' }
 
-  const magicModifiers = getEffectiveMagicModifiers(next.progression, spell.magicProficiencyId, perkById)
+  const magicModifiers = getEffectiveMagicModifiers(next.progression, spell.magicProficiencyId, perkById, equipmentContext)
   if (spell.damage > 0 && target) {
     const packet: DamagePacket = { ...componentFromAttack(spell.damageType ?? 'fire', 0, effectiveSpell.canCrit), source, target: targetRef, baseDamage: effectiveSpell.damage, criticalDamageMultiplier: effectiveSpell.criticalDamageMultiplier, criticalChanceBonus: effectiveSpell.criticalChanceBonus, attackerAccuracy: getPlayerStats(next.combat, stats, context, next.progression).accuracy + effectiveSpell.accuracyModifier, minMultiplier: combatBalance.baseDamageVarianceMin, maxMultiplier: combatBalance.baseDamageVarianceMax, defensiveEligibility: { canMiss: spell.canMiss ?? true, dodgeable: spell.dodgeable ?? false, parryable: spell.parryable ?? false, blockable: spell.blockable ?? false }, armorPenetrationPercent: magicModifiers.spellArmorPenetrationPercent, armorPenetrationFlat: magicModifiers.spellArmorPenetrationFlat, progressionSource: { type: 'spell', proficiencyId: spell.magicProficiencyId, proficiencyEligible: true } }
     const effects = [
@@ -240,9 +253,10 @@ function damageEnemy(game: GameState, target: EnemyCombatInstance, packet: Damag
   const defenderStats = getEnemyStats(game.combat, current, context)
   const weaponProficiencyId = packet.progressionSource?.type === 'equippedWeapon' && packet.progressionSource.proficiencyEligible ? getEquippedWeaponProficiency(game.equipment) : null
   const proficiencyId = packet.progressionSource?.type === 'spell' && packet.progressionSource.proficiencyEligible ? packet.progressionSource.proficiencyId : weaponProficiencyId
-  const conditionalMultiplier = packet.progressionSource?.proficiencyEligible && packet.progressionSource.type === 'equippedWeapon' ? getWeaponDamageMultiplier(game.progression, weaponProficiencyId, current.currentHealth / current.maxHealth, current.effects.map((effect) => effect.effectId), perkById, game.combat.stance) : 1
-  const weaponAttack = getWeaponAttackModifiers(game.progression, weaponProficiencyId, perkById)
-  const magicAttack = packet.progressionSource?.type === 'spell' && packet.progressionSource.proficiencyEligible ? getEffectiveMagicModifiers(game.progression, packet.progressionSource.proficiencyId, perkById) : null
+  const equipmentContext = getDefensiveEquipmentContext(game.equipment)
+  const conditionalMultiplier = packet.progressionSource?.proficiencyEligible && packet.progressionSource.type === 'equippedWeapon' ? getWeaponDamageMultiplier(game.progression, weaponProficiencyId, current.currentHealth / current.maxHealth, current.effects.map((effect) => effect.effectId), perkById, game.combat.stance, equipmentContext) : 1
+  const weaponAttack = getWeaponAttackModifiers(game.progression, weaponProficiencyId, perkById, equipmentContext)
+  const magicAttack = packet.progressionSource?.type === 'spell' && packet.progressionSource.proficiencyEligible ? getEffectiveMagicModifiers(game.progression, packet.progressionSource.proficiencyId, perkById, equipmentContext) : null
   const secondaryFraction = magicAttack?.spellSecondaryTargetFraction ?? weaponAttack.secondaryTargetFraction
   const secondaryCount = magicAttack?.spellSecondaryTargetCount ?? weaponAttack.secondaryTargetCount
   const armorPenetrationPercent = magicAttack?.spellArmorPenetrationPercent ?? weaponAttack.armorPenetrationPercent
@@ -337,10 +351,14 @@ function advanceStep(game: GameState, step: number, context: CombatContext, stat
   combat = game.combat
   if (combat.phase !== 'active') return game
   const effective = getPlayerStats(combat, stats, context, game.progression)
+  const requestedRegen = Math.max(0, effective.healthRegen ?? 0) * step
+  const effectiveHealing = Math.min(Math.max(0, effective.maxHealth - combat.playerHp), requestedRegen)
+  combat = { ...combat, maxPlayerHp: effective.maxHealth, playerHp: combat.playerHp + effectiveHealing, session: effectiveHealing > 0 ? { ...combat.session, healing: combat.session.healing + effectiveHealing } : combat.session }
+  game = { ...game, combat }
   if (combat.stamina <= 0 && (combat.techniques['careful-positioning'] || combat.techniques['heightened-reflexes'])) { combat = event({ ...combat, stamina: 0, techniques: { 'careful-positioning': false, 'heightened-reflexes': false } }, { text: 'Techniques deactivated: Stamina depleted.', type: 'system' }) }
   const protectiveRuntime = combat.spells.find((spell) => spell.spellId === 'spell.protective-sign')
   const protectiveSpell = context.spells['spell.protective-sign']
-  const effectiveProtectiveSpell = protectiveSpell ? calculateEffectiveSpell(protectiveSpell, game.progression) : undefined
+  const effectiveProtectiveSpell = protectiveSpell ? calculateEffectiveSpell(protectiveSpell, game.progression, { equipmentContext: getDefensiveEquipmentContext(game.equipment) }) : undefined
   if (protectiveRuntime?.autoEnabled && getBarrierAmount(combat.playerEffects, context.effects) <= 0 && combat.playerHp / effective.maxHealth <= 0.7 && protectiveRuntime.cooldownRemaining <= 0 && protectiveSpell && effectiveProtectiveSpell && combat.mana >= effectiveProtectiveSpell.manaCost) {
     game = castSpell({ ...game, combat }, protectiveSpell.id, stats, context)
     combat = game.combat
@@ -377,6 +395,8 @@ function advanceStep(game: GameState, step: number, context: CombatContext, stat
       game = awardBarrierCredits({ ...game, combat: barrierResult.combat }, barrierResult.absorptions)
       combat = { ...game.combat, enemies: game.combat.enemies, playerHp: Math.max(0, game.combat.playerHp - resolved.healthDamage), lastDamageSource: definition.name, session: { ...game.combat.session, damageTaken: game.combat.session.damageTaken + resolved.healthDamage } }
       combat = { ...combat, enemies: combat.enemies.map((candidate) => candidate.instanceId === current.instanceId ? { ...candidate, attackTimer: definition.attackInterval } : candidate) }
+      game = resolveDefensiveTrainingForEnemyAction({ ...game, combat }, { source: 'enemy-normal-attack', resolved: true }, context.items)
+      combat = game.combat
       const message = resolved.outcome === 'hit' || resolved.outcome === 'block' ? `${current.displayName} hits you for ${resolved.healthDamage}${resolved.barrierAbsorbed > 0 ? ` (${resolved.barrierAbsorbed} absorbed)` : ''}.` : `${current.displayName} ${resolved.outcome}s your attack.`
       const type = resolved.outcome === 'miss' ? 'attackMissed' : resolved.outcome === 'dodge' ? 'attackDodged' : resolved.outcome === 'parry' ? 'attackParried' : resolved.outcome === 'block' ? 'attackBlocked' : 'damageDealt'
       combat = event(combat, { text: message, type: 'enemy', eventType: type, source: packet.source, target: packet.target, data: { damage: resolved.healthDamage, absorbed: resolved.barrierAbsorbed } })
@@ -480,6 +500,8 @@ function advanceEnemySpecials(game: GameState, step: number, context: CombatCont
         current = { ...current, currentAction: null, specialCooldownRemaining: Math.max(0, actionDefinition.cooldownSeconds) }
         game = awardBarrierCredits({ ...game, combat: barrierResult.combat }, barrierResult.absorptions)
         combat = { ...game.combat, enemies: game.combat.enemies.map((candidate) => candidate.instanceId === current.instanceId ? current : candidate), playerHp: Math.max(0, game.combat.playerHp - resolved.healthDamage), session: { ...game.combat.session, damageTaken: game.combat.session.damageTaken + resolved.healthDamage }, lastDamageSource: definition.name }
+        game = resolveDefensiveTrainingForEnemyAction({ ...game, combat }, { source: 'enemy-direct-action', resolved: true }, context.items)
+        combat = game.combat
         combat = event(combat, { text: `${current.displayName} resolves ${actionDefinition.name}: ${result.outcome}${resolved.healthDamage > 0 ? ` for ${resolved.healthDamage} damage` : ''}.`, type: 'enemy', eventType: 'actionResolved', source: packet.source, target: packet.target, data: { damage: resolved.healthDamage, absorbed: resolved.barrierAbsorbed } })
         if ((result.outcome === 'hit' || result.outcome === 'block') && actionDefinition.applyEffects) {
           for (const applied of actionDefinition.applyEffects) if (applied.chance >= 1 || context.rng.next() < applied.chance) combat = applyEffectToGame({ ...game, combat }, applied.effectId, packet.source, packet.target, playerStats, context).combat

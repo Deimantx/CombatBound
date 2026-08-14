@@ -7,13 +7,13 @@ import { proficiencyXpForLevel } from '../game/progression/proficiencyProgressio
 
 describe('proficiency perk graphs', () => {
   it('contains a 40-node tree for every current proficiency', () => {
-    for (const proficiencyId of ['one-handed-sword', 'one-handed-axe', 'one-handed-mace', 'dagger', 'two-handed-sword', 'two-handed-axe', 'two-handed-hammer', 'spear', 'shortbow', 'longbow', 'crossbow', 'fire-magic', 'water-magic', 'air-magic', 'earth-magic', 'light-magic', 'darkness-magic'] as const) expect(proficiencyPerkDefinitions.filter((perk) => perk.proficiencyId === proficiencyId)).toHaveLength(40)
+    for (const proficiencyId of ['one-handed-sword', 'one-handed-axe', 'one-handed-mace', 'dagger', 'two-handed-sword', 'two-handed-axe', 'two-handed-hammer', 'spear', 'shortbow', 'longbow', 'crossbow', 'fire-magic', 'water-magic', 'air-magic', 'earth-magic', 'light-magic', 'darkness-magic', 'light-armor', 'medium-armor', 'heavy-armor', 'shield'] as const) expect(proficiencyPerkDefinitions.filter((perk) => perk.proficiencyId === proficiencyId)).toHaveLength(40)
   })
 
   it('validates roots, rank references, coordinates, and acyclic prerequisites', () => {
     const result = validateAllPerkGraphs(proficiencyPerkDefinitions)
     expect(result.valid).toBe(true)
-    expect(result.results).toHaveLength(17)
+    expect(result.results).toHaveLength(21)
     expect(result.results.every(({ result: graph }) => graph.errors.length === 0)).toBe(true)
   })
 

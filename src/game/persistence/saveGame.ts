@@ -1,5 +1,5 @@
 import type { GameSaveV3 } from './saveTypes'
-import { migrateCurrentSave, migrateLegacySave } from './saveMigration'
+import { migrateCurrentSave, migrateEquipment, migrateLegacySave } from './saveMigration'
 import { isGameSave } from './saveValidation'
 
 export const GAME_SAVE_KEY = 'combatbound-idle-save-v3'
@@ -9,10 +9,19 @@ export const LEGACY_GAME_SAVE_KEY = 'combatbound-idle-save-v1'
 export function loadGameSave(): GameSaveV3 | null {
   if (typeof localStorage === 'undefined') return null
   try {
-    const currentRaw = localStorage.getItem(GAME_SAVE_KEY)
+      const currentRaw = localStorage.getItem(GAME_SAVE_KEY)
     if (currentRaw) {
       const current = JSON.parse(currentRaw) as unknown
-      if (isGameSave(current)) return current
+      if (isGameSave(current)) {
+        const hadLegacyArmor = Boolean(current.equipment.slots.armor)
+        const equipment = migrateEquipment(current.equipment)
+        if (hadLegacyArmor) {
+          const migrated = { ...current, equipment }
+          saveGame(migrated)
+          return migrated
+        }
+        return current
+      }
     }
     const currentLegacyRaw = localStorage.getItem(LEGACY_CURRENT_GAME_SAVE_KEY)
     const legacyRaw = localStorage.getItem(LEGACY_GAME_SAVE_KEY)
