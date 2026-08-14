@@ -2,6 +2,7 @@ import { cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import App from '../../App'
 import { useGameStore } from '../state/gameStore'
+import { proficiencyDefinitions } from '../game/data/proficiencies'
 
 beforeEach(() => useGameStore.getState().resetGameplay())
 afterEach(() => cleanup())
@@ -79,12 +80,33 @@ describe('proficiency perk tree viewport', () => {
     }
   })
 
-  it('shows all four defensive proficiencies in the DEFENSE section', () => {
+  it('keeps the canonical defense catalogue and selector order', () => {
+    const defense = proficiencyDefinitions.filter((definition) => definition.category === 'defense')
+    expect(defense.map((definition) => definition.id)).toEqual(['light-armor', 'medium-armor', 'heavy-armor', 'shield'])
+    for (const definition of defense) expect(definition.perkIds).toHaveLength(40)
+
     openTree()
+    expect(Array.from(document.querySelectorAll('[data-debug-kind="proficiency-group"]')).map((group) => group.getAttribute('data-debug-label'))).toEqual(['MELEE', 'RANGED', 'MAGIC', 'DEFENSE'])
     const defenseGroup = document.querySelector('[data-debug-kind="proficiency-group"][data-debug-category="defense"]')
     expect(defenseGroup).toBeInTheDocument()
+    expect(defenseGroup).toHaveAttribute('data-debug-count', '4')
     expect(defenseGroup?.querySelectorAll('[data-debug-kind="proficiency-tile"]')).toHaveLength(4)
-    for (const label of ['Light Armor', 'Medium Armor', 'Heavy Armor', 'Shield']) expect(screen.getByRole('button', { name: new RegExp(label) })).toBeInTheDocument()
+    for (const label of ['Light Armor', 'Medium Armor', 'Heavy Armor', 'Shield']) {
+      const tile = screen.getByRole('button', { name: new RegExp(label) })
+      expect(tile).toBeVisible()
+      expect(tile).not.toBeDisabled()
+    }
+  })
+
+  it('opens each defensive tree while untrained', () => {
+    openTree()
+    for (const label of ['Light Armor', 'Medium Armor', 'Heavy Armor', 'Shield']) {
+      fireEvent.click(screen.getByRole('button', { name: new RegExp(label) }))
+      expect(screen.getByText(`${label} Proficiency`)).toBeInTheDocument()
+      expect(document.querySelectorAll('[data-perk-node]')).toHaveLength(40)
+      expect(screen.getByText('CURRENT TRAINING')).toBeInTheDocument()
+      expect(screen.queryByText('Tree not authored yet')).not.toBeInTheDocument()
+    }
   })
 
   it('keeps tree nodes readable and preserves selected details', () => {

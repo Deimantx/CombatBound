@@ -9,7 +9,7 @@ import { getPerkPurchaseState } from '../../../game/progression/perkProgression'
 import { getProficiencyLevelProgress, getProficiencyProgress, getProficiencyXpToNextLevel } from '../../../game/progression/proficiencyProgression'
 import { useGameStore } from '../../../state/gameStore'
 import { getDefensiveEquipmentContext } from '../../../game/equipment/defensiveEquipment'
-import type { CombatProficiencyId, PerkPurchaseState, ProficiencyPerkDefinition } from '../../../game/progression/progressionTypes'
+import type { CombatProficiencyId, PerkPurchaseState, ProficiencyCategory, ProficiencyPerkDefinition } from '../../../game/progression/progressionTypes'
 import { GameTooltip } from '../../components/tooltip/GameTooltip'
 import { useTooltip } from '../../components/tooltip/TooltipProvider'
 import { Panel } from '../../components/Panel'
@@ -40,7 +40,12 @@ type TreePan = { x: number; y: number }
 
 const PAN_PADDING = 60
 const PAN_THRESHOLD = 4
-const DEFENSIVE_PROFICIENCY_IDS: CombatProficiencyId[] = ['light-armor', 'medium-armor', 'heavy-armor', 'shield']
+const PROFICIENCY_GROUPS = [
+  { category: 'melee', label: 'MELEE' },
+  { category: 'ranged', label: 'RANGED' },
+  { category: 'magic', label: 'MAGIC' },
+  { category: 'defense', label: 'DEFENSE' },
+] as const satisfies ReadonlyArray<{ category: ProficiencyCategory; label: string }>
 
 function graphPoint(perk: ProficiencyPerkDefinition) {
   const x = GRAPH_SIDE_PADDING + (perk.presentation.column / (GRAPH_COLUMNS - 1)) * (GRAPH_WIDTH - GRAPH_SIDE_PADDING * 2)
@@ -56,6 +61,7 @@ export function ProficienciesScreen() {
   const [selectedId, setSelectedId] = useState<CombatProficiencyId>(equippedProficiency ?? 'one-handed-sword')
   const [selectedPerkId, setSelectedPerkId] = useState('')
   const [treePanByProficiency, setTreePanByProficiency] = useState<Partial<Record<CombatProficiencyId, TreePan>>>({})
+  useEffect(() => setSelectedPerkId(''), [selectedId])
   const selected = proficiencyById[selectedId] ?? proficiencyDefinitions[0]
   const earned = calculateEarnedPerkPoints(game.progression.masteryXp)
   const spent = calculateSpentPerkPoints(game.progression, perkById)
@@ -65,7 +71,6 @@ export function ProficienciesScreen() {
   const masteryNext = masteryLevel >= 100 ? masteryCurrent : masteryXpForLevel(masteryLevel + 1)
   const masteryPercent = masteryNext === masteryCurrent ? 100 : ((game.progression.masteryXp - masteryCurrent) / (masteryNext - masteryCurrent)) * 100
   const activeWeapon = game.equipment.slots.weapon ? itemById[game.equipment.slots.weapon]?.name : undefined
-  const defensiveDefinitions = DEFENSIVE_PROFICIENCY_IDS.map((id) => proficiencyById[id]).filter((definition): definition is typeof proficiencyDefinitions[number] => Boolean(definition))
   const selectedPerks = selected.perkIds.map((perkId) => perkById[perkId]).filter((perk): perk is ProficiencyPerkDefinition => Boolean(perk))
   const selectedPerk = selectedPerks.find((perk) => perk.id === selectedPerkId) ?? selectedPerks[0]
 
@@ -80,10 +85,7 @@ export function ProficienciesScreen() {
     </Panel>
     <div className="proficiencies-layout">
       <Panel title="Proficiencies" subtitle="Select a combat path" icon={Swords} panelId="proficiencyList" screen="proficiencies" className="proficiency-list-panel proficiencies-selector">
-        <ProficiencyGroup label="DEFENSE" definitions={defensiveDefinitions} selectedId={selected.id} equippedId={null} progression={game.progression} defensiveContext={defensiveContext} onSelect={setSelectedId} />
-        <ProficiencyGroup label="MELEE" definitions={proficiencyDefinitions.filter((definition) => definition.category === 'melee')} selectedId={selected.id} equippedId={equippedProficiency} progression={game.progression} onSelect={setSelectedId} />
-        <ProficiencyGroup label="RANGED" definitions={proficiencyDefinitions.filter((definition) => definition.category === 'ranged')} selectedId={selected.id} equippedId={equippedProficiency} progression={game.progression} onSelect={setSelectedId} />
-        <ProficiencyGroup label="MAGIC" definitions={proficiencyDefinitions.filter((definition) => definition.category === 'magic')} selectedId={selected.id} equippedId={null} progression={game.progression} onSelect={setSelectedId} />
+        {PROFICIENCY_GROUPS.map((group) => <ProficiencyGroup key={group.category} category={group.category} label={group.label} definitions={proficiencyDefinitions.filter((definition) => definition.category === group.category)} selectedId={selected.id} equippedId={group.category === 'melee' || group.category === 'ranged' ? equippedProficiency : null} progression={game.progression} defensiveContext={group.category === 'defense' ? defensiveContext : undefined} onSelect={setSelectedId} />)}
       </Panel>
       <Panel title={`${selected.name} Proficiency`} subtitle={selected.description} icon={Sparkles} panelId="selectedProficiency" screen="proficiencies" className="selected-proficiency-panel">
         <SelectedHeader definition={selected} progression={game.progression} equipped={selected.category === 'defense' ? defensivePiecesFor(selected.id, defensiveContext) > 0 : selected.category !== 'magic' && selected.id === equippedProficiency} activeWeapon={activeWeapon} defensiveContext={defensiveContext} />
@@ -111,8 +113,8 @@ function DefensiveProgressionContext({ proficiencyId, context }: { proficiencyId
   return <div className="defensive-proficiency-context" data-debug-defensive-proficiency={proficiencyId} data-debug-armor-piece-count={pieces} data-debug-shield-equipped={shield && pieces > 0} data-debug-training-rate={shield ? pieces : pieces / 4}><span className="tiny-label">CURRENT TRAINING</span><strong>{shield ? (pieces > 0 ? 'Shield equipped' : 'No Shield equipped') : `${pieces} / 4 matching armor pieces`}</strong><small>Training rate: {(shield ? pieces : pieces / 4).toFixed(2)}× per defensive combat event</small></div>
 }
 
-function ProficiencyGroup({ label, definitions, selectedId, equippedId, progression, defensiveContext, onSelect }: { label: string; definitions: typeof proficiencyDefinitions; selectedId: CombatProficiencyId; equippedId: CombatProficiencyId | null; progression: Progression; defensiveContext?: ReturnType<typeof getDefensiveEquipmentContext>; onSelect: (id: CombatProficiencyId) => void }) {
-  return <div className="proficiency-group" data-debug-kind="proficiency-group" data-debug-category={definitions[0]?.category ?? label.toLowerCase()} data-debug-label={label}><span className="tiny-label">{label}</span><div className="proficiency-grid">{definitions.map((definition) => <ProficiencyTile key={definition.id} definition={definition} selected={selectedId === definition.id} active={definition.category === 'defense' ? defensivePiecesFor(definition.id, defensiveContext ?? { lightArmorPieces: 0, mediumArmorPieces: 0, heavyArmorPieces: 0, shieldEquipped: false }) > 0 : definition.category !== 'magic' && equippedId === definition.id} progression={progression} onSelect={onSelect} />)}</div></div>
+function ProficiencyGroup({ category, label, definitions, selectedId, equippedId, progression, defensiveContext, onSelect }: { category: ProficiencyCategory; label: string; definitions: typeof proficiencyDefinitions; selectedId: CombatProficiencyId; equippedId: CombatProficiencyId | null; progression: Progression; defensiveContext?: ReturnType<typeof getDefensiveEquipmentContext>; onSelect: (id: CombatProficiencyId) => void }) {
+  return <div className="proficiency-group" data-debug-kind="proficiency-group" data-debug-category={category} data-debug-count={definitions.length} data-debug-label={label}><span className="tiny-label">{label}</span><div className="proficiency-grid">{definitions.map((definition) => <ProficiencyTile key={definition.id} definition={definition} selected={selectedId === definition.id} active={definition.category === 'defense' ? defensivePiecesFor(definition.id, defensiveContext ?? { lightArmorPieces: 0, mediumArmorPieces: 0, heavyArmorPieces: 0, shieldEquipped: false }) > 0 : definition.category !== 'magic' && equippedId === definition.id} progression={progression} onSelect={onSelect} />)}</div></div>
 }
 
 function ProficiencyTile({ definition, selected, active, progression, onSelect }: { definition: typeof proficiencyDefinitions[number]; selected: boolean; active: boolean; progression: Progression; onSelect: (id: CombatProficiencyId) => void }) {

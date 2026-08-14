@@ -7,6 +7,8 @@
 .proficiencies-layout { display: grid; gap: 12px; grid-template-columns: minmax(260px, 17vw) minmax(0, 1fr) minmax(260px, 290px); margin-top: 14px; min-width: 0; }
 .proficiencies-layout > * { min-width: 0; }
 .proficiencies-selector, .selected-proficiency-panel { min-width: 0; }
+.proficiencies-layout > .proficiencies-selector { align-self: start; height: max-content; }
+.proficiencies-layout > .perk-tree-details { align-self: start; }
 .proficiency-group + .proficiency-group { border-top: 1px solid var(--line-soft); margin-top: 14px; padding-top: 12px; }
 .proficiency-list { display: flex; flex-direction: column; gap: 6px; margin-top: 7px; }
 .proficiency-grid { display: grid; gap: 6px; grid-template-columns: repeat(3, minmax(0, 1fr)); margin-top: 7px; }
