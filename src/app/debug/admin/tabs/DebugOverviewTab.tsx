@@ -33,6 +33,6 @@ export function DebugOverviewTab({ game, debug, run, setTab, selectedEnemy }: De
     </div></DebugSection>
     <DebugSection title="Simulation" subtitle="Shared clock controls used by the in-game dock."><DebugSimulationControls /></DebugSection>
     <div className="debug-shortcuts"><button type="button" onClick={() => setTab("items")}><Package size={14} /> Items <span>Grant and normalize quantities</span></button><button type="button" onClick={() => setTab("progression")}>Progression <span>Mastery, proficiency, and perk setup</span></button><button type="button" onClick={() => setTab("combat")}><Crosshair size={14} /> Combat <span>Effects, resources, casts, and defeat</span></button></div>
-    <p className="debug-note">Automation: <strong>{game.combatAutomation.enabled ? "ON" : "OFF"}</strong> - Location: <strong>{game.combat.combatLocationId ?? "none"}</strong> - Group: <strong>{game.combat.groupNumber}</strong> - XP to next Mastery: <strong>{progress.xpToNextLevel.toLocaleString()}</strong></p>
+    <p className="debug-note">Automation: <strong>{game.combatAutomation.enabled ? "ON" : "OFF"}</strong> · Location: <strong>{game.combat.combatLocationId ?? "none"}</strong> · Group: <strong>{game.combat.groupNumber}</strong> · XP to next Mastery: <strong>{progress.xpToNextLevel.toLocaleString()}</strong></p>
   </div>;
 }

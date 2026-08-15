@@ -7,6 +7,8 @@ export interface DebugScenarioSnapshotV1 {
 }
 
 export interface DebugScenarioSlot {
+  slot: 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10;
+  /** Stable identifier for DOM inspection while slots remain numbered. */
   id: string;
   name: string;
   createdAt: number;

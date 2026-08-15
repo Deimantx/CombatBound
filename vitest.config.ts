@@ -7,5 +7,7 @@ export default defineConfig({
   test: {
     environment: 'jsdom',
     setupFiles: ['./src/tests/setup.ts'],
+    // The authored perk-tree viewport test is CPU-heavy when Vitest workers run in parallel on Windows.
+    testTimeout: 10000,
   },
 })

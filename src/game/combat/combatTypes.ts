@@ -78,6 +78,21 @@ export interface StatModifier {
   value: number;
 }
 
+export interface CombatStatContribution {
+  stat: CombatStatKey | `resistance:${Exclude<DamageType, "true">}`;
+  sourceType: "base" | "equipment" | "perk" | "stance" | "technique" | "effect" | "other";
+  sourceId: string;
+  sourceLabel: string;
+  operation: "flat" | "addPercent" | "multiply";
+  value: number;
+  before: number;
+  after: number;
+}
+
+export interface CombatStatContributionCollector {
+  record: (contribution: CombatStatContribution) => void;
+}
+
 export interface DefensiveEligibility {
   canMiss?: boolean;
   dodgeable: boolean;

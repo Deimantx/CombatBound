@@ -129,6 +129,7 @@ import {
 import type { DebugEffectTarget, DebugResource } from "../game/debug/debugTypes";
 import type { CombatProficiencyId } from "../game/progression/progressionTypes";
 import { useDevToolsRuntimeStore } from "../app/debug/devtools/devToolsRuntimeStore";
+import { useDebugTelemetryStore } from "../app/debug/telemetry/debugTelemetryStore";
 import type { DebugScenarioSnapshotV1 } from "../app/debug/scenarios/debugScenarioTypes";
 import { validateDebugScenario } from "../app/debug/scenarios/debugScenarioValidation";
 
@@ -297,7 +298,9 @@ function nextDebugRandom(kind: string) {
     stateAfter = step.state;
   } else value = Math.random();
   if (forced) runtime.setRngOverride(kind as "hit" | "crit" | "dodge" | "parry" | "block", undefined);
-  runtime.recordRoll({ id: runtime.rngRollIndex + 1, kind, value, source: runtime.rngMode, forced, stateAfter, at: Date.now() });
+  const roll = { id: runtime.rngRollIndex + 1, kind, value, source: runtime.rngMode, forced, stateAfter, at: Date.now() };
+  runtime.recordRoll(roll);
+  if (runtime.rngCaptureEnabled) useDebugTelemetryStore.getState().recordRoll(roll);
   return value;
 }
 
@@ -306,10 +309,7 @@ if (import.meta.env.DEV) context.debugHooks = {
   onAutomationTrace: (trace) => {
     const runtime = useDevToolsRuntimeStore.getState();
     if (!runtime.automationTraceEnabled) return;
-    runtime.recordAutomationTrace({
-      text: `#${trace.priority} ${trace.actionId} · ${trace.result}${trace.validationReason ? ` · ${trace.validationReason}` : ""}`,
-      passed: trace.result === "executed",
-    });
+    useDebugTelemetryStore.getState().recordAutomationTrace(trace);
   },
 };
 const initial = createInitialGameState();
@@ -440,6 +440,13 @@ function savePermanent(
     combatAbilities: game.combatAbilities,
   });
 }
+
+function captureDebugCombatEvents(previous: GameState, next: GameState) {
+  if (!import.meta.env.DEV || !useDevToolsRuntimeStore.getState().eventsEnabled) return;
+  const previousEventIds = new Set(previous.combat.events.map((event) => event.id));
+  for (const event of next.combat.events)
+    if (!previousEventIds.has(event.id)) useDebugTelemetryStore.getState().recordEvent({ text: event.type, eventType: event.type, type: "system", source: event.source, target: event.target, data: event.data, sequence: event.id });
+}
 function selectionUi(
   selection: ReturnType<typeof cascadeSelection>,
   state: GameStoreState,
@@ -496,8 +503,9 @@ export const useGameStore = create<GameStoreState>((set, get) => {
     });
     return flatState(game, state);
   };
-  const runHunt = () =>
-    set((state) => {
+  const runHunt = () => {
+    useDevToolsRuntimeStore.getState().resetSimulationAccumulator();
+    return set((state) => {
       const masteryLevel = masteryLevelForXp(state.game.progression.masteryXp);
       if (
         !isCombatLocationAvailable(state.selectedCombatLocationId, masteryLevel)
@@ -519,8 +527,10 @@ export const useGameStore = create<GameStoreState>((set, get) => {
         stats,
         context,
       );
+      captureDebugCombatEvents(state.game, game);
       return flatState(game, state);
     });
+  };
   const commitDebug = (
     mutation: (game: GameState) => GameState,
     persistent = false,
@@ -529,6 +539,7 @@ export const useGameStore = create<GameStoreState>((set, get) => {
       if (!import.meta.env.DEV) return state;
       const game = mutation(state.game);
       if (game === state.game) return state;
+      captureDebugCombatEvents(state.game, game);
       if (persistent)
         savePermanent(game, {
           reducedMotion: state.reducedMotion,
@@ -582,6 +593,7 @@ export const useGameStore = create<GameStoreState>((set, get) => {
     addGold: (amount) => commitDebug((game) => debugAddGold(game, amount), true),
     loadScenario: (snapshot) => {
       if (!validateDebugScenario(snapshot).valid) return;
+      useDevToolsRuntimeStore.getState().resetSimulationAccumulator();
       set((state) => {
         const game = syncCombatStats({ ...state.game, ...snapshot.game, combat: { ...snapshot.game.combat, phase: snapshot.game.combat.phase === "inactive" ? "inactive" : snapshot.game.combat.phase } });
         const selection = cascadeSelection(snapshot.world);
@@ -589,6 +601,7 @@ export const useGameStore = create<GameStoreState>((set, get) => {
       });
     },
     startEncounter: (locationId, enemyIds) => commitDebug((game) => {
+      useDevToolsRuntimeStore.getState().resetSimulationAccumulator();
       const stats = calculateHunterCombatStats(game.equipment, game.progression, game.combat.stance, game.combat.techniques);
       return engineStartDebugEncounter(game, locationId, enemyIds, stats, context);
     }),
@@ -652,11 +665,7 @@ export const useGameStore = create<GameStoreState>((set, get) => {
           state.game.combat.techniques,
         );
         const game = advanceCombat(state.game, delta, context, stats);
-        if (import.meta.env.DEV) {
-          const previousEventIds = new Set(state.game.combat.events.map((event) => event.id));
-          for (const event of game.combat.events)
-            if (!previousEventIds.has(event.id)) useDevToolsRuntimeStore.getState().recordEvent({ type: event.type, text: event.type });
-        }
+        captureDebugCombatEvents(state.game, game);
         if (
           game.progression.masteryXp !== state.game.progression.masteryXp ||
           Object.keys(game.progression.proficiencies).length !==
@@ -718,6 +727,7 @@ export const useGameStore = create<GameStoreState>((set, get) => {
           state.game.combat.techniques,
         );
         const game = engineCastSpell(state.game, spellId, stats, context);
+        captureDebugCombatEvents(state.game, game);
         if (
           game.progression.masteryXp !== state.game.progression.masteryXp ||
           Object.keys(game.progression.proficiencies).length !==
@@ -737,10 +747,9 @@ export const useGameStore = create<GameStoreState>((set, get) => {
           state.game.combat.stance,
           state.game.combat.techniques,
         );
-        return flatState(
-          engineExecutePlayerAction(state.game, actionId, stats, context),
-          state,
-        );
+        const game = engineExecutePlayerAction(state.game, actionId, stats, context);
+        captureDebugCombatEvents(state.game, game);
+        return flatState(game, state);
       }),
     setSpellSlot: (slot, spellId) =>
       set((state) => {

@@ -14,9 +14,12 @@ export function SimulationDriver() {
   const paused = useDevToolsRuntimeStore((state) => state.simulationPaused);
   const timeScale = useDevToolsRuntimeStore((state) => state.timeScale);
   const accumulator = useRef(0);
+  const resetVersion = useDevToolsRuntimeStore((state) => state.simulationResetVersion);
+  const seenResetVersion = useRef(resetVersion);
 
   useEffect(() => {
     if ((!combatActive && !recoveryActive) || paused) return;
+    if (seenResetVersion.current !== resetVersion) { accumulator.current = 0; seenResetVersion.current = resetVersion; }
     const interval = window.setInterval(() => {
       accumulator.current += 0.1 * timeScale;
       while (accumulator.current >= 0.1) {
@@ -25,13 +28,19 @@ export function SimulationDriver() {
       }
     }, 100);
     return () => window.clearInterval(interval);
-  }, [combatActive, recoveryActive, paused, timeScale, tickCombat]);
+  }, [combatActive, recoveryActive, paused, resetVersion, timeScale, tickCombat]);
 
   return null;
 }
 
 export function stepSimulation(seconds: number) {
+  if (!Number.isFinite(seconds) || seconds <= 0) return;
+  useDevToolsRuntimeStore.getState().resetSimulationAccumulator();
   const tickCombat = useGameStore.getState().tickCombat;
-  const steps = Math.max(1, Math.ceil(Math.max(0, seconds) / 0.1));
-  for (let index = 0; index < steps; index += 1) tickCombat(Math.min(0.1, Math.max(0, seconds - index * 0.1)) || 0.1);
+  let remaining = seconds;
+  while (remaining > 0) {
+    const delta = Math.min(0.1, remaining);
+    tickCombat(delta);
+    remaining -= delta;
+  }
 }
