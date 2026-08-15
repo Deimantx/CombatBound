@@ -3,6 +3,7 @@ import type {
   EffectDefinition,
   CombatStatKey,
   DamageType,
+  EnemyDefinition,
   PlayerActionDefinition,
 } from "../combat/combatTypes";
 import type { ItemDefinition } from "../data/items";
@@ -308,6 +309,61 @@ export function buildEffectTooltip(
     description: definition.description,
     rows,
     notes,
+  };
+}
+
+export function buildEffectDefinitionTooltip(definition: EffectDefinition): TooltipModel {
+  const rows: TooltipRow[] = [
+    { label: "Kind", value: kindLabels[definition.kind], tone: definition.kind === "barrier" ? "blue" : definition.kind === "buff" ? "green" : "red" },
+    { label: "Duration", value: definition.durationSeconds === null ? "Permanent" : formatSeconds(definition.durationSeconds), tone: "blue" },
+    { label: "Stacking", value: definition.stacking.mode.replaceAll("-", " "), tone: "default" },
+    { label: "Max stacks", value: `${definition.stacking.maxStacks}`, tone: "gold" },
+    { label: "Persistence", value: definition.persistence.replaceAll("-", " "), tone: "default" },
+  ];
+  if (definition.periodic) {
+    const operation = definition.periodic.operation;
+    rows.push({ label: operation.type === "damage" ? "Periodic damage" : "Periodic healing", value: operation.type === "damage" ? `${operation.baseAmount} ${damageLabels[operation.damageType]}` : `${operation.baseAmount}`, tone: operation.type === "damage" ? "red" : "green" });
+    rows.push({ label: "Tick interval", value: formatSeconds(definition.periodic.intervalSeconds), tone: "blue" });
+  }
+  if (definition.barrierAmount !== undefined) rows.push({ label: "Barrier amount", value: `${definition.barrierAmount}`, tone: "blue" });
+  for (const modifier of definition.statModifiers ?? []) rows.push({ label: labelForStatKey(modifier.stat), value: modifier.operation === "flat" ? formatSignedNumber(modifier.value) : `${modifier.value > 0 ? "+" : ""}${Math.round(modifier.value * 100)}%`, tone: toneForValue(modifier.value) });
+  for (const modifier of definition.resistanceModifiers ?? []) rows.push({ label: `${damageLabels[modifier.damageType]} resistance`, value: modifier.operation === "flat" ? formatSignedNumber(modifier.value) : `${modifier.value > 0 ? "+" : ""}${Math.round(modifier.value * 100)}%`, tone: toneForValue(modifier.value) });
+  return {
+    id: `effect-definition.${definition.id}`,
+    icon: definition.icon,
+    title: definition.name,
+    subtitle: `${kindLabels[definition.kind]} - ${definition.tags.join(" - ")}`,
+    tone: definition.kind === "barrier" ? "blue" : definition.kind === "buff" ? "green" : "red",
+    description: definition.description,
+    rows,
+    notes: [definition.tags.length ? `Tags: ${definition.tags.join(", ")}` : "", definition.beneficial === undefined ? "" : definition.beneficial ? "Beneficial" : "Harmful", definition.cleanseTags?.length ? `Cleanse tags: ${definition.cleanseTags.join(", ")}` : ""].filter(Boolean),
+  };
+}
+
+export function buildEnemyDefinitionTooltip(enemy: EnemyDefinition, options: { defeats?: number; sourceLocations?: string[] } = {}): TooltipModel {
+  const rows: TooltipRow[] = [
+    { label: "Family", value: enemy.family, tone: "gold" },
+    { label: "Max Health", value: `${enemy.maxHealth}`, tone: "green" },
+    { label: "Attack Power", value: `${enemy.attackPower}`, tone: "red" },
+    { label: "Accuracy", value: `${enemy.accuracy}`, tone: "gold" },
+    { label: "Armor", value: `${enemy.armor}`, tone: "blue" },
+    { label: "Evasion", value: `${enemy.evasion}`, tone: "blue" },
+    { label: "Attack Interval", value: formatSeconds(enemy.attackInterval), tone: "blue" },
+    { label: "Dodge", value: formatPercent(enemy.dodgeChance, true), tone: "blue" },
+    { label: "Parry", value: formatPercent(enemy.parryChance, true), tone: "blue" },
+    { label: "Block Chance", value: formatPercent(enemy.blockChance, true), tone: "blue" },
+    { label: "Block Power", value: formatPercent(enemy.blockPower, true), tone: "blue" },
+  ];
+  rows.push(...Object.entries(enemy.resistances).map(([damageType, value]) => ({ label: `${damageType} resistance`, value: formatPercent(value, true), tone: toneForValue(value) } satisfies TooltipRow)));
+  if (options.defeats !== undefined) rows.push({ label: "Collection defeats", value: `${options.defeats}`, tone: "gold" });
+  return {
+    id: `enemy-definition.${enemy.id}`,
+    icon: enemy.icon,
+    title: enemy.name,
+    subtitle: `${enemy.family} - ${enemy.id}`,
+    tone: enemy.accent,
+    rows,
+    notes: [enemy.traits.length ? `Traits: ${enemy.traits.map((trait) => trait.name).join(", ")}` : "", enemy.actions.length ? `Actions: ${enemy.actions.map((action) => action.name).join(", ")}` : "", options.sourceLocations?.length ? `Source locations: ${options.sourceLocations.join(", ")}` : ""].filter(Boolean),
   };
 }
 

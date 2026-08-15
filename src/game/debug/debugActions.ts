@@ -21,7 +21,6 @@ import { COMBAT_SPELL_SLOT_COUNT } from "../spellbook/spellbookTypes";
 import { allProficiencyDefinitions, discoverProficiency, proficiencyXpForLevel } from "../progression/proficiencyProgression";
 import { MAX_MASTERY_LEVEL, MAX_PROFICIENCY_LEVEL } from "../progression/progressionBalance";
 import { masteryXpForLevel, totalMasteryXpForPerkPoints } from "../progression/masteryProgression";
-import { calculateSpentPerkPoints } from "../progression/masteryProgression";
 import type { CombatProficiencyId, ProgressionState } from "../progression/progressionTypes";
 import type { CombatantRef } from "../combat/combatTypes";
 import type { GameState } from "../gameState";
@@ -145,33 +144,6 @@ export function debugDiscoverAllProficiencies(game: GameState): GameState {
     game.progression,
   );
   return { ...game, progression };
-}
-
-export function debugSetPerkRank(game: GameState, perkId: string, rank: number): GameState {
-  const definition = perkById[perkId];
-  if (!definition) return game;
-  const safeRank = clampInteger(rank, 0, definition.maxRank);
-  const purchasedPerks = { ...game.progression.purchasedPerks };
-  if (safeRank === 0) delete purchasedPerks[perkId];
-  else purchasedPerks[perkId] = safeRank;
-  return syncCombatStats({ ...game, progression: { ...game.progression, purchasedPerks } });
-}
-
-export function debugMaxAllPerks(game: GameState): GameState {
-  const purchasedPerks = Object.fromEntries(
-    Object.values(perkById).map((perk) => [perk.id, perk.maxRank]),
-  );
-  return syncCombatStats({ ...game, progression: { ...game.progression, purchasedPerks } });
-}
-
-export function debugResetAllPerks(game: GameState): GameState {
-  return syncCombatStats({ ...game, progression: { ...game.progression, purchasedPerks: {} } });
-}
-
-export function debugGrantEnoughMasteryForPurchasedPerks(game: GameState): GameState {
-  const spent = calculateSpentPerkPoints(game.progression, perkById);
-  const required = totalMasteryXpForPerkPoints(spent);
-  return debugAddMasteryXp(game, Math.max(0, required - game.progression.masteryXp));
 }
 
 export function debugDiscoverAllItems(game: GameState): GameState {

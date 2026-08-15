@@ -100,7 +100,6 @@ import {
   debugFillSpellLoadout,
   debugFillStamina,
   debugGrantAllEquipment,
-  debugGrantEnoughMasteryForPurchasedPerks,
   debugGrantEquipmentTier,
   debugGrantItem,
   debugGrantPerkPoints,
@@ -108,8 +107,6 @@ import {
   debugKillCurrentGroup,
   debugKillSelectedEnemy,
   debugLearnAllSpells,
-  debugMaxAllPerks,
-  debugResetAllPerks,
   debugResetCollection,
   debugResetEnemyCooldowns,
   debugResetPlayerCooldowns,
@@ -121,7 +118,6 @@ import {
   debugSetGold,
   debugSetItemQuantity,
   debugSetMasteryLevel,
-  debugSetPerkRank,
   debugSetPlayerResource,
   debugSetProficiencyLevel,
   debugSetResourcePercent,
@@ -234,10 +230,6 @@ export interface DebugStoreApi {
   setProficiencyLevel: (proficiencyId: CombatProficiencyId, level: number) => void;
   setAllProficiencyLevels: (level: number) => void;
   discoverAllProficiencies: () => void;
-  setPerkRank: (perkId: string, rank: number) => void;
-  maxAllPerks: () => void;
-  resetAllPerks: () => void;
-  grantEnoughMasteryForPurchasedPerks: () => void;
   discoverAllItems: () => void;
   discoverAllTargets: () => void;
   setAllTargetDefeatsToOne: () => void;
@@ -507,10 +499,6 @@ export const useGameStore = create<GameStoreState>((set, get) => {
     setProficiencyLevel: (id, level) => commitDebug((game) => debugSetProficiencyLevel(game, id, level), true),
     setAllProficiencyLevels: (level) => commitDebug((game) => debugSetAllProficiencyLevels(game, level), true),
     discoverAllProficiencies: () => commitDebug(debugDiscoverAllProficiencies, true),
-    setPerkRank: (id, rank) => commitDebug((game) => debugSetPerkRank(game, id, rank), true),
-    maxAllPerks: () => commitDebug(debugMaxAllPerks, true),
-    resetAllPerks: () => commitDebug(debugResetAllPerks, true),
-    grantEnoughMasteryForPurchasedPerks: () => commitDebug(debugGrantEnoughMasteryForPurchasedPerks, true),
     discoverAllItems: () => commitDebug(debugDiscoverAllItems, true),
     discoverAllTargets: () => commitDebug(debugDiscoverAllTargets, true),
     setAllTargetDefeatsToOne: () => commitDebug(debugSetAllTargetDefeatsToOne, true),
