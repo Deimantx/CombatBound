@@ -156,6 +156,33 @@ export function createCombatContext(rng: CombatContext["rng"]): CombatContext {
   };
 }
 
+export interface PlayerDamageApplication {
+  combat: CombatState;
+  requestedDamage: number;
+  appliedDamage: number;
+  preventedLethalDamage: number;
+  wouldHaveDied: boolean;
+}
+
+/** Applies post-barrier player damage through one canonical path. */
+export function applyPlayerHealthDamage(combat: CombatState, requestedDamage: number, context: CombatContext): PlayerDamageApplication {
+  const requested = Math.max(0, Number.isFinite(requestedDamage) ? requestedDamage : 0);
+  const immortal = context.debugHooks?.isPlayerImmortal?.() === true;
+  const minimumHp = immortal ? 1 : 0;
+  const appliedDamage = Math.min(requested, Math.max(0, combat.playerHp - minimumHp));
+  return {
+    combat: {
+      ...combat,
+      playerHp: Math.max(minimumHp, combat.playerHp - appliedDamage),
+      session: { ...combat.session, damageTaken: combat.session.damageTaken + appliedDamage },
+    },
+    requestedDamage: requested,
+    appliedDamage,
+    preventedLethalDamage: immortal ? Math.max(0, requested - appliedDamage) : 0,
+    wouldHaveDied: combat.playerHp - requested <= 0,
+  };
+}
+
 /** Read-only domain context for previews and editors; it contains no UI-fabricated data. */
 export function createCombatPreviewContext(): CombatContext {
   return createCombatContext({ next: () => 0.5 });
@@ -2163,21 +2190,18 @@ function advanceStep(
             result.mitigatedDamage,
             context.effects,
           );
-      const resolved = applyBarrierToDamage(result, barrierResult.absorbed);
+      let resolved = applyBarrierToDamage(result, barrierResult.absorbed);
       game = awardBarrierCredits(
         { ...game, combat: barrierResult.combat },
         barrierResult.absorptions,
       );
+      const playerDamage = applyPlayerHealthDamage(game.combat, resolved.healthDamage, context);
       combat = {
-        ...game.combat,
+        ...playerDamage.combat,
         enemies: game.combat.enemies,
-        playerHp: Math.max(0, game.combat.playerHp - resolved.healthDamage),
         lastDamageSource: definition.name,
-        session: {
-          ...game.combat.session,
-          damageTaken: game.combat.session.damageTaken + resolved.healthDamage,
-        },
       };
+      resolved = { ...resolved, healthDamage: playerDamage.appliedDamage };
       combat = {
         ...combat,
         enemies: combat.enemies.map((candidate) =>
@@ -2215,6 +2239,9 @@ function advanceStep(
         data: {
           damage: resolved.healthDamage,
           absorbed: resolved.barrierAbsorbed,
+          requestedDamage: playerDamage.requestedDamage,
+          appliedDamage: playerDamage.appliedDamage,
+          immortalPrevented: playerDamage.preventedLethalDamage,
         },
       });
       if (resolved.outcome === "parry") {
@@ -2449,6 +2476,7 @@ function resolvePeriodicEffect(
   );
   let resolved = applyBarrierToDamage(result, barrierResult.absorbed);
   let next = { ...game, combat: barrierResult.combat };
+  let playerDamage: PlayerDamageApplication | null = null;
   if (effect.target.kind === "enemy" && target) {
     const effectiveHealthDamage = Math.min(
       target.currentHealth,
@@ -2497,14 +2525,9 @@ function resolvePeriodicEffect(
         }),
       ).game;
   } else if (effect.target.kind === "player") {
-    next.combat = {
-      ...next.combat,
-      playerHp: Math.max(0, next.combat.playerHp - resolved.healthDamage),
-      session: {
-        ...next.combat.session,
-        damageTaken: next.combat.session.damageTaken + resolved.healthDamage,
-      },
-    };
+    playerDamage = applyPlayerHealthDamage(next.combat, resolved.healthDamage, context);
+    resolved = { ...resolved, healthDamage: playerDamage.appliedDamage };
+    next = { ...next, combat: playerDamage.combat };
   }
   for (const absorption of barrierResult.absorptions) {
     if (absorption.progressionCredit?.mode !== "barrier-absorb") continue;
@@ -2532,6 +2555,9 @@ function resolvePeriodicEffect(
       effectId: effect.effectId,
       damage: resolved.healthDamage,
       absorbed: resolved.barrierAbsorbed,
+      requestedDamage: playerDamage?.requestedDamage ?? resolved.healthDamage,
+      appliedDamage: playerDamage?.appliedDamage ?? resolved.healthDamage,
+      immortalPrevented: playerDamage?.preventedLethalDamage ?? 0,
     },
   });
   return next;
@@ -2689,6 +2715,7 @@ function advanceEnemySpecials(
             ];
         let totalDamage = 0;
         let totalAbsorbed = 0;
+        let requestedDamage = 0;
         let lastOutcome: string = "hit";
         for (const component of components) {
           const packet: DamagePacket = {
@@ -2715,21 +2742,25 @@ function advanceEnemySpecials(
             context.effects,
           );
           const resolved = applyBarrierToDamage(result, barrierResult.absorbed);
-          totalDamage += resolved.healthDamage;
-          totalAbsorbed += resolved.barrierAbsorbed;
-          lastOutcome = result.outcome;
+          requestedDamage += resolved.healthDamage;
           game = awardBarrierCredits(
             { ...game, combat: barrierResult.combat },
             barrierResult.absorptions,
           );
+          const playerDamage = applyPlayerHealthDamage(
+            game.combat,
+            resolved.healthDamage,
+            context,
+          );
+          const appliedResolved = {
+            ...resolved,
+            healthDamage: playerDamage.appliedDamage,
+          };
+          totalDamage += appliedResolved.healthDamage;
+          totalAbsorbed += appliedResolved.barrierAbsorbed;
+          lastOutcome = result.outcome;
           combat = {
-            ...game.combat,
-            playerHp: Math.max(0, game.combat.playerHp - resolved.healthDamage),
-            session: {
-              ...game.combat.session,
-              damageTaken:
-                game.combat.session.damageTaken + resolved.healthDamage,
-            },
+            ...playerDamage.combat,
             lastDamageSource: definition.name,
           };
         }
@@ -2765,6 +2796,9 @@ function advanceEnemySpecials(
             damage: totalDamage,
             absorbed: totalAbsorbed,
             components: components.length,
+            requestedDamage,
+            appliedDamage: totalDamage,
+            immortalPrevented: Math.max(0, requestedDamage - totalDamage),
           },
         });
         game = { ...game, combat };

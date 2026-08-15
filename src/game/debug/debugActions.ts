@@ -304,9 +304,24 @@ export function debugApplyEffect(game: GameState, effectId: string, target: Debu
   return { ...game, combat: result.combat };
 }
 
+export function debugApplyPlayerMaxHpBarrier(game: GameState): GameState {
+  const stats = calculateHunterCombatStats(game.equipment, game.progression, game.combat.stance, game.combat.techniques);
+  const playerStats = getPlayerEffectiveCombatStats(game.combat, stats, game.progression, effectById);
+  const result = applyEffectById(game.combat, "effect.protective-sign", effectById, { kind: "player" }, { kind: "player" }, { targetStats: playerStats, absorbAmount: game.combat.maxPlayerHp });
+  return { ...game, combat: result.combat };
+}
+
 export function debugKillSelectedEnemy(game: GameState): GameState {
   const selected = game.combat.selectedEnemyInstanceId;
   return selected ? forceDefeatEnemiesForDebug(game, [selected], debugContext) : game;
+}
+
+export function debugHealSelectedEnemyToFull(game: GameState): GameState {
+  const selectedId = game.combat.selectedEnemyInstanceId;
+  if (!selectedId) return game;
+  const selected = game.combat.enemies.find((enemy) => enemy.instanceId === selectedId);
+  if (!selected || selected.defeated) return game;
+  return { ...game, combat: { ...game.combat, enemies: game.combat.enemies.map((enemy) => enemy.instanceId === selectedId ? { ...enemy, currentHealth: enemy.maxHealth } : enemy) } };
 }
 
 export function debugKillCurrentGroup(game: GameState): GameState {

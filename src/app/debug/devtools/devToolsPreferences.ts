@@ -7,7 +7,7 @@ export const defaultDevToolsPreferences: DevToolsPreferences = {
   dockSize: "compact",
   dockAnchor: "bottom-right",
   dockPosition: null,
-  expandedSections: ["time", "player"],
+  expandedSections: ["time", "player", "enemy"],
   lastConsoleTab: "overview",
   eventFilter: "all",
   consoleTabOrder: [...DEFAULT_DEBUG_TAB_ORDER],

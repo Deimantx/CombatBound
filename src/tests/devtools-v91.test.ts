@@ -1,11 +1,11 @@
 import { describe, expect, it, beforeEach, afterEach, vi } from "vitest";
 import { useDevToolsRuntimeStore } from "../app/debug/devtools/devToolsRuntimeStore";
 import { useDebugTelemetryStore } from "../app/debug/telemetry/debugTelemetryStore";
-import { DEBUG_AUTOMATION_BUFFER_LIMIT, DEBUG_EVENT_BUFFER_LIMIT, DEBUG_RNG_BUFFER_LIMIT } from "../app/debug/telemetry/debugTelemetryBuffer";
+import { DEBUG_AUTOMATION_BUFFER_LIMIT, DEBUG_EVENT_BUFFER_LIMIT } from "../app/debug/telemetry/debugTelemetryBuffer";
 import { DEBUG_STAT_DEFINITIONS, RESISTANCE_DAMAGE_TYPES, COMBAT_STAT_KEYS } from "../game/presentation/debugStatRegistry";
 
 describe("Developer Toolkit V9.1 foundations", () => {
-  beforeEach(() => { useDevToolsRuntimeStore.getState().close(); useDebugTelemetryStore.getState().clearEvents(); useDebugTelemetryStore.getState().clearAutomationTrace(); useDebugTelemetryStore.getState().clearRngHistory(); });
+  beforeEach(() => { useDevToolsRuntimeStore.getState().close(); useDebugTelemetryStore.getState().clearEvents(); useDebugTelemetryStore.getState().clearAutomationTrace(); });
   afterEach(() => vi.useRealTimers());
 
   it("keeps the Dock active while the Console opens and closes", () => {
@@ -23,17 +23,15 @@ describe("Developer Toolkit V9.1 foundations", () => {
     expect(useDevToolsRuntimeStore.getState().dockActive).toBe(false);
   });
 
-  it("batches telemetry and keeps all three buffers bounded", () => {
+  it("batches telemetry and keeps both buffers bounded", () => {
     vi.useFakeTimers();
     const telemetry = useDebugTelemetryStore.getState();
     for (let index = 0; index < 600; index += 1) telemetry.recordEvent({ text: "event", type: "system", eventType: "damageDealt", sequence: index });
     for (let index = 0; index < 150; index += 1) telemetry.recordAutomationTrace({ ruleId: `rule-${index}`, priority: index, actionId: "test", enabled: true, conditions: [], result: "skipped" });
-    for (let index = 0; index < 150; index += 1) telemetry.recordRoll({ id: index, kind: "test", value: .5, source: "normal", at: index });
     expect(useDebugTelemetryStore.getState().events).toHaveLength(0);
     vi.advanceTimersByTime(100);
     expect(useDebugTelemetryStore.getState().events).toHaveLength(DEBUG_EVENT_BUFFER_LIMIT);
     expect(useDebugTelemetryStore.getState().automationEvaluations).toHaveLength(DEBUG_AUTOMATION_BUFFER_LIMIT);
-    expect(useDebugTelemetryStore.getState().rngHistory).toHaveLength(DEBUG_RNG_BUFFER_LIMIT);
   });
 
   it("registers every current Combat stat and resistance exactly once", () => {
@@ -51,4 +49,3 @@ describe("Developer Toolkit V9.1 foundations", () => {
     expect(useDevToolsRuntimeStore.getState().timeScale).toBe(10);
   });
 });
-

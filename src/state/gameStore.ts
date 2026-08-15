@@ -91,6 +91,7 @@ import {
   debugClearPlayerEffects,
   debugClearSelectedEnemyEffects,
   debugDamagePlayer,
+  debugApplyPlayerMaxHpBarrier,
   debugDiscoverAllItems,
   debugDiscoverAllProficiencies,
   debugDiscoverAllTargets,
@@ -109,6 +110,7 @@ import {
   debugHealPlayer,
   debugKillCurrentGroup,
   debugKillSelectedEnemy,
+  debugHealSelectedEnemyToFull,
   debugLearnAllSpells,
   debugResetCollection,
   debugResetEnemyCooldowns,
@@ -257,7 +259,9 @@ export interface DebugStoreApi {
   clearSelectedEnemyEffects: () => void;
   clearAllEnemyEffects: () => void;
   applyEffect: (effectId: string, target: DebugEffectTarget) => void;
+  applyPlayerMaxHpBarrier: () => void;
   killSelectedEnemy: () => void;
+  healSelectedEnemyToFull: () => void;
   killCurrentGroup: () => void;
   suicide: () => void;
   revive: () => void;
@@ -276,36 +280,9 @@ export interface DebugStoreApi {
   importSave: (raw: string) => { ok: boolean; error?: string };
 }
 
-function mulberry32Step(state: number) {
-  let next = (state + 0x6D2B79F5) | 0;
-  let value = Math.imul(next ^ (next >>> 15), next | 1);
-  value ^= value + Math.imul(value ^ (value >>> 7), value | 61);
-  return { state: next, value: ((value ^ (value >>> 14)) >>> 0) / 4294967296 };
-}
-
-function nextDebugRandom(kind: string) {
-  if (!import.meta.env.DEV) return Math.random();
-  const runtime = useDevToolsRuntimeStore.getState();
-  const override = runtime.rngOverrides[kind as keyof typeof runtime.rngOverrides];
-  const forced = override;
-  let value: number;
-  let stateAfter = runtime.rngState;
-  if (forced === "hit" || forced === "crit" || forced === "dodge" || forced === "parry" || forced === "block") value = 0;
-  else if (forced === "miss") value = 0.999999;
-  else if (runtime.rngMode === "seeded") {
-    const step = mulberry32Step(runtime.rngState);
-    value = step.value;
-    stateAfter = step.state;
-  } else value = Math.random();
-  if (forced) runtime.setRngOverride(kind as "hit" | "crit" | "dodge" | "parry" | "block", undefined);
-  const roll = { id: runtime.rngRollIndex + 1, kind, value, source: runtime.rngMode, forced, stateAfter, at: Date.now() };
-  runtime.recordRoll(roll);
-  if (runtime.rngCaptureEnabled) useDebugTelemetryStore.getState().recordRoll(roll);
-  return value;
-}
-
-const context = createCombatContext({ next: () => nextDebugRandom("misc"), nextFor: nextDebugRandom });
+const context = createCombatContext({ next: () => Math.random(), nextFor: () => Math.random() });
 if (import.meta.env.DEV) context.debugHooks = {
+  isPlayerImmortal: () => useDevToolsRuntimeStore.getState().playerImmortal,
   onAutomationTrace: (trace) => {
     const runtime = useDevToolsRuntimeStore.getState();
     if (!runtime.automationTraceEnabled) return;
@@ -577,7 +554,9 @@ export const useGameStore = create<GameStoreState>((set, get) => {
     clearSelectedEnemyEffects: () => commitDebug(debugClearSelectedEnemyEffects),
     clearAllEnemyEffects: () => commitDebug(debugClearAllEnemyEffects),
     applyEffect: (effectId, target) => commitDebug((game) => debugApplyEffect(game, effectId, target)),
+    applyPlayerMaxHpBarrier: () => commitDebug(debugApplyPlayerMaxHpBarrier),
     killSelectedEnemy: () => commitDebug(debugKillSelectedEnemy),
+    healSelectedEnemyToFull: () => commitDebug(debugHealSelectedEnemyToFull),
     killCurrentGroup: () => commitDebug(debugKillCurrentGroup),
     suicide: () => commitDebug((game) => forceDefeatPlayerForDebug(game)),
     revive: () => commitDebug(debugRevivePlayer),

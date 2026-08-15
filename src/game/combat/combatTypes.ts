@@ -408,6 +408,7 @@ export interface CombatContext {
   rng: CombatRng;
   debugHooks?: {
     onAutomationTrace?: (trace: import("../automation/automationTypes").AutomationEvaluationTrace) => void;
+    isPlayerImmortal?: () => boolean;
   };
 }
 

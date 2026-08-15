@@ -1,15 +1,11 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { effectById, effectDefinitions } from "../../../../game/data/effects";
-import { buildEffectDefinitionTooltip, buildEffectTooltip } from "../../../../game/presentation/tooltipBuilders";
-import { buildEffectCatalogue, classifyEffect, effectCatalogueCategories, effectSearchText, type EffectCatalogueCategory } from "../../../../game/presentation/effectCatalogue";
+import { effectById } from "../../../../game/data/effects";
+import { buildEffectTooltip } from "../../../../game/presentation/tooltipBuilders";
 import type { ActiveEffectInstance } from "../../../../game/combat/combatEffectTypes";
-import type { DebugEffectTarget } from "../../../../game/debug/debugTypes";
 import { useGameStore } from "../../../../state/gameStore";
-import { SearchField } from "../../../components/SearchField";
 import { DebugButton } from "../components/DebugButton";
-import { DebugCatalogueGroup } from "../components/DebugCatalogueGroup";
 import { DebugCatalogueIdentity } from "../components/DebugCatalogueIdentity";
-import { DebugFilterBar } from "../components/DebugFilterBar";
+import { DebugEffectPicker } from "../components/DebugEffectPicker";
 import { DebugSection } from "../components/DebugSection";
 import { DebugSummaryCard } from "../components/DebugSummaryCard";
 import type { DebugTabProps } from "../debugTypes";
@@ -17,14 +13,19 @@ import { useDevToolsRuntimeStore } from "../../devtools/devToolsRuntimeStore";
 import { useDebugTelemetryStore } from "../../telemetry/debugTelemetryStore";
 
 export function DebugCombatTab({ run, debug }: DebugTabProps) {
-  const game = useGameStore((state) => state.game);
-  const selectedEnemy = game.combat.enemies.find((enemy) => enemy.instanceId === game.combat.selectedEnemyInstanceId)?.displayName;
-  const [search, setSearch] = useState("");
-  const [category, setCategory] = useState<EffectCatalogueCategory>("all");
-  const [effectId, setEffectId] = useState(effectDefinitions[0]?.id ?? "");
-  const [target, setTarget] = useState<DebugEffectTarget>("selected-enemy");
-  const [expanded, setExpanded] = useState<Set<string>>(() => new Set(["debug.effects.dot", "debug.effects.barriers"]));
   const [sections, setSections] = useState<Set<string>>(() => new Set(["live-combat-state", "simulation-time"]));
+  const combatPhase = useGameStore((state) => state.game.combat.phase);
+  const combatLocationId = useGameStore((state) => state.game.combat.combatLocationId);
+  const groupNumber = useGameStore((state) => state.game.combat.groupNumber);
+  const selectedEnemy = useGameStore((state) => state.game.combat.enemies.find((enemy) => enemy.instanceId === state.game.combat.selectedEnemyInstanceId)?.displayName);
+  const selectedEnemyInstanceId = useGameStore((state) => state.game.combat.selectedEnemyInstanceId);
+  const selectedEnemyEffects = useGameStore((state) => state.game.combat.enemies.find((enemy) => enemy.instanceId === state.game.combat.selectedEnemyInstanceId)?.effects ?? []);
+  const aliveEnemyCount = useGameStore((state) => state.game.combat.enemies.filter((enemy) => !enemy.defeated).length);
+  const enemyCount = useGameStore((state) => state.game.combat.enemies.length);
+  const globalCooldown = useGameStore((state) => state.game.combat.globalCooldownRemaining);
+  const playerCooldownCount = useGameStore((state) => Object.keys(state.game.combat.actionCooldowns).length);
+  const playerEffects = useGameStore((state) => state.game.combat.playerEffects);
+  const enemyEffectCount = useGameStore((state) => state.game.combat.enemies.reduce((sum, enemy) => sum + enemy.effects.length, 0));
   const traceCapture = useDevToolsRuntimeStore((state) => state.automationTraceEnabled);
   const setTraceCapture = useDevToolsRuntimeStore((state) => state.setAutomationTraceEnabled);
   const eventCapture = useDevToolsRuntimeStore((state) => state.eventsEnabled);
@@ -33,20 +34,15 @@ export function DebugCombatTab({ run, debug }: DebugTabProps) {
   const eventCount = useDebugTelemetryStore((state) => state.events.length);
   const clearTraces = useDebugTelemetryStore((state) => state.clearAutomationTrace);
   const clearEvents = useDebugTelemetryStore((state) => state.clearEvents);
-  const normalized = search.trim().toLowerCase();
-  const visibleEffects = useMemo(() => effectDefinitions.filter((effect) => (!normalized || effectSearchText(effect).includes(normalized)) && (category === "all" || classifyEffect(effect) === category)), [category, normalized]);
-  const grouped = useMemo(() => buildEffectCatalogue(visibleEffects), [visibleEffects]);
-  const selectedEffect = effectById[effectId];
-  const selectedEnemyInstance = game.combat.enemies.find((enemy) => enemy.instanceId === game.combat.selectedEnemyInstanceId);
   const isOpen = (id: string) => sections.has(id);
   const toggle = (id: string) => setSections((current) => { const next = new Set(current); if (next.has(id)) next.delete(id); else next.add(id); return next; });
 
   return <div className="debug-tab-content debug-column">
-    <DebugSection id="live-combat-state" title="LIVE COMBAT STATE" subtitle={`${game.combat.phase.toUpperCase()} - ${game.combat.combatLocationId ?? "no location"} - Group ${game.combat.groupNumber}`} collapsible open={isOpen("live-combat-state")} onToggle={() => toggle("live-combat-state")}><div className="debug-summary-grid"><DebugSummaryCard label="Selected enemy" value={selectedEnemy ?? "None"} detail={`${game.combat.enemies.filter((enemy) => !enemy.defeated).length}/${game.combat.enemies.length} alive`} /><DebugSummaryCard label="GCD" value={`${game.combat.globalCooldownRemaining.toFixed(2)}s`} detail={`${Object.keys(game.combat.actionCooldowns).length} player cooldowns`} /><DebugSummaryCard label="Effects" value={game.combat.playerEffects.length} detail={`${game.combat.enemies.reduce((sum, enemy) => sum + enemy.effects.length, 0)} enemy effects`} /></div></DebugSection>
+    <DebugSection id="live-combat-state" title="LIVE COMBAT STATE" subtitle={`${combatPhase.toUpperCase()} - ${combatLocationId ?? "no location"} - Group ${groupNumber}`} collapsible open={isOpen("live-combat-state")} onToggle={() => toggle("live-combat-state")}><div className="debug-summary-grid"><DebugSummaryCard label="Selected enemy" value={selectedEnemy ?? "None"} detail={`${aliveEnemyCount}/${enemyCount} alive`} /><DebugSummaryCard label="GCD" value={`${globalCooldown.toFixed(2)}s`} detail={`${playerCooldownCount} player cooldowns`} /><DebugSummaryCard label="Effects" value={playerEffects.length} detail={`${enemyEffectCount} enemy effects`} /></div></DebugSection>
     <DebugSection id="simulation-time" title="SIMULATION TIME" collapsible open={isOpen("simulation-time")} onToggle={() => toggle("simulation-time")}><p className="debug-note">Use the persistent Combat Dock for pause, stepping and time scale controls.</p></DebugSection>
     <DebugSection id="cooldowns-casts" title="COOLDOWNS & CASTS" collapsible open={isOpen("cooldowns-casts")} onToggle={() => toggle("cooldowns-casts")}><div className="debug-button-row"><DebugButton action="reset-player-cooldowns" onClick={() => run("Reset all player cooldowns.", debug.resetPlayerCooldowns)}>RESET PLAYER COOLDOWNS</DebugButton><DebugButton action="reset-enemy-cooldowns" onClick={() => run("Reset all enemy cooldowns.", debug.resetEnemyCooldowns)}>RESET ENEMY COOLDOWNS</DebugButton><DebugButton action="cancel-enemy-actions" onClick={() => run("Cancelled all enemy casts.", debug.cancelEnemyActions)}>CANCEL ENEMY ACTIONS</DebugButton></div></DebugSection>
-    <DebugSection id="effects" title="EFFECTS" subtitle="Application routes through canonical stacking, duration, resistance, and barrier rules." actions={<SearchField value={search} onChange={setSearch} placeholder="Search effects..." label="Search effects" debugKind="debug-effect-search" />} collapsible open={isOpen("effects")} onToggle={() => toggle("effects")}><DebugFilterBar values={effectCatalogueCategories.map((entry) => entry.id)} value={category} onChange={setCategory} labels={Object.fromEntries(effectCatalogueCategories.map((entry) => [entry.id, entry.id === "all" ? "ALL" : entry.label.toUpperCase()])) as Partial<Record<EffectCatalogueCategory, string>>} /><div className="debug-effect-tool"><select value={effectId} onChange={(event) => setEffectId(event.target.value)} aria-label="Effect to apply" data-debug-kind="debug-effect-select"><option value="">NO EFFECT SELECTED</option>{grouped.map((group) => <optgroup key={group.id} label={group.label}>{group.effects.map((effect) => <option key={effect.id} value={effect.id}>{effect.name}</option>)}</optgroup>)}</select><select value={target} onChange={(event) => setTarget(event.target.value as DebugEffectTarget)} aria-label="Effect target"><option value="player">PLAYER</option><option value="selected-enemy">SELECTED ENEMY</option></select><DebugButton action="apply-effect" onClick={() => selectedEffect && run(`Applied ${selectedEffect.name} to ${target}.`, () => debug.applyEffect(selectedEffect.id, target))}>APPLY</DebugButton></div><div className="debug-catalogue debug-catalogue-tree">{grouped.map((group) => { const id = `debug.effects.${group.id}`; return <DebugCatalogueGroup key={id} id={id} label={group.label} count={group.effects.length} icon={group.icon} expanded={normalized ? true : expanded.has(id)} onToggle={() => setExpanded((current) => { const next = new Set(current); if (next.has(id)) next.delete(id); else next.add(id); return next; })} debugGroupType="effects">{group.effects.map((effect) => <div className="debug-catalogue-row" key={effect.id} data-debug-kind="debug-effect" data-debug-effect-id={effect.id}><DebugCatalogueIdentity tooltip={buildEffectDefinitionTooltip(effect)} icon={effect.icon} variant={effect.kind === "barrier" ? "blue" : effect.kind === "buff" ? "gold" : "red"} kind="debug-effect-identity" targetId={effect.id} label={effect.name}><strong>{effect.name}</strong><small>{effect.id} - {effect.kind} - {effect.tags.join(" - ")}</small></DebugCatalogueIdentity><button type="button" onClick={() => run(`Applied ${effect.name} to ${target}.`, () => debug.applyEffect(effect.id, target))} data-debug-kind="debug-action" data-debug-action="apply-effect" data-debug-effect-id={effect.id}>APPLY</button></div>)}</DebugCatalogueGroup>; })}</div></DebugSection>
-    <DebugSection id="active-effects" title="ACTIVE EFFECTS" collapsible open={isOpen("active-effects")} onToggle={() => toggle("active-effects")}><DebugActiveEffects title="Active Player Effects" effects={game.combat.playerEffects} /><DebugActiveEffects title="Active Selected Enemy Effects" effects={selectedEnemyInstance?.effects ?? []} /></DebugSection>
+    <DebugSection id="effects" title="EFFECTS" subtitle="Application routes through canonical stacking, duration, resistance, and barrier rules." collapsible open={isOpen("effects")} onToggle={() => toggle("effects")}><DebugEffectPicker variant="full" enemyAvailable={Boolean(selectedEnemyInstanceId)} onApply={(effectId, target) => { const definition = effectById[effectId]; if (definition) run(`Applied ${definition.name} to ${target}.`, () => debug.applyEffect(effectId, target)); }} /></DebugSection>
+    <DebugSection id="active-effects" title="ACTIVE EFFECTS" collapsible open={isOpen("active-effects")} onToggle={() => toggle("active-effects")}><DebugActiveEffects title="Active Player Effects" effects={playerEffects} /><DebugActiveEffects title="Active Selected Enemy Effects" effects={selectedEnemyEffects} /></DebugSection>
     <DebugSection id="defeat-recovery" title="DEFEAT & RECOVERY" collapsible open={isOpen("defeat-recovery")} onToggle={() => toggle("defeat-recovery")}><div className="debug-button-grid"><DebugButton action="kill-selected-enemy" onClick={() => run("Resolved selected enemy defeat through canonical rewards.", debug.killSelectedEnemy)}>KILL SELECTED ENEMY</DebugButton><DebugButton action="kill-current-group" onClick={() => run("Resolved current group through canonical rewards and clear handling.", debug.killCurrentGroup)}>KILL CURRENT GROUP</DebugButton><DebugButton action="revive" onClick={() => run("Revived player to full resources and stopped combat.", debug.revive)}>REVIVE</DebugButton><DebugButton action="suicide" danger onClick={() => run("Forced player defeat.", debug.suicide)}>SUICIDE</DebugButton></div></DebugSection>
     <DebugSection id="automation-trace" title="AUTOMATION RULE TRACE" subtitle={`${traceCount} rule traces captured`} collapsible open={isOpen("automation-trace")} onToggle={() => toggle("automation-trace")}><div className="debug-button-row"><label className="debug-custom-control"><input type="checkbox" checked={traceCapture} onChange={(event) => setTraceCapture(event.target.checked)} /> CAPTURE TRACE</label><DebugButton action="clear-automation-trace" onClick={clearTraces}>CLEAR TRACE</DebugButton></div>{isOpen("automation-trace") && <AutomationTraceViewer />}</DebugSection>
     <DebugSection id="combat-event-viewer" title="COMBAT EVENT VIEWER" subtitle={`${eventCount} debug events captured`} collapsible open={isOpen("combat-event-viewer")} onToggle={() => toggle("combat-event-viewer")}><div className="debug-button-row"><DebugButton action="clear-debug-events" onClick={clearEvents}>CLEAR EVENTS</DebugButton><label className="debug-custom-control"><input type="checkbox" checked={eventCapture} onChange={(event) => setEventCapture(event.target.checked)} /> CAPTURE EVENTS</label></div>{isOpen("combat-event-viewer") && <CombatEventViewer />}</DebugSection>

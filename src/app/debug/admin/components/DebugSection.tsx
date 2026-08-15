@@ -24,7 +24,7 @@ export function DebugSection({
   const generatedId = useId().replace(/:/g, "");
   const contentId = `${id ?? `debug-section-${generatedId}`}-content`;
   return (
-    <section className={`debug-section ${collapsible && !open ? "is-collapsed" : ""}`} data-debug-section-id={id}>
+    <section className={`debug-section ${collapsible && !open ? "is-collapsed" : ""}`} data-debug-section-id={id} data-debug-id={id}>
       <header>
         {collapsible && onToggle ? <button type="button" className="debug-section-heading" onClick={onToggle} aria-expanded={expanded} aria-controls={contentId} data-debug-kind="debug-collapse" data-debug-label={title}><span><span className="tiny-label">{title}</span>{subtitle && <p>{subtitle}</p>}</span><DisclosureChevron open={expanded} /></button> : <div className="debug-section-heading"><span className="tiny-label">{title}</span>{subtitle && <p>{subtitle}</p>}</div>}
         <div className="debug-section-actions">

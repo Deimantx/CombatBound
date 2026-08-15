@@ -1,11 +1,9 @@
 import { create } from "zustand";
 import { defaultDevToolsPreferences, readDevToolsPreferences, writeDevToolsPreferences } from "./devToolsPreferences";
-import type { DebugRandomRoll, DevToolsMode, DevToolsVisualMode, DockAnchor, DockSize, RngMode } from "./devToolsTypes";
+import type { DevToolsMode, DevToolsVisualMode, DockAnchor, DockSize } from "./devToolsTypes";
 import type { DebugTab } from "../admin/debugTabs";
 import { DEBUG_MAX_TIME_SCALE, DEBUG_MIN_TIME_SCALE } from "./devToolsTypes";
 import { DEFAULT_DEBUG_TAB_ORDER, normalizeDebugTabOrder } from "../admin/debugTabs";
-export type RngOverrideKind = "hit" | "crit" | "dodge" | "parry" | "block";
-
 export interface DebugRuntimeEvent {
   id: number;
   type: string;
@@ -29,13 +27,7 @@ interface DevToolsRuntimeState extends DevToolsVisibilityState {
   simulationPaused: boolean;
   simulationResetVersion: number;
   timeScale: number;
-  rngMode: RngMode;
-  rngSeed: number;
-  rngState: number;
-  rngRollIndex: number;
-  rngOverrides: Partial<Record<RngOverrideKind, "hit" | "miss" | "crit" | "dodge" | "parry" | "block">>;
-  /** Capture switches stay low-frequency; entries live in DebugTelemetryStore. */
-  rngCaptureEnabled: boolean;
+  playerImmortal: boolean;
   automationTraceEnabled: boolean;
   eventsEnabled: boolean;
   eventFilter: string;
@@ -53,12 +45,7 @@ interface DevToolsRuntimeState extends DevToolsVisibilityState {
   setSimulationPaused: (paused: boolean) => void;
   resetSimulationAccumulator: () => void;
   setTimeScale: (scale: number) => void;
-  setRngMode: (mode: RngMode) => void;
-  setRngSeed: (seed: number) => void;
-  setRngOverride: (kind: RngOverrideKind, value: "hit" | "miss" | "crit" | "dodge" | "parry" | "block" | undefined) => void;
-  setRngCaptureEnabled: (enabled: boolean) => void;
-  recordRoll: (roll: DebugRandomRoll) => void;
-  clearRngHistory: () => void;
+  setPlayerImmortal: (enabled: boolean) => void;
   setAutomationTraceEnabled: (enabled: boolean) => void;
   recordAutomationTrace: (entry: unknown) => void;
   setEventsEnabled: (enabled: boolean) => void;
@@ -112,12 +99,7 @@ export const useDevToolsRuntimeStore = create<DevToolsRuntimeState>((set) => ({
   simulationPaused: false,
   simulationResetVersion: 0,
   timeScale: 1,
-  rngMode: "normal",
-  rngSeed: 12345,
-  rngState: 12345,
-  rngRollIndex: 0,
-  rngOverrides: {},
-  rngCaptureEnabled: false,
+  playerImmortal: false,
   automationTraceEnabled: false,
   eventsEnabled: true,
   eventFilter: preferences.eventFilter,
@@ -141,12 +123,7 @@ export const useDevToolsRuntimeStore = create<DevToolsRuntimeState>((set) => ({
   setSimulationPaused: (simulationPaused) => set((state) => ({ simulationPaused, simulationResetVersion: simulationPaused ? state.simulationResetVersion + 1 : state.simulationResetVersion })),
   resetSimulationAccumulator: () => set((state) => ({ simulationResetVersion: state.simulationResetVersion + 1 })),
   setTimeScale: (timeScale) => set({ timeScale: Math.max(DEBUG_MIN_TIME_SCALE, Math.min(DEBUG_MAX_TIME_SCALE, timeScale)) }),
-  setRngMode: (rngMode) => set((state) => ({ rngMode, rngState: state.rngSeed, rngRollIndex: 0 })),
-  setRngSeed: (rngSeed) => set({ rngSeed: Math.floor(Number.isFinite(rngSeed) ? rngSeed : 0), rngState: Math.floor(Number.isFinite(rngSeed) ? rngSeed : 0), rngRollIndex: 0 }),
-  setRngOverride: (kind, value) => set((state) => ({ rngOverrides: { ...state.rngOverrides, [kind]: value } })),
-  setRngCaptureEnabled: (rngCaptureEnabled) => set({ rngCaptureEnabled }),
-  recordRoll: (roll) => set((state) => ({ rngRollIndex: state.rngRollIndex + 1, rngState: roll.stateAfter ?? state.rngState })),
-  clearRngHistory: () => set({ rngRollIndex: 0 }),
+  setPlayerImmortal: (playerImmortal) => set({ playerImmortal }),
   setAutomationTraceEnabled: (automationTraceEnabled) => set({ automationTraceEnabled }),
   setEventsEnabled: (eventsEnabled) => set({ eventsEnabled }),
   recordAutomationTrace: () => undefined,

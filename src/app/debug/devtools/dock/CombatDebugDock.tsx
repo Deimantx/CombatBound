@@ -1,10 +1,11 @@
-import { useEffect, useMemo, useRef } from "react";
+import { useEffect, useMemo, useRef, type PointerEvent } from "react";
 import { Bug, ExternalLink, Grip, X } from "lucide-react";
 import { effectById } from "../../../../game/data/effects";
-import { calculateHunterCombatStats } from "../../../../game/equipment/derivedStats";
-import { getPerkPointSummary } from "../../../../game/progression/masteryProgression";
-import { perkById } from "../../../../game/data/proficiencyPerks";
+import { getBarrierAmount } from "../../../../game/combat/combatEffects";
+import type { DebugEffectTarget } from "../../../../game/debug/debugTypes";
 import { useGameStore } from "../../../../state/gameStore";
+import { GameTooltip } from "../../../components/tooltip/GameTooltip";
+import { DebugEffectPicker } from "../../admin/components/DebugEffectPicker";
 import { useDebugTelemetryStore } from "../../telemetry/debugTelemetryStore";
 import { useDevToolsRuntimeStore } from "../devToolsRuntimeStore";
 import { useDebugScenarioStore } from "../../scenarios/debugScenarioStore";
@@ -37,20 +38,20 @@ export function CombatDebugDock() {
     return () => window.removeEventListener("resize", onResize);
   }, [setDockPosition]);
 
-  const beginDrag = (event: React.PointerEvent<HTMLButtonElement>) => {
+  const beginDrag = (event: PointerEvent<HTMLButtonElement>) => {
     const rect = dockRef.current?.getBoundingClientRect();
     if (!rect) return;
     if (!useDevToolsRuntimeStore.getState().dockPosition) setDockPosition({ x: rect.left, y: rect.top });
     dragRef.current = { pointerId: event.pointerId, offsetX: event.clientX - rect.left, offsetY: event.clientY - rect.top };
     event.currentTarget.setPointerCapture(event.pointerId);
   };
-  const moveDrag = (event: React.PointerEvent<HTMLButtonElement>) => {
+  const moveDrag = (event: PointerEvent<HTMLButtonElement>) => {
     const drag = dragRef.current;
     if (!drag || drag.pointerId !== event.pointerId) return;
     const rect = dockRef.current?.getBoundingClientRect();
     if (rect) setDockPosition(clampPosition({ x: event.clientX - drag.offsetX, y: event.clientY - drag.offsetY }, rect.width, rect.height));
   };
-  const endDrag = (event: React.PointerEvent<HTMLButtonElement>) => {
+  const endDrag = (event: PointerEvent<HTMLButtonElement>) => {
     const drag = dragRef.current;
     if (!drag || drag.pointerId !== event.pointerId) return;
     const edge = 72;
@@ -72,49 +73,102 @@ export function CombatDebugDock() {
 }
 
 function DockBody() {
-  return <div className="debug-dock-body combatbound-scroll"><DebugDockSection id="time" title="TIME"><DebugSimulationControls /><p className="debug-dock-note">One simulation clock drives combat, recovery and manual stepping.</p></DebugDockSection><DebugDockSection id="player" title="PLAYER" defaultOpen><DockPlayer /></DebugDockSection><DebugDockSection id="enemy" title="ENEMY"><DockEnemy /></DebugDockSection><DebugDockSection id="effects" title="EFFECTS"><DockEffects /></DebugDockSection><DebugDockSection id="rng" title="RNG"><DockRng /></DebugDockSection><DebugDockSection id="automation" title="AUTOMATION"><DockAutomation /></DebugDockSection><DebugDockSection id="events" title="EVENTS"><DockEvents /></DebugDockSection><DebugDockSection id="stats" title="STATS"><DockStats /></DebugDockSection><DebugDockSection id="scenarios" title="SCENARIOS"><DockScenarios /></DebugDockSection></div>;
+  return <div className="debug-dock-body combatbound-scroll">
+    <DebugDockSection id="time" title="TIME" defaultOpen><DebugSimulationControls /><p className="debug-dock-note">One simulation clock drives combat, recovery and manual stepping.</p></DebugDockSection>
+    <DebugDockSection id="player" title="PLAYER" summary={<DockPlayerSummary />} defaultOpen><DockPlayer /></DebugDockSection>
+    <DebugDockSection id="enemy" title="ENEMY" summary={<DockEnemySummary />} defaultOpen><DockEnemy /></DebugDockSection>
+    <DebugDockSection id="effects" title="EFFECTS" summary={<DockEffectSummary />}><DockEffects /></DebugDockSection>
+    <DebugDockSection id="cooldowns-actions" title="COOLDOWNS & ACTIONS"><DockCooldownsActions /></DebugDockSection>
+    <DebugDockSection id="automation" title="AUTOMATION" summary={<DockAutomationSummary />}><DockAutomation /></DebugDockSection>
+    <DebugDockSection id="events" title="EVENTS" summary={<DockEventsSummary />}><DockEvents /></DebugDockSection>
+    <DebugDockSection id="scenarios" title="SCENARIOS"><DockScenarios /></DebugDockSection>
+  </div>;
 }
 
 function DockMinimizedSummary() {
   const hp = useGameStore((state) => state.game.combat.playerHp);
   const maxHp = useGameStore((state) => state.game.combat.maxPlayerHp);
   const selected = useGameStore((state) => state.game.combat.enemies.find((enemy) => enemy.instanceId === state.game.combat.selectedEnemyInstanceId)?.displayName ?? "No enemy");
+  const immortal = useDevToolsRuntimeStore((state) => state.playerImmortal);
   const timeScale = useDevToolsRuntimeStore((state) => state.timeScale);
-  return <span className="debug-dock-minimized-summary">HP {Math.round(maxHp > 0 ? hp / maxHp * 100 : 0)}% · {selected} · {timeScale}x</span>;
+  return <span className="debug-dock-minimized-summary">HP {Math.round(maxHp > 0 ? hp / maxHp * 100 : 0)}% · {selected} · {immortal ? "IMMORTAL · " : ""}{timeScale}x</span>;
+}
+
+function DockPlayerSummary() {
+  const hp = useGameStore((state) => state.game.combat.playerHp);
+  const maxHp = useGameStore((state) => state.game.combat.maxPlayerHp);
+  const playerEffects = useGameStore((state) => state.game.combat.playerEffects);
+  const immortal = useDevToolsRuntimeStore((state) => state.playerImmortal);
+  const barrier = getBarrierAmount(playerEffects, effectById);
+  return <span>HP {Math.round(maxHp > 0 ? hp / maxHp * 100 : 0)}%{immortal ? " · IMMORTAL" : ""} · B{Math.round(barrier)}</span>;
+}
+
+function DockEnemySummary() {
+  const name = useGameStore((state) => state.game.combat.enemies.find((enemy) => enemy.instanceId === state.game.combat.selectedEnemyInstanceId)?.displayName);
+  const currentHealth = useGameStore((state) => state.game.combat.enemies.find((enemy) => enemy.instanceId === state.game.combat.selectedEnemyInstanceId)?.currentHealth ?? 0);
+  const maxHealth = useGameStore((state) => state.game.combat.enemies.find((enemy) => enemy.instanceId === state.game.combat.selectedEnemyInstanceId)?.maxHealth ?? 0);
+  return <span>{name ? `${name} · ${Math.round(maxHealth > 0 ? currentHealth / maxHealth * 100 : 0)}%` : "None"}</span>;
 }
 
 function DockPlayer() {
-  const combat = useGameStore((state) => state.game.combat);
+  const hp = useGameStore((state) => state.game.combat.playerHp);
+  const maxHp = useGameStore((state) => state.game.combat.maxPlayerHp);
+  const stamina = useGameStore((state) => state.game.combat.stamina);
+  const maxStamina = useGameStore((state) => state.game.combat.maxStamina);
+  const mana = useGameStore((state) => state.game.combat.mana);
+  const maxMana = useGameStore((state) => state.game.combat.maxMana);
+  const playerEffects = useGameStore((state) => state.game.combat.playerEffects);
   const fillAllResources = useGameStore((state) => state.debug.fillAllResources);
   const revive = useGameStore((state) => state.debug.revive);
-  return <><div className="debug-dock-grid"><Meter label="HP" value={combat.playerHp} max={combat.maxPlayerHp} /><Meter label="STAMINA" value={combat.stamina} max={combat.maxStamina} /><Meter label="MANA" value={combat.mana} max={combat.maxMana} /></div><div className="debug-dock-actions"><button type="button" onClick={fillAllResources}>FILL RESOURCES</button><button type="button" onClick={revive}>REVIVE</button></div></>;
+  const setResourcePercent = useGameStore((state) => state.debug.setResourcePercent);
+  const applyBarrier = useGameStore((state) => state.debug.applyPlayerMaxHpBarrier);
+  const immortal = useDevToolsRuntimeStore((state) => state.playerImmortal);
+  const setImmortal = useDevToolsRuntimeStore((state) => state.setPlayerImmortal);
+  const barrier = getBarrierAmount(playerEffects, effectById);
+  const immortalTooltip = { id: "debug-dock-immortal", title: "IMMORTAL", description: "Combat damage can reduce you to 1 HP but cannot defeat you. Explicit Debug defeat actions still work.", rows: [] };
+  return <>
+    <div className="debug-dock-grid"><Meter label="HP" value={hp} max={maxHp} /><Meter label="STAMINA" value={stamina} max={maxStamina} /><Meter label="MANA" value={mana} max={maxMana} /></div>
+    <div className="debug-dock-actions"><button type="button" onClick={() => setResourcePercent("health", 25)}>HP 25%</button><button type="button" onClick={() => setResourcePercent("health", 50)}>HP 50%</button><button type="button" onClick={() => setResourcePercent("health", 100)}>FULL HP</button></div>
+    <div className="debug-dock-actions"><button type="button" onClick={fillAllResources}>FILL RESOURCES</button><button type="button" onClick={revive}>REVIVE</button></div>
+    <div className="debug-dock-actions"><GameTooltip content={immortalTooltip}><button type="button" className={immortal ? "is-active" : ""} onClick={() => setImmortal(!immortal)} aria-pressed={immortal}>{immortal ? "IMMORTAL" : "IMMORTAL OFF"}</button></GameTooltip><GameTooltip content={{ id: "debug-dock-max-hp-barrier", title: "MAX HP BARRIER", description: "Applies the canonical Protective Sign barrier using the player's current maximum HP. Barrier absorption still follows normal rules.", rows: [] }}><button type="button" onClick={applyBarrier}>ADD 100% HP BARRIER</button></GameTooltip></div>
+    <p className="debug-dock-note">BARRIER {Math.round(barrier)} / {Math.round(maxHp)}</p>
+  </>;
 }
 
 function DockEnemy() {
-  const selected = useGameStore((state) => state.game.combat.enemies.find((enemy) => enemy.instanceId === state.game.combat.selectedEnemyInstanceId) ?? state.game.combat.enemies.find((enemy) => !enemy.defeated));
+  const selectedName = useGameStore((state) => state.game.combat.enemies.find((enemy) => enemy.instanceId === state.game.combat.selectedEnemyInstanceId)?.displayName);
+  const currentHealth = useGameStore((state) => state.game.combat.enemies.find((enemy) => enemy.instanceId === state.game.combat.selectedEnemyInstanceId)?.currentHealth ?? 0);
+  const maxHealth = useGameStore((state) => state.game.combat.enemies.find((enemy) => enemy.instanceId === state.game.combat.selectedEnemyInstanceId)?.maxHealth ?? 0);
+  const defeated = useGameStore((state) => state.game.combat.enemies.find((enemy) => enemy.instanceId === state.game.combat.selectedEnemyInstanceId)?.defeated ?? true);
   const kill = useGameStore((state) => state.debug.killSelectedEnemy);
-  const damage = useGameStore((state) => state.debug.damagePlayer);
-  return <><p className="debug-dock-value">{selected?.displayName ?? "No active enemy"}</p>{selected && <><Meter label="HP" value={selected.currentHealth} max={selected.maxHealth} /><div className="debug-dock-actions"><button type="button" onClick={kill}>DEFEAT SELECTED</button><button type="button" onClick={() => damage(10)}>DAMAGE PLAYER</button></div></>}</>;
+  const heal = useGameStore((state) => state.debug.healSelectedEnemyToFull);
+  return <><p className="debug-dock-value">{selectedName ?? "No selected enemy"}</p>{selectedName && <><Meter label="HP" value={currentHealth} max={maxHealth} /><div className="debug-dock-actions"><GameTooltip content={{ id: "debug-dock-heal-enemy", title: "FULL HEAL SELECTED ENEMY", description: "Restores a living selected enemy to maximum HP without resetting effects, cooldowns, actions, phases, or rewards.", rows: [] }}><button type="button" onClick={heal} disabled={defeated}>HEAL TO FULL</button></GameTooltip><button type="button" onClick={kill} disabled={defeated}>DEFEAT SELECTED</button></div></>}</>;
+}
+
+function DockEffectSummary() {
+  const playerCount = useGameStore((state) => state.game.combat.playerEffects.length);
+  const enemyCount = useGameStore((state) => state.game.combat.enemies.find((enemy) => enemy.instanceId === state.game.combat.selectedEnemyInstanceId)?.effects.length ?? 0);
+  return <span>P{playerCount} · E{enemyCount}</span>;
 }
 
 function DockEffects() {
-  const effects = useGameStore((state) => state.game.combat.playerEffects);
+  const playerEffects = useGameStore((state) => state.game.combat.playerEffects);
+  const selectedEnemyId = useGameStore((state) => state.game.combat.selectedEnemyInstanceId);
+  const selectedEnemyDefeated = useGameStore((state) => state.game.combat.enemies.find((enemy) => enemy.instanceId === state.game.combat.selectedEnemyInstanceId)?.defeated ?? true);
+  const selectedEnemyEffects = useGameStore((state) => state.game.combat.enemies.find((enemy) => enemy.instanceId === state.game.combat.selectedEnemyInstanceId)?.effects ?? []);
   const clearPlayer = useGameStore((state) => state.debug.clearPlayerEffects);
-  const clearEnemy = useGameStore((state) => state.debug.clearAllEnemyEffects);
-  return <><div className="debug-dock-list">{effects.length === 0 ? <span className="debug-dock-muted">No active player effects.</span> : effects.map((effect) => <span key={effect.instanceId}>{effectById[effect.effectId]?.name ?? effect.effectId} x{effect.stacks}</span>)}</div><div className="debug-dock-actions"><button type="button" onClick={clearPlayer}>CLEAR PLAYER EFFECTS</button><button type="button" onClick={clearEnemy}>CLEAR ENEMY EFFECTS</button></div></>;
+  const clearSelectedEnemy = useGameStore((state) => state.debug.clearSelectedEnemyEffects);
+  const clearAllEnemies = useGameStore((state) => state.debug.clearAllEnemyEffects);
+  const applyEffect = useGameStore((state) => state.debug.applyEffect);
+  const list = (effects: typeof playerEffects) => effects.length === 0 ? <span className="debug-dock-muted">None</span> : effects.map((effect) => <span key={effect.instanceId}>{effectById[effect.effectId]?.name ?? effect.effectId} x{effect.stacks}</span>);
+  return <><div className="debug-dock-list"><strong>PLAYER</strong>{list(playerEffects)}<strong>SELECTED ENEMY</strong>{list(selectedEnemyEffects)}</div><DebugEffectPicker variant="dock" enemyAvailable={Boolean(selectedEnemyId && !selectedEnemyDefeated)} onApply={(effectId, target: DebugEffectTarget) => applyEffect(effectId, target)} /><div className="debug-dock-actions"><button type="button" onClick={clearPlayer}>CLEAR PLAYER</button><button type="button" onClick={clearSelectedEnemy} disabled={!selectedEnemyId}>CLEAR SELECTED</button><button type="button" onClick={clearAllEnemies}>CLEAR ALL ENEMIES</button></div></>;
 }
 
-function DockRng() {
-  const mode = useDevToolsRuntimeStore((state) => state.rngMode);
-  const seed = useDevToolsRuntimeStore((state) => state.rngSeed);
-  const rollIndex = useDevToolsRuntimeStore((state) => state.rngRollIndex);
-  const setMode = useDevToolsRuntimeStore((state) => state.setRngMode);
-  const setSeed = useDevToolsRuntimeStore((state) => state.setRngSeed);
-  const setOverride = useDevToolsRuntimeStore((state) => state.setRngOverride);
-  const capture = useDevToolsRuntimeStore((state) => state.rngCaptureEnabled);
-  const setCapture = useDevToolsRuntimeStore((state) => state.setRngCaptureEnabled);
-  const last = useDebugTelemetryStore((state) => state.rngHistory.at(-1));
-  return <><div className="debug-dock-actions" data-debug-kind="debug-rng" data-debug-rng-mode={mode} data-debug-rng-seed={seed}><button type="button" className={mode === "normal" ? "is-active" : ""} onClick={() => setMode("normal")}>NORMAL</button><button type="button" className={mode === "seeded" ? "is-active" : ""} onClick={() => setMode("seeded")}>SEEDED</button><button type="button" onClick={() => setOverride("hit", "hit")}>FORCE HIT</button><button type="button" onClick={() => setOverride("hit", "miss")}>FORCE MISS</button><button type="button" onClick={() => setOverride("crit", "crit")}>FORCE CRIT</button></div><label className="debug-dock-input">SEED <input type="number" value={seed} onChange={(event) => setSeed(Number(event.target.value))} /></label><label className="debug-dock-check"><input type="checkbox" checked={capture} onChange={(event) => setCapture(event.target.checked)} /> CAPTURE ROLLS</label><p className="debug-dock-note">Rolls: {rollIndex} · Last: {last?.value.toFixed(4) ?? "-"}</p></>;
+function DockCooldownsActions() {
+  const resetPlayer = useGameStore((state) => state.debug.resetPlayerCooldowns);
+  const resetEnemy = useGameStore((state) => state.debug.resetEnemyCooldowns);
+  const cancelEnemy = useGameStore((state) => state.debug.cancelEnemyActions);
+  return <div className="debug-dock-actions"><button type="button" onClick={resetPlayer}>RESET PLAYER COOLDOWNS</button><GameTooltip content={{ id: "debug-dock-reset-enemy-cooldowns", title: "RESET ENEMY COOLDOWNS", description: "Clears cooldown timers on enemy actions without changing their current action or phase.", rows: [] }}><button type="button" onClick={resetEnemy}>RESET ENEMY COOLDOWNS</button></GameTooltip><GameTooltip content={{ id: "debug-dock-cancel-enemy-actions", title: "CANCEL ENEMY ACTIONS", description: "Cancels active enemy casts and actions; it does not defeat or heal enemies.", rows: [] }}><button type="button" onClick={cancelEnemy}>CANCEL ENEMY ACTIONS</button></GameTooltip></div>;
 }
 
 function DockAutomation() {
@@ -128,6 +182,12 @@ function DockAutomation() {
   return <><p className="debug-dock-value">{enabled ? "ON" : "OFF"} · {failure ?? action ?? "idle"}</p><label className="debug-dock-check"><input type="checkbox" checked={capture} onChange={(event) => setCapture(event.target.checked)} /> CAPTURE TRACE</label>{entries.map((entry) => entry.traces.map((trace) => <p key={`${entry.id}-${trace.ruleId}`} className={trace.result === "executed" ? "debug-dock-pass" : "debug-dock-muted"}>{trace.result.toUpperCase()} · {trace.ruleId} · {trace.actionId}</p>))}</>;
 }
 
+function DockAutomationSummary() {
+  const enabled = useGameStore((state) => state.game.combatAutomation.enabled);
+  const action = useGameStore((state) => state.game.combat.lastAutomationAction?.actionId);
+  return <span>{enabled ? "ON" : "OFF"} · {action ?? "idle"}</span>;
+}
+
 function DockEvents() {
   const capture = useDevToolsRuntimeStore((state) => state.eventsEnabled);
   const setCapture = useDevToolsRuntimeStore((state) => state.setEventsEnabled);
@@ -137,11 +197,9 @@ function DockEvents() {
   return <><label className="debug-dock-check"><input type="checkbox" checked={capture} onChange={(event) => setCapture(event.target.checked)} /> CAPTURE EVENTS</label><div className="debug-dock-list">{events.map((event) => <span key={event.id}>#{event.sequence} {event.eventType}</span>)}</div><button type="button" onClick={clear}>CLEAR DEBUG EVENTS</button></>;
 }
 
-function DockStats() {
-  const game = useGameStore((state) => state.game);
-  const stats = calculateHunterCombatStats(game.equipment, game.progression, game.combat.stance, game.combat.techniques);
-  const perkPoints = getPerkPointSummary(game.progression, perkById);
-  return <div className="debug-dock-stats"><span>Accuracy <b>{stats.accuracy.toFixed(1)}</b></span><span>Armor <b>{stats.armor.toFixed(1)}</b></span><span>Evasion <b>{stats.evasion.toFixed(1)}</b></span><span>Max HP <b>{stats.maxHealth.toFixed(1)}</b></span><span>Mana Regen <b>{stats.manaRegen.toFixed(1)}</b></span><span>Perks available <b>{perkPoints.available}</b></span></div>;
+function DockEventsSummary() {
+  const count = useDebugTelemetryStore((state) => state.events.length);
+  return <span>{count}</span>;
 }
 
 function DockScenarios() {

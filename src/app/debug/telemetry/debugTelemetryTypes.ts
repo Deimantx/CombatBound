@@ -1,6 +1,5 @@
 import type { AutomationEvaluationTrace } from "../../../game/automation/automationTypes";
 import type { CombatEvent } from "../../../game/combat/combatTypes";
-import type { DebugRandomRoll } from "../devtools/devToolsTypes";
 
 export interface DebugTelemetryEvent {
   id: number;
@@ -19,5 +18,3 @@ export interface DebugAutomationEvaluation {
   traces: AutomationEvaluationTrace[];
   at: number;
 }
-
-export type DebugTelemetryRngRoll = DebugRandomRoll;
