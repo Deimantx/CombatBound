@@ -52,8 +52,62 @@ describe("Hero Build Workspace V11", () => {
 
     const candidateButtons = Array.from(document.querySelectorAll('[data-debug-kind="equipment-candidate"]')) as HTMLButtonElement[];
     expect(candidateButtons.length).toBeGreaterThan(0);
-    expect(candidateButtons.every((button) => button.disabled)).toBe(true);
+    expect(candidateButtons.every((button) => !button.disabled)).toBe(true);
+    fireEvent.click(candidateButtons[0]);
+    expect(screen.getByRole("button", { name: "EQUIP" })).toBeDisabled();
     expect(screen.getByText("LOCKED DURING COMBAT")).toBeInTheDocument();
+  });
+
+  it("previews gear without mutating equipment and commits only through EQUIP", () => {
+    const store = useGameStore.getState();
+    store.debug.setItemQuantity("item.hunter-sword", 1);
+    store.debug.setMasteryLevel(5);
+    render(<App />);
+    fireEvent.click(screen.getByRole("button", { name: "Hero" }));
+
+    const before = useGameStore.getState().game.equipment.slots.weapon;
+    const candidate = document.querySelector('[data-debug-kind="equipment-candidate"][data-debug-item-id="item.hunter-sword"]') as HTMLButtonElement;
+    expect(candidate).toBeInTheDocument();
+    fireEvent.mouseEnter(candidate);
+    expect(document.querySelector('[data-debug-kind="hero-combat-stats"]')).toHaveAttribute("data-debug-preview-item-id", "item.hunter-sword");
+    expect(document.querySelector('[data-debug-stat="attackPower"]')).toHaveAttribute("data-debug-delta-kind", "better");
+    expect(document.querySelector('[data-debug-stat="attackInterval"]')).toHaveAttribute("data-debug-delta-kind", "better");
+    expect(useGameStore.getState().game.equipment.slots.weapon).toBe(before);
+    fireEvent.mouseLeave(candidate);
+    expect(document.querySelector('[data-debug-kind="hero-combat-stats"]')).not.toHaveAttribute("data-debug-preview-item-id");
+
+    fireEvent.click(candidate);
+    expect(candidate).toHaveAttribute("data-debug-preview-selected", "true");
+    expect(useGameStore.getState().game.equipment.slots.weapon).toBe(before);
+    fireEvent.click(screen.getByRole("button", { name: "EQUIP" }));
+    expect(useGameStore.getState().game.equipment.slots.weapon).toBe("item.hunter-sword");
+    expect(document.querySelector('[data-debug-kind="hero-combat-stats"]')).not.toHaveAttribute("data-debug-preview-item-id");
+  });
+
+  it("allows mastery-locked preview while keeping EQUIP disabled", () => {
+    useGameStore.getState().debug.setItemQuantity("item.vanguard-sword", 1);
+    render(<App />);
+    fireEvent.click(screen.getByRole("button", { name: "Hero" }));
+    const candidate = document.querySelector('[data-debug-kind="equipment-candidate"][data-debug-item-id="item.vanguard-sword"]') as HTMLButtonElement;
+    fireEvent.click(candidate);
+    expect(candidate).toHaveAttribute("data-debug-preview-selected", "true");
+    expect(screen.getAllByText("MASTERY 10 REQUIRED").length).toBeGreaterThan(0);
+    expect(screen.getByRole("button", { name: "EQUIP" })).toBeDisabled();
+  });
+
+  it("uses red deltas for lower defensive preview values and preserves collapsed categories", () => {
+    const game = useGameStore.getState().game;
+    useGameStore.setState({ game: { ...game, equipment: { slots: { ...game.equipment.slots, armor: "item.vanguard-plate" } }, inventory: { quantities: { ...game.inventory.quantities, "item.training-armor": 1, "item.vanguard-plate": 1 } } } });
+    render(<App />);
+    fireEvent.click(screen.getByRole("button", { name: "Hero" }));
+    fireEvent.click(document.querySelector('[data-debug-kind="equipment-slot"][data-debug-slot-id="armor"]') as HTMLElement);
+    const defense = screen.getByRole("button", { name: /^DEFENSE/ });
+    fireEvent.click(defense);
+    const candidate = document.querySelector('[data-debug-kind="equipment-candidate"][data-debug-item-id="item.training-armor"]') as HTMLButtonElement;
+    fireEvent.click(candidate);
+    expect(document.querySelector('[data-debug-kind="hero-stat-category"][data-debug-category="defense"]')).toHaveAttribute("data-debug-expanded", "false");
+    expect(document.querySelector('[data-debug-stat="armor"]')).toHaveAttribute("data-debug-delta-kind", "worse");
+    expect(document.querySelector('[data-debug-stat="armor"]')).not.toBeVisible();
   });
 
   it("keeps deep links to the three full build-system windows", () => {

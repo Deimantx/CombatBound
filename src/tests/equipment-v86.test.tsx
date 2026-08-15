@@ -1,4 +1,4 @@
-import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import App from "../../App";
 import { itemById, type ItemDefinition } from "../game/data/items";
@@ -19,6 +19,7 @@ import {
 import { getDefensiveEquipmentContext } from "../game/equipment/defensiveEquipment";
 import { migrateV7Save } from "../game/persistence/saveMigration";
 import { useGameStore } from "../state/gameStore";
+import { HERO_EQUIPMENT_LAYOUT } from "../app/screens/hero/components/HeroEquipmentWorkspace";
 
 const accessory = (
   id: string,
@@ -161,17 +162,18 @@ describe("Equipment V8.6 UI", () => {
   beforeEach(() => useGameStore.getState().resetGameplay());
   afterEach(() => cleanup());
 
-  it("renders thirteen inspector-addressable slots and a true empty-slot comparison", () => {
+  it("renders the thirteen slots in the V11.1 body layout without legacy group headings", () => {
     render(<App />);
     fireEvent.click(screen.getByRole("button", { name: "Hero" }));
 
     expect(document.querySelectorAll('[data-debug-kind="equipment-slot"]')).toHaveLength(13);
-    expect(document.querySelectorAll('[data-debug-kind="equipment-slot-group"]')).toHaveLength(3);
+    expect(Array.from(document.querySelectorAll('[data-debug-kind="equipment-slot"]')).map((slot) => slot.getAttribute("data-debug-slot-id"))).toEqual(HERO_EQUIPMENT_LAYOUT.flat().filter(Boolean));
+    expect(screen.queryByText("WEAPONS")).not.toBeInTheDocument();
+    expect(screen.queryByText("ARMOR & GEAR")).not.toBeInTheDocument();
+    expect(screen.queryByText("ACCESSORIES")).not.toBeInTheDocument();
     const ringOne = document.querySelector('[data-debug-kind="equipment-slot"][data-debug-slot-id="ring1"]') as HTMLElement;
     fireEvent.click(ringOne);
-    const comparison = document.querySelector(".comparison-box") as HTMLElement;
-    expect(within(comparison).getByText("Empty")).toBeInTheDocument();
-    expect(comparison).toHaveTextContent("No item equipped in this slot.");
-    expect(comparison).not.toHaveTextContent("Training Sword");
+    expect(document.querySelector(".hero-equipment-options")).toHaveAttribute("data-debug-slot-id", "ring1");
+    expect(document.querySelector(".hero-comparison-box")).not.toBeInTheDocument();
   });
 });

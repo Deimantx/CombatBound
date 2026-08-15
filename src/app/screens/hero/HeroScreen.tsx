@@ -10,7 +10,7 @@ import type { HeroWindowRequest } from "../../../shared/types";
 import { ScreenHeading } from "../../shell/ScreenHeading";
 import { HeroBuildSystems } from "./components/HeroBuildSystems";
 import { HeroCombatStatsPanel } from "./components/HeroCombatStatsPanel";
-import { HeroEquipmentWorkspace } from "./components/HeroEquipmentWorkspace";
+import { HeroEquipmentWorkspace, type HeroEquipmentPreview } from "./components/HeroEquipmentWorkspace";
 import { HeroWindow, type HeroWindowId } from "./components/HeroWindow";
 import { HeroWindowContent } from "./components/HeroWindowContent";
 
@@ -20,14 +20,21 @@ export function HeroScreen() {
   const stance = useGameStore((state) => state.game.combat.stance);
   const techniques = useGameStore((state) => state.game.combat.techniques);
   const windowRequest = useGameStore((state) => state.heroWindowRequest);
+  const selectedEquipmentSlot = useGameStore((state) => state.selectedEquipmentSlot);
   const clearWindowRequest = useGameStore((state) => state.clearHeroWindowRequest);
   const [windowId, setWindowId] = useState<HeroWindowId>(null);
   const [automationRequest, setAutomationRequest] = useState<Omit<HeroWindowRequest, "window"> | null>(null);
+  const [equipmentPreview, setEquipmentPreview] = useState<HeroEquipmentPreview | null>(null);
+  const [hoveredEquipmentPreview, setHoveredEquipmentPreview] = useState<HeroEquipmentPreview | null>(null);
   const openerRef = useRef<HTMLButtonElement | null>(null);
   const stats = calculateHunterCombatStats(equipment, progression, stance, techniques);
   const active = getActiveWeaponProficiency(progression, equipment);
   const activeDefinition = active ? proficiencyById[active.proficiencyId] : undefined;
   const activeLevel = active ? getProficiencyLevel(progression, active.proficiencyId) : 0;
+  useEffect(() => {
+    if (equipmentPreview && equipmentPreview.slotId !== selectedEquipmentSlot) setEquipmentPreview(null);
+    if (hoveredEquipmentPreview && hoveredEquipmentPreview.slotId !== selectedEquipmentSlot) setHoveredEquipmentPreview(null);
+  }, [equipmentPreview, hoveredEquipmentPreview, selectedEquipmentSlot]);
 
   const openWindow = useCallback((id: Exclude<HeroWindowId, null>, opener?: HTMLButtonElement, request?: Omit<HeroWindowRequest, "window">) => {
     if (opener) openerRef.current = opener;
@@ -54,8 +61,8 @@ export function HeroScreen() {
         <div className="hero-resource-summary"><span>HP <strong>{Math.round(stats.maxHealth)}</strong></span><span>Stamina <strong>{Math.round(stats.maxStamina)}</strong></span><span>Mana <strong>{Math.round(stats.maxMana)}</strong></span></div>
       </section>
       <div className="hero-build-workspace-layout">
-        <HeroEquipmentWorkspace />
-        <HeroCombatStatsPanel />
+        <HeroEquipmentWorkspace preview={equipmentPreview} hoveredPreview={hoveredEquipmentPreview} onPreviewChange={setEquipmentPreview} onHoverPreview={setHoveredEquipmentPreview} onSlotChange={() => { setEquipmentPreview(null); setHoveredEquipmentPreview(null); }} onEquipCommitted={() => { setEquipmentPreview(null); setHoveredEquipmentPreview(null); }} />
+        <HeroCombatStatsPanel preview={equipmentPreview} hoveredPreview={hoveredEquipmentPreview} />
       </div>
       <HeroBuildSystems onOpen={(system, opener) => openWindow(system, opener)} />
       {windowId && <HeroWindow windowId={windowId} title={windowTitle(windowId)} subtitle={windowSubtitle(windowId)} icon={windowIcon(windowId)} onClose={closeWindow}><HeroWindowContent windowId={windowId} automationRequest={automationRequest} onOpenAutomation={(actionId, createRule) => openWindow("automation", undefined, { actionId, createRule })} /></HeroWindow>}

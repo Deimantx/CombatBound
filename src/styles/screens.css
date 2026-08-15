@@ -1131,3 +1131,58 @@ html[data-reduced-motion="true"] .equipment-stat-group-chevron { transition: non
 
 @media (max-width: 900px) { .hero-build-workspace-layout { grid-template-columns: 1fr; } .hero-combat-stats { order: 2; } .hero-build-system-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 @media (max-width: 600px) { .hero-identity { align-items: flex-start; flex-wrap: wrap; } .hero-identity .hero-resource-summary { margin-left: 0; width: 100%; } .hero-equipment-slots { grid-template-columns: repeat(3, minmax(0, 1fr)); } .hero-build-system-grid { grid-template-columns: 1fr; } .hero-build-systems-heading { align-items: flex-start; flex-direction: column; gap: 2px; } .hero-stats-summary { grid-template-columns: 1fr 1fr 1fr; } }
+
+/* Hero Equipment & Stat Comparison Polish V11.1 */
+.hero-equipment-heading { align-items: center; padding-bottom: 10px; }
+.hero-equipment-heading .panel-heading { align-items: center; }
+.hero-equipment-heading .panel-title { margin: 0; }
+.hero-equipment-meta { align-items: flex-end; display: flex; flex-direction: column; gap: 3px; text-align: right; }
+.hero-equipment-meta strong { color: var(--gold-bright); font-size: 10px; letter-spacing: .06em; }
+.hero-equipment-meta span { color: var(--green); font-size: 8px; letter-spacing: .08em; }
+.hero-equipment-meta span.is-locked { color: var(--red); }
+.hero-equipment-body-layout { display: grid; gap: 7px; grid-template-columns: repeat(3, minmax(0, 1fr)); margin-top: 12px; }
+.hero-equipment-body-cell { min-width: 0; }
+.hero-equipment-body-cell.is-empty { min-height: 0; }
+.hero-equipment-body-layout .hero-equipment-slot { min-height: 108px; width: 100%; }
+.hero-equipment-slot.has-item { border-color: rgba(140,169,195,.34); box-shadow: inset 0 0 16px rgba(140,169,195,.04); }
+.hero-equipment-slot.is-empty { border-style: dashed; opacity: .78; }
+.hero-equipment-slot.has-item strong { color: var(--bright); }
+.hero-equipment-options { margin-top: 13px; }
+.hero-equipment-options .hero-disclosure-button > span { gap: 3px; }
+.hero-equipment-options .hero-disclosure-button strong { color: var(--gold); font-size: 10px; letter-spacing: .1em; }
+.hero-equipment-options .hero-disclosure-button small { color: var(--muted); font-size: 8px; }
+.hero-equipment-current-preview { background: var(--panel-2); border: 1px solid var(--line-soft); border-radius: 7px; padding: 8px; }
+.hero-equipment-current-preview .tiny-label { display: block; margin-bottom: 6px; }
+.hero-compact-item-card { align-items: center; display: flex; gap: 8px; min-width: 0; }
+.hero-compact-item-card > span { display: flex; flex: 1; flex-direction: column; gap: 2px; min-width: 0; }
+.hero-compact-item-card strong { color: var(--bright); font-size: 11px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.hero-compact-item-card small { color: var(--muted); font-size: 8px; letter-spacing: .04em; }
+.hero-compact-item-card em { color: var(--green); font-size: 8px; font-style: normal; letter-spacing: .05em; margin-left: auto; white-space: nowrap; }
+.hero-compact-item-card.is-empty { opacity: .68; }
+.hero-candidate-header { margin: 11px 0 7px; }
+.hero-candidate-header > span:last-child { font-size: 8px; }
+.hero-equipment-candidate-grid { display: grid; gap: 6px; grid-template-columns: repeat(auto-fit, minmax(135px, 1fr)); }
+.hero-equipment-candidate { align-items: center; background: var(--panel-2); border: 1px solid var(--line-soft); border-radius: 7px; color: inherit; cursor: pointer; display: flex; gap: 7px; min-width: 0; padding: 7px; text-align: left; transition: background .15s ease, border-color .15s ease, box-shadow .15s ease; }
+.hero-equipment-candidate:hover, .hero-equipment-candidate.is-hovered, .hero-equipment-candidate.is-selected { background: var(--gold-soft); border-color: rgba(213,170,98,.55); }
+.hero-equipment-candidate.is-selected { box-shadow: inset 0 0 0 1px rgba(213,170,98,.18); }
+.hero-equipment-candidate > span { display: flex; flex: 1; flex-direction: column; gap: 2px; min-width: 0; }
+.hero-equipment-candidate strong { color: var(--bright); font-size: 10px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.hero-equipment-candidate small { color: var(--muted); font-size: 8px; line-height: 1.2; }
+.hero-equipment-candidate em { color: var(--gold-bright); font-size: 7px; font-style: normal; letter-spacing: .04em; margin-left: auto; max-width: 70px; text-align: right; }
+.hero-equipment-candidate:has(.placeholder-art) em { white-space: normal; }
+.hero-equipment-empty-copy { color: var(--muted); font-size: 9px; margin: 5px 0; }
+.hero-selected-preview-card { align-items: center; background: var(--panel-2); border: 1px solid rgba(213,170,98,.38); border-radius: 7px; display: flex; gap: 10px; justify-content: space-between; margin-top: 8px; padding: 8px; }
+.hero-selected-preview-card > div { min-width: 0; }
+.hero-selected-preview-card .tiny-label { display: block; margin-bottom: 6px; }
+.hero-equip-preview-button { flex: 0 0 auto; font-size: 9px; min-height: 27px; padding: 5px 10px; }
+.hero-equip-preview-button:disabled { cursor: not-allowed; opacity: .45; }
+.hero-stat-value-comparison { align-items: center; display: inline-flex; flex-wrap: wrap; gap: 4px; justify-content: flex-end; }
+.hero-stat-arrow { color: var(--muted); }
+.hero-stat-preview-value { color: var(--bright); font-weight: 700; }
+.hero-stat-delta { font-size: 9px; font-style: normal; font-weight: 700; margin-left: 1px; }
+.hero-stat-delta.is-better { color: var(--green); }
+.hero-stat-delta.is-worse { color: var(--red); }
+.hero-stat-delta.is-neutral { color: var(--muted); }
+.hero-stat-row[data-debug-delta-kind="better"] .stat-value { color: var(--bright); }
+
+@media (max-width: 600px) { .hero-equipment-meta { align-items: flex-start; margin-top: 5px; text-align: left; } .hero-equipment-heading { align-items: flex-start; flex-direction: column; } .hero-equipment-candidate-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } .hero-selected-preview-card { align-items: stretch; flex-direction: column; } .hero-equip-preview-button { width: 100%; } }
