@@ -30,6 +30,7 @@ interface DebugTelemetryState {
 }
 
 let nextTelemetryId = 1;
+let nextTelemetrySequence = 1;
 let pending: PendingTelemetry = { traces: [], events: [], rolls: [] };
 let flushTimer: ReturnType<typeof setTimeout> | null = null;
 
@@ -41,7 +42,7 @@ function scheduleFlush() {
     pending = { traces: [], events: [], rolls: [] };
     if (!batch.traces.length && !batch.events.length && !batch.rolls.length) return;
     useDebugTelemetryStore.setState((state) => {
-      const grouped: DebugAutomationEvaluation[] = batch.traces.map((trace) => ({ id: nextTelemetryId++, traces: [trace], at: Date.now() }));
+      const grouped: DebugAutomationEvaluation[] = batch.traces.map((trace) => ({ id: nextTelemetryId++, sequence: nextTelemetrySequence++, traces: [trace], at: Date.now() }));
       return {
         automationEvaluations: appendRing(state.automationEvaluations, grouped, DEBUG_AUTOMATION_BUFFER_LIMIT),
         events: appendRing(state.events, batch.events, DEBUG_EVENT_BUFFER_LIMIT),
@@ -66,7 +67,7 @@ export const useDebugTelemetryStore = create<DebugTelemetryState>(() => ({
   recordEvent: (event) => {
     pending.events.push({
       id: nextTelemetryId++,
-      sequence: event.sequence ?? nextTelemetryId,
+      sequence: nextTelemetrySequence++,
       eventType: event.eventType ?? "actionResolved",
       source: event.source,
       target: event.target,
@@ -102,7 +103,7 @@ export function flushDebugTelemetryNow() {
   const batch = pending;
   pending = { traces: [], events: [], rolls: [] };
   if (!batch.traces.length && !batch.events.length && !batch.rolls.length) return;
-  const grouped: DebugAutomationEvaluation[] = batch.traces.map((trace) => ({ id: nextTelemetryId++, traces: [trace], at: Date.now() }));
+  const grouped: DebugAutomationEvaluation[] = batch.traces.map((trace) => ({ id: nextTelemetryId++, sequence: nextTelemetrySequence++, traces: [trace], at: Date.now() }));
   useDebugTelemetryStore.setState((state) => ({
     automationEvaluations: appendRing(state.automationEvaluations, grouped, DEBUG_AUTOMATION_BUFFER_LIMIT),
     events: appendRing(state.events, batch.events, DEBUG_EVENT_BUFFER_LIMIT),

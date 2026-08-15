@@ -1,7 +1,9 @@
 import { create } from "zustand";
 import { defaultDevToolsPreferences, readDevToolsPreferences, writeDevToolsPreferences } from "./devToolsPreferences";
 import type { DebugRandomRoll, DevToolsMode, DevToolsVisualMode, DockAnchor, DockSize, RngMode } from "./devToolsTypes";
+import type { DebugTab } from "../admin/debugTabs";
 import { DEBUG_MAX_TIME_SCALE, DEBUG_MIN_TIME_SCALE } from "./devToolsTypes";
+import { DEFAULT_DEBUG_TAB_ORDER, normalizeDebugTabOrder } from "../admin/debugTabs";
 export type RngOverrideKind = "hit" | "crit" | "dodge" | "parry" | "block";
 
 export interface DebugRuntimeEvent {
@@ -37,6 +39,7 @@ interface DevToolsRuntimeState extends DevToolsVisibilityState {
   automationTraceEnabled: boolean;
   eventsEnabled: boolean;
   eventFilter: string;
+  consoleTabOrder: DebugTab[];
   openConsole: () => void;
   closeConsole: () => void;
   openDock: () => void;
@@ -63,12 +66,14 @@ interface DevToolsRuntimeState extends DevToolsVisibilityState {
   clearEvents: () => void;
   setEventFilter: (filter: string) => void;
   setLastConsoleTab: (tab: string) => void;
+  setConsoleTabOrder: (order: string[]) => void;
+  resetConsoleTabOrder: () => void;
 }
 
 const preferences = readDevToolsPreferences();
 let nextRuntimeId = 1;
 
-function persist(state: Pick<DevToolsRuntimeState, "dockSize" | "dockAnchor" | "dockPosition" | "expandedSections" | "eventFilter" | "lastConsoleTab">) {
+function persist(state: Pick<DevToolsRuntimeState, "dockSize" | "dockAnchor" | "dockPosition" | "expandedSections" | "eventFilter" | "lastConsoleTab" | "consoleTabOrder">) {
   writeDevToolsPreferences({
     ...defaultDevToolsPreferences,
     dockSize: state.dockSize,
@@ -77,6 +82,7 @@ function persist(state: Pick<DevToolsRuntimeState, "dockSize" | "dockAnchor" | "
     expandedSections: state.expandedSections,
     eventFilter: state.eventFilter,
     lastConsoleTab: state.lastConsoleTab,
+    consoleTabOrder: state.consoleTabOrder,
   });
 }
 
@@ -115,6 +121,7 @@ export const useDevToolsRuntimeStore = create<DevToolsRuntimeState>((set) => ({
   automationTraceEnabled: false,
   eventsEnabled: true,
   eventFilter: preferences.eventFilter,
+  consoleTabOrder: normalizeDebugTabOrder(preferences.consoleTabOrder),
   openConsole: () => set({ consoleOpen: true, mode: legacyMode(true, useDevToolsRuntimeStore.getState().dockActive), visualMode: visualMode(true, useDevToolsRuntimeStore.getState().dockActive) }),
   closeConsole: () => set((state) => ({ consoleOpen: false, mode: legacyMode(false, state.dockActive), visualMode: visualMode(false, state.dockActive) })),
   openDock: () => set((state) => ({ dockActive: true, mode: legacyMode(state.consoleOpen, true), visualMode: visualMode(state.consoleOpen, true) })),
@@ -147,4 +154,6 @@ export const useDevToolsRuntimeStore = create<DevToolsRuntimeState>((set) => ({
   clearEvents: () => undefined,
   setEventFilter: (eventFilter) => set((state) => { persist({ ...state, eventFilter }); return { eventFilter }; }),
   setLastConsoleTab: (lastConsoleTab) => set((state) => { persist({ ...state, lastConsoleTab }); return { lastConsoleTab }; }),
+  setConsoleTabOrder: (order) => set((state) => { const consoleTabOrder = normalizeDebugTabOrder(order); persist({ ...state, consoleTabOrder }); return { consoleTabOrder }; }),
+  resetConsoleTabOrder: () => set((state) => { const consoleTabOrder = [...DEFAULT_DEBUG_TAB_ORDER]; persist({ ...state, consoleTabOrder }); return { consoleTabOrder }; }),
 }));

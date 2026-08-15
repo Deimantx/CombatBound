@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
-import { ChevronDown, ChevronRight } from "lucide-react";
 import { PlaceholderArt } from "../../../components/PlaceholderArt";
+import { DisclosureChevron } from "../../../components/DisclosureChevron";
 
 export function DebugCatalogueGroup({
   id,
@@ -27,7 +27,7 @@ export function DebugCatalogueGroup({
   return (
     <section className="debug-catalogue-group" data-debug-kind="debug-catalogue-group" data-debug-group-id={id} data-debug-group-type={debugGroupType} data-debug-count={count} data-debug-expanded={expanded ? "true" : "false"} style={{ ["--debug-depth" as string]: depth }}>
       <button type="button" className="debug-catalogue-group-header" onClick={onToggle} aria-expanded={expanded} aria-controls={bodyId} data-debug-kind="debug-catalogue-group-header" data-debug-group-id={id}>
-        <span aria-hidden="true">{expanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}</span>
+        <DisclosureChevron open={expanded} />
         {icon && <PlaceholderArt icon={icon} size="small" variant="muted" />}
         <strong>{label}</strong>
         <span className="debug-catalogue-group-count">{count}</span>

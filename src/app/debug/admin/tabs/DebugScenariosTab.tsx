@@ -9,7 +9,8 @@ import { DebugButton } from "../components/DebugButton";
 import { DebugSection } from "../components/DebugSection";
 import type { DebugTabProps } from "../debugTypes";
 
-export function DebugScenariosTab({ game, debug, run }: DebugTabProps) {
+export function DebugScenariosTab({ debug, run }: DebugTabProps) {
+  const game = useGameStore((state) => state.game);
   const slots = useDebugScenarioStore((state) => state.slots);
   const refresh = useDebugScenarioStore((state) => state.refresh);
   const saveNew = useDebugScenarioStore((state) => state.saveNew);
@@ -39,4 +40,3 @@ export function DebugScenariosTab({ game, debug, run }: DebugTabProps) {
     <ConfirmDialog open={Boolean(deleteSlot)} title="Delete scenario?" message={deleteSlot ? `Delete ${deleteSlot.name} from slot ${deleteSlot.slot}?` : ""} confirmLabel="Delete scenario" onCancel={() => setDeleteSlot(null)} onConfirm={() => { if (deleteSlot) { remove(deleteSlot); run(`Deleted scenario slot ${deleteSlot.slot}.`, () => undefined); } setDeleteSlot(null); }} />
   </div>;
 }
-

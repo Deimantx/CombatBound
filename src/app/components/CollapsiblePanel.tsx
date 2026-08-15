@@ -1,6 +1,6 @@
-import { ChevronDown } from 'lucide-react'
 import { useId, useState, type ReactNode } from 'react'
 import type { LucideIcon } from 'lucide-react'
+import { DisclosureChevron } from './DisclosureChevron'
 
 interface CollapsiblePanelProps {
   title: string
@@ -23,7 +23,7 @@ export function CollapsiblePanel({ title, subtitle, icon: Icon, children, summar
     <header className="panel-header collapsible-panel-header">
       <button type="button" className="collapsible-panel-toggle" onClick={() => setOpen((value) => !value)} aria-expanded={open} aria-controls={contentId} data-debug-kind="collapsible-panel" data-debug-panel-section={panelId}>
         <span className="panel-heading">{Icon && <span className="panel-icon"><Icon size={15} /></span>}<span><span className="panel-title">{title}</span>{subtitle && <span className="panel-subtitle">{subtitle}</span>}</span></span>
-        <ChevronDown size={16} className={`collapsible-panel-chevron ${open ? 'is-open' : ''}`} aria-hidden="true" />
+        <DisclosureChevron open={open} size={16} className="collapsible-panel-chevron" />
       </button>
       {(summary || actions) && <div className="collapsible-panel-actions">{summary && <span className="collapsible-panel-summary">{summary}</span>}{actions}</div>}
     </header>

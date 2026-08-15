@@ -15,9 +15,9 @@ export interface DebugTelemetryEvent {
 
 export interface DebugAutomationEvaluation {
   id: number;
+  sequence: number;
   traces: AutomationEvaluationTrace[];
   at: number;
 }
 
 export type DebugTelemetryRngRoll = DebugRandomRoll;
-

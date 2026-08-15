@@ -1,4 +1,5 @@
 import type { DevToolsPreferences } from "./devToolsTypes";
+import { DEFAULT_DEBUG_TAB_ORDER, normalizeDebugTabOrder } from "../admin/debugTabs";
 
 export const DEVTOOLS_PREFERENCES_KEY = "combatbound-devtools-ui-v1";
 
@@ -9,6 +10,7 @@ export const defaultDevToolsPreferences: DevToolsPreferences = {
   expandedSections: ["time", "player"],
   lastConsoleTab: "overview",
   eventFilter: "all",
+  consoleTabOrder: [...DEFAULT_DEBUG_TAB_ORDER],
 };
 
 export function readDevToolsPreferences(): DevToolsPreferences {
@@ -26,6 +28,7 @@ export function readDevToolsPreferences(): DevToolsPreferences {
       dockPosition: value.dockPosition && Number.isFinite(value.dockPosition.x) && Number.isFinite(value.dockPosition.y)
         ? { x: value.dockPosition.x, y: value.dockPosition.y }
         : null,
+      consoleTabOrder: normalizeDebugTabOrder(value.consoleTabOrder),
     };
   } catch {
     return { ...defaultDevToolsPreferences };

@@ -8,8 +8,11 @@ import { DebugSection } from "../components/DebugSection";
 import { DebugSummaryCard } from "../components/DebugSummaryCard";
 import type { DebugTab, DebugTabProps } from "../debugTypes";
 import { DebugSimulationControls } from "../../devtools/dock/DebugSimulationControls";
+import { useGameStore } from "../../../../state/gameStore";
 
-export function DebugOverviewTab({ game, debug, run, setTab, selectedEnemy }: DebugTabProps & { setTab: (tab: DebugTab) => void; selectedEnemy?: string }) {
+export function DebugOverviewTab({ debug, run, setTab }: DebugTabProps & { setTab: (tab: DebugTab) => void; selectedEnemy?: string }) {
+  const game = useGameStore((state) => state.game);
+  const selectedEnemy = game.combat.enemies.find((enemy) => enemy.instanceId === game.combat.selectedEnemyInstanceId)?.displayName;
   const masteryLevel = masteryLevelForXp(game.progression.masteryXp);
   const progress = getMasteryLevelProgress(game.progression.masteryXp);
   const perkPoints = getPerkPointSummary(game.progression, perkById);

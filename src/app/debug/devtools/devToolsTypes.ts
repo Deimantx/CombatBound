@@ -26,4 +26,5 @@ export interface DevToolsPreferences {
   expandedSections: string[];
   lastConsoleTab: string;
   eventFilter: string;
+  consoleTabOrder: string[];
 }

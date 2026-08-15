@@ -1,4 +1,5 @@
-import type { ReactNode } from "react";
+import { useId, type ReactNode } from "react";
+import { DisclosureChevron } from "../../../components/DisclosureChevron";
 
 export function DebugSection({
   title,
@@ -20,23 +21,17 @@ export function DebugSection({
   id?: string;
 }) {
   const expanded = !collapsible || open;
+  const generatedId = useId().replace(/:/g, "");
+  const contentId = `${id ?? `debug-section-${generatedId}`}-content`;
   return (
     <section className={`debug-section ${collapsible && !open ? "is-collapsed" : ""}`} data-debug-section-id={id}>
       <header>
-        <div>
-          <span className="tiny-label">{title}</span>
-          {subtitle && <p>{subtitle}</p>}
-        </div>
+        {collapsible && onToggle ? <button type="button" className="debug-section-heading" onClick={onToggle} aria-expanded={expanded} aria-controls={contentId} data-debug-kind="debug-collapse" data-debug-label={title}><span><span className="tiny-label">{title}</span>{subtitle && <p>{subtitle}</p>}</span><DisclosureChevron open={expanded} /></button> : <div className="debug-section-heading"><span className="tiny-label">{title}</span>{subtitle && <p>{subtitle}</p>}</div>}
         <div className="debug-section-actions">
           {actions}
-          {collapsible && onToggle && (
-            <button type="button" className="debug-collapse-toggle" onClick={onToggle} aria-expanded={expanded} data-debug-kind="debug-collapse" data-debug-label={title}>
-              {expanded ? "COLLAPSE" : "EXPAND"}
-            </button>
-          )}
         </div>
       </header>
-      {expanded && children}
+      {expanded && <div id={contentId} className="debug-section-content">{children}</div>}
     </section>
   );
 }

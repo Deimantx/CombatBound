@@ -12,11 +12,14 @@ import { DebugCatalogueIdentity } from "../components/DebugCatalogueIdentity";
 import { DebugFilterBar } from "../components/DebugFilterBar";
 import { DebugSection } from "../components/DebugSection";
 import type { DebugTabProps } from "../debugTypes";
+import type { DebugGameState } from "../debugTypes";
+import { useGameStore } from "../../../../state/gameStore";
 
 const filters = ["all", "equipment", "consumables", "materials", "currency"] as const;
 type ItemFilter = (typeof filters)[number];
 
-export function DebugItemsTab({ game, run, debug }: DebugTabProps) {
+export function DebugItemsTab({ run, debug }: DebugTabProps) {
+  const game = useGameStore((state) => state.game);
   const [query, setQuery] = useState("");
   const [filter, setFilter] = useState<ItemFilter>("all");
   const [expanded, setExpanded] = useState<Set<string>>(() => new Set(["debug.items.equipment", "debug.items.equipment.weapons", "debug.items.equipment.weapons.one-handed"]));
@@ -28,7 +31,7 @@ export function DebugItemsTab({ game, run, debug }: DebugTabProps) {
   return <div className="debug-tab-content debug-column"><DebugSection title="Item browser" subtitle={`${items.length} matching canonical definitions`} actions={<SearchField value={query} onChange={setQuery} placeholder="Search items..." label="Search items" debugKind="debug-item-search" />}><DebugFilterBar values={filters} value={filter} onChange={setFilter} labels={{ all: "ALL", equipment: "EQUIPMENT", consumables: "CONSUMABLES", materials: "MATERIALS", currency: "CURRENCY" }} /><div className="debug-catalogue debug-catalogue-tree">{nodes.map((node) => <ItemNode key={node.id} node={node} depth={0} expanded={expanded} query={normalized} onToggle={(id) => setExpanded((current) => { const next = new Set(current); if (next.has(id)) next.delete(id); else next.add(id); return next; })} game={game} run={run} debug={debug} defensiveContext={defensiveContext} masteryLevel={masteryLevel} />)}</div></DebugSection><DebugSection title="Prototype gear shortcuts" subtitle="Tier grants use two copies for shared Ring and Earring slots."><div className="debug-button-grid"><DebugButton action="grant-all-equipment-1" onClick={() => run("Granted all equipment x1.", () => debug.grantAllEquipment(1))}>GRANT ALL EQUIPMENT x1</DebugButton><DebugButton action="grant-all-equipment-2" onClick={() => run("Granted all equipment x2.", () => debug.grantAllEquipment(2))}>GRANT ALL EQUIPMENT x2</DebugButton><DebugButton action="grant-tier-1" onClick={() => run("Granted all level 1 gear.", () => debug.grantEquipmentTier(1))}>GRANT ALL LV 1 GEAR</DebugButton><DebugButton action="grant-tier-5" onClick={() => run("Granted all level 5 gear.", () => debug.grantEquipmentTier(5))}>GRANT ALL LV 5 GEAR</DebugButton><DebugButton action="grant-tier-10" onClick={() => run("Granted all level 10 gear.", () => debug.grantEquipmentTier(10))}>GRANT ALL LV 10 GEAR</DebugButton></div></DebugSection></div>;
 }
 
-function ItemNode({ node, depth, expanded, query, onToggle, game, run, debug, defensiveContext, masteryLevel }: { node: ItemCatalogueNode; depth: number; expanded: Set<string>; query: string; onToggle: (id: string) => void; game: DebugTabProps["game"]; run: DebugTabProps["run"]; debug: DebugTabProps["debug"]; defensiveContext: ReturnType<typeof getDefensiveEquipmentContext>; masteryLevel: number }) {
+function ItemNode({ node, depth, expanded, query, onToggle, game, run, debug, defensiveContext, masteryLevel }: { node: ItemCatalogueNode; depth: number; expanded: Set<string>; query: string; onToggle: (id: string) => void; game: DebugGameState; run: DebugTabProps["run"]; debug: DebugTabProps["debug"]; defensiveContext: ReturnType<typeof getDefensiveEquipmentContext>; masteryLevel: number }) {
   const open = query ? true : expanded.has(node.id);
   return <DebugCatalogueGroup id={node.id} label={node.label} count={nodeItemCount(node)} icon={node.icon} depth={depth} expanded={open} onToggle={() => onToggle(node.id)} debugGroupType="items">{node.children.map((child) => <ItemNode key={child.id} node={child} depth={depth + 1} expanded={expanded} query={query} onToggle={onToggle} game={game} run={run} debug={debug} defensiveContext={defensiveContext} masteryLevel={masteryLevel} />)}{node.items.map((item) => <DebugItemRow key={item.id} item={item} quantity={game.inventory.quantities[item.id] ?? 0} equipped={Object.values(game.equipment.slots).includes(item.id)} run={run} debug={debug} defensiveContext={defensiveContext} masteryLevel={masteryLevel} />)}</DebugCatalogueGroup>;
 }

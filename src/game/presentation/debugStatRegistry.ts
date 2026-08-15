@@ -10,13 +10,24 @@ export interface DebugStatDefinition {
   label: string;
   category: DebugStatCategory;
   format: DebugStatFormat;
+  description: string;
 }
 
 export const COMBAT_STAT_KEYS: CombatStatKey[] = ["maxHealth", "attackPower", "accuracy", "attackInterval", "armor", "evasion", "critChance", "critDamage", "dodgeChance", "parryChance", "blockChance", "blockPower", "maxStamina", "staminaRegen", "maxMana", "manaRegen", "statusResistance", "healthRegen"];
 export const RESISTANCE_DAMAGE_TYPES: ResistanceDamageType[] = ["physical", "fire", "water", "air", "earth", "light", "darkness", "nature", "mystic"];
 
-const stat = (id: CombatStatKey, label: string, category: DebugStatCategory, format: DebugStatFormat): DebugStatDefinition => ({ id, label, category, format });
-const resistance = (id: ResistanceDamageType): DebugStatDefinition => ({ id: `resistance:${id}`, label: `${id[0].toUpperCase()}${id.slice(1)} Resistance`, category: "resistances", format: "percent" });
+const descriptions: Record<string, string> = {
+  attackPower: "Primary offensive value used by actions that scale with Attack Power.",
+  accuracy: "Improves the chance for eligible attacks to connect.",
+  armor: "Mitigates eligible Physical damage through the current armor rules.",
+  manaRegen: "Mana restored per second by the current build and effects.",
+  staminaRegen: "Stamina restored per second by the current build and effects.",
+  healthRegen: "Health restored per second by the current build and effects.",
+  statusResistance: "Reduces the duration or impact of eligible status effects.",
+};
+
+const stat = (id: CombatStatKey, label: string, category: DebugStatCategory, format: DebugStatFormat): DebugStatDefinition => ({ id, label, category, format, description: descriptions[id] ?? `Current ${label.toLowerCase()} from the active build and combat effects.` });
+const resistance = (id: ResistanceDamageType): DebugStatDefinition => ({ id: `resistance:${id}`, label: `${id[0].toUpperCase()}${id.slice(1)} Resistance`, category: "resistances", format: "percent", description: `Current ${id} damage resistance from the active build and combat effects.` });
 
 export const DEBUG_STAT_DEFINITIONS: DebugStatDefinition[] = [
   stat("attackPower", "Attack Power", "offense", "number"), stat("accuracy", "Accuracy", "offense", "number"), stat("attackInterval", "Attack Interval", "offense", "seconds"), stat("critChance", "Critical Chance", "offense", "percent"), stat("critDamage", "Critical Damage", "offense", "percent"),
@@ -26,4 +37,3 @@ export const DEBUG_STAT_DEFINITIONS: DebugStatDefinition[] = [
 ];
 
 export const DEBUG_STAT_DEFINITION_BY_ID = Object.fromEntries(DEBUG_STAT_DEFINITIONS.map((definition) => [definition.id, definition])) as Record<DebugStatInspectionId, DebugStatDefinition>;
-

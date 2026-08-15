@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import { Bug, ExternalLink, Grip, X } from "lucide-react";
 import { effectById } from "../../../../game/data/effects";
 import { calculateHunterCombatStats } from "../../../../game/equipment/derivedStats";
@@ -123,7 +123,8 @@ function DockAutomation() {
   const action = useGameStore((state) => state.game.combat.lastAutomationAction?.actionId);
   const capture = useDevToolsRuntimeStore((state) => state.automationTraceEnabled);
   const setCapture = useDevToolsRuntimeStore((state) => state.setAutomationTraceEnabled);
-  const entries = useDebugTelemetryStore((state) => state.automationEvaluations.slice(-5));
+  const allEntries = useDebugTelemetryStore((state) => state.automationEvaluations);
+  const entries = useMemo(() => allEntries.slice(-5), [allEntries]);
   return <><p className="debug-dock-value">{enabled ? "ON" : "OFF"} · {failure ?? action ?? "idle"}</p><label className="debug-dock-check"><input type="checkbox" checked={capture} onChange={(event) => setCapture(event.target.checked)} /> CAPTURE TRACE</label>{entries.map((entry) => entry.traces.map((trace) => <p key={`${entry.id}-${trace.ruleId}`} className={trace.result === "executed" ? "debug-dock-pass" : "debug-dock-muted"}>{trace.result.toUpperCase()} · {trace.ruleId} · {trace.actionId}</p>))}</>;
 }
 
@@ -131,7 +132,8 @@ function DockEvents() {
   const capture = useDevToolsRuntimeStore((state) => state.eventsEnabled);
   const setCapture = useDevToolsRuntimeStore((state) => state.setEventsEnabled);
   const clear = useDebugTelemetryStore((state) => state.clearEvents);
-  const events = useDebugTelemetryStore((state) => state.events.slice(-8).reverse());
+  const allEvents = useDebugTelemetryStore((state) => state.events);
+  const events = useMemo(() => allEvents.slice(-8).reverse(), [allEvents]);
   return <><label className="debug-dock-check"><input type="checkbox" checked={capture} onChange={(event) => setCapture(event.target.checked)} /> CAPTURE EVENTS</label><div className="debug-dock-list">{events.map((event) => <span key={event.id}>#{event.sequence} {event.eventType}</span>)}</div><button type="button" onClick={clear}>CLEAR DEBUG EVENTS</button></>;
 }
 
@@ -164,4 +166,3 @@ function Meter({ label, value, max }: { label: string; value: number; max: numbe
   const fraction = max > 0 ? Math.max(0, Math.min(1, value / max)) : 0;
   return <div className="debug-dock-meter"><div><span>{label}</span><b>{Math.round(value)} / {Math.round(max)}</b></div><i style={{ width: `${fraction * 100}%` }} /></div>;
 }
-

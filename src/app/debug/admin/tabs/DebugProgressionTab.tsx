@@ -11,10 +11,13 @@ import { DebugCatalogueGroup } from "../components/DebugCatalogueGroup";
 import { DebugCatalogueIdentity } from "../components/DebugCatalogueIdentity";
 import { DebugSection } from "../components/DebugSection";
 import type { DebugTabProps } from "../debugTypes";
+import type { DebugGameState } from "../debugTypes";
+import { useGameStore } from "../../../../state/gameStore";
 
 const proficiencyCategories: Array<{ id: ProficiencyCategory; label: string }> = [{ id: "melee", label: "Melee" }, { id: "ranged", label: "Ranged" }, { id: "magic", label: "Magic" }, { id: "defense", label: "Defense" }];
 
-export function DebugProgressionTab({ game, debug, run }: DebugTabProps) {
+export function DebugProgressionTab({ debug, run }: DebugTabProps) {
+  const game = useGameStore((state) => state.game);
   const [search, setSearch] = useState("");
   const [expanded, setExpanded] = useState<Set<string>>(() => new Set(["debug.proficiencies.melee"]));
   const [customPoints, setCustomPoints] = useState("");
@@ -32,9 +35,8 @@ export function DebugProgressionTab({ game, debug, run }: DebugTabProps) {
   </div>;
 }
 
-function DebugProficiencyRow({ definition, game, run, debug }: { definition: (typeof proficiencyDefinitions)[number]; game: DebugTabProps["game"]; run: DebugTabProps["run"]; debug: DebugTabProps["debug"] }) {
+function DebugProficiencyRow({ definition, game, run, debug }: { definition: (typeof proficiencyDefinitions)[number]; game: DebugGameState; run: DebugTabProps["run"]; debug: DebugTabProps["debug"] }) {
   const [level, setLevel] = useState(String(getProficiencyLevelProgress(game.progression.proficiencies[definition.id]?.totalXp ?? 0, definition.maxLevel).level));
   const current = getProficiencyLevelProgress(game.progression.proficiencies[definition.id]?.totalXp ?? 0, definition.maxLevel);
   return <div className="debug-catalogue-row" data-debug-kind="debug-proficiency" data-debug-proficiency-id={definition.id}><DebugCatalogueIdentity tooltip={buildProficiencyTooltip(definition)} icon={definition.icon} kind="debug-proficiency-identity" targetId={definition.id} label={definition.name}><strong>{definition.name}</strong><small>{definition.category} - Lv {current.level} - {(game.progression.proficiencies[definition.id]?.totalXp ?? 0).toLocaleString()} XP</small></DebugCatalogueIdentity><input value={level} onChange={(event) => setLevel(event.target.value)} aria-label={`Set ${definition.name} level`} inputMode="numeric" /><button type="button" onClick={() => run(`Set ${definition.name} to level ${level}.`, () => debug.setProficiencyLevel(definition.id as CombatProficiencyId, Number(level)))} data-debug-kind="debug-action" data-debug-action="set-proficiency-level" data-debug-proficiency-id={definition.id}>SET</button><button type="button" onClick={() => run(`Increased ${definition.name} by one level.`, () => debug.setProficiencyLevel(definition.id as CombatProficiencyId, current.level + 1))} data-debug-kind="debug-action" data-debug-action="increment-proficiency" data-debug-proficiency-id={definition.id}>+1</button></div>;
 }
-

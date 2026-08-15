@@ -15,20 +15,18 @@ import { DebugValidationTab } from "./tabs/DebugValidationTab";
 import type { DebugRun, DebugTab } from "./debugTypes";
 
 export function DebugTabContent({ tab, run, setTab, setConfirmCollection }: { tab: DebugTab; run: DebugRun; setTab: (tab: DebugTab) => void; setConfirmCollection: (open: boolean) => void }) {
-  const game = useGameStore((state) => state.game);
   const debug = useGameStore((state) => state.debug);
-  const selectedEnemy = game.combat.enemies.find((enemy) => enemy.instanceId === game.combat.selectedEnemyInstanceId)?.displayName;
-  if (tab === "overview") return <DebugOverviewTab game={game} debug={debug} run={run} selectedEnemy={selectedEnemy} setTab={setTab} />;
-  if (tab === "player") return <DebugPlayerTab game={game} debug={debug} run={run} />;
-  if (tab === "progression") return <DebugProgressionTab game={game} debug={debug} run={run} />;
-  if (tab === "items") return <DebugItemsTab game={game} debug={debug} run={run} />;
-  if (tab === "collection") return <DebugCollectionTab game={game} debug={debug} run={run} onConfirm={() => setConfirmCollection(true)} />;
-  if (tab === "combat") return <DebugCombatTab game={game} debug={debug} run={run} selectedEnemy={selectedEnemy} />;
-  if (tab === "spellbook") return <DebugSpellbookTab game={game} debug={debug} run={run} />;
-  if (tab === "state") return <DebugStateTab game={game} debug={debug} run={run} />;
-  if (tab === "scenarios") return <DebugScenariosTab game={game} debug={debug} run={run} />;
-  if (tab === "stats") return <DebugStatsTab game={game} debug={debug} run={run} />;
-  if (tab === "validation") return <DebugValidationTab game={game} debug={debug} run={run} />;
-  if (tab === "encounter") return <DebugEncounterTab game={game} debug={debug} run={run} />;
-  return <DebugSaveToolsTab game={game} debug={debug} run={run} />;
+  if (tab === "overview") return <DebugOverviewTab debug={debug} run={run} selectedEnemy={undefined} setTab={setTab} />;
+  if (tab === "player") return <DebugPlayerTab debug={debug} run={run} />;
+  if (tab === "progression") return <DebugProgressionTab debug={debug} run={run} />;
+  if (tab === "items") return <DebugItemsTab debug={debug} run={run} />;
+  if (tab === "collection") return <DebugCollectionTab debug={debug} run={run} onConfirm={() => setConfirmCollection(true)} />;
+  if (tab === "combat") return <DebugCombatTab debug={debug} run={run} />;
+  if (tab === "spellbook") return <DebugSpellbookTab debug={debug} run={run} />;
+  if (tab === "state") return <DebugStateTab debug={debug} run={run} />;
+  if (tab === "scenarios") return <DebugScenariosTab debug={debug} run={run} />;
+  if (tab === "stats") return <DebugStatsTab debug={debug} run={run} />;
+  if (tab === "validation") return <DebugValidationTab debug={debug} run={run} />;
+  if (tab === "encounter") return <DebugEncounterTab debug={debug} run={run} />;
+  return <DebugSaveToolsTab debug={debug} run={run} />;
 }

@@ -1,8 +1,9 @@
-import { Check, ChevronDown, ChevronRight, Search, X } from "lucide-react";
+import { Check, Search, X } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { ActionCatalogueGroup, ActionCatalogueItem } from "../../game/presentation/playerActionCatalogue";
 import { catalogueGroupContainsQuery, catalogueItemMatchesQuery } from "../../game/presentation/playerActionCatalogue";
 import { PlaceholderArt } from "./PlaceholderArt";
+import { DisclosureChevron } from "./DisclosureChevron";
 
 export interface ActionCataloguePickerProps {
   value: string;
@@ -76,7 +77,7 @@ export function ActionCataloguePicker({ value, catalogue, onChange, disabled = f
           <strong>{currentItem?.name ?? (value ? "MISSING ACTION" : "Choose action")}</strong>
           <small>{currentItem?.subtitle ?? (value ? value : "Select an action for this Rule")}</small>
         </span>
-        <ChevronDown size={14} aria-hidden="true" />
+        <DisclosureChevron open={open} />
       </button>
       {open && <div className="action-picker-popover" role="dialog" aria-label="Choose action">
         <div className="action-picker-heading"><span className="tiny-label">CHOOSE ACTION</span><button type="button" className="icon-button compact" onClick={() => setOpen(false)} aria-label="Close action picker"><X size={13} /></button></div>
@@ -131,7 +132,7 @@ function ActionGroup({ group, value, normalizedQuery, expanded, onToggle, onSele
         data-debug-kind="action-picker-group-header"
         data-debug-group-id={group.id}
       >
-        <span className="catalogue-accordion-chevron" aria-hidden="true">{isExpanded ? <ChevronDown size={13} /> : <ChevronRight size={13} />}</span>
+        <DisclosureChevron open={isExpanded} size={13} className="catalogue-accordion-chevron" />
         {group.icon && <PlaceholderArt icon={group.icon} size="small" variant="muted" />}
         <span className="catalogue-accordion-label">{group.label}</span>
         <span className="catalogue-accordion-count">{group.itemCount}</span>

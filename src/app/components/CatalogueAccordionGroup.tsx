@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
-import { ChevronDown, ChevronRight } from "lucide-react";
 import { PlaceholderArt } from "./PlaceholderArt";
+import { DisclosureChevron } from "./DisclosureChevron";
 
 export function CatalogueAccordionGroup({
   id,
@@ -61,7 +61,7 @@ export function CatalogueAccordionGroup({
         data-debug-group-id={id}
       >
         <span className="catalogue-accordion-chevron" aria-hidden="true">
-          {expanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+          <DisclosureChevron open={expanded} />
         </span>
         {icon && <PlaceholderArt icon={icon} size="small" variant="muted" />}
         <span className="catalogue-accordion-label">{label}</span>
