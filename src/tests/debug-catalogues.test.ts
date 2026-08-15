@@ -33,7 +33,9 @@ describe("debug catalogue presentation", () => {
     expect(nodes.reduce((sum, node) => sum + nodeItemCount(node), 0)).toBe(itemDefinitions.length);
     expect(findNode(nodes, "debug.items.equipment.weapons.one-handed.one-handed-swords")?.items.map((item) => item.name)).toEqual(["Training Sword", "Hunter Sword", "Vanguard Sword"]);
     expect(findNode(nodes, "debug.items.equipment.offhands.shields")?.items).toHaveLength(3);
-    expect(findNode(nodes, "debug.items.equipment.armor.head")?.items).toHaveLength(3);
+    expect(findNode(nodes, "debug.items.equipment.armor.head.light-armor")?.items).toHaveLength(1);
+    expect(findNode(nodes, "debug.items.equipment.armor.head.medium-armor")?.items).toHaveLength(1);
+    expect(findNode(nodes, "debug.items.equipment.armor.head.heavy-armor")?.items).toHaveLength(1);
     expect(findNode(nodes, "debug.items.equipment.accessories.ring")?.items.some((item) => item.name === "Ring of Precision")).toBe(true);
     expect(itemSearchText(itemDefinitions.find((item) => item.name === "Ring of Precision")!)).toContain("precision");
   });

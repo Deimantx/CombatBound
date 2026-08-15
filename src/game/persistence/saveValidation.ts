@@ -1,4 +1,4 @@
-import type { GameSaveV8 } from "./saveTypes";
+import type { GameSaveV9 } from "./saveTypes";
 import { proficiencyById } from "../data/proficiencies";
 import { perkById } from "../data/proficiencyPerks";
 import { COMBAT_SPELL_SLOT_COUNT } from "../spellbook/spellbookTypes";
@@ -8,10 +8,10 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return Boolean(value) && typeof value === "object" && !Array.isArray(value);
 }
 
-export function isGameSave(value: unknown): value is GameSaveV8 {
+export function isGameSave(value: unknown): value is GameSaveV9 {
   if (
     !isRecord(value) ||
-    value.version !== 8 ||
+    value.version !== 9 ||
     typeof value.gold !== "number" ||
     !isRecord(value.progression) ||
     !isRecord(value.inventory) ||
@@ -29,6 +29,9 @@ export function isGameSave(value: unknown): value is GameSaveV8 {
     !isRecord(progression.proficiencies) ||
     typeof progression.masteryXp !== "number" ||
     progression.masteryXp < 0 ||
+    typeof progression.bonusPerkPoints !== "number" ||
+    !Number.isInteger(progression.bonusPerkPoints) ||
+    progression.bonusPerkPoints < 0 ||
     !isRecord(progression.purchasedPerks)
   )
     return false;

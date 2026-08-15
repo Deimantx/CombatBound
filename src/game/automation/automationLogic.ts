@@ -6,6 +6,8 @@ import { getEnemyEffectiveCombatStats } from "../combat/combatSelectors";
 import { effectById } from "../data/effects";
 import type {
   AutomationCondition,
+  AutomationConditionTrace,
+  AutomationEvaluationTrace,
   AutomationRule,
   CombatAutomationState,
   TargetPriorityCriterion,
@@ -315,10 +317,20 @@ export interface AutomationDecision {
   invalid?: { ruleId: string; reason: string };
 }
 
+function describeCondition(condition: AutomationCondition, game: GameState, target: EnemyCombatInstance | undefined): Pick<AutomationConditionTrace, "actual" | "expected"> {
+  if (condition.type === "player-hp-below" || condition.type === "player-hp-above") return { actual: game.combat.maxPlayerHp > 0 ? game.combat.playerHp / game.combat.maxPlayerHp : 0, expected: condition.fraction };
+  if (condition.type === "mana-below" || condition.type === "mana-above") return { actual: game.combat.maxMana > 0 ? game.combat.mana / game.combat.maxMana : 0, expected: condition.fraction };
+  if (condition.type === "stamina-below" || condition.type === "stamina-above") return { actual: game.combat.maxStamina > 0 ? game.combat.stamina / game.combat.maxStamina : 0, expected: condition.fraction };
+  if (condition.type === "target-hp-below" || condition.type === "target-hp-above") return { actual: target ? target.currentHealth / Math.max(1, target.maxHealth) : "no target", expected: condition.fraction };
+  if (condition.type === "alive-enemies-at-least") return { actual: game.combat.enemies.filter((enemy) => !enemy.defeated).length, expected: condition.count };
+  return { actual: condition.type === "always" ? true : "state", expected: condition.type };
+}
+
 export function evaluateAutomation(
   game: GameState,
   stats: HunterCombatStats,
   context: CombatContext,
+  onTrace?: (trace: AutomationEvaluationTrace) => void,
 ): AutomationDecision {
   if (!game.combatAutomation.enabled || game.combat.phase !== "active")
     return {};
@@ -334,12 +346,11 @@ export function evaluateAutomation(
     .sort((a, b) => a.priority - b.priority || a.id.localeCompare(b.id));
   let invalid: AutomationDecision["invalid"];
   for (const rule of rules) {
-    if (
-      !rule.conditions.every((condition) =>
-        conditionMatches(condition, game, target, context, stats),
-      )
-    )
+    const conditionTraces = rule.conditions.map((condition): AutomationConditionTrace => ({ type: condition.type, passed: conditionMatches(condition, game, target, context, stats), ...describeCondition(condition, game, target) }));
+    if (!conditionTraces.every((condition) => condition.passed)) {
+      onTrace?.({ ruleId: rule.id, priority: rule.priority, actionId: rule.actionId, enabled: rule.enabled, conditions: conditionTraces, result: "skipped" });
       continue;
+    }
     const validation = validatePlayerAction(
       {
         ...game,
@@ -352,8 +363,11 @@ export function evaluateAutomation(
       stats,
       context,
     );
-    if (validation.valid)
+    if (validation.valid) {
+      onTrace?.({ ruleId: rule.id, priority: rule.priority, actionId: rule.actionId, enabled: rule.enabled, conditions: conditionTraces, result: "executed" });
       return { actionId: rule.actionId, targetId: target?.instanceId };
+    }
+    onTrace?.({ ruleId: rule.id, priority: rule.priority, actionId: rule.actionId, enabled: rule.enabled, conditions: conditionTraces, validationReason: validation.reason, result: "invalid" });
     invalid = { ruleId: rule.id, reason: validation.reason ?? "invalid" };
   }
   return { invalid };

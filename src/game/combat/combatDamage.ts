@@ -2,6 +2,7 @@ import { clamp, combatBalance } from './combatBalance'
 import { calculateArmorMitigation, calculateEffectiveArmor, calculateResistanceMultiplier, resolveDefensiveOutcome, type DefensiveOutcome } from './combatMath'
 import { getResistance } from './combatStats'
 import type { CombatRng, CombatStats, CombatantRef, DamageComponent, DamageType, DefensiveEligibility, DamageProgressionSource } from './combatTypes'
+import { nextCombatRandom } from './combatRng'
 
 export interface DamagePacket extends DamageComponent {
   source: CombatantRef
@@ -53,7 +54,7 @@ export function rollDamage(component: DamageComponent & { baseDamage?: number },
   const maximum = component.maxDamage !== undefined ? component.maxDamage * multiplier : base * (component.maxMultiplier ?? combatBalance.baseDamageVarianceMax)
   const low = Math.min(minimum, maximum)
   const high = Math.max(minimum, maximum)
-  return Math.max(0, low + (high - low) * clamp(rng.next(), 0, 1))
+  return Math.max(0, low + (high - low) * clamp(nextCombatRandom(rng, 'damage'), 0, 1))
 }
 
 export function resolveDamage(packet: DamagePacket, attacker: CombatStats, defender: CombatStats, rng: CombatRng): DamageResolution {
@@ -70,7 +71,7 @@ export function resolveDamage(packet: DamagePacket, attacker: CombatStats, defen
   if (outcome === 'miss' || outcome === 'dodge' || outcome === 'parry') return emptyDamageResolution(outcome)
 
   const rolledDamage = rollDamage(packet, attacker, rng)
-  const critical = packet.canCrit && rng.next() < clamp(attacker.critChance + (packet.criticalChanceBonus ?? 0), 0, combatBalance.maxCritChance)
+  const critical = packet.canCrit && nextCombatRandom(rng, 'crit') < clamp(attacker.critChance + (packet.criticalChanceBonus ?? 0), 0, combatBalance.maxCritChance)
   const rawDamage = Math.max(0, rolledDamage * (critical ? Math.max(1, attacker.critDamage * (packet.criticalDamageMultiplier ?? 1)) : 1))
   const armorMitigation = packet.ignoresArmor || packet.damageType !== 'physical' ? 0 : calculateArmorMitigation(effectiveDefender.armor)
   const afterArmor = rawDamage * (1 - armorMitigation)

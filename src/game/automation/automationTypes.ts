@@ -59,6 +59,23 @@ export interface CombatAutomationState {
   overrideManualTarget: boolean;
 }
 
+export interface AutomationConditionTrace {
+  type: string;
+  passed: boolean;
+  actual?: string | number | boolean;
+  expected?: string | number | boolean;
+}
+
+export interface AutomationEvaluationTrace {
+  ruleId: string;
+  priority: number;
+  actionId: string;
+  enabled: boolean;
+  conditions: AutomationConditionTrace[];
+  validationReason?: string;
+  result: "executed" | "skipped" | "invalid";
+}
+
 export function createInitialCombatAutomation(): CombatAutomationState {
   return {
     enabled: true,

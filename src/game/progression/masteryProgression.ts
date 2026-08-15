@@ -67,6 +67,21 @@ export function calculateSpentPerkPoints(progression: ProgressionState, perkDefi
   return Object.entries(progression.purchasedPerks).reduce((total, [perkId, rank]) => total + (perkDefinitions[perkId]?.costPerRank ?? 0) * Math.max(0, rank), 0)
 }
 
+export interface PerkPointSummary {
+  masteryEarned: number
+  bonus: number
+  totalEarned: number
+  spent: number
+  available: number
+}
+
+export function getPerkPointSummary(progression: ProgressionState, perkDefinitions: Record<string, ProficiencyPerkDefinition>): PerkPointSummary {
+  const masteryEarned = calculateEarnedPerkPoints(progression.masteryXp)
+  const bonus = Math.max(0, Number.isFinite(progression.bonusPerkPoints) ? Math.floor(progression.bonusPerkPoints) : 0)
+  const spent = calculateSpentPerkPoints(progression, perkDefinitions)
+  return { masteryEarned, bonus, totalEarned: masteryEarned + bonus, spent, available: Math.max(0, masteryEarned + bonus - spent) }
+}
+
 export function calculateAvailablePerkPoints(progression: ProgressionState, perkDefinitions: Record<string, ProficiencyPerkDefinition>) {
-  return Math.max(0, calculateEarnedPerkPoints(progression.masteryXp) - calculateSpentPerkPoints(progression, perkDefinitions))
+  return getPerkPointSummary(progression, perkDefinitions).available
 }

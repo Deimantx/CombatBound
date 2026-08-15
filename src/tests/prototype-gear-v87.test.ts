@@ -214,8 +214,8 @@ describe("CombatBound V8.7 prototype gear", () => {
     expect(debugRevivePlayer(defeatedPlayer).combat.phase).toBe("stopped");
   });
 
-  it("keeps the persistent save schema at V8", () => {
-    expect(CURRENT_SAVE_VERSION).toBe(8);
+  it("uses the V9 persistent save schema", () => {
+    expect(CURRENT_SAVE_VERSION).toBe(9);
     expect(itemDefinitions.every((item) => item.requiredMasteryLevel === undefined || item.requiredMasteryLevel > 0)).toBe(true);
     expect(enemyDefinitions.length).toBeGreaterThan(0);
   });

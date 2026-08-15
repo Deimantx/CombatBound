@@ -33,6 +33,7 @@ import {
   getPlayerEffectiveCombatStats,
 } from "./combatSelectors";
 import { interruptAction, selectNextEnemyAction } from "./combatActions";
+import { nextCombatRandom } from "./combatRng";
 import { instantiateEnemies } from "./combatState";
 import { generateCombatGroup } from "./combatGroupGenerator";
 import {
@@ -447,6 +448,22 @@ export function startHunt(
   );
   const combat = createActiveCombat(clean, locationId, group, stats, 1, false);
   return { ...game, combat };
+}
+
+/** DEV-only entry point that still uses the canonical combat instance/session setup. */
+export function startDebugEncounter(
+  game: GameState,
+  locationId: string,
+  enemyIds: string[],
+  stats: HunterCombatStats,
+  context: CombatContext,
+): GameState {
+  if (!context.locations[locationId]) return game;
+  const validEnemyIds = enemyIds.filter((enemyId) => Boolean(context.enemies[enemyId])).slice(0, 12);
+  if (validEnemyIds.length === 0) return game;
+  const session = { ...game.combat.session, elapsedSeconds: 0, groupClears: 0, enemiesDefeated: 0, damageDealt: 0, damageTaken: 0, healing: 0, proficiencyXpGained: {}, masteryXpGained: 0, itemsGained: 0, lootGained: {}, goldGained: 0, highestHit: 0 };
+  const clean = clearEndedHuntEffects({ ...game.combat, session }, context.effects);
+  return { ...game, combat: createActiveCombat(clean, locationId, validEnemyIds, stats, Math.max(1, game.combat.groupNumber + 1), false) };
 }
 
 function createActiveCombat(
@@ -1534,7 +1551,7 @@ function damageEnemy(
       packet.progressionSource.proficiencyId,
       perkById,
     ))
-      if (hook.chance >= 1 || context.rng.next() < hook.chance)
+      if (hook.chance >= 1 || nextCombatRandom(context.rng, "effect") < hook.chance)
         next.combat =
           hook.resource === "mana"
             ? {
@@ -1604,7 +1621,7 @@ function damageEnemy(
       if (
         !(applied.options?.secondaryOnly && !isSecondary) &&
         (!applied.options?.requireHpDamage || effectiveHealthDamage > 0) &&
-        (applied.chance >= 1 || context.rng.next() < applied.chance)
+        (applied.chance >= 1 || nextCombatRandom(context.rng, "effect") < applied.chance)
       ) {
         const effectTarget =
           applied.options?.targetMode === "source"
@@ -1633,7 +1650,7 @@ function damageEnemy(
         weaponProficiencyId,
         perkById,
       ))
-        if (applied.chance >= 1 || context.rng.next() < applied.chance)
+        if (applied.chance >= 1 || nextCombatRandom(context.rng, "effect") < applied.chance)
           next = applyEffectToGame(
             next,
             applied.effectId,
@@ -1647,7 +1664,7 @@ function damageEnemy(
         weaponProficiencyId,
         perkById,
       ))
-        if (hook.chance >= 1 || context.rng.next() < hook.chance)
+        if (hook.chance >= 1 || nextCombatRandom(context.rng, "effect") < hook.chance)
           next.combat =
             hook.resource === "mana"
               ? {
@@ -1669,7 +1686,7 @@ function damageEnemy(
         weaponProficiencyId,
         perkById,
       ))
-        if (hook.chance >= 1 || context.rng.next() < hook.chance)
+        if (hook.chance >= 1 || nextCombatRandom(context.rng, "effect") < hook.chance)
           next.combat = {
             ...next.combat,
             playerAttackTimer: Math.max(
@@ -2003,7 +2020,7 @@ function advanceStep(
     };
     game = { ...game, combat };
   }
-  const decision = evaluateAutomation(game, stats, context);
+  const decision = evaluateAutomation(game, stats, context, context.debugHooks?.onAutomationTrace);
   if (decision.actionId) {
     const beforeGame = game;
     const executed = executePlayerAction(
@@ -2551,7 +2568,7 @@ function enemyActionTargets(
             instanceId:
               allies[
                 Math.floor(
-                  Math.max(0, Math.min(0.999999, rng.next())) * allies.length,
+                  Math.max(0, Math.min(0.999999, nextCombatRandom(rng, "target"))) * allies.length,
                 )
               ].instanceId,
           },
@@ -2756,7 +2773,7 @@ function advanceEnemySpecials(
           actionDefinition.applyEffects
         )
           for (const applied of actionDefinition.applyEffects)
-            if (applied.chance >= 1 || context.rng.next() < applied.chance)
+            if (applied.chance >= 1 || nextCombatRandom(context.rng, "effect") < applied.chance)
               game = applyEffectToGame(
                 game,
                 applied.effectId,
@@ -2853,7 +2870,7 @@ function advanceEnemySpecials(
             for (const selectedTarget of applied.targetMode === "self"
               ? [source]
               : actionTargets)
-              if (applied.chance >= 1 || context.rng.next() < applied.chance)
+            if (applied.chance >= 1 || nextCombatRandom(context.rng, "effect") < applied.chance)
                 game = applyEffectToGame(
                   game,
                   applied.effectId,

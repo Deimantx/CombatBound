@@ -20,7 +20,7 @@ import { calculateHunterCombatStats } from "../equipment/derivedStats";
 import { COMBAT_SPELL_SLOT_COUNT } from "../spellbook/spellbookTypes";
 import { allProficiencyDefinitions, discoverProficiency, proficiencyXpForLevel } from "../progression/proficiencyProgression";
 import { MAX_MASTERY_LEVEL, MAX_PROFICIENCY_LEVEL } from "../progression/progressionBalance";
-import { masteryXpForLevel, totalMasteryXpForPerkPoints } from "../progression/masteryProgression";
+import { masteryXpForLevel } from "../progression/masteryProgression";
 import type { CombatProficiencyId, ProgressionState } from "../progression/progressionTypes";
 import type { CombatantRef } from "../combat/combatTypes";
 import type { GameState } from "../gameState";
@@ -105,13 +105,17 @@ export function debugAddMasteryXp(game: GameState, amount: number): GameState {
 export function debugGrantPerkPoints(game: GameState, points: number): GameState {
   const safePoints = Math.max(0, safeInteger(points));
   if (safePoints <= 0) return game;
-  const earned = (() => {
-    let count = 0;
-    while (totalMasteryXpForPerkPoints(count + 1) <= game.progression.masteryXp) count += 1;
-    return count;
-  })();
-  const target = earned + safePoints;
-  return debugAddMasteryXp(game, Math.max(0, totalMasteryXpForPerkPoints(target) - game.progression.masteryXp));
+  const current = Number.isFinite(game.progression.bonusPerkPoints) ? Math.max(0, Math.floor(game.progression.bonusPerkPoints)) : 0;
+  return { ...game, progression: { ...game.progression, bonusPerkPoints: current + safePoints } };
+}
+
+export function debugSetBonusPerkPoints(game: GameState, points: number): GameState {
+  const safePoints = Number.isFinite(points) ? Math.max(0, Math.floor(points)) : 0;
+  return { ...game, progression: { ...game.progression, bonusPerkPoints: safePoints } };
+}
+
+export function debugResetBonusPerkPoints(game: GameState): GameState {
+  return debugSetBonusPerkPoints(game, 0);
 }
 
 export function debugSetProficiencyLevel(game: GameState, proficiencyId: CombatProficiencyId, level: number): GameState {

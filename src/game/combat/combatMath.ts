@@ -2,6 +2,7 @@ import { clamp, combatBalance } from "./combatBalance";
 import type { CombatRng, DefensiveEligibility } from "./combatTypes";
 import type { CombatStats } from "./combatTypes";
 import { getResistance } from "./combatStats";
+import { nextCombatRandom } from "./combatRng";
 
 export function calculateHitChance(
   attackerAccuracy: number,
@@ -122,22 +123,22 @@ export function resolveDefensiveOutcome(
   const blockChance = defender.blockChance ?? defender.block ?? 0;
   if (
     canMiss &&
-    rng.next() >= calculateHitChance(attackerAccuracy, defenderEvasion)
+    nextCombatRandom(rng, "hit") >= calculateHitChance(attackerAccuracy, defenderEvasion)
   )
     return "miss";
   if (
     eligibility.dodgeable &&
-    rng.next() < calculateEffectiveAvoidanceChance(dodgeChance, "dodge")
+    nextCombatRandom(rng, "dodge") < calculateEffectiveAvoidanceChance(dodgeChance, "dodge")
   )
     return "dodge";
   if (
     eligibility.parryable &&
-    rng.next() < calculateEffectiveAvoidanceChance(parryChance, "parry")
+    nextCombatRandom(rng, "parry") < calculateEffectiveAvoidanceChance(parryChance, "parry")
   )
     return "parry";
   if (
     eligibility.blockable &&
-    rng.next() < calculateEffectiveAvoidanceChance(blockChance, "block")
+    nextCombatRandom(rng, "block") < calculateEffectiveAvoidanceChance(blockChance, "block")
   )
     return "block";
   return "hit";

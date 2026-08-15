@@ -1,7 +1,7 @@
 import type { CollectionState } from "../collection/collectionTypes";
 import type { EquipmentState } from "../equipment/equipmentTypes";
 import type { InventoryState } from "../inventory/inventoryTypes";
-import type { ProgressionState } from "../progression/progressionTypes";
+import type { LegacyProgressionState, ProgressionState } from "../progression/progressionTypes";
 import type { SpellbookState } from "../spellbook/spellbookTypes";
 import type { CombatAutomationState } from "../automation/automationTypes";
 import type { CombatAutomationPresetsState } from "../automation/automationPresets";
@@ -9,7 +9,7 @@ import type { CombatAbilityLoadoutState } from "../combatAbilities/combatAbility
 
 export interface GameSaveV4 {
   version: 4;
-  progression: ProgressionState;
+  progression: LegacyProgressionState;
   inventory: InventoryState;
   equipment: EquipmentState;
   collection: CollectionState;
@@ -22,7 +22,7 @@ export interface GameSaveV4 {
 
 export interface GameSaveV5 {
   version: 5;
-  progression: ProgressionState;
+  progression: LegacyProgressionState;
   inventory: InventoryState;
   equipment: EquipmentState;
   collection: CollectionState;
@@ -34,7 +34,7 @@ export interface GameSaveV5 {
 
 export interface GameSaveV6 {
   version: 6;
-  progression: ProgressionState;
+  progression: LegacyProgressionState;
   inventory: InventoryState;
   equipment: EquipmentState;
   collection: CollectionState;
@@ -47,7 +47,7 @@ export interface GameSaveV6 {
 
 export interface GameSaveV7 {
   version: 7;
-  progression: ProgressionState;
+  progression: LegacyProgressionState;
   inventory: InventoryState;
   equipment: EquipmentState;
   collection: CollectionState;
@@ -61,7 +61,7 @@ export interface GameSaveV7 {
 
 export interface GameSaveV8 {
   version: 8;
-  progression: ProgressionState;
+  progression: LegacyProgressionState;
   inventory: InventoryState;
   equipment: EquipmentState;
   collection: CollectionState;
@@ -75,12 +75,26 @@ export interface GameSaveV8 {
 
 export interface GameSaveV3 {
   version: 3;
+  progression: LegacyProgressionState;
+  inventory: InventoryState;
+  equipment: EquipmentState;
+  collection: CollectionState;
+  gold: number;
+  settings: { reducedMotion: boolean; showInspectorButton: boolean };
+}
+
+export interface GameSaveV9 {
+  version: 9;
   progression: ProgressionState;
   inventory: InventoryState;
   equipment: EquipmentState;
   collection: CollectionState;
   gold: number;
   settings: { reducedMotion: boolean; showInspectorButton: boolean };
+  spellbook: SpellbookState;
+  combatAutomation: CombatAutomationState;
+  combatAutomationPresets: CombatAutomationPresetsState;
+  combatAbilities: CombatAbilityLoadoutState;
 }
 
 /** Compatibility name for callers that only need the save shape. */

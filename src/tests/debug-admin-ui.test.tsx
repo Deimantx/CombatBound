@@ -12,7 +12,7 @@ describe("debug progression toolkit", () => {
   it("shows derived perk points and removes direct perk rank editing", () => {
     render(<TooltipProvider><DebugAdminPanel onClose={() => undefined} /></TooltipProvider>);
     fireEvent.click(screen.getByRole("button", { name: "Progression" }));
-    expect(screen.getByText("Mastery")).toBeInTheDocument();
+    expect(screen.getAllByText("Mastery").length).toBeGreaterThan(0);
     expect(screen.getByText("Perk Points")).toBeInTheDocument();
     expect(screen.getByText("Proficiencies")).toBeInTheDocument();
     expect(screen.getByText("Earned")).toBeInTheDocument();
@@ -24,7 +24,7 @@ describe("debug progression toolkit", () => {
     expect(screen.queryByText("DEBUG BYPASS")).not.toBeInTheDocument();
   });
 
-  it("grants an arbitrary positive integer through the canonical Mastery threshold", () => {
+  it("grants an arbitrary positive integer as independent bonus points", () => {
     render(<TooltipProvider><DebugAdminPanel onClose={() => undefined} /></TooltipProvider>);
     fireEvent.click(screen.getByRole("button", { name: "Progression" }));
     const before = useGameStore.getState().game;
@@ -33,7 +33,8 @@ describe("debug progression toolkit", () => {
     fireEvent.change(input, { target: { value: "17" } });
     fireEvent.click(screen.getByRole("button", { name: "GRANT" }));
     const after = useGameStore.getState().game;
-    expect(calculateEarnedPerkPoints(after.progression.masteryXp)).toBe(earnedBefore + 17);
+    expect(calculateEarnedPerkPoints(after.progression.masteryXp)).toBe(earnedBefore);
+    expect(after.progression.bonusPerkPoints).toBe(17);
     expect(after.progression.purchasedPerks).toEqual(before.progression.purchasedPerks);
   });
 

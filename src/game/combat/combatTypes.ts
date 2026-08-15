@@ -378,6 +378,7 @@ export interface CombatState {
 
 export interface CombatRng {
   next: () => number;
+  nextFor?: (kind: string) => number;
 }
 
 export interface CombatContext {
@@ -390,6 +391,9 @@ export interface CombatContext {
   items: Record<string, ItemDefinition>;
   effects: Record<string, import("./combatEffectTypes").EffectDefinition>;
   rng: CombatRng;
+  debugHooks?: {
+    onAutomationTrace?: (trace: import("../automation/automationTypes").AutomationEvaluationTrace) => void;
+  };
 }
 
 export interface CombatEvent {

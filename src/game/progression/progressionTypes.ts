@@ -39,8 +39,11 @@ export interface ProficiencyProgress {
 export interface ProgressionState {
   proficiencies: Partial<Record<CombatProficiencyId, ProficiencyProgress>>
   masteryXp: number
+  bonusPerkPoints: number
   purchasedPerks: Record<string, number>
 }
+
+export type LegacyProgressionState = Omit<ProgressionState, 'bonusPerkPoints'> & { bonusPerkPoints?: number }
 
 export interface ProficiencyDefinition {
   id: CombatProficiencyId

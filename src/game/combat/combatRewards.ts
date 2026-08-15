@@ -3,6 +3,7 @@ import { discoverItem, recordTargetDefeat } from '../collection/collectionLogic'
 import type { CombatContext, CombatState, EnemyCombatInstance } from './combatTypes'
 import type { GameState } from '../gameState'
 import type { CombatLocationDefinition } from '../world/worldTypes'
+import { nextCombatRandom } from './combatRng'
 
 export function resolveEnemyReward(game: GameState, combat: CombatState, enemy: EnemyCombatInstance, context: CombatContext) {
   if (enemy.rewardResolved) return { game, combat, items: 0, droppedItemIds: [] as string[] }
@@ -14,8 +15,8 @@ export function resolveEnemyReward(game: GameState, combat: CombatState, enemy: 
   const lootGained = { ...combat.session.lootGained }
   let goldGained = 0
   for (const drop of definition.loot) {
-    if (context.rng.next() > drop.chance) continue
-    const quantity = drop.minQuantity + Math.floor(context.rng.next() * (drop.maxQuantity - drop.minQuantity + 1))
+    if (nextCombatRandom(context.rng, 'lootChance') > drop.chance) continue
+    const quantity = drop.minQuantity + Math.floor(nextCombatRandom(context.rng, 'lootQuantity') * (drop.maxQuantity - drop.minQuantity + 1))
     nextGame.inventory = addItem(nextGame.inventory, drop.itemId, quantity)
     nextGame.collection = discoverItem(nextGame.collection, drop.itemId)
     droppedItemIds.push(drop.itemId)
@@ -37,8 +38,8 @@ export function resolveLocationClearReward(game: GameState, combat: CombatState,
   let gold = nextGame.gold
   let goldGained = 0
   for (const drop of location.sharedLoot ?? []) {
-    if (context.rng.next() > drop.chance) continue
-    const quantity = drop.minQuantity + Math.floor(context.rng.next() * (drop.maxQuantity - drop.minQuantity + 1))
+    if (nextCombatRandom(context.rng, 'lootChance') > drop.chance) continue
+    const quantity = drop.minQuantity + Math.floor(nextCombatRandom(context.rng, 'lootQuantity') * (drop.maxQuantity - drop.minQuantity + 1))
     nextGame.inventory = addItem(nextGame.inventory, drop.itemId, quantity)
     nextGame.collection = discoverItem(nextGame.collection, drop.itemId)
     lootGained[drop.itemId] = (lootGained[drop.itemId] ?? 0) + quantity

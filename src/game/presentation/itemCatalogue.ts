@@ -44,6 +44,11 @@ const accessorySlots: Array<{ slot: EquipmentSlotKind; label: string }> = [
   { slot: "ring", label: "Rings" },
   { slot: "earring", label: "Earrings" },
 ];
+const armorWeights = [
+  { id: "light-armor", label: "Light Armor" },
+  { id: "medium-armor", label: "Medium Armor" },
+  { id: "heavy-armor", label: "Heavy Armor" },
+] as const;
 
 function leaf(id: string, label: string, items: ItemDefinition[], icon = "cube"): ItemCatalogueNode | null {
   return items.length ? { id, label, icon, items, children: [] } : null;
@@ -82,7 +87,22 @@ function equipmentTree(items: ItemDefinition[]): ItemCatalogueNode | null {
   ];
   const offhands = leaf("debug.items.equipment.offhands.shields", "Shields", items.filter((item) => item.equipmentSlotKind === "offhand" && item.defensiveProficiencyId === "shield"), "shield");
   const otherOffhands = leaf("debug.items.equipment.offhands.other", "Other Offhands", items.filter((item) => item.equipmentSlotKind === "offhand" && item.defensiveProficiencyId !== "shield"), "shield");
-  const armor = equipmentSlots.map(({ slot, label }) => leaf(`debug.items.equipment.armor.${slot}`, label, items.filter((item) => item.equipmentSlotKind === slot), items.find((item) => item.equipmentSlotKind === slot)?.icon));
+  const armor = equipmentSlots.map(({ slot, label }) => {
+    const slotItems = items.filter((item) => item.equipmentSlotKind === slot);
+    const typedGroups = armorWeights.map(({ id, label: weightLabel }) => leaf(
+      `debug.items.equipment.armor.${slot}.${id}`,
+      weightLabel,
+      slotItems.filter((item) => item.defensiveProficiencyId === id),
+      slotItems.find((item) => item.defensiveProficiencyId === id)?.icon ?? "shield",
+    ));
+    const unclassified = slotItems.filter((item) => !armorWeights.some(({ id }) => item.defensiveProficiencyId === id));
+    return branch(
+      `debug.items.equipment.armor.${slot}`,
+      label,
+      [...typedGroups, leaf(`debug.items.equipment.armor.${slot}.unclassified`, "Unclassified", unclassified, "shield")],
+      slotItems[0]?.icon ?? "shield",
+    );
+  });
   const accessories = accessorySlots.map(({ slot, label }) => leaf(`debug.items.equipment.accessories.${slot}`, label, items.filter((item) => item.equipmentSlotKind === slot), items.find((item) => item.equipmentSlotKind === slot)?.icon));
   return branch("debug.items.equipment", "Equipment", [
     branch("debug.items.equipment.weapons", "Weapons", weaponGroups, "sword"),

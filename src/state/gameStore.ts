@@ -8,6 +8,7 @@ import {
   selectEnemy as engineSelectEnemy,
   setStance as engineSetStance,
   startHunt as engineStartHunt,
+  startDebugEncounter as engineStartDebugEncounter,
   stopHunt as engineStopHunt,
   syncCombatStats,
   toggleTechnique as engineToggleTechnique,
@@ -35,6 +36,7 @@ import {
   saveGame,
   clearGameSave,
   CURRENT_SAVE_VERSION,
+  parseGameSaveJson,
 } from "../game/persistence/saveGame";
 import type { StanceId, TechniqueId } from "../game/combat/combatTypes";
 import {
@@ -103,6 +105,7 @@ import {
   debugGrantEquipmentTier,
   debugGrantItem,
   debugGrantPerkPoints,
+  debugResetBonusPerkPoints,
   debugHealPlayer,
   debugKillCurrentGroup,
   debugKillSelectedEnemy,
@@ -118,12 +121,16 @@ import {
   debugSetGold,
   debugSetItemQuantity,
   debugSetMasteryLevel,
+  debugSetBonusPerkPoints,
   debugSetPlayerResource,
   debugSetProficiencyLevel,
   debugSetResourcePercent,
 } from "../game/debug/debugActions";
 import type { DebugEffectTarget, DebugResource } from "../game/debug/debugTypes";
 import type { CombatProficiencyId } from "../game/progression/progressionTypes";
+import { useDevToolsRuntimeStore } from "../app/debug/devtools/devToolsRuntimeStore";
+import type { DebugScenarioSnapshotV1 } from "../app/debug/scenarios/debugScenarioTypes";
+import { validateDebugScenario } from "../app/debug/scenarios/debugScenarioValidation";
 
 interface GameStoreState {
   game: GameState;
@@ -227,6 +234,8 @@ export interface DebugStoreApi {
   setMasteryLevel: (level: number) => void;
   addMasteryXp: (amount: number) => void;
   grantPerkPoints: (points: number) => void;
+  setBonusPerkPoints: (points: number) => void;
+  resetBonusPerkPoints: () => void;
   setProficiencyLevel: (proficiencyId: CombatProficiencyId, level: number) => void;
   setAllProficiencyLevels: (level: number) => void;
   discoverAllProficiencies: () => void;
@@ -261,9 +270,48 @@ export interface DebugStoreApi {
   equipBothTechniques: () => void;
   setGold: (amount: number) => void;
   addGold: (amount: number) => void;
+  loadScenario: (snapshot: DebugScenarioSnapshotV1) => void;
+  startEncounter: (locationId: string, enemyIds: string[]) => void;
+  importSave: (raw: string) => { ok: boolean; error?: string };
 }
 
-const context = createCombatContext({ next: () => Math.random() });
+function mulberry32Step(state: number) {
+  let next = (state + 0x6D2B79F5) | 0;
+  let value = Math.imul(next ^ (next >>> 15), next | 1);
+  value ^= value + Math.imul(value ^ (value >>> 7), value | 61);
+  return { state: next, value: ((value ^ (value >>> 14)) >>> 0) / 4294967296 };
+}
+
+function nextDebugRandom(kind: string) {
+  if (!import.meta.env.DEV) return Math.random();
+  const runtime = useDevToolsRuntimeStore.getState();
+  const override = runtime.rngOverrides[kind as keyof typeof runtime.rngOverrides];
+  const forced = override;
+  let value: number;
+  let stateAfter = runtime.rngState;
+  if (forced === "hit" || forced === "crit" || forced === "dodge" || forced === "parry" || forced === "block") value = 0;
+  else if (forced === "miss") value = 0.999999;
+  else if (runtime.rngMode === "seeded") {
+    const step = mulberry32Step(runtime.rngState);
+    value = step.value;
+    stateAfter = step.state;
+  } else value = Math.random();
+  if (forced) runtime.setRngOverride(kind as "hit" | "crit" | "dodge" | "parry" | "block", undefined);
+  runtime.recordRoll({ id: runtime.rngRollIndex + 1, kind, value, source: runtime.rngMode, forced, stateAfter, at: Date.now() });
+  return value;
+}
+
+const context = createCombatContext({ next: () => nextDebugRandom("misc"), nextFor: nextDebugRandom });
+if (import.meta.env.DEV) context.debugHooks = {
+  onAutomationTrace: (trace) => {
+    const runtime = useDevToolsRuntimeStore.getState();
+    if (!runtime.automationTraceEnabled) return;
+    runtime.recordAutomationTrace({
+      text: `#${trace.priority} ${trace.actionId} · ${trace.result}${trace.validationReason ? ` · ${trace.validationReason}` : ""}`,
+      passed: trace.result === "executed",
+    });
+  },
+};
 const initial = createInitialGameState();
 const saved = loadGameSave();
 const defaultSelection = getDefaultWorldSelection();
@@ -496,6 +544,8 @@ export const useGameStore = create<GameStoreState>((set, get) => {
     setMasteryLevel: (level) => commitDebug((game) => debugSetMasteryLevel(game, level), true),
     addMasteryXp: (amount) => commitDebug((game) => debugAddMasteryXp(game, amount), true),
     grantPerkPoints: (points) => commitDebug((game) => debugGrantPerkPoints(game, points), true),
+    setBonusPerkPoints: (points) => commitDebug((game) => debugSetBonusPerkPoints(game, points), true),
+    resetBonusPerkPoints: () => commitDebug(debugResetBonusPerkPoints, true),
     setProficiencyLevel: (id, level) => commitDebug((game) => debugSetProficiencyLevel(game, id, level), true),
     setAllProficiencyLevels: (level) => commitDebug((game) => debugSetAllProficiencyLevels(game, level), true),
     discoverAllProficiencies: () => commitDebug(debugDiscoverAllProficiencies, true),
@@ -530,6 +580,40 @@ export const useGameStore = create<GameStoreState>((set, get) => {
     equipBothTechniques: () => commitDebug(debugEquipBothTechniques, true),
     setGold: (amount) => commitDebug((game) => debugSetGold(game, amount), true),
     addGold: (amount) => commitDebug((game) => debugAddGold(game, amount), true),
+    loadScenario: (snapshot) => {
+      if (!validateDebugScenario(snapshot).valid) return;
+      set((state) => {
+        const game = syncCombatStats({ ...state.game, ...snapshot.game, combat: { ...snapshot.game.combat, phase: snapshot.game.combat.phase === "inactive" ? "inactive" : snapshot.game.combat.phase } });
+        const selection = cascadeSelection(snapshot.world);
+        return flatState(game, { ...selectionUi(selection, state), screen: "combat" });
+      });
+    },
+    startEncounter: (locationId, enemyIds) => commitDebug((game) => {
+      const stats = calculateHunterCombatStats(game.equipment, game.progression, game.combat.stance, game.combat.techniques);
+      return engineStartDebugEncounter(game, locationId, enemyIds, stats, context);
+    }),
+    importSave: (raw) => {
+      const imported = parseGameSaveJson(raw);
+      if (!imported) return { ok: false, error: "Invalid or unsupported save JSON." };
+      set((state) => {
+        const game = syncCombatStats({
+          ...state.game,
+          combat: { ...initial.combat, phase: "inactive", playerHp: initial.combat.maxPlayerHp },
+          progression: imported.progression,
+          inventory: imported.inventory,
+          equipment: imported.equipment,
+          collection: imported.collection,
+          gold: imported.gold,
+          spellbook: normalizeSpellbook(imported.spellbook),
+          combatAutomation: normalizeCombatAutomation(imported.combatAutomation),
+          combatAutomationPresets: normalizeCombatAutomationPresets(imported.combatAutomationPresets),
+          combatAbilities: normalizeCombatAbilityLoadout(imported.combatAbilities),
+        });
+        savePermanent(game, { reducedMotion: imported.settings.reducedMotion, showInspectorButton: imported.settings.showInspectorButton });
+        return flatState(game, { ...state, screen: "combat", reducedMotion: imported.settings.reducedMotion, showInspectorButton: imported.settings.showInspectorButton });
+      });
+      return { ok: true };
+    },
   };
   return {
     ...flatState(hydratedGame, ui),
@@ -568,6 +652,11 @@ export const useGameStore = create<GameStoreState>((set, get) => {
           state.game.combat.techniques,
         );
         const game = advanceCombat(state.game, delta, context, stats);
+        if (import.meta.env.DEV) {
+          const previousEventIds = new Set(state.game.combat.events.map((event) => event.id));
+          for (const event of game.combat.events)
+            if (!previousEventIds.has(event.id)) useDevToolsRuntimeStore.getState().recordEvent({ type: event.type, text: event.type });
+        }
         if (
           game.progression.masteryXp !== state.game.progression.masteryXp ||
           Object.keys(game.progression.proficiencies).length !==

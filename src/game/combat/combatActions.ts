@@ -3,6 +3,7 @@ import type {
   EnemyActionDefinition,
   EnemyDefinition,
 } from "./combatTypes";
+import { nextCombatRandom } from "./combatRng";
 
 export function selectNextEnemyAction(
   definition: EnemyDefinition,
@@ -24,7 +25,7 @@ export function selectNextEnemyAction(
     0,
   );
   if (totalWeight <= 0) return available[0];
-  let cursor = Math.max(0, Math.min(0.999999, rng.next())) * totalWeight;
+  let cursor = Math.max(0, Math.min(0.999999, nextCombatRandom(rng, "enemyAction"))) * totalWeight;
   for (const action of available) {
     cursor -= Math.max(0, action.weight ?? 1);
     if (cursor < 0) return action;

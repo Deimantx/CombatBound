@@ -1,4 +1,5 @@
 import type { CombatLocationDefinition } from '../world/worldTypes'
+import { nextCombatRandom } from './combatRng'
 
 export interface RandomSource { next(): number }
 
@@ -6,7 +7,7 @@ export function generateCombatGroup(location: CombatLocationDefinition, rng: Ran
   const eligible = location.enemyPool.filter((entry) => (entry.minMasteryLevel ?? 1) <= masteryLevel)
   const pool = eligible.length > 0 ? eligible : location.enemyPool
   const generation = location.groupGeneration
-  const size = generation.minGroupSize + Math.floor(rng.next() * (generation.maxGroupSize - generation.minGroupSize + 1))
+  const size = generation.minGroupSize + Math.floor(nextCombatRandom(rng, 'groupSize') * (generation.maxGroupSize - generation.minGroupSize + 1))
   const result: string[] = []
   const copies = new Map<string, number>()
   const guaranteed = (generation.guaranteedEnemyIds ?? []).filter((enemyId) => pool.some((entry) => entry.enemyId === enemyId))
@@ -39,7 +40,7 @@ export function generateCombatGroup(location: CombatLocationDefinition, rng: Ran
 function weightedPick<T extends { weight: number }>(entries: T[], rng: RandomSource) {
   if (entries.length === 0) return undefined
   const total = entries.reduce((sum, entry) => sum + entry.weight, 0)
-  let cursor = rng.next() * total
+  let cursor = nextCombatRandom(rng, 'groupEnemy') * total
   for (const entry of entries) { cursor -= entry.weight; if (cursor < 0) return entry }
   return entries[entries.length - 1]
 }

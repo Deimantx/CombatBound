@@ -59,7 +59,7 @@ export function getProficiencyXpToNextLevel(progression: ProgressionState, profi
 
 export function createInitialProgression(): ProgressionState {
   const starter: ProficiencyProgress = { proficiencyId: 'one-handed-sword', totalXp: 0 }
-  return { proficiencies: { 'one-handed-sword': starter }, masteryXp: 0, purchasedPerks: {} }
+  return { proficiencies: { 'one-handed-sword': starter }, masteryXp: 0, bonusPerkPoints: 0, purchasedPerks: {} }
 }
 
 export function discoverProficiency(progression: ProgressionState, proficiencyId: CombatProficiencyId): ProgressionState {

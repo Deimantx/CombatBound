@@ -85,5 +85,59 @@
 .debug-effect-tool select { background: #101517; border: 1px solid var(--line); border-radius: 5px; color: var(--text); font-size: 10px; min-height: 31px; padding: 0 7px; }
 .debug-effect-tool select:first-child { flex: 1; }
 .debug-state-grid { display: grid; gap: 8px; grid-template-columns: repeat(3, 1fr); }
+.debug-admin-header-actions { align-items: center; display: flex; gap: 8px; }
+.debug-dock-launch, .debug-dock-footer button, .debug-dock-actions button, .debug-dock-body > button { background: #202a2e; border: 1px solid var(--line-soft); border-radius: 4px; color: var(--muted); cursor: pointer; font-size: 9px; min-height: 25px; padding: 0 8px; }
+.debug-dock-launch:hover, .debug-dock-footer button:hover, .debug-dock-actions button:hover, .debug-dock-body > button:hover { border-color: var(--gold); color: var(--gold-bright); }
+.combat-debug-dock { background: #12181b; border: 1px solid rgba(213,170,98,.42); border-radius: 9px; bottom: 18px; box-shadow: 0 16px 45px rgba(0,0,0,.5); color: var(--text); min-width: 290px; position: fixed; right: 18px; width: min(360px, calc(100vw - 28px)); z-index: 55; }
+.combat-debug-dock.anchor-bottom-left { left: 18px; right: auto; }
+.combat-debug-dock.anchor-top-right { bottom: auto; top: 18px; }
+.combat-debug-dock.anchor-top-left { bottom: auto; left: 18px; right: auto; top: 18px; }
+.combat-debug-dock.is-expanded { width: min(480px, calc(100vw - 28px)); }
+.combat-debug-dock.is-minimized { min-width: 240px; width: auto; }
+.debug-dock-header { align-items: center; background: #171e21; border-bottom: 1px solid var(--line-soft); border-radius: 9px 9px 0 0; cursor: grab; display: flex; gap: 7px; min-height: 38px; padding: 0 9px; }
+.debug-dock-header strong { font-size: 10px; letter-spacing: .08em; }
+.debug-dock-header > button { align-items: center; background: transparent; border: 0; color: var(--muted); cursor: pointer; display: flex; margin-left: auto; padding: 3px; }
+.debug-dock-header > button + button { margin-left: 0; }
+.debug-dock-drag { margin-left: 0 !important; cursor: grab; }
+.debug-dock-live { color: var(--green); font-size: 8px; letter-spacing: .08em; margin-left: auto; }
+.debug-dock-minimized-summary { color: var(--muted); font-size: 8px; margin-left: auto; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.debug-dock-body { max-height: min(64vh, 600px); overflow: auto; }
+.debug-dock-section { border-bottom: 1px solid var(--line-soft); }
+.debug-dock-section-header { align-items: center; background: transparent; border: 0; color: var(--text); cursor: pointer; display: flex; font-size: 9px; gap: 5px; letter-spacing: .08em; min-height: 31px; padding: 0 10px; text-align: left; width: 100%; }
+.debug-dock-section-header:hover { color: var(--gold-bright); }
+.debug-dock-section-body { padding: 0 10px 10px; }
+.debug-simulation-controls, .debug-dock-actions { align-items: center; display: flex; flex-wrap: wrap; gap: 5px; }
+.debug-simulation-controls button, .debug-simulation-controls select { align-items: center; background: #202a2e; border: 1px solid var(--line-soft); border-radius: 4px; color: var(--muted); cursor: pointer; display: inline-flex; font-size: 8px; gap: 4px; min-height: 25px; padding: 0 6px; }
+.debug-simulation-controls button:hover, .debug-simulation-controls select:hover, .debug-dock-actions button.is-active { border-color: var(--gold); color: var(--gold-bright); }
+.debug-simulation-controls label, .debug-dock-input { align-items: center; color: var(--muted); display: inline-flex; font-size: 8px; gap: 4px; }
+.debug-dock-note, .debug-dock-muted { color: var(--muted); font-size: 9px; margin: 6px 0 0; }
+.debug-dock-value { font-size: 10px; margin: 0 0 7px; }
+.debug-dock-grid { display: grid; gap: 7px; grid-template-columns: repeat(3, 1fr); }
+.debug-dock-meter { margin-bottom: 6px; }
+.debug-dock-meter > div { display: flex; font-size: 8px; justify-content: space-between; }
+.debug-dock-meter span { color: var(--muted); }
+.debug-dock-meter i { background: var(--gold); border-radius: 2px; display: block; height: 4px; margin-top: 4px; min-width: 1px; }
+.debug-dock-list { display: flex; flex-direction: column; gap: 4px; max-height: 100px; overflow: auto; }
+.debug-dock-list span, .debug-dock-pass { color: var(--muted); font-size: 9px; }
+.debug-dock-pass { color: var(--green); }
+.debug-dock-check { color: var(--muted); display: flex; font-size: 8px; gap: 5px; margin-bottom: 6px; }
+.debug-dock-input { margin-top: 7px; }
+.debug-dock-input input { background: #101517; border: 1px solid var(--line); border-radius: 4px; color: var(--text); font-size: 9px; padding: 3px 4px; width: 72px; }
+.debug-dock-stats { display: grid; gap: 5px; grid-template-columns: 1fr 1fr; }
+.debug-dock-stats span { color: var(--muted); font-size: 9px; }
+.debug-dock-stats b { color: var(--text); float: right; }
+.debug-dock-footer { border-top: 1px solid var(--line-soft); display: flex; gap: 5px; justify-content: flex-end; padding: 6px 9px; }
+.debug-warning { background: rgba(185,93,79,.1); border: 1px solid rgba(185,93,79,.35); border-radius: 5px; color: #ec9b8d; font-size: 10px; margin: 0 14px 10px; padding: 7px; }
+.debug-simulation-controls { align-items: center; display: flex; flex-wrap: wrap; gap: 7px; margin: 14px; }
+.debug-scenario-list, .debug-validation-list, .debug-stat-breakdown, .debug-encounter-list, .debug-trace-list, .debug-event-list { display: flex; flex-direction: column; gap: 6px; margin: 14px; }
+.debug-scenario-row, .debug-encounter-row { align-items: center; background: #182023; border: 1px solid var(--line-soft); border-radius: 6px; display: flex; gap: 7px; padding: 7px; }
+.debug-scenario-row > div { display: flex; flex: 1; flex-direction: column; min-width: 0; }
+.debug-scenario-row small, .debug-encounter-row small { color: var(--muted); font-size: 9px; margin-top: 3px; }
+.debug-encounter-row .debug-catalogue-identity { min-height: 34px; }
+.debug-validation-list > div, .debug-stat-breakdown > div, .debug-trace-list > div, .debug-event-list > div { background: #182023; border: 1px solid var(--line-soft); border-radius: 5px; display: flex; flex-direction: column; gap: 3px; padding: 7px; }
+.debug-validation-list span, .debug-stat-breakdown small, .debug-trace-list span, .debug-event-list span { color: var(--muted); font-size: 9px; }
+.debug-validation-list [data-debug-severity="error"] strong { color: var(--red); }
+.debug-validation-list [data-debug-severity="warning"] strong { color: var(--gold); }
+.debug-save-textarea { background: #101517; border: 1px solid var(--line); border-radius: 5px; color: var(--text); font: 10px/1.45 ui-monospace, SFMono-Regular, Consolas, monospace; margin: 14px; max-width: calc(100% - 28px); min-height: 210px; padding: 9px; resize: vertical; width: calc(100% - 28px); }
 @media (max-width: 900px) { .debug-summary-grid { grid-template-columns: repeat(3, 1fr); } .debug-shortcuts { grid-template-columns: 1fr; } }
 @media (max-width: 600px) { .debug-backdrop { padding: 0; } .debug-admin-panel { border-radius: 0; height: 100vh; width: 100vw; } .debug-admin-header { padding: 14px; } .debug-admin-content { padding: 12px; } .debug-summary-grid, .debug-resource-grid, .debug-state-grid { grid-template-columns: repeat(2, 1fr); } .debug-section > header { align-items: flex-start; flex-direction: column; gap: 8px; } .debug-section > header .search-field { min-width: 100%; width: 100%; } .debug-catalogue-row { align-items: flex-start; flex-wrap: wrap; } .debug-catalogue-row .debug-row-main { min-width: calc(100% - 43px); } .debug-catalogue-row > button { margin-left: 39px; } .debug-effect-tool { flex-direction: column; } }

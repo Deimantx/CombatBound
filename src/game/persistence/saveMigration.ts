@@ -7,7 +7,7 @@ import type {
   CombatProficiencyId,
   ProgressionState,
 } from "../progression/progressionTypes";
-import type { GameSaveV3, GameSaveV4, GameSaveV5, GameSaveV6, GameSaveV7, GameSaveV8 } from "./saveTypes";
+import type { GameSaveV3, GameSaveV4, GameSaveV5, GameSaveV6, GameSaveV7, GameSaveV8, GameSaveV9 } from "./saveTypes";
 import { createInitialCombatAutomation } from "../automation/automationTypes";
 import { normalizeSpellbook } from "../spellbook/spellbookLogic";
 import { spellDefinitions } from "../data/spells";
@@ -112,7 +112,7 @@ function migrateProgression(
     if (Number.isInteger(rank) && rank > 0 && rank <= perk.maxRank)
       purchasedPerks[perkId] = rank;
   }
-  return { proficiencies, masteryXp: xp(raw.masteryXp), purchasedPerks };
+  return { proficiencies, masteryXp: xp(raw.masteryXp), bonusPerkPoints: 0, purchasedPerks };
 }
 
 export function migrateCurrentSave(value: unknown): GameSaveV3 | null {
@@ -249,6 +249,36 @@ export function migrateV7Save(value: unknown): GameSaveV8 | null {
   };
 }
 
+export function migrateV8Save(value: unknown): GameSaveV9 | null {
+  if (
+    !isRecord(value) ||
+    value.version !== 8 ||
+    !isRecord(value.progression) ||
+    !isRecord(value.spellbook) ||
+    !isRecord(value.combatAutomation) ||
+    !isRecord(value.combatAutomationPresets) ||
+    !isRecord(value.combatAbilities) ||
+    !sharedSaveShape(value)
+  )
+    return null;
+  const old = value as unknown as GameSaveV8;
+  return {
+    ...old,
+    version: 9,
+    progression: {
+      ...old.progression,
+      bonusPerkPoints: Number.isFinite(old.progression.bonusPerkPoints)
+        ? Math.max(0, Math.floor(old.progression.bonusPerkPoints ?? 0))
+        : 0,
+    },
+    equipment: migrateEquipment(old.equipment, old.inventory.quantities),
+    spellbook: normalizeSpellbook(old.spellbook),
+    combatAutomation: normalizeCombatAutomation(old.combatAutomation),
+    combatAutomationPresets: normalizeCombatAutomationPresets(old.combatAutomationPresets),
+    combatAbilities: normalizeCombatAbilityLoadout(old.combatAbilities),
+  };
+}
+
 export function migrateLegacySave(value: unknown): GameSaveV3 | null {
   if (
     !isRecord(value) ||
@@ -274,6 +304,7 @@ export function migrateLegacySave(value: unknown): GameSaveV3 | null {
         },
       },
       masteryXp: skillXp,
+      bonusPerkPoints: 0,
       purchasedPerks: {},
     },
     inventory: old.inventory,
