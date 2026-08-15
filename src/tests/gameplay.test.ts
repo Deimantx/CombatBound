@@ -160,7 +160,7 @@ describe('gameplay domain', () => {
       5,
     )
     expect(advanced.combat.stamina).toBeCloseTo(20, 5)
-    expect(advanced.combat.mana).toBeCloseTo(12, 5)
+    expect(advanced.combat.mana).toBeCloseTo(12.4, 5)
   })
 
   it('regenerates missing resources while stopped and not fighting', () => {
@@ -182,7 +182,7 @@ describe('gameplay domain', () => {
       5,
     )
     expect(advanced.combat.stamina).toBeCloseTo(20, 5)
-    expect(advanced.combat.mana).toBeCloseTo(12, 5)
+    expect(advanced.combat.mana).toBeCloseTo(12.4, 5)
   })
 
   it('preserves current resources when a recovery spawns the next group', () => {
@@ -260,7 +260,7 @@ describe('gameplay domain', () => {
     expect(preparing.combat.enemies.find((enemy) => enemy.instanceId === archer!.instanceId)?.currentAction).not.toBeNull()
     const interrupted = castSpell(preparing, 'spell.disrupting-pulse', stats, context)
     expect(interrupted.combat.enemies.find((enemy) => enemy.instanceId === archer!.instanceId)?.currentAction).toBeNull()
-    expect(interrupted.combat.mana).toBe(65)
+    expect(interrupted.combat.mana).toBeCloseTo(65.12, 5)
     expect(interrupted.progression.proficiencies['air-magic']?.totalXp).toBe(50)
     expect(interrupted.combat.session.proficiencyXpGained['air-magic']).toBe(50)
   })

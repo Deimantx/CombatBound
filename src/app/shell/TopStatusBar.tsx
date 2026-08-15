@@ -1,4 +1,4 @@
-import { CircleDollarSign, Eye, Heart, Settings, Shield, Sparkles } from 'lucide-react'
+import { Bug, CircleDollarSign, Eye, Heart, Settings, Shield, Sparkles } from 'lucide-react'
 import { calculateHunterCombatStats } from '../../game/equipment/derivedStats'
 import { effectById } from '../../game/data/effects'
 import { getBarrierAmount } from '../../game/combat/combatEffects'
@@ -7,7 +7,7 @@ import { formatHealthWithBarrier } from '../../game/presentation/statFormatting'
 import { useGameStore } from '../../state/gameStore'
 import { IconButton } from '../components/IconButton'
 
-export function TopStatusBar({ onInspect }: { onInspect: () => void }) {
+export function TopStatusBar({ onInspect, onDebug }: { onInspect: () => void; onDebug: () => void }) {
   const setScreen = useGameStore((state) => state.setScreen)
   const showInspectorButton = useGameStore((state) => state.showInspectorButton)
   const game = useGameStore((state) => state.game)
@@ -25,6 +25,7 @@ export function TopStatusBar({ onInspect }: { onInspect: () => void }) {
       </div>
       <div className="topbar-actions">
         {import.meta.env.DEV && showInspectorButton && <button className="inspect-button" onClick={onInspect} data-debug-kind="inspector-control" data-debug-label="Inspect UI"><Eye size={15} />Inspect UI</button>}
+        {import.meta.env.DEV && <button className="debug-topbar-button" onClick={onDebug} data-debug-kind="debug-control" data-debug-label="Debug"><Bug size={15} />Debug</button>}
         <IconButton icon={Settings} label="Open Settings" onClick={() => setScreen('settings')} />
       </div>
       <div className="topbar-glint"><Sparkles size={12} /></div>

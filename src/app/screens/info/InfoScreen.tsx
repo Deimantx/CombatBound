@@ -23,7 +23,6 @@ import { spellDefinitions } from "../../../game/data/spells";
 import { stanceDefinitions } from "../../../game/data/stances";
 import { techniqueDefinitions } from "../../../game/data/techniques";
 import { weaponSkillDefinitions } from "../../../game/data/weaponSkills";
-import { combatInteractionDefinitions } from "../../../game/combat/combatInteractions";
 import { CollapsiblePanel } from "../../components/CollapsiblePanel";
 import { Panel } from "../../components/Panel";
 import { ScreenHeading } from "../../shell/ScreenHeading";
@@ -383,8 +382,8 @@ export function InfoScreen() {
           </div>
         </CollapsiblePanel>
         <Panel
-          title="V7 Action Engine & Interactions"
-          subtitle="Unified actions, automation and elemental follow-ups"
+          title="Action Engine"
+          subtitle="Unified actions and automation"
           icon={Zap}
           panelId="infoCombatSystemsV7"
           screen="info"
@@ -410,14 +409,11 @@ export function InfoScreen() {
             </div>
           </div>
           <div className="info-effect-list">
-            {combatInteractionDefinitions.map((interaction) => (
-              <GuideRow
-                key={interaction.id}
-                icon={Sparkles}
-                title={interaction.name}
-                copy={interaction.description}
-              />
-            ))}
+            <GuideRow
+              icon={Sparkles}
+              title="Effects remain independent"
+              copy="Spells can apply their own effects, barriers, and interrupts. Cross-spell elemental reactions are intentionally not part of the current prototype."
+            />
           </div>
         </Panel>
         <Panel

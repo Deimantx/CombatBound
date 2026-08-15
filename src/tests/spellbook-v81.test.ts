@@ -62,6 +62,10 @@ describe("Spellbook V8.1 UI", () => {
     fireEvent.click(screen.getByRole("button", { name: /Spellbook/i }));
   }
 
+  function openDarknessSchool() {
+    fireEvent.click(screen.getByRole("button", { name: /Darkness Magic/i }));
+  }
+
   it("exposes the shared scroll body and drag/drop controls", () => {
     openSpellbook();
     expect(document.querySelector(".hero-window-body.combatbound-scroll")).toBeInTheDocument();
@@ -72,6 +76,7 @@ describe("Spellbook V8.1 UI", () => {
 
   it("moves a known spell by drag/drop and unequips through the known list", () => {
     openSpellbook();
+    openDarknessSchool();
     const knownShadow = screen.getByRole("button", { name: /Shadow Bolt/i });
     const slotOne = document.querySelector('[data-debug-kind="spell-loadout-slot"][data-debug-slot="0"]') as HTMLElement;
     const knownList = document.querySelector('[data-debug-kind="spell-unequip-dropzone"]') as HTMLElement;
@@ -101,6 +106,7 @@ describe("Spellbook V8.1 UI", () => {
     fireEvent.click(screen.getByRole("button", { name: /Start hunt/i }));
     fireEvent.click(screen.getByRole("button", { name: "Hero" }));
     fireEvent.click(screen.getByRole("button", { name: /Spellbook/i }));
+    openDarknessSchool();
     expect(document.querySelector('[data-debug-kind="spell-loadout-slot"]')).toHaveAttribute("draggable", "false");
     expect(screen.getByRole("button", { name: /Shadow Bolt/i })).toHaveAttribute("draggable", "false");
   });
@@ -131,7 +137,7 @@ describe("Spellbook V8.1 UI", () => {
     fireEvent.change(search, { target: { value: "burn" } });
     expect(within(knownList).getByRole("button", { name: /Flame Blast/i })).toBeInTheDocument();
     expect(within(knownList).queryByRole("button", { name: /Shadow Bolt/i })).not.toBeInTheDocument();
-    expect(knownList).toHaveTextContent(/2\s+MATCHES/);
+    expect(knownList).toHaveTextContent(/1\s+MATCHES/);
 
     fireEvent.change(search, { target: { value: "" } });
     fireEvent.click(screen.getByRole("button", { name: /WATER 1/i }));

@@ -106,7 +106,7 @@ describe("Combat Systems V7", () => {
     ).toBeGreaterThan(0);
   });
 
-  it("triggers Thermal Shock and consumes Chilled", () => {
+  it("keeps Chilled when Flame Blast is cast and does not trigger a reaction", () => {
     const game = createInitialGameState();
     const stats = statsFor(game);
     const started = startHunt(game, "location.wolf-den", stats, context);
@@ -121,12 +121,57 @@ describe("Combat Systems V7", () => {
     const target = fire.combat.enemies.find(
       (enemy) => enemy.instanceId === fire.combat.selectedEnemyInstanceId,
     );
-    expect(
-      target?.effects.some((effect) => effect.effectId === "effect.chilled"),
-    ).toBe(false);
-    expect(
-      fire.combat.events.some((event) => event.type === "interactionTriggered"),
-    ).toBe(true);
+    expect(target?.effects.some((effect) => effect.effectId === "effect.chilled")).toBe(true);
+    expect(fire.combat.events.some((event) => String(event.type) === "interactionTriggered")).toBe(false);
+  });
+
+  it("resolves the same Flame Blast damage on a normal and Chilled target", () => {
+    const game = createInitialGameState();
+    const stats = statsFor(game);
+    const started = startHunt(game, "location.wolf-den", stats, context);
+    const normal = castSpell(
+      { ...started, combat: { ...started.combat, mana: 100 } },
+      "spell.flame-blast",
+      stats,
+      context,
+    );
+    const chilledBeforeFire = advanceCombat(
+      castSpell(
+        { ...started, combat: { ...started.combat, mana: 100 } },
+        "spell.ice-shard",
+        stats,
+        context,
+      ),
+      0.75,
+      context,
+      stats,
+    );
+    const chilled = castSpell(chilledBeforeFire, "spell.flame-blast", stats, context);
+    const normalTarget = normal.combat.enemies[0];
+    const chilledTarget = chilled.combat.enemies[0];
+    expect(normalTarget.maxHealth - normalTarget.currentHealth).toBe(
+      chilledBeforeFire.combat.enemies[0].currentHealth - chilledTarget.currentHealth,
+    );
+    expect(chilledTarget.effects.some((effect) => effect.effectId === "effect.chilled")).toBe(true);
+    expect(chilledTarget.effects.some((effect) => effect.effectId === "effect.burn")).toBe(true);
+  });
+
+  it("does not consume Burn or add a reaction when Ice Shard hits", () => {
+    const game = createInitialGameState();
+    const stats = statsFor(game);
+    const started = startHunt(game, "location.wolf-den", stats, context);
+    const burning = castSpell(
+      { ...started, combat: { ...started.combat, mana: 100 } },
+      "spell.flame-blast",
+      stats,
+      context,
+    );
+    const afterGcd = advanceCombat(burning, 0.75, context, stats);
+    const afterIce = castSpell(afterGcd, "spell.ice-shard", stats, context);
+    const target = afterIce.combat.enemies[0];
+    expect(target.effects.some((effect) => effect.effectId === "effect.burn")).toBe(true);
+    expect(target.effects.some((effect) => effect.effectId === "effect.chilled")).toBe(true);
+    expect(target.effects.some((effect) => effect.effectId === "effect.exposed")).toBe(false);
   });
 
   it("applies resistance modifiers through the canonical stat boundary", () => {

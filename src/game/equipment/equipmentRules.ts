@@ -6,9 +6,51 @@ import {
   type EquipmentState,
   getEquipmentSlotDefinition,
 } from "./equipmentTypes";
+import { isEquipmentSlotId } from "./equipmentTypes";
+
+export type EquipmentChangeFailureReason =
+  | "unknown-item"
+  | "unknown-slot"
+  | "wrong-slot-kind"
+  | "not-owned"
+  | "no-spare-copy"
+  | "mastery-level";
+
+export interface EquipmentChangeValidation {
+  valid: boolean;
+  reason?: EquipmentChangeFailureReason;
+}
 
 export function canEquipItemToSlot(item: ItemDefinition, slotId: EquipmentSlotId) {
   return item.equipmentSlotKind === getEquipmentSlotDefinition(slotId).kind;
+}
+
+export function validateEquipmentChange({
+  item,
+  slotId,
+  inventory,
+  equipment,
+  masteryLevel,
+}: {
+  item: ItemDefinition | undefined;
+  slotId: EquipmentSlotId | string;
+  inventory: InventoryState;
+  equipment: EquipmentState;
+  masteryLevel: number;
+}): EquipmentChangeValidation {
+  if (!item) return { valid: false, reason: "unknown-item" };
+  if (!isEquipmentSlotId(slotId)) return { valid: false, reason: "unknown-slot" };
+  if (!canEquipItemToSlot(item, slotId)) return { valid: false, reason: "wrong-slot-kind" };
+  const quantity = Math.max(0, Math.floor(inventory.quantities[item.id] ?? 0));
+  if (quantity <= 0) return { valid: false, reason: "not-owned" };
+  if (getAvailableItemCopies(inventory, equipment, item.id, slotId) <= 0)
+    return { valid: false, reason: "no-spare-copy" };
+  if (
+    item.requiredMasteryLevel !== undefined &&
+    Math.max(0, Math.floor(masteryLevel)) < item.requiredMasteryLevel
+  )
+    return { valid: false, reason: "mastery-level" };
+  return { valid: true };
 }
 
 export function countEquippedItemCopies(

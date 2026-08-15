@@ -2,7 +2,6 @@ import { Check, ChevronDown, Sparkles, X } from "lucide-react";
 import { useMemo, useState } from "react";
 import { spellDefinitions } from "../../../../game/data/spells";
 import { effectById } from "../../../../game/data/effects";
-import { combatInteractionDefinitions } from "../../../../game/combat/combatInteractions";
 import { createCombatPreviewContext } from "../../../../game/combat/combatEngine";
 import { getSpellActionView } from "../../../../game/combat/playerActions";
 import { getProficiencyLevel } from "../../../../game/progression/proficiencyProgression";
@@ -49,7 +48,7 @@ export function SpellbookWindow({ game, onOpenAutomation }: { game: GameState; o
   const defaultSchoolId = getDefaultSpellSchoolId(game, knownSpells, selectedSpellId);
   const [expandedSchools, setExpandedSchools] = useState<Set<string>>(() => {
     const knownSchoolIds = magicSchoolOrder.filter((schoolId) => knownSpells.some((spell) => spell.magicProficiencyId === schoolId));
-    return new Set(defaultSchoolId ? [defaultSchoolId, ...knownSchoolIds] : knownSchoolIds);
+    return new Set(defaultSchoolId ? [defaultSchoolId] : knownSchoolIds.slice(0, 1));
   });
   const context = useMemo(() => createCombatPreviewContext(), []);
   const stats = calculateHunterCombatStats(game.equipment, game.progression, game.combat.stance, game.combat.techniques);
@@ -260,11 +259,8 @@ function spellMatchesQuery(spell: (typeof spellDefinitions)[number], normalizedQ
     const definition = effectById[effect.effectId];
     return definition ? [definition.name, definition.description, ...definition.tags] : [effect.effectId];
   }) ?? [];
-  const interactions = combatInteractionDefinitions
-    .filter((interaction) => interaction.trigger.sourceActionId === spell.id || (interaction.trigger.sourceKind === "spell" && interaction.trigger.damageType === spell.damageType))
-    .flatMap((interaction) => [interaction.name, interaction.description]);
   const roleWords = spell.damage > 0 ? "damage attack offensive" : spell.barrierAmount ? "barrier defense protective" : spell.interruptsAction ? "interrupt disruption control" : "utility support";
-  return [spell.id, spell.name, spell.description, school.label, school.fullLabel, spell.damageType ?? "", roleWords, ...effects, ...interactions]
+  return [spell.id, spell.name, spell.description, school.label, school.fullLabel, spell.damageType ?? "", roleWords, ...effects]
     .join(" ")
     .toLowerCase()
     .includes(normalizedQuery);
@@ -287,14 +283,12 @@ function SpellDetails({ game, spell, selectedView, selectedSlot, selectedRules, 
   const proficiency = proficiencyById[spell.magicProficiencyId];
   const level = getProficiencyLevel(game.progression, spell.magicProficiencyId);
   const equippedSlot = game.spellbook.equippedSpellSlots.findIndex((id) => id === spell.id);
-  const interactions = combatInteractionDefinitions.filter((interaction) => interaction.trigger.sourceActionId === spell.id || (interaction.trigger.sourceKind === "spell" && interaction.trigger.damageType === spell.damageType));
   return (
     <section className="spellbook-details" aria-label={`${spell.name} details`}>
       <div className="spell-details-heading"><PlaceholderArt icon={spell.icon} size="medium" variant="gold" /><div><h3>{spell.name}</h3><p>{school.fullLabel} · Lv {level} / {proficiency?.maxLevel ?? 100}</p></div></div>
       <div className="spell-detail-grid"><span>Mana Cost<strong>{selectedView.effectiveSpell.manaCost}{selectedView.effectiveSpell.manaCost !== spell.manaCost && ` (${spell.manaCost} base)`}</strong></span><span>Cooldown<strong>{selectedView.effectiveSpell.cooldownSeconds.toFixed(1)}s</strong></span><span>Target<strong>{spell.targetMode === "self" ? "Self" : "Selected Enemy"}</strong></span>{spell.damage > 0 && <span>Direct Damage<strong>{Math.round(selectedView.effectiveSpell.damage)} {spell.damageType}</strong></span>}{selectedView.effectiveSpell.healing && <span>Healing<strong>{Math.round(selectedView.effectiveSpell.healing.flatAmount)}</strong></span>}{selectedView.effectiveSpell.barrierAmount && <span>Barrier<strong>{Math.round(selectedView.effectiveSpell.barrierAmount)}</strong></span>}{spell.interruptsAction && <span>Interrupt<strong>Yes</strong></span>}</div>
       <div className="spell-detail-copy"><span className="tiny-label">DESCRIPTION</span><p>{spell.description}</p></div>
       {spell.applyEffects && spell.applyEffects.length > 0 && <div className="spell-detail-copy"><span className="tiny-label">EFFECTS</span><p>{spell.applyEffects.map((effect) => effectById[effect.effectId]?.name ?? effect.effectId).join(" · ")}</p></div>}
-      {interactions.length > 0 && <div className="spell-detail-copy"><span className="tiny-label">INTERACTIONS</span>{interactions.map((interaction) => <p key={interaction.id}><strong>{interaction.name}</strong> · {interaction.description}</p>)}</div>}
       <div className="spell-detail-copy"><span className="tiny-label">AUTOMATION</span><p>{selectedRules.length} rule{selectedRules.length === 1 ? "" : "s"} use this Spell · {automationSummary.enabledRuleCount} total active</p><div className="hero-inline-actions"><button className="button button-ghost" onClick={() => onOpenAutomation(spell.id, false)}>VIEW RULES</button><button className="button button-ghost" onClick={() => onOpenAutomation(spell.id, true)}>ADD RULE</button></div></div>
       <div className="spell-equip-actions"><span className="tiny-label">SLOT {selectedSlot + 1} {equippedSlot >= 0 ? `· EQUIPPED ${equippedSlot + 1}` : ""}</span><button className="button button-primary" disabled={combatLocked || equippedSlot === selectedSlot} onClick={onEquip}>{combatLocked ? "LOADOUT LOCKED" : "EQUIP TO SLOT"}</button>{equippedSlot >= 0 && equippedSlot !== selectedSlot && <button className="button button-ghost" disabled={combatLocked} onClick={() => onSwap(equippedSlot)}>SWAP WITH SLOT {equippedSlot + 1}</button>}</div>
     </section>

@@ -82,10 +82,6 @@ import {
   getDefensiveEquipmentContext,
   type DefensiveTrainingEvent,
 } from "../equipment/defensiveEquipment";
-import {
-  combatInteractionDefinitions,
-  resolveCombatInteractions,
-} from "./combatInteractions";
 import { canToggleTechnique } from "../combatAbilities/combatAbilitySelectors";
 import {
   evaluateAutomation,
@@ -156,7 +152,6 @@ export function createCombatContext(rng: CombatContext["rng"]): CombatContext {
     items: itemById,
     effects: effectById,
     rng,
-    interactions: [],
   };
 }
 
@@ -1076,15 +1071,6 @@ export function castSpell(
       },
     );
     next = discoverCombatProficiency(next, spell.magicProficiencyId);
-    next = applySpellInteractions(
-      next,
-      spell.id,
-      spell.damageType,
-      source,
-      source,
-      stats,
-      context,
-    );
   }
   if (spell.interruptsAction && target) {
     const action = interruptActionDefinition;
@@ -1125,15 +1111,6 @@ export function castSpell(
           : enemy,
       ),
     };
-    next = applySpellInteractions(
-      next,
-      spell.id,
-      spell.damageType,
-      source,
-      targetRef,
-      stats,
-      context,
-    );
     next.combat = event(next.combat, {
       text: `${spell.name} interrupts ${target.displayName}'s ${action?.name ?? "action"}.`,
       type: "player",
@@ -1381,77 +1358,6 @@ function applyDerivedCleaveDamage(
   return { game: next, progressionResult };
 }
 
-function applySpellInteractions(
-  game: GameState,
-  actionId: string,
-  damageType: DamagePacket["damageType"] | undefined,
-  source: CombatantRef,
-  target: CombatantRef,
-  stats: HunterCombatStats,
-  context: CombatContext,
-) {
-  const targetEffects =
-    target.kind === "player"
-      ? game.combat.playerEffects
-      : (game.combat.enemies.find(
-          (enemy) => enemy.instanceId === target.instanceId,
-        )?.effects ?? []);
-  const interactions = resolveCombatInteractions(
-    {
-      damageType: damageType ?? "true",
-      sourceActionId: actionId,
-      progressionSource: {
-        type: "spell",
-        proficiencyId: "light-magic",
-        proficiencyEligible: true,
-      },
-    },
-    targetEffects,
-    context.effects,
-    context.interactions?.length
-      ? context.interactions
-      : combatInteractionDefinitions,
-  );
-  let next = game;
-  for (const interaction of interactions) {
-    const filtered = targetEffects.filter((effect) => {
-      const tags = context.effects[effect.effectId]?.tags ?? [];
-      return (
-        !interaction.result.consumeEffectIds?.includes(effect.effectId) &&
-        !interaction.result.consumeEffectTags?.some((tag) => tags.includes(tag))
-      );
-    });
-    if (filtered.length !== targetEffects.length)
-      next.combat = updateActiveEffects(next.combat, target, filtered);
-    for (const effectId of interaction.result.applyEffectIds ?? [])
-      next = applyEffectToGame(
-        next,
-        effectId,
-        source,
-        target,
-        target.kind === "player"
-          ? getPlayerStats(next.combat, stats, context, next.progression)
-          : getEnemyStats(
-              next.combat,
-              next.combat.enemies.find(
-                (enemy) => enemy.instanceId === target.instanceId,
-              )!,
-              context,
-            ),
-        context,
-      );
-    next.combat = event(next.combat, {
-      text: interaction.name + " triggered.",
-      type: "player",
-      eventType: "interactionTriggered",
-      source,
-      target,
-      data: { interactionId: interaction.id },
-    });
-  }
-  return next;
-}
-
 function damageEnemy(
   game: GameState,
   target: EnemyCombatInstance,
@@ -1481,19 +1387,6 @@ function damageEnemy(
     (enemy) => enemy.instanceId === target.instanceId,
   );
   if (!current || current.defeated) return game;
-  const interactions = resolveCombatInteractions(
-    packet,
-    current.effects,
-    context.effects,
-    context.interactions?.length
-      ? context.interactions
-      : combatInteractionDefinitions,
-  );
-  const interactionMultiplier = interactions.reduce(
-    (multiplier, interaction) =>
-      multiplier * (interaction.result.damageMultiplier ?? 1),
-    1,
-  );
   const defenderStats = getEnemyStats(game.combat, current, context);
   const weaponProficiencyId =
     packet.progressionSource?.type === "equippedWeapon" &&
@@ -1552,7 +1445,6 @@ function damageEnemy(
       damageMultiplier:
         (packet.damageMultiplier ?? 1) *
         conditionalMultiplier *
-        interactionMultiplier *
         (isSecondary ? secondaryFraction : 1),
       armorPenetrationPercent,
       armorPenetrationFlat,
@@ -1708,52 +1600,6 @@ function damageEnemy(
     },
   });
   if (resolution.outcome === "hit" || resolution.outcome === "block") {
-    for (const interaction of interactions) {
-      const currentTarget = next.combat.enemies.find(
-        (enemy) => enemy.instanceId === current.instanceId,
-      );
-      if (!currentTarget) continue;
-      const consumed = currentTarget.effects.filter((effect) => {
-        const tags = context.effects[effect.effectId]?.tags ?? [];
-        return (
-          interaction.result.consumeEffectIds?.includes(effect.effectId) ||
-          interaction.result.consumeEffectTags?.some((tag) =>
-            tags.includes(tag),
-          )
-        );
-      });
-      if (consumed.length > 0)
-        next.combat = updateActiveEffects(
-          next.combat,
-          { kind: "enemy", instanceId: current.instanceId },
-          currentTarget.effects.filter(
-            (effect) =>
-              !consumed.some(
-                (candidate) => candidate.instanceId === effect.instanceId,
-              ),
-          ),
-        );
-      for (const effectId of interaction.result.applyEffectIds ?? [])
-        next = applyEffectToGame(
-          next,
-          effectId,
-          packet.source,
-          packet.target,
-          defenderStats,
-          context,
-        );
-      next.combat = event(next.combat, {
-        text: interaction.name + " triggered.",
-        type: "player",
-        eventType: "interactionTriggered",
-        source: packet.source,
-        target: packet.target,
-        data: {
-          interactionId: interaction.id,
-          multiplier: interaction.result.damageMultiplier ?? 1,
-        },
-      });
-    }
     for (const applied of effectsToApply)
       if (
         !(applied.options?.secondaryOnly && !isSecondary) &&
@@ -2159,15 +2005,19 @@ function advanceStep(
   }
   const decision = evaluateAutomation(game, stats, context);
   if (decision.actionId) {
-    game = executePlayerAction(
+    const beforeGame = game;
+    const executed = executePlayerAction(
       game,
       decision.actionId,
       stats,
       context,
       "automation",
     );
+    const actionExecuted =
+      executed !== beforeGame || executed.combat !== beforeGame.combat;
+    game = executed;
     combat = game.combat;
-    if (game.combat !== combat || decision.actionId) {
+    if (actionExecuted) {
       game = {
         ...game,
         combat: {
@@ -3243,6 +3093,60 @@ function resolveDefeatedEnemies(
   return next;
 }
 
+/** Debug-only entry point that still resolves rewards and group state canonically. */
+export function forceDefeatEnemiesForDebug(
+  game: GameState,
+  instanceIds: string[],
+  context: CombatContext,
+): GameState {
+  const ids = new Set(instanceIds);
+  if (!ids.size) return game;
+  const marked = {
+    ...game,
+    combat: {
+      ...game.combat,
+      enemies: game.combat.enemies.map((enemy) =>
+        ids.has(enemy.instanceId) && !enemy.defeated
+          ? {
+              ...enemy,
+              currentHealth: 0,
+              defeated: true,
+              currentAction: null,
+            }
+          : enemy,
+      ),
+    },
+  };
+  return resolveDefeatedEnemies(marked, context);
+}
+
+/** Debug-only player defeat that emits the same canonical defeat event as combat. */
+export function forceDefeatPlayerForDebug(game: GameState): GameState {
+  if (game.combat.phase === "defeat") return game;
+  return {
+    ...game,
+    combat: event(
+      {
+        ...game.combat,
+        playerHp: 0,
+        phase: "defeat",
+        stopReason: "defeat",
+        recoveryRemaining: 0,
+        enemies: game.combat.enemies.map((enemy) => ({
+          ...enemy,
+          currentAction: null,
+        })),
+      },
+      {
+        text: "The Hunter was defeated by a debug action.",
+        type: "system",
+        eventType: "combatantDefeated",
+        target: { kind: "player" },
+      },
+    ),
+  };
+}
+
 export function stopHunt(
   combat: CombatState,
   definitions: Record<string, EffectDefinition> = effectById,
@@ -3272,17 +3176,22 @@ export function syncCombatStats(game: GameState): GameState {
     game.combat.techniques,
   );
   const canonical = playerBaseStats(stats);
+  const fraction = (value: number, maximum: number) =>
+    maximum > 0 ? clamp(value / maximum, 0, 1) : 0;
+  const healthFraction = fraction(game.combat.playerHp, game.combat.maxPlayerHp);
+  const staminaFraction = fraction(game.combat.stamina, game.combat.maxStamina);
+  const manaFraction = fraction(game.combat.mana, game.combat.maxMana);
   return {
     ...game,
     combat: {
       ...game.combat,
       maxPlayerHp: canonical.maxHealth,
-      playerHp: Math.min(game.combat.playerHp, canonical.maxHealth),
+      playerHp: canonical.maxHealth * healthFraction,
       playerAttackInterval: canonical.attackInterval,
       maxStamina: canonical.maxStamina,
-      stamina: Math.min(game.combat.stamina, canonical.maxStamina),
+      stamina: canonical.maxStamina * staminaFraction,
       maxMana: canonical.maxMana,
-      mana: Math.min(game.combat.mana, canonical.maxMana),
+      mana: canonical.maxMana * manaFraction,
     },
   };
 }

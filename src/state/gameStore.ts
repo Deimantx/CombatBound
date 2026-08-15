@@ -4,6 +4,7 @@ import {
   castSpell as engineCastSpell,
   createCombatContext,
   executePlayerAction as engineExecutePlayerAction,
+  forceDefeatPlayerForDebug,
   selectEnemy as engineSelectEnemy,
   setStance as engineSetStance,
   startHunt as engineStartHunt,
@@ -14,7 +15,7 @@ import {
 } from "../game/combat/combatEngine";
 import { calculateHunterCombatStats } from "../game/equipment/derivedStats";
 import { itemById } from "../game/data/items";
-import { canEquipItemToSlot, getAvailableItemCopies } from "../game/equipment/equipmentRules";
+import { validateEquipmentChange } from "../game/equipment/equipmentRules";
 import { combatLocationById } from "../game/data/world/combatLocations";
 import { continentById } from "../game/data/world/continents";
 import { createInitialGameState, type GameState } from "../game/gameState";
@@ -79,6 +80,54 @@ import { COMBAT_SPELL_SLOT_COUNT } from "../game/spellbook/spellbookTypes";
 import { isEquipmentSlotId, type EquipmentSlotId } from "../game/equipment/equipmentTypes";
 import type { HeroWindowRequest, ScreenId } from "../shared/types";
 import type { AutomationCondition, AutomationRule } from "../game/automation/automationTypes";
+import {
+  debugAddGold,
+  debugAddMasteryXp,
+  debugApplyEffect,
+  debugCancelEnemyActions,
+  debugClearAllEnemyEffects,
+  debugClearPlayerEffects,
+  debugClearSelectedEnemyEffects,
+  debugDamagePlayer,
+  debugDiscoverAllItems,
+  debugDiscoverAllProficiencies,
+  debugDiscoverAllTargets,
+  debugEquipBothTechniques,
+  debugEquipSwordSkills,
+  debugFillAllResources,
+  debugFillHealth,
+  debugFillMana,
+  debugFillSpellLoadout,
+  debugFillStamina,
+  debugGrantAllEquipment,
+  debugGrantEnoughMasteryForPurchasedPerks,
+  debugGrantEquipmentTier,
+  debugGrantItem,
+  debugGrantPerkPoints,
+  debugHealPlayer,
+  debugKillCurrentGroup,
+  debugKillSelectedEnemy,
+  debugLearnAllSpells,
+  debugMaxAllPerks,
+  debugResetAllPerks,
+  debugResetCollection,
+  debugResetEnemyCooldowns,
+  debugResetPlayerCooldowns,
+  debugResetSessionMetrics,
+  debugResetSpellbook,
+  debugRevivePlayer,
+  debugSetAllProficiencyLevels,
+  debugSetAllTargetDefeatsToOne,
+  debugSetGold,
+  debugSetItemQuantity,
+  debugSetMasteryLevel,
+  debugSetPerkRank,
+  debugSetPlayerResource,
+  debugSetProficiencyLevel,
+  debugSetResourcePercent,
+} from "../game/debug/debugActions";
+import type { DebugEffectTarget, DebugResource } from "../game/debug/debugTypes";
+import type { CombatProficiencyId } from "../game/progression/progressionTypes";
 
 interface GameStoreState {
   game: GameState;
@@ -107,6 +156,7 @@ interface GameStoreState {
   combatOverviewTab: "Session Summary" | "Loot" | "Progression";
   reducedMotion: boolean;
   showInspectorButton: boolean;
+  debug: DebugStoreApi;
   setScreen: (screen: ScreenId) => void;
   openHeroWindow: (window: HeroWindowRequest["window"], options?: Omit<HeroWindowRequest, "window">) => void;
   clearHeroWindowRequest: () => void;
@@ -171,6 +221,54 @@ interface GameStoreState {
   setShowInspectorButton: (value: boolean) => void;
   resetGameplay: () => void;
   resetPrototype: () => void;
+}
+
+export interface DebugStoreApi {
+  grantItem: (itemId: string, quantity: number) => void;
+  setItemQuantity: (itemId: string, quantity: number) => void;
+  grantAllEquipment: (quantity?: number) => void;
+  grantEquipmentTier: (masteryLevel: number) => void;
+  setMasteryLevel: (level: number) => void;
+  addMasteryXp: (amount: number) => void;
+  grantPerkPoints: (points: number) => void;
+  setProficiencyLevel: (proficiencyId: CombatProficiencyId, level: number) => void;
+  setAllProficiencyLevels: (level: number) => void;
+  discoverAllProficiencies: () => void;
+  setPerkRank: (perkId: string, rank: number) => void;
+  maxAllPerks: () => void;
+  resetAllPerks: () => void;
+  grantEnoughMasteryForPurchasedPerks: () => void;
+  discoverAllItems: () => void;
+  discoverAllTargets: () => void;
+  setAllTargetDefeatsToOne: () => void;
+  resetCollection: () => void;
+  fillHealth: () => void;
+  fillStamina: () => void;
+  fillMana: () => void;
+  fillAllResources: () => void;
+  setResourcePercent: (resource: DebugResource, percent: number) => void;
+  setPlayerResource: (resource: DebugResource, value: number) => void;
+  resetPlayerCooldowns: () => void;
+  resetEnemyCooldowns: () => void;
+  cancelEnemyActions: () => void;
+  clearPlayerEffects: () => void;
+  clearSelectedEnemyEffects: () => void;
+  clearAllEnemyEffects: () => void;
+  applyEffect: (effectId: string, target: DebugEffectTarget) => void;
+  killSelectedEnemy: () => void;
+  killCurrentGroup: () => void;
+  suicide: () => void;
+  revive: () => void;
+  damagePlayer: (amount: number) => void;
+  healPlayer: (amount: number) => void;
+  resetSessionMetrics: () => void;
+  learnAllSpells: () => void;
+  resetSpellbook: () => void;
+  fillSpellLoadout: () => void;
+  equipSwordSkills: () => void;
+  equipBothTechniques: () => void;
+  setGold: (amount: number) => void;
+  addGold: (amount: number) => void;
 }
 
 const context = createCombatContext({ next: () => Math.random() });
@@ -383,8 +481,71 @@ export const useGameStore = create<GameStoreState>((set, get) => {
       );
       return flatState(game, state);
     });
+  const commitDebug = (
+    mutation: (game: GameState) => GameState,
+    persistent = false,
+  ) =>
+    set((state) => {
+      if (!import.meta.env.DEV) return state;
+      const game = mutation(state.game);
+      if (game === state.game) return state;
+      if (persistent)
+        savePermanent(game, {
+          reducedMotion: state.reducedMotion,
+          showInspectorButton: state.showInspectorButton,
+        });
+      return flatState(game, state);
+    });
+  const debug: DebugStoreApi = {
+    grantItem: (itemId, quantity) => commitDebug((game) => debugGrantItem(game, itemId, quantity), true),
+    setItemQuantity: (itemId, quantity) => commitDebug((game) => debugSetItemQuantity(game, itemId, quantity), true),
+    grantAllEquipment: (quantity = 1) => commitDebug((game) => debugGrantAllEquipment(game, quantity), true),
+    grantEquipmentTier: (level) => commitDebug((game) => debugGrantEquipmentTier(game, level), true),
+    setMasteryLevel: (level) => commitDebug((game) => debugSetMasteryLevel(game, level), true),
+    addMasteryXp: (amount) => commitDebug((game) => debugAddMasteryXp(game, amount), true),
+    grantPerkPoints: (points) => commitDebug((game) => debugGrantPerkPoints(game, points), true),
+    setProficiencyLevel: (id, level) => commitDebug((game) => debugSetProficiencyLevel(game, id, level), true),
+    setAllProficiencyLevels: (level) => commitDebug((game) => debugSetAllProficiencyLevels(game, level), true),
+    discoverAllProficiencies: () => commitDebug(debugDiscoverAllProficiencies, true),
+    setPerkRank: (id, rank) => commitDebug((game) => debugSetPerkRank(game, id, rank), true),
+    maxAllPerks: () => commitDebug(debugMaxAllPerks, true),
+    resetAllPerks: () => commitDebug(debugResetAllPerks, true),
+    grantEnoughMasteryForPurchasedPerks: () => commitDebug(debugGrantEnoughMasteryForPurchasedPerks, true),
+    discoverAllItems: () => commitDebug(debugDiscoverAllItems, true),
+    discoverAllTargets: () => commitDebug(debugDiscoverAllTargets, true),
+    setAllTargetDefeatsToOne: () => commitDebug(debugSetAllTargetDefeatsToOne, true),
+    resetCollection: () => commitDebug(debugResetCollection, true),
+    fillHealth: () => commitDebug(debugFillHealth),
+    fillStamina: () => commitDebug(debugFillStamina),
+    fillMana: () => commitDebug(debugFillMana),
+    fillAllResources: () => commitDebug(debugFillAllResources),
+    setResourcePercent: (resource, percent) => commitDebug((game) => debugSetResourcePercent(game, resource, percent)),
+    setPlayerResource: (resource, value) => commitDebug((game) => debugSetPlayerResource(game, resource, value)),
+    resetPlayerCooldowns: () => commitDebug(debugResetPlayerCooldowns),
+    resetEnemyCooldowns: () => commitDebug(debugResetEnemyCooldowns),
+    cancelEnemyActions: () => commitDebug(debugCancelEnemyActions),
+    clearPlayerEffects: () => commitDebug(debugClearPlayerEffects),
+    clearSelectedEnemyEffects: () => commitDebug(debugClearSelectedEnemyEffects),
+    clearAllEnemyEffects: () => commitDebug(debugClearAllEnemyEffects),
+    applyEffect: (effectId, target) => commitDebug((game) => debugApplyEffect(game, effectId, target)),
+    killSelectedEnemy: () => commitDebug(debugKillSelectedEnemy),
+    killCurrentGroup: () => commitDebug(debugKillCurrentGroup),
+    suicide: () => commitDebug((game) => forceDefeatPlayerForDebug(game)),
+    revive: () => commitDebug(debugRevivePlayer),
+    damagePlayer: (amount) => commitDebug((game) => debugDamagePlayer(game, amount)),
+    healPlayer: (amount) => commitDebug((game) => debugHealPlayer(game, amount)),
+    resetSessionMetrics: () => commitDebug(debugResetSessionMetrics),
+    learnAllSpells: () => commitDebug(debugLearnAllSpells, true),
+    resetSpellbook: () => commitDebug(debugResetSpellbook, true),
+    fillSpellLoadout: () => commitDebug(debugFillSpellLoadout, true),
+    equipSwordSkills: () => commitDebug(debugEquipSwordSkills, true),
+    equipBothTechniques: () => commitDebug(debugEquipBothTechniques, true),
+    setGold: (amount) => commitDebug((game) => debugSetGold(game, amount), true),
+    addGold: (amount) => commitDebug((game) => debugAddGold(game, amount), true),
+  };
   return {
     ...flatState(hydratedGame, ui),
+    debug,
     setScreen: (screen) => set({ screen, heroWindowRequest: null }),
     openHeroWindow: (window, options) => set({ screen: "hero", heroWindowRequest: { window, ...options } }),
     clearHeroWindowRequest: () => set({ heroWindowRequest: null }),
@@ -847,9 +1008,15 @@ export const useGameStore = create<GameStoreState>((set, get) => {
         )
           return state;
         const item = itemById[itemId];
-        if (!canEquipItemToSlot(item, slot)) return state;
         if (state.game.equipment.slots[slot] === itemId) return state;
-        if (getAvailableItemCopies(state.game.inventory, state.game.equipment, itemId, slot) <= 0) return state;
+        const validation = validateEquipmentChange({
+          item,
+          slotId: slot,
+          inventory: state.game.inventory,
+          equipment: state.game.equipment,
+          masteryLevel: masteryLevelForXp(state.game.progression.masteryXp),
+        });
+        if (!validation.valid) return state;
         const progression = item.weaponProficiencyId
           ? discoverProficiency(
               state.game.progression,

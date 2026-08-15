@@ -27,7 +27,6 @@ import {
 } from "./statFormatting";
 import type { DefensiveEquipmentContext } from "../equipment/defensiveEquipment";
 import type { TooltipModel, TooltipRow, TooltipTone } from "./tooltipTypes";
-import { combatInteractionDefinitions } from "../combat/combatInteractions";
 import type { CombatAbilityCatalogueEntry } from "../combatAbilities/combatAbilityTypes";
 import type { CombatAbilityAvailability } from "../combatAbilities/combatAbilitySelectors";
 
@@ -72,6 +71,7 @@ export function buildItemTooltip(
     quantity?: number;
     equipped?: boolean;
     defensiveContext?: DefensiveEquipmentContext;
+    masteryLevel?: number;
   } = {},
 ): TooltipModel {
   const rows = formatItemStats(item.stats ?? {}).map((row) => ({
@@ -87,6 +87,25 @@ export function buildItemTooltip(
         item.weaponProficiencyId,
       tone: "blue" as TooltipTone,
     });
+  if (item.equipmentSlotKind)
+    rows.unshift({
+      label: "Equipment Type",
+      value: equipmentSlotKindLabel(item.equipmentSlotKind),
+      tone: "default" as TooltipTone,
+    });
+  if (item.requiredMasteryLevel !== undefined) {
+    rows.unshift({
+      label: "Required Mastery",
+      value: `Lv ${item.requiredMasteryLevel}`,
+      tone: "gold" as TooltipTone,
+    });
+    if (options.masteryLevel !== undefined)
+      rows.unshift({
+        label: "Requirement",
+        value: options.masteryLevel >= item.requiredMasteryLevel ? "Met" : "Locked",
+        tone: options.masteryLevel >= item.requiredMasteryLevel ? "green" : "red",
+      });
+  }
   if (item.defensiveProficiencyId) {
     rows.unshift({
       label: "Training",
@@ -352,20 +371,6 @@ export function buildSpellTooltip(
       label: "Utility",
       value: "Interrupts a selected enemy special action",
       tone: "blue",
-    });
-  const interactions = combatInteractionDefinitions
-    .filter(
-      (interaction) =>
-        interaction.trigger.sourceActionId === spell.id ||
-        (interaction.trigger.damageType &&
-          interaction.trigger.damageType === spell.damageType),
-    )
-    .map((interaction) => interaction.name);
-  if (interactions.length)
-    rows.push({
-      label: "Interactions",
-      value: Array.from(new Set(interactions)).join(", "),
-      tone: "gold",
     });
   return {
     id: spell.id,

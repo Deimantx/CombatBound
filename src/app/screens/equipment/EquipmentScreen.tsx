@@ -13,6 +13,7 @@ import { itemById, itemDefinitions, type ItemDefinition } from "../../../game/da
 import { proficiencyById } from "../../../game/data/proficiencies";
 import { getEquippedWeaponProficiency } from "../../../game/progression/progressionSelectors";
 import { getProficiencyLevel } from "../../../game/progression/proficiencyProgression";
+import { masteryLevelForXp } from "../../../game/progression/masteryProgression";
 import { calculateHunterCombatStats } from "../../../game/equipment/derivedStats";
 import { calculateArmorMitigation } from "../../../game/combat/combatMath";
 import { getDefensiveEquipmentContext } from "../../../game/equipment/defensiveEquipment";
@@ -23,7 +24,7 @@ import {
   type EquipmentSlotGroup,
   type EquipmentSlotId,
 } from "../../../game/equipment/equipmentTypes";
-import { canEquipItemToSlot, getAvailableItemCopies } from "../../../game/equipment/equipmentRules";
+import { canEquipItemToSlot, getAvailableItemCopies, validateEquipmentChange } from "../../../game/equipment/equipmentRules";
 import type { CombatReferenceCategory } from "../../../game/data/combatGlossary";
 import {
   formatCombatStatValue,
@@ -171,6 +172,7 @@ export function EquipmentScreen({ embedded = false }: { embedded?: boolean } = {
         ? resistance(key)
         : (stats[key as keyof typeof stats] as number);
   const defensiveContext = getDefensiveEquipmentContext(game.equipment);
+  const masteryLevel = masteryLevelForXp(game.progression.masteryXp);
   const detailFor = (key: string) =>
     key === "attackInterval"
         ? `${formatCombatStatValue(key, valueFor(key))} · ${(1 / stats.attackInterval).toFixed(2)} attacks/sec`
@@ -370,11 +372,13 @@ export function EquipmentScreen({ embedded = false }: { embedded?: boolean } = {
                 item={item}
                 slotId={selected}
                 equipped={item.id === equippedId}
-                canEquip={getAvailableItemCopies(game.inventory, game.equipment, item.id, selected) > 0}
+                canEquip={validateEquipmentChange({ item, slotId: selected, inventory: game.inventory, equipment: game.equipment, masteryLevel }).valid}
                 availableCopies={getAvailableItemCopies(game.inventory, game.equipment, item.id, selected)}
                 locked={combatLocked}
+                masteryLocked={validateEquipmentChange({ item, slotId: selected, inventory: game.inventory, equipment: game.equipment, masteryLevel }).reason === "mastery-level"}
                 onEquip={() => equipItem(item.id, selected)}
                 quantity={game.inventory.quantities[item.id] ?? 0}
+                masteryLevel={masteryLevel}
               />
             ))}
           </div>
@@ -501,8 +505,10 @@ function CandidateItem({
   canEquip,
   availableCopies,
   locked,
+  masteryLocked,
   onEquip,
   quantity,
+  masteryLevel,
 }: {
   item: ItemDefinition;
   slotId: EquipmentSlotId;
@@ -510,8 +516,10 @@ function CandidateItem({
   canEquip: boolean;
   availableCopies: number;
   locked: boolean;
+  masteryLocked: boolean;
   onEquip: () => void;
   quantity: number;
+  masteryLevel: number;
 }) {
   const button = (
     <button
@@ -549,6 +557,8 @@ function CandidateItem({
         <span className="equipped-label">
           <Check size={13} /> Equipped
         </span>
+      ) : masteryLocked ? (
+        <span className="equipped-label is-unavailable">REQUIRES MASTERY LV {item.requiredMasteryLevel}</span>
       ) : !canEquip ? (
         <span className="equipped-label is-unavailable">No spare copy</span>
       ) : (
@@ -557,11 +567,11 @@ function CandidateItem({
     </button>
   );
   return locked ? (
-    <GameTooltip content={buildItemTooltip(item, { quantity, equipped })}>
+    <GameTooltip content={buildItemTooltip(item, { quantity, equipped, masteryLevel })}>
       <span className="candidate-tooltip-host">{button}</span>
     </GameTooltip>
   ) : (
-    <GameTooltip content={buildItemTooltip(item, { quantity, equipped })}>
+    <GameTooltip content={buildItemTooltip(item, { quantity, equipped, masteryLevel })}>
       {button}
     </GameTooltip>
   );

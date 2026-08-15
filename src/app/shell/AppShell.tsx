@@ -13,6 +13,7 @@ import { SettingsScreen } from '../screens/settings/SettingsScreen'
 import { InfoScreen } from '../screens/info/InfoScreen'
 import { UiInspector } from '../debug/ui-inspector/UiInspector'
 import { readInspectorPreferences, writeInspectorPreferences } from '../debug/ui-inspector/uiInspectorPreferences'
+import { DebugAdminPanel } from '../debug/admin/DebugAdminPanel'
 
 export function AppShell() {
   const screen = useGameStore((state) => state.screen)
@@ -28,6 +29,7 @@ export function AppShell() {
   const setReducedMotion = useGameStore((state) => state.setReducedMotion)
   const setShowInspectorButton = useGameStore((state) => state.setShowInspectorButton)
   const [inspectorOpen, setInspectorOpen] = useState(false)
+  const [debugOpen, setDebugOpen] = useState(false)
 
   useEffect(() => {
     if (!combatActive && !outOfCombatRecoveryActive) return
@@ -57,5 +59,5 @@ export function AppShell() {
 
   const content = { home: <HomeScreen />, combat: <CombatScreen />, hero: <HeroScreen />, proficiencies: <ProficienciesScreen />, inventory: <InventoryScreen />, collection: <CollectionScreen />, settings: <SettingsScreen />, info: <InfoScreen /> }[screen]
 
-  return <div className="app-shell"><Sidebar /><div className="app-frame"><TopStatusBar onInspect={() => setInspectorOpen(true)} /><main className="screen-content" data-ui-region="content">{content}</main><BottomActivityBar /></div>{inspectorOpen && <UiInspector onExit={() => setInspectorOpen(false)} />}</div>
+  return <div className="app-shell"><Sidebar /><div className="app-frame"><TopStatusBar onInspect={() => setInspectorOpen(true)} onDebug={() => setDebugOpen(true)} /><main className="screen-content" data-ui-region="content">{content}</main><BottomActivityBar /></div>{inspectorOpen && <UiInspector onExit={() => setInspectorOpen(false)} />}{debugOpen && import.meta.env.DEV && <DebugAdminPanel onClose={() => setDebugOpen(false)} />}</div>
 }

@@ -32,7 +32,7 @@ describe('proficiency perk graphs', () => {
     const rootId = 'perk.one-handed-sword.one-handed-mastery'
     const root = perkById[rootId]
     const noPoints = { ...createInitialGameState().progression, proficiencies: { 'one-handed-sword': { proficiencyId: 'one-handed-sword' as const, totalXp: 0 } } }
-    expect(getPerkPurchaseState(noPoints, rootId, perkById).status).toBe('points-locked')
+    expect(getPerkPurchaseState(noPoints, rootId, perkById).status).toBe('level-locked')
     const lowLevel = { ...noPoints, masteryXp: 1000, proficiencies: { 'one-handed-sword': { proficiencyId: 'one-handed-sword' as const, totalXp: 0 } } }
     expect(getPerkPurchaseState(lowLevel, 'perk.one-handed-sword.measured-strikes', perkById).status).toBe('level-locked')
     const purchased = { ...lowLevel, proficiencies: { 'one-handed-sword': { proficiencyId: 'one-handed-sword' as const, totalXp: proficiencyXpForLevel(5) } }, purchasedPerks: { [rootId]: 1 } }

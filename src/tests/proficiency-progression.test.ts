@@ -56,7 +56,7 @@ describe('weapon proficiency progression', () => {
   it('validates perk level, points, max rank, and matching tree membership', () => {
     const base = { ...createInitialGameState().progression, masteryXp: 1000, proficiencies: { 'one-handed-sword': { proficiencyId: 'one-handed-sword' as const, totalXp: 0 } } }
     expect(purchasePerk(base, 'perk.one-handed-sword.balanced-grip', perkById).outcome).toBe('level-locked')
-    const unlocked = { ...base, proficiencies: { 'one-handed-sword': { proficiencyId: 'one-handed-sword' as const, totalXp: proficiencyXpForLevel(1) } } }
+    const unlocked = { ...base, proficiencies: { 'one-handed-sword': { proficiencyId: 'one-handed-sword' as const, totalXp: 1 } } }
     const purchased = purchasePerk(unlocked, 'perk.one-handed-sword.blade-familiarity', perkById)
     expect(purchased.outcome).toBe('purchased')
     expect(purchased.progression.purchasedPerks['perk.one-handed-sword.blade-familiarity']).toBe(1)

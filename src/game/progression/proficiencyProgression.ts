@@ -48,7 +48,7 @@ export function getProficiencyProgress(progression: ProgressionState, proficienc
 
 export function getProficiencyLevel(progression: ProgressionState, proficiencyId: CombatProficiencyId) {
   const progress = getProficiencyProgress(progression, proficiencyId)
-  return progress ? proficiencyLevelForXp(progress.totalXp) : 0
+  return progress ? getProficiencyLevelProgress(progress.totalXp).level : 0
 }
 
 export function getProficiencyXpToNextLevel(progression: ProgressionState, proficiencyId: CombatProficiencyId) {

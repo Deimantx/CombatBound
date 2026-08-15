@@ -309,7 +309,6 @@ export type CombatEventType =
   | "huntStopped"
   | "playerActionUsed"
   | "automationActionUsed"
-  | "interactionTriggered"
   | "enemyHealed"
   | "enemyPhaseChanged";
 
@@ -390,7 +389,6 @@ export interface CombatContext {
   spells: Record<string, import("../data/spells").SpellDefinition>;
   items: Record<string, ItemDefinition>;
   effects: Record<string, import("./combatEffectTypes").EffectDefinition>;
-  interactions?: import("./combatInteractions").CombatInteractionDefinition[];
   rng: CombatRng;
 }
 
