@@ -65,6 +65,13 @@ describe("Developer Toolkit V9.3.1 selector stability", () => {
     expect(screen.getByLabelText("Search effects")).toBeInTheDocument();
     expect(selectorErrors(consoleError)).toHaveLength(0);
   });
+
+  it("keeps an isolated DevToolsHost safe when no outer TooltipProvider exists", () => {
+    useDevToolsRuntimeStore.setState({ dockActive: true });
+    render(<DevToolsHost />);
+    expect(screen.getByText("COMBAT DEBUG")).toBeInTheDocument();
+    expect(selectorErrors(consoleError)).toHaveLength(0);
+  });
 });
 
 function selectorErrors(consoleError: { mock: { calls: unknown[][] } }) {
