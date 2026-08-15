@@ -10,15 +10,19 @@ interface TooltipTriggerProps {
 }
 
 export function GameTooltip({ children, content, targetId, label }: TooltipTriggerProps) {
-  const { showTooltip, hideTooltip } = useTooltip()
+  const { showTooltip, updateTooltipPointer, hideTooltip } = useTooltip()
   const anchor = useRef<HTMLElement | null>(null)
   const setAnchor = (element: HTMLElement | null) => { anchor.current = element }
   useEffect(() => () => hideTooltip(anchor.current ?? undefined), [hideTooltip])
-  const show = (immediate: boolean, element: HTMLElement) => { anchor.current = element; showTooltip(content, element, immediate) }
-  const original = children.props as { onMouseEnter?: (event: MouseEvent<HTMLElement>) => void; onMouseLeave?: (event: MouseEvent<HTMLElement>) => void; onFocus?: (event: FocusEvent<HTMLElement>) => void; onBlur?: (event: FocusEvent<HTMLElement>) => void; onKeyDown?: (event: React.KeyboardEvent<HTMLElement>) => void }
+  const show = (immediate: boolean, element: HTMLElement, pointer?: { x: number; y: number }) => {
+    anchor.current = element
+    showTooltip(content, element, { immediate, interaction: immediate ? 'focus' : 'pointer', pointer })
+  }
+  const original = children.props as { onMouseEnter?: (event: MouseEvent<HTMLElement>) => void; onMouseMove?: (event: MouseEvent<HTMLElement>) => void; onMouseLeave?: (event: MouseEvent<HTMLElement>) => void; onFocus?: (event: FocusEvent<HTMLElement>) => void; onBlur?: (event: FocusEvent<HTMLElement>) => void; onKeyDown?: (event: React.KeyboardEvent<HTMLElement>) => void }
   return cloneElement(children, {
     ref: setAnchor,
-    onMouseEnter: (event: MouseEvent<HTMLElement>) => { original.onMouseEnter?.(event); show(false, event.currentTarget) },
+    onMouseEnter: (event: MouseEvent<HTMLElement>) => { original.onMouseEnter?.(event); show(false, event.currentTarget, { x: event.clientX, y: event.clientY }) },
+    onMouseMove: (event: MouseEvent<HTMLElement>) => { original.onMouseMove?.(event); updateTooltipPointer(event.currentTarget, { x: event.clientX, y: event.clientY }) },
     onMouseLeave: (event: MouseEvent<HTMLElement>) => { original.onMouseLeave?.(event); hideTooltip(event.currentTarget) },
     onFocus: (event: FocusEvent<HTMLElement>) => { original.onFocus?.(event); show(true, event.currentTarget) },
     onBlur: (event: FocusEvent<HTMLElement>) => { original.onBlur?.(event); hideTooltip(event.currentTarget) },

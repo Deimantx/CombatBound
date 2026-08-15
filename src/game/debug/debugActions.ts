@@ -261,7 +261,9 @@ export function debugCancelEnemyActions(game: GameState): GameState {
     ...game,
     combat: {
       ...game.combat,
-      enemies: game.combat.enemies.map((enemy) => ({ ...enemy, currentAction: null })),
+      enemies: game.combat.enemies.map((enemy) => enemy.defeated
+        ? enemy
+        : { ...enemy, currentAction: null, attackTimer: enemy.attackInterval }),
     },
   };
 }

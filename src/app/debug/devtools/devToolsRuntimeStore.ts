@@ -1,6 +1,6 @@
 import { create } from "zustand";
 import { defaultDevToolsPreferences, readDevToolsPreferences, writeDevToolsPreferences } from "./devToolsPreferences";
-import type { DevToolsMode, DevToolsVisualMode, DockAnchor, DockSize } from "./devToolsTypes";
+import type { DevToolsMode, DevToolsVisualMode, DockAnchor, DockDimensions, DockSize } from "./devToolsTypes";
 import type { DebugTab } from "../admin/debugTabs";
 import { DEBUG_MAX_TIME_SCALE, DEBUG_MIN_TIME_SCALE } from "./devToolsTypes";
 import { DEFAULT_DEBUG_TAB_ORDER, normalizeDebugTabOrder } from "../admin/debugTabs";
@@ -22,12 +22,14 @@ interface DevToolsRuntimeState extends DevToolsVisibilityState {
   dockSize: DockSize;
   dockAnchor: DockAnchor;
   dockPosition: { x: number; y: number } | null;
+  dockDimensions: DockDimensions | null;
   expandedSections: string[];
   lastConsoleTab: string;
   simulationPaused: boolean;
   simulationResetVersion: number;
   timeScale: number;
   playerImmortal: boolean;
+  immortalEnemyInstanceIds: string[];
   automationTraceEnabled: boolean;
   eventsEnabled: boolean;
   eventFilter: string;
@@ -41,6 +43,11 @@ interface DevToolsRuntimeState extends DevToolsVisibilityState {
   setDockSize: (size: DockSize) => void;
   setDockAnchor: (anchor: DockAnchor) => void;
   setDockPosition: (position: { x: number; y: number } | null) => void;
+  commitDockGeometry: (position: { x: number; y: number } | null, dimensions: DockDimensions | null) => void;
+  setDockDimensions: (dimensions: DockDimensions | null) => void;
+  isEnemyImmortal: (instanceId: string) => boolean;
+  setEnemyImmortal: (instanceId: string, enabled: boolean) => void;
+  clearEnemyImmortality: () => void;
   toggleSection: (section: string) => void;
   setSimulationPaused: (paused: boolean) => void;
   resetSimulationAccumulator: () => void;
@@ -60,12 +67,13 @@ interface DevToolsRuntimeState extends DevToolsVisibilityState {
 const preferences = readDevToolsPreferences();
 let nextRuntimeId = 1;
 
-function persist(state: Pick<DevToolsRuntimeState, "dockSize" | "dockAnchor" | "dockPosition" | "expandedSections" | "eventFilter" | "lastConsoleTab" | "consoleTabOrder">) {
+function persist(state: Pick<DevToolsRuntimeState, "dockSize" | "dockAnchor" | "dockPosition" | "dockDimensions" | "expandedSections" | "eventFilter" | "lastConsoleTab" | "consoleTabOrder">) {
   writeDevToolsPreferences({
     ...defaultDevToolsPreferences,
     dockSize: state.dockSize,
     dockAnchor: state.dockAnchor,
     dockPosition: state.dockPosition,
+    dockDimensions: state.dockDimensions,
     expandedSections: state.expandedSections,
     eventFilter: state.eventFilter,
     lastConsoleTab: state.lastConsoleTab,
@@ -86,7 +94,7 @@ function legacyMode(consoleOpen: boolean, dockActive: boolean): DevToolsMode {
   return "closed";
 }
 
-export const useDevToolsRuntimeStore = create<DevToolsRuntimeState>((set) => ({
+export const useDevToolsRuntimeStore = create<DevToolsRuntimeState>((set, get) => ({
   consoleOpen: false,
   dockActive: false,
   mode: "closed",
@@ -94,12 +102,14 @@ export const useDevToolsRuntimeStore = create<DevToolsRuntimeState>((set) => ({
   dockSize: preferences.dockSize,
   dockAnchor: preferences.dockAnchor,
   dockPosition: preferences.dockPosition,
+  dockDimensions: preferences.dockDimensions,
   expandedSections: preferences.expandedSections,
   lastConsoleTab: preferences.lastConsoleTab,
   simulationPaused: false,
   simulationResetVersion: 0,
   timeScale: 1,
   playerImmortal: false,
+  immortalEnemyInstanceIds: [],
   automationTraceEnabled: false,
   eventsEnabled: true,
   eventFilter: preferences.eventFilter,
@@ -110,9 +120,20 @@ export const useDevToolsRuntimeStore = create<DevToolsRuntimeState>((set) => ({
   activateDockAndCloseConsole: () => set({ consoleOpen: false, dockActive: true, mode: "dock", visualMode: "dock-only" }),
   closeDock: () => set((state) => ({ dockActive: false, mode: legacyMode(state.consoleOpen, false), visualMode: visualMode(state.consoleOpen, false) })),
   close: () => set({ consoleOpen: false, dockActive: false, mode: "closed", visualMode: "closed" }),
-  setDockSize: (dockSize) => set((state) => { const next = { ...state, dockSize }; persist(next); return { dockSize }; }),
+  setDockSize: (dockSize) => set((state) => {
+    const dockDimensions = dockSize === "minimized" ? state.dockDimensions : null;
+    const next = { ...state, dockSize, dockDimensions };
+    persist(next);
+    return { dockSize, dockDimensions };
+  }),
   setDockAnchor: (dockAnchor) => set((state) => { const next = { ...state, dockAnchor, dockPosition: null }; persist(next); return { dockAnchor, dockPosition: null }; }),
   setDockPosition: (dockPosition) => set((state) => { const next = { ...state, dockPosition }; persist(next); return { dockPosition }; }),
+  commitDockGeometry: (dockPosition, dockDimensions) => set((state) => {
+    const next = { ...state, dockPosition, dockDimensions };
+    persist(next);
+    return { dockPosition, dockDimensions };
+  }),
+  setDockDimensions: (dockDimensions) => set((state) => { const next = { ...state, dockDimensions }; persist(next); return { dockDimensions }; }),
   toggleSection: (section) => set((state) => {
     const expandedSections = state.expandedSections.includes(section)
       ? state.expandedSections.filter((entry) => entry !== section)
@@ -124,6 +145,11 @@ export const useDevToolsRuntimeStore = create<DevToolsRuntimeState>((set) => ({
   resetSimulationAccumulator: () => set((state) => ({ simulationResetVersion: state.simulationResetVersion + 1 })),
   setTimeScale: (timeScale) => set({ timeScale: Math.max(DEBUG_MIN_TIME_SCALE, Math.min(DEBUG_MAX_TIME_SCALE, timeScale)) }),
   setPlayerImmortal: (playerImmortal) => set({ playerImmortal }),
+  isEnemyImmortal: (instanceId): boolean => get().immortalEnemyInstanceIds.includes(instanceId),
+  setEnemyImmortal: (instanceId, enabled) => set((state) => ({ immortalEnemyInstanceIds: enabled
+    ? state.immortalEnemyInstanceIds.includes(instanceId) ? state.immortalEnemyInstanceIds : [...state.immortalEnemyInstanceIds, instanceId]
+    : state.immortalEnemyInstanceIds.filter((candidate) => candidate !== instanceId) })),
+  clearEnemyImmortality: () => set({ immortalEnemyInstanceIds: [] }),
   setAutomationTraceEnabled: (automationTraceEnabled) => set({ automationTraceEnabled }),
   setEventsEnabled: (eventsEnabled) => set({ eventsEnabled }),
   recordAutomationTrace: () => undefined,

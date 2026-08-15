@@ -12,6 +12,8 @@ import type { DebugTabProps } from "../debugTypes";
 import { useDevToolsRuntimeStore } from "../../devtools/devToolsRuntimeStore";
 import { useDebugTelemetryStore } from "../../telemetry/debugTelemetryStore";
 
+const EMPTY_ACTIVE_EFFECTS: ActiveEffectInstance[] = [];
+
 export function DebugCombatTab({ run, debug }: DebugTabProps) {
   const [sections, setSections] = useState<Set<string>>(() => new Set(["live-combat-state", "simulation-time"]));
   const combatPhase = useGameStore((state) => state.game.combat.phase);
@@ -19,7 +21,8 @@ export function DebugCombatTab({ run, debug }: DebugTabProps) {
   const groupNumber = useGameStore((state) => state.game.combat.groupNumber);
   const selectedEnemy = useGameStore((state) => state.game.combat.enemies.find((enemy) => enemy.instanceId === state.game.combat.selectedEnemyInstanceId)?.displayName);
   const selectedEnemyInstanceId = useGameStore((state) => state.game.combat.selectedEnemyInstanceId);
-  const selectedEnemyEffects = useGameStore((state) => state.game.combat.enemies.find((enemy) => enemy.instanceId === state.game.combat.selectedEnemyInstanceId)?.effects ?? []);
+  const selectedEnemyInstance = useGameStore((state) => state.game.combat.enemies.find((enemy) => enemy.instanceId === state.game.combat.selectedEnemyInstanceId));
+  const selectedEnemyEffects = selectedEnemyInstance?.effects ?? EMPTY_ACTIVE_EFFECTS;
   const aliveEnemyCount = useGameStore((state) => state.game.combat.enemies.filter((enemy) => !enemy.defeated).length);
   const enemyCount = useGameStore((state) => state.game.combat.enemies.length);
   const globalCooldown = useGameStore((state) => state.game.combat.globalCooldownRemaining);

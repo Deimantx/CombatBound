@@ -7,6 +7,7 @@ export const defaultDevToolsPreferences: DevToolsPreferences = {
   dockSize: "compact",
   dockAnchor: "bottom-right",
   dockPosition: null,
+  dockDimensions: null,
   expandedSections: ["time", "player", "enemy"],
   lastConsoleTab: "overview",
   eventFilter: "all",
@@ -27,6 +28,9 @@ export function readDevToolsPreferences(): DevToolsPreferences {
         : defaultDevToolsPreferences.expandedSections,
       dockPosition: value.dockPosition && Number.isFinite(value.dockPosition.x) && Number.isFinite(value.dockPosition.y)
         ? { x: value.dockPosition.x, y: value.dockPosition.y }
+        : null,
+      dockDimensions: value.dockDimensions && Number.isFinite(value.dockDimensions.width) && Number.isFinite(value.dockDimensions.height)
+        ? { width: value.dockDimensions.width, height: value.dockDimensions.height }
         : null,
       consoleTabOrder: normalizeDebugTabOrder(value.consoleTabOrder),
     };

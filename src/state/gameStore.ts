@@ -283,6 +283,7 @@ export interface DebugStoreApi {
 const context = createCombatContext({ next: () => Math.random(), nextFor: () => Math.random() });
 if (import.meta.env.DEV) context.debugHooks = {
   isPlayerImmortal: () => useDevToolsRuntimeStore.getState().playerImmortal,
+  isEnemyImmortal: (instanceId) => useDevToolsRuntimeStore.getState().isEnemyImmortal(instanceId),
   onAutomationTrace: (trace) => {
     const runtime = useDevToolsRuntimeStore.getState();
     if (!runtime.automationTraceEnabled) return;
@@ -481,6 +482,7 @@ export const useGameStore = create<GameStoreState>((set, get) => {
     return flatState(game, state);
   };
   const runHunt = () => {
+    useDevToolsRuntimeStore.getState().clearEnemyImmortality();
     useDevToolsRuntimeStore.getState().resetSimulationAccumulator();
     return set((state) => {
       const masteryLevel = masteryLevelForXp(state.game.progression.masteryXp);
@@ -572,6 +574,7 @@ export const useGameStore = create<GameStoreState>((set, get) => {
     addGold: (amount) => commitDebug((game) => debugAddGold(game, amount), true),
     loadScenario: (snapshot) => {
       if (!validateDebugScenario(snapshot).valid) return;
+      useDevToolsRuntimeStore.getState().clearEnemyImmortality();
       useDevToolsRuntimeStore.getState().resetSimulationAccumulator();
       set((state) => {
         const game = syncCombatStats({ ...state.game, ...snapshot.game, combat: { ...snapshot.game.combat, phase: snapshot.game.combat.phase === "inactive" ? "inactive" : snapshot.game.combat.phase } });
@@ -580,6 +583,7 @@ export const useGameStore = create<GameStoreState>((set, get) => {
       });
     },
     startEncounter: (locationId, enemyIds) => commitDebug((game) => {
+      useDevToolsRuntimeStore.getState().clearEnemyImmortality();
       useDevToolsRuntimeStore.getState().resetSimulationAccumulator();
       const stats = calculateHunterCombatStats(game.equipment, game.progression, game.combat.stance, game.combat.techniques);
       return engineStartDebugEncounter(game, locationId, enemyIds, stats, context);
@@ -623,7 +627,8 @@ export const useGameStore = create<GameStoreState>((set, get) => {
     },
     startHunt: runHunt,
     switchHunt: runHunt,
-    stopHunt: () =>
+    stopHunt: () => {
+      useDevToolsRuntimeStore.getState().clearEnemyImmortality();
       set((state) =>
         flatState(
           {
@@ -632,7 +637,8 @@ export const useGameStore = create<GameStoreState>((set, get) => {
           },
           state,
         ),
-      ),
+      );
+    },
     startCombat: runHunt,
     stopCombat: () => get().stopHunt(),
     tickCombat: (delta) =>

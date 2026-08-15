@@ -108,12 +108,12 @@ button.debug-section-heading:hover .tiny-label { color: var(--gold-bright); }
 .debug-admin-header-actions { align-items: center; display: flex; gap: 8px; }
 .debug-dock-launch, .debug-dock-footer button, .debug-dock-actions button, .debug-dock-body > button { background: #202a2e; border: 1px solid var(--line-soft); border-radius: 4px; color: var(--muted); cursor: pointer; font-size: 9px; min-height: 25px; padding: 0 8px; }
 .debug-dock-launch:hover, .debug-dock-footer button:hover, .debug-dock-actions button:hover, .debug-dock-body > button:hover { border-color: var(--gold); color: var(--gold-bright); }
-.combat-debug-dock { background: #12181b; border: 1px solid rgba(213,170,98,.42); border-radius: 9px; bottom: 18px; box-shadow: 0 16px 45px rgba(0,0,0,.5); color: var(--text); min-width: 290px; position: fixed; right: 18px; width: min(360px, calc(100vw - 28px)); z-index: 55; }
+.combat-debug-dock { background: #12181b; border: 1px solid rgba(213,170,98,.42); border-radius: 9px; bottom: 18px; box-shadow: 0 16px 45px rgba(0,0,0,.5); color: var(--text); display: flex; flex-direction: column; min-height: 220px; min-width: 300px; position: fixed; right: 18px; width: min(360px, calc(100vw - 28px)); z-index: 55; }
 .combat-debug-dock.anchor-bottom-left { left: 18px; right: auto; }
 .combat-debug-dock.anchor-top-right { bottom: auto; top: 18px; }
 .combat-debug-dock.anchor-top-left { bottom: auto; left: 18px; right: auto; top: 18px; }
 .combat-debug-dock.is-expanded { width: min(480px, calc(100vw - 28px)); }
-.combat-debug-dock.is-minimized { min-width: 240px; width: auto; }
+.combat-debug-dock.is-minimized { min-height: 0; min-width: 240px; width: auto; }
 .debug-dock-header { align-items: center; background: #171e21; border-bottom: 1px solid var(--line-soft); border-radius: 9px 9px 0 0; cursor: grab; display: flex; gap: 7px; min-height: 38px; padding: 0 9px; }
 .debug-dock-header strong { font-size: 10px; letter-spacing: .08em; }
 .debug-dock-header > button { align-items: center; background: transparent; border: 0; color: var(--muted); cursor: pointer; display: flex; margin-left: auto; padding: 3px; }
@@ -121,7 +121,22 @@ button.debug-section-heading:hover .tiny-label { color: var(--gold-bright); }
 .debug-dock-drag { margin-left: 0 !important; cursor: grab; }
 .debug-dock-live { color: var(--green); font-size: 8px; letter-spacing: .08em; margin-left: auto; }
 .debug-dock-minimized-summary { color: var(--muted); font-size: 8px; margin-left: auto; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.debug-dock-body { max-height: min(64vh, 600px); overflow: auto; }
+.debug-dock-body { flex: 1; min-height: 0; max-height: min(64vh, 600px); overflow: auto; }
+.combat-debug-dock[data-debug-custom-size="true"] .debug-dock-body { max-height: none; }
+.debug-dock-resize-handle { background: transparent; border: 0; display: block; margin: 0; padding: 0; position: absolute; z-index: 3; }
+.debug-dock-resize-handle.handle-n, .debug-dock-resize-handle.handle-s { cursor: ns-resize; height: 8px; left: 10px; right: 10px; }
+.debug-dock-resize-handle.handle-n { top: -4px; }
+.debug-dock-resize-handle.handle-s { bottom: -4px; }
+.debug-dock-resize-handle.handle-e, .debug-dock-resize-handle.handle-w { bottom: 10px; cursor: ew-resize; top: 10px; width: 8px; }
+.debug-dock-resize-handle.handle-e { right: -4px; }
+.debug-dock-resize-handle.handle-w { left: -4px; }
+.debug-dock-resize-handle.handle-ne, .debug-dock-resize-handle.handle-nw, .debug-dock-resize-handle.handle-se, .debug-dock-resize-handle.handle-sw { height: 12px; width: 12px; }
+.debug-dock-resize-handle.handle-ne, .debug-dock-resize-handle.handle-nw { top: -5px; }
+.debug-dock-resize-handle.handle-se, .debug-dock-resize-handle.handle-sw { bottom: -5px; }
+.debug-dock-resize-handle.handle-ne, .debug-dock-resize-handle.handle-se { right: -5px; }
+.debug-dock-resize-handle.handle-nw, .debug-dock-resize-handle.handle-sw { left: -5px; }
+.debug-dock-resize-handle.handle-ne, .debug-dock-resize-handle.handle-sw { cursor: nesw-resize; }
+.debug-dock-resize-handle.handle-nw, .debug-dock-resize-handle.handle-se { cursor: nwse-resize; }
 .debug-dock-section { border-bottom: 1px solid var(--line-soft); }
 .debug-dock-section-header { align-items: center; background: transparent; border: 0; color: var(--text); cursor: pointer; display: flex; font-size: 9px; gap: 5px; letter-spacing: .08em; min-height: 31px; padding: 0 10px; text-align: left; width: 100%; }
 .debug-dock-section-header:hover { color: var(--gold-bright); }

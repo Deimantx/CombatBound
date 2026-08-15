@@ -164,6 +164,59 @@ export interface PlayerDamageApplication {
   wouldHaveDied: boolean;
 }
 
+export interface EnemyDamageApplication {
+  combat: CombatState;
+  requestedDamage: number;
+  appliedDamage: number;
+  preventedLethalDamage: number;
+  wouldHaveDied: boolean;
+  targetDied: boolean;
+}
+
+/** Applies post-barrier enemy damage through one canonical path. */
+export function applyEnemyHealthDamage(
+  combat: CombatState,
+  instanceId: string,
+  requestedDamage: number,
+  context: CombatContext,
+): EnemyDamageApplication {
+  const requested = Math.max(0, Number.isFinite(requestedDamage) ? requestedDamage : 0);
+  const enemy = combat.enemies.find((candidate) => candidate.instanceId === instanceId);
+  if (!enemy || enemy.defeated)
+    return {
+      combat,
+      requestedDamage: requested,
+      appliedDamage: 0,
+      preventedLethalDamage: 0,
+      wouldHaveDied: false,
+      targetDied: false,
+    };
+  const immortal = context.debugHooks?.isEnemyImmortal?.(instanceId) === true;
+  const minimumHp = immortal ? 1 : 0;
+  const appliedDamage = Math.min(requested, Math.max(0, enemy.currentHealth - minimumHp));
+  const nextHealth = Math.max(minimumHp, enemy.currentHealth - appliedDamage);
+  const wouldHaveDied = enemy.currentHealth - requested <= 0;
+  const targetDied = !immortal && nextHealth <= 0;
+  return {
+    combat: {
+      ...combat,
+      enemies: combat.enemies.map((candidate) => candidate.instanceId === instanceId
+        ? { ...candidate, currentHealth: nextHealth, defeated: targetDied, currentAction: targetDied ? null : candidate.currentAction }
+        : candidate),
+      session: {
+        ...combat.session,
+        damageDealt: combat.session.damageDealt + appliedDamage,
+        highestHit: Math.max(combat.session.highestHit, appliedDamage),
+      },
+    },
+    requestedDamage: requested,
+    appliedDamage,
+    preventedLethalDamage: immortal ? Math.max(0, requested - appliedDamage) : 0,
+    wouldHaveDied,
+    targetDied,
+  };
+}
+
 /** Applies post-barrier player damage through one canonical path. */
 export function applyPlayerHealthDamage(combat: CombatState, requestedDamage: number, context: CombatContext): PlayerDamageApplication {
   const requested = Math.max(0, Number.isFinite(requestedDamage) ? requestedDamage : 0);
@@ -1341,44 +1394,27 @@ function applyDerivedCleaveDamage(
     Math.max(0, amount),
     context.effects,
   );
-  const healthDamage = Math.min(
-    current.currentHealth,
-    Math.max(0, amount - barrierResult.absorbed),
+  const healthDamage = Math.max(0, amount - barrierResult.absorbed);
+  const damageApplication = applyEnemyHealthDamage(
+    barrierResult.combat,
+    current.instanceId,
+    healthDamage,
+    context,
   );
-  const defeated = current.currentHealth - healthDamage <= 0;
+  const appliedHealthDamage = damageApplication.appliedDamage;
   let next: GameState = {
     ...game,
-    combat: {
-      ...barrierResult.combat,
-      enemies: barrierResult.combat.enemies.map((enemy) =>
-        enemy.instanceId === current.instanceId
-          ? {
-              ...enemy,
-              currentHealth: Math.max(0, enemy.currentHealth - healthDamage),
-              defeated,
-              currentAction: defeated ? null : enemy.currentAction,
-            }
-          : enemy,
-      ),
-      session: {
-        ...barrierResult.combat.session,
-        damageDealt: barrierResult.combat.session.damageDealt + healthDamage,
-        highestHit: Math.max(
-          barrierResult.combat.session.highestHit,
-          healthDamage,
-        ),
-      },
-    },
+    combat: damageApplication.combat,
   };
   next = awardBarrierCredits(next, barrierResult.absorptions);
   let progressionResult: ReturnType<typeof awardProficiencyXp> | null = null;
-  if (proficiencyId && healthDamage > 0) {
+  if (proficiencyId && appliedHealthDamage > 0) {
     const awarded = awardCombatXp(
       next,
       proficiencyId,
       calculateProficiencyXpAward({
         type: "effective-hp-damage",
-        amount: healthDamage,
+        amount: appliedHealthDamage,
       }),
     );
     next = awarded.game;
@@ -1386,15 +1422,18 @@ function applyDerivedCleaveDamage(
   }
   next.combat = event(next.combat, {
     text:
-      `${prefix} for ${healthDamage} damage${barrierResult.absorbed > 0 ? ` (${barrierResult.absorbed} absorbed)` : ""}.`,
+      `${prefix} for ${appliedHealthDamage} damage${barrierResult.absorbed > 0 ? ` (${barrierResult.absorbed} absorbed)` : ""}.`,
     type: "player",
-    eventType: healthDamage > 0 ? "damageDealt" : "damageAbsorbed",
+    eventType: appliedHealthDamage > 0 ? "damageDealt" : "damageAbsorbed",
     source,
     target: targetRef,
     data: {
       actionId: sourceActionId,
-      damage: healthDamage,
+      damage: appliedHealthDamage,
       absorbed: barrierResult.absorbed,
+      requestedDamage: healthDamage,
+      appliedDamage: appliedHealthDamage,
+      immortalPrevented: damageApplication.preventedLethalDamage,
       derived: true,
       critical: false,
     },
@@ -1517,43 +1556,21 @@ function damageEnemy(
         context.effects,
       );
   resolution = applyBarrierToDamage(resolution, barrierResult.absorbed);
-  const effectiveHealthDamage = Math.min(
-    current.currentHealth,
+  const damageApplication = applyEnemyHealthDamage(
+    barrierResult.combat,
+    current.instanceId,
     resolution.healthDamage,
+    context,
   );
+  const effectiveHealthDamage = damageApplication.appliedDamage;
   resolution = {
     ...resolution,
     healthDamage: effectiveHealthDamage,
-    targetDied: current.currentHealth - effectiveHealthDamage <= 0,
+    targetDied: damageApplication.targetDied,
   };
-  const defeated = resolution.targetDied;
   let next: GameState = {
     ...game,
-    combat: {
-      ...barrierResult.combat,
-      enemies: barrierResult.combat.enemies.map((enemy) =>
-        enemy.instanceId === current.instanceId
-          ? {
-              ...enemy,
-              currentHealth: Math.max(
-                0,
-                enemy.currentHealth - effectiveHealthDamage,
-              ),
-              defeated,
-              currentAction: defeated ? null : enemy.currentAction,
-            }
-          : enemy,
-      ),
-      session: {
-        ...barrierResult.combat.session,
-        damageDealt:
-          barrierResult.combat.session.damageDealt + effectiveHealthDamage,
-        highestHit: Math.max(
-          barrierResult.combat.session.highestHit,
-          effectiveHealthDamage,
-        ),
-      },
-    },
+    combat: damageApplication.combat,
   };
   let progressionResults: Array<ReturnType<typeof awardProficiencyXp>> = [];
   if (proficiencyId && effectiveHealthDamage > 0) {
@@ -1641,6 +1658,9 @@ function damageEnemy(
       damage: resolution.healthDamage,
       critical: resolution.critical,
       absorbed: resolution.barrierAbsorbed,
+      requestedDamage: damageApplication.requestedDamage,
+      appliedDamage: damageApplication.appliedDamage,
+      immortalPrevented: damageApplication.preventedLethalDamage,
     },
   });
   if (resolution.outcome === "hit" || resolution.outcome === "block") {
@@ -2477,51 +2497,30 @@ function resolvePeriodicEffect(
   let resolved = applyBarrierToDamage(result, barrierResult.absorbed);
   let next = { ...game, combat: barrierResult.combat };
   let playerDamage: PlayerDamageApplication | null = null;
+  let enemyDamage: EnemyDamageApplication | null = null;
   if (effect.target.kind === "enemy" && target) {
-    const effectiveHealthDamage = Math.min(
-      target.currentHealth,
+    enemyDamage = applyEnemyHealthDamage(
+      next.combat,
+      target.instanceId,
       resolved.healthDamage,
+      context,
     );
-    const dead = target.currentHealth - effectiveHealthDamage <= 0;
-    next.combat = {
-      ...next.combat,
-      enemies: next.combat.enemies.map((enemy) =>
-        enemy.instanceId === target.instanceId
-          ? {
-              ...enemy,
-              currentHealth: Math.max(
-                0,
-                target.currentHealth - effectiveHealthDamage,
-              ),
-              defeated: dead,
-              currentAction: dead ? null : enemy.currentAction,
-            }
-          : enemy,
-      ),
-      session: {
-        ...next.combat.session,
-        damageDealt: next.combat.session.damageDealt + effectiveHealthDamage,
-        highestHit: Math.max(
-          next.combat.session.highestHit,
-          effectiveHealthDamage,
-        ),
-      },
-    };
+    next.combat = enemyDamage.combat;
     resolved = {
       ...resolved,
-      healthDamage: effectiveHealthDamage,
-      targetDied: dead,
+      healthDamage: enemyDamage.appliedDamage,
+      targetDied: enemyDamage.targetDied,
     };
     if (
       effect.progressionCredit?.mode === "hp-damage" &&
-      effectiveHealthDamage > 0
+      enemyDamage.appliedDamage > 0
     )
       next = awardCombatXp(
         next,
         effect.progressionCredit.proficiencyId,
         calculateProficiencyXpAward({
           type: "effective-hp-damage",
-          amount: effectiveHealthDamage,
+          amount: enemyDamage.appliedDamage,
         }),
       ).game;
   } else if (effect.target.kind === "player") {
@@ -2555,9 +2554,9 @@ function resolvePeriodicEffect(
       effectId: effect.effectId,
       damage: resolved.healthDamage,
       absorbed: resolved.barrierAbsorbed,
-      requestedDamage: playerDamage?.requestedDamage ?? resolved.healthDamage,
-      appliedDamage: playerDamage?.appliedDamage ?? resolved.healthDamage,
-      immortalPrevented: playerDamage?.preventedLethalDamage ?? 0,
+      requestedDamage: playerDamage?.requestedDamage ?? enemyDamage?.requestedDamage ?? resolved.healthDamage,
+      appliedDamage: playerDamage?.appliedDamage ?? enemyDamage?.appliedDamage ?? resolved.healthDamage,
+      immortalPrevented: playerDamage?.preventedLethalDamage ?? enemyDamage?.preventedLethalDamage ?? 0,
     },
   });
   return next;
