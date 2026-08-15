@@ -3,7 +3,8 @@ import { useEffect, useMemo, useState } from "react";
 import { effectDefinitions } from "../../../../game/data/effects";
 import { createCombatPreviewContext } from "../../../../game/combat/combatEngine";
 import type { PlayerActionDefinition } from "../../../../game/combat/combatTypes";
-import { getPlayerActionDefinitions, isCombatAbilityLoadoutAction } from "../../../../game/combat/playerActions";
+import { getEffectivePlayerActionCost, getPlayerActionDefinitions, isCombatAbilityLoadoutAction } from "../../../../game/combat/playerActions";
+import { calculateHunterCombatStats } from "../../../../game/equipment/derivedStats";
 import { getCombatAbilityAvailability } from "../../../../game/combatAbilities/combatAbilitySelectors";
 import { getAutomationSummary } from "../../../../game/automation/automationLogic";
 import type { AutomationCondition, AutomationRule } from "../../../../game/automation/automationTypes";
@@ -43,10 +44,16 @@ const conditionOptions: Array<{ value: AutomationCondition["type"]; label: strin
 
 export function AutomationWindow({ game, initialActionId, createRule = false }: { game: GameState; initialActionId?: string; createRule?: boolean }) {
   const context = useMemo(() => createCombatPreviewContext(), []);
+  const stats = useMemo(() => calculateHunterCombatStats(game.equipment, game.progression, game.combat.stance, game.combat.techniques), [game.equipment, game.progression, game.combat.stance, game.combat.techniques]);
   const actions = useMemo(() => getPlayerActionDefinitions(game, context).filter((action) => action.kind !== "basic-attack" && (action.kind !== "spell" || game.spellbook.knownSpellIds.includes(action.id))), [context, game.spellbook.knownSpellIds]);
   const actionCatalogue = useMemo(() => buildPlayerActionCatalogue(actions, {
     getItemState: (action) => getActionCatalogueItemState(game, action),
-  }), [actions, game.equipment, game.combatAbilities.activeSlots, game.spellbook.equippedSpellSlots, game.inventory.quantities]);
+    getSubtitle: (action, grouping) => {
+      const cost = getEffectivePlayerActionCost(game, action, stats, context);
+      const resource = [cost.mana > 0 ? `${cost.mana} Mana` : "", cost.stamina > 0 ? `${cost.stamina} Stamina` : ""].filter(Boolean).join(" · ");
+      return `${grouping.subgroupLabel ?? grouping.rootLabel}${resource ? ` · ${resource}` : ""}`;
+    },
+  }), [actions, context, game, stats]);
   const setAutomationEnabled = useGameStore((state) => state.setAutomationEnabled);
   const setAutomationOverride = useGameStore((state) => state.setAutomationOverrideManualTarget);
   const addRule = useGameStore((state) => state.addAutomationRule);

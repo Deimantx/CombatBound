@@ -30,10 +30,20 @@ export function CatalogueAccordionGroup({
   debugProficiencyId?: string;
 }) {
   const bodyId = `${id.replace(/[^a-zA-Z0-9_-]/g, "-")}-body`;
+  const debugKind = debugGroupType === "weapon"
+    ? "combat-ability-group"
+    : debugGroupType === "spellbook"
+      ? "spellbook-school-group"
+      : "catalogue-accordion-group";
+  const debugHeaderKind = debugGroupType === "weapon"
+    ? "combat-ability-group-header"
+    : debugGroupType === "spellbook"
+      ? "spellbook-school-group-header"
+      : "catalogue-accordion-header";
   return (
     <section
       className={`catalogue-accordion-group ${className}`.trim()}
-      data-debug-kind={debugGroupType === "weapon" ? "combat-ability-group" : "catalogue-accordion-group"}
+      data-debug-kind={debugKind}
       data-debug-group-id={id}
       data-debug-group-type={debugGroupType}
       data-debug-proficiency-id={debugProficiencyId}
@@ -47,7 +57,7 @@ export function CatalogueAccordionGroup({
         onClick={onToggle}
         aria-expanded={expanded}
         aria-controls={bodyId}
-        data-debug-kind={debugGroupType === "weapon" ? "combat-ability-group-header" : "catalogue-accordion-header"}
+        data-debug-kind={debugHeaderKind}
         data-debug-group-id={id}
       >
         <span className="catalogue-accordion-chevron" aria-hidden="true">

@@ -5,14 +5,15 @@ interface SearchFieldProps {
   onChange: (value: string) => void
   placeholder?: string
   label?: string
+  debugKind?: string
 }
 
-export function SearchField({ value, onChange, placeholder = 'Search', label = 'Search' }: SearchFieldProps) {
+export function SearchField({ value, onChange, placeholder = 'Search', label = 'Search', debugKind }: SearchFieldProps) {
   return (
     <label className="search-field">
       <span className="sr-only">{label}</span>
       <Search size={15} />
-      <input value={value} onChange={(event) => onChange(event.target.value)} placeholder={placeholder} />
+      <input value={value} onChange={(event) => onChange(event.target.value)} placeholder={placeholder} data-debug-kind={debugKind} />
     </label>
   )
 }

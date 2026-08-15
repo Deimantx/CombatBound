@@ -23,7 +23,7 @@ export function formatHealthWithBarrier(current: number, max: number, barrier = 
 
 const labelAliases: Record<string, string> = {
   attack: 'Attack Power', defense: 'Armor', dodge: 'Dodge Chance', parry: 'Parry Chance', block: 'Block Chance',
-  maxHealth: 'Max Health', attackPower: 'Attack Power', accuracy: 'Accuracy', attackInterval: 'Attack Interval', armor: 'Armor', evasion: 'Evasion',
+  maxHealth: 'Max Health', attackPower: 'Attack Power', accuracy: 'Accuracy', attackInterval: 'Attack Interval', armor: 'Armor', physicalDirectMitigation: 'Physical direct mitigation', evasion: 'Evasion',
   critChance: 'Critical Hit Chance', critDamage: 'Critical Hit Damage', dodgeChance: 'Dodge Chance', parryChance: 'Parry Chance', blockChance: 'Block Chance', blockPower: 'Block Power',
   maxStamina: 'Max Stamina', staminaRegen: 'Stamina Regeneration', maxMana: 'Max Mana', manaRegen: 'Mana Regeneration', statusResistance: 'Status Resistance', healthRegen: 'Health Regen',
   physicalResistance: 'Physical Resistance', fireResistance: 'Fire Resistance', waterResistance: 'Water Resistance', earthResistance: 'Earth Resistance', airResistance: 'Air Resistance', lightResistance: 'Light Resistance', darknessResistance: 'Darkness Resistance', natureResistance: 'Nature Resistance', mysticResistance: 'Mystic Resistance',
@@ -34,7 +34,7 @@ export function labelForStatKey(key: string) { return labelAliases[key] ?? key.r
 
 export function formatCombatStatValue(statKey: CombatStatDisplayKey | string, value: number) {
   if (statKey === 'attackInterval') return formatSeconds(value)
-  if (['critChance', 'dodgeChance', 'parryChance', 'blockChance', 'blockPower', 'statusResistance', 'hitChance'].includes(statKey)) return formatPercent(value)
+  if (['critChance', 'dodgeChance', 'parryChance', 'blockChance', 'blockPower', 'statusResistance', 'hitChance', 'physicalDirectMitigation'].includes(statKey)) return formatPercent(value)
   if (statKey === 'critDamage') return formatMultiplierAsPercent(value)
   if (statKey.endsWith('Resistance')) return formatResistance(value)
   if (statKey === 'staminaRegen' || statKey === 'manaRegen' || statKey === 'healthRegen') return `${value.toFixed(1)} / sec`

@@ -14,6 +14,7 @@ import {
 } from "../game/combat/combatEngine";
 import { calculateHunterCombatStats } from "../game/equipment/derivedStats";
 import { itemById } from "../game/data/items";
+import { canEquipItemToSlot, getAvailableItemCopies } from "../game/equipment/equipmentRules";
 import { combatLocationById } from "../game/data/world/combatLocations";
 import { continentById } from "../game/data/world/continents";
 import { createInitialGameState, type GameState } from "../game/gameState";
@@ -75,7 +76,7 @@ import {
   updateAutomationRule,
 } from "../game/automation/automationLogic";
 import { COMBAT_SPELL_SLOT_COUNT } from "../game/spellbook/spellbookTypes";
-import type { EquipmentSlot } from "../game/equipment/equipmentTypes";
+import { isEquipmentSlotId, type EquipmentSlotId } from "../game/equipment/equipmentTypes";
 import type { HeroWindowRequest, ScreenId } from "../shared/types";
 import type { AutomationCondition, AutomationRule } from "../game/automation/automationTypes";
 
@@ -100,7 +101,7 @@ interface GameStoreState {
   combatLog: GameState["combat"]["log"];
   inventoryFilter: string;
   selectedInventoryItemId: string;
-  selectedEquipmentSlot: string;
+  selectedEquipmentSlot: EquipmentSlotId;
   selectedCollectionEntryId: string;
   collectionTab: "Items" | "Targets";
   combatOverviewTab: "Session Summary" | "Loot" | "Progression";
@@ -157,10 +158,10 @@ interface GameStoreState {
   unequipSpell: (slot: number) => void;
   usePotion: () => void;
   purchaseProficiencyPerk: (perkId: string) => void;
-  equipItem: (itemId: string, slot: EquipmentSlot) => void;
+  equipItem: (itemId: string, slot: EquipmentSlotId) => void;
   setInventoryFilter: (filter: string) => void;
   selectInventoryItem: (itemId: string) => void;
-  selectEquipmentSlot: (slotId: string) => void;
+  selectEquipmentSlot: (slotId: EquipmentSlotId) => void;
   selectCollectionEntry: (entryId: string) => void;
   setCollectionTab: (tab: "Items" | "Targets") => void;
   setCombatOverviewTab: (
@@ -185,7 +186,7 @@ const hydratedGame: GameState = saved
       },
       progression: saved.progression,
       inventory: saved.inventory,
-      equipment: saved.equipment,
+       equipment: saved.equipment,
       collection: saved.collection,
       gold: saved.gold,
       spellbook: normalizeSpellbook(saved.spellbook),
@@ -841,11 +842,14 @@ export const useGameStore = create<GameStoreState>((set, get) => {
         if (
           state.game.combat.phase === "active" ||
           state.game.combat.phase === "recovery" ||
+          !isEquipmentSlotId(slot) ||
           !itemById[itemId]
         )
           return state;
         const item = itemById[itemId];
-        if (item.equipmentSlot !== slot) return state;
+        if (!canEquipItemToSlot(item, slot)) return state;
+        if (state.game.equipment.slots[slot] === itemId) return state;
+        if (getAvailableItemCopies(state.game.inventory, state.game.equipment, itemId, slot) <= 0) return state;
         const progression = item.weaponProficiencyId
           ? discoverProficiency(
               state.game.progression,
@@ -870,7 +874,7 @@ export const useGameStore = create<GameStoreState>((set, get) => {
     selectInventoryItem: (selectedInventoryItemId) =>
       set({ selectedInventoryItemId }),
     selectEquipmentSlot: (selectedEquipmentSlot) =>
-      set({ selectedEquipmentSlot }),
+      set((state) => ({ selectedEquipmentSlot: isEquipmentSlotId(selectedEquipmentSlot) ? selectedEquipmentSlot : state.selectedEquipmentSlot })),
     selectCollectionEntry: (selectedCollectionEntryId) =>
       set({ selectedCollectionEntryId }),
     setCollectionTab: (collectionTab) => set({ collectionTab }),

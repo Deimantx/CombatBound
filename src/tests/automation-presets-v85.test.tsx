@@ -76,6 +76,8 @@ describe("Automation preset domain V8.5", () => {
     expect(normalized.slots[0]?.name).toHaveLength(32);
     expect(normalized.slots[0]?.createdAt).toBe(0);
     expect(normalized.slots[0]?.updatedAt).toBe(0);
+    expect(normalized.slots[0]?.config.rules).toEqual([]);
+    expect(normalized.slots[0]?.config.targetPriorityRules.length).toBeGreaterThan(0);
     const renamed = renameAutomationPreset(normalized, 0, "Renamed", 300);
     expect(renamed.slots[0]?.name).toBe("Renamed");
     expect(clearAutomationPreset(renamed, 10)).toBe(renamed);

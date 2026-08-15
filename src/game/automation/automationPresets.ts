@@ -83,7 +83,10 @@ export function normalizeAutomationPresetConfig(value: unknown): CombatAutomatio
     targetPriorityRules: raw.targetPriorityRules,
     overrideManualTarget: raw.overrideManualTarget,
   });
-  return snapshotAutomationConfig(normalized);
+  return snapshotAutomationConfig({
+    ...normalized,
+    rules: Array.isArray(raw.rules) ? normalized.rules : [],
+  });
 }
 
 export function normalizeAutomationPresetName(value: unknown, slot: number): string {

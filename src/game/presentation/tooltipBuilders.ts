@@ -15,6 +15,7 @@ import type { ProgressionState } from "../progression/progressionTypes";
 import { calculateEffectiveSpell, type SpellCalculationContext } from "../progression/spellProgression";
 import { techniqueDefinitions } from "../data/techniques";
 import { proficiencyById } from "../data/proficiencies";
+import { ARMOR_TRAINING_SLOT_IDS, equipmentSlotKindLabel } from "../equipment/equipmentTypes";
 import { weaponSkillById } from "../data/weaponSkills";
 import {
   formatCombatStatValue,
@@ -92,7 +93,7 @@ export function buildItemTooltip(
       value:
         item.defensiveProficiencyId === "shield"
           ? "1.00× Shield XP per defensive event"
-          : "0.25× per matching armor piece",
+          : `${(1 / ARMOR_TRAINING_SLOT_IDS.length).toFixed(2)}× per matching armor piece`,
       tone: "green" as TooltipTone,
     });
     rows.unshift({
@@ -102,11 +103,10 @@ export function buildItemTooltip(
         item.defensiveProficiencyId,
       tone: "blue" as TooltipTone,
     });
-    if (item.equipmentSlot)
+    if (item.equipmentSlotKind)
       rows.unshift({
         label: "Slot",
-        value:
-          item.equipmentSlot[0].toUpperCase() + item.equipmentSlot.slice(1),
+        value: equipmentSlotKindLabel(item.equipmentSlotKind),
         tone: "default" as TooltipTone,
       });
     if (options.defensiveContext) {
@@ -126,7 +126,7 @@ export function buildItemTooltip(
         value:
           item.defensiveProficiencyId === "shield"
             ? `${pieces > 0 ? "1.00" : "0.00"}×`
-            : `${(pieces / 4).toFixed(2)}×`,
+            : `${(pieces / ARMOR_TRAINING_SLOT_IDS.length).toFixed(2)}×`,
         tone: "gold" as TooltipTone,
       });
     }

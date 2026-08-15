@@ -59,6 +59,20 @@ export interface GameSaveV7 {
   combatAbilities: CombatAbilityLoadoutState;
 }
 
+export interface GameSaveV8 {
+  version: 8;
+  progression: ProgressionState;
+  inventory: InventoryState;
+  equipment: EquipmentState;
+  collection: CollectionState;
+  gold: number;
+  settings: { reducedMotion: boolean; showInspectorButton: boolean };
+  spellbook: SpellbookState;
+  combatAutomation: CombatAutomationState;
+  combatAutomationPresets: CombatAutomationPresetsState;
+  combatAbilities: CombatAbilityLoadoutState;
+}
+
 export interface GameSaveV3 {
   version: 3;
   progression: ProgressionState;

@@ -9,19 +9,25 @@ import {
   Swords,
 } from "lucide-react";
 import { useId, useState } from "react";
-import { itemDefinitions, type ItemDefinition } from "../../../game/data/items";
+import { itemById, itemDefinitions, type ItemDefinition } from "../../../game/data/items";
 import { proficiencyById } from "../../../game/data/proficiencies";
 import { getEquippedWeaponProficiency } from "../../../game/progression/progressionSelectors";
 import { getProficiencyLevel } from "../../../game/progression/proficiencyProgression";
 import { calculateHunterCombatStats } from "../../../game/equipment/derivedStats";
 import { calculateArmorMitigation } from "../../../game/combat/combatMath";
 import { getDefensiveEquipmentContext } from "../../../game/equipment/defensiveEquipment";
-import type { EquipmentSlot } from "../../../game/equipment/equipmentTypes";
+import {
+  ARMOR_TRAINING_SLOT_IDS,
+  EQUIPMENT_SLOT_DEFINITIONS,
+  getEquipmentSlotsByGroup,
+  type EquipmentSlotGroup,
+  type EquipmentSlotId,
+} from "../../../game/equipment/equipmentTypes";
+import { canEquipItemToSlot, getAvailableItemCopies } from "../../../game/equipment/equipmentRules";
 import type { CombatReferenceCategory } from "../../../game/data/combatGlossary";
 import {
   formatCombatStatValue,
   formatItemStats,
-  formatPercent,
   labelForStatKey,
 } from "../../../game/presentation/statFormatting";
 import { buildItemTooltip } from "../../../game/presentation/tooltipBuilders";
@@ -55,6 +61,7 @@ export const statGroups: Array<{
     keys: [
       "maxHealth",
       "armor",
+      "physicalDirectMitigation",
       "evasion",
       "dodgeChance",
       "parryChance",
@@ -87,22 +94,11 @@ export const statGroups: Array<{
 ];
 
 const EQUIPMENT_STAT_GROUPS_STORAGE_KEY = "combatbound-equipment-stat-groups";
-const equipmentSlots: EquipmentSlot[] = [
-  "weapon",
-  "offhand",
-  "head",
-  "chest",
-  "hands",
-  "feet",
+const equipmentGroups: Array<{ id: EquipmentSlotGroup; label: string }> = [
+  { id: "weapons", label: "WEAPONS" },
+  { id: "armor", label: "ARMOR & GEAR" },
+  { id: "accessories", label: "ACCESSORIES" },
 ];
-const slotLabels: Record<EquipmentSlot, string> = {
-  weapon: "Weapon",
-  offhand: "Offhand",
-  head: "Head",
-  chest: "Chest",
-  hands: "Hands",
-  feet: "Feet",
-};
 type EquipmentStatGroupId = (typeof statGroups)[number]["id"];
 type EquipmentStatGroupState = Partial<Record<EquipmentStatGroupId, boolean>>;
 
@@ -136,18 +132,17 @@ export function EquipmentScreen({ embedded = false }: { embedded?: boolean } = {
   const selectedSlot = useGameStore((state) => state.selectedEquipmentSlot);
   const selectSlot = useGameStore((state) => state.selectEquipmentSlot);
   const equipItem = useGameStore((state) => state.equipItem);
-  const selected = equipmentSlots.includes(selectedSlot as EquipmentSlot)
-    ? (selectedSlot as EquipmentSlot)
-    : "weapon";
+  const selected = (EQUIPMENT_SLOT_DEFINITIONS.some((slot) => slot.id === selectedSlot)
+    ? selectedSlot
+    : "weapon") as EquipmentSlotId;
+  const selectedDefinition = EQUIPMENT_SLOT_DEFINITIONS.find((slot) => slot.id === selected)!;
   const combatLocked =
     game.combat.phase === "active" || game.combat.phase === "recovery";
   const equippedId = game.equipment.slots[selected];
-  const equipped =
-    itemDefinitions.find((item) => item.id === equippedId) ??
-    itemDefinitions[0];
+  const equipped = equippedId ? itemById[equippedId] : undefined;
   const candidates = itemDefinitions.filter(
     (item) =>
-      item.equipmentSlot === selected &&
+      canEquipItemToSlot(item, selected) &&
       (game.inventory.quantities[item.id] ?? 0) > 0,
   );
   const stats = calculateHunterCombatStats(
@@ -170,14 +165,14 @@ export function EquipmentScreen({ embedded = false }: { embedded?: boolean } = {
         .toLowerCase() as keyof typeof stats.resistances
     ] ?? 0;
   const valueFor = (key: string) =>
-    key.endsWith("Resistance")
-      ? resistance(key)
-      : (stats[key as keyof typeof stats] as number);
+    key === "physicalDirectMitigation"
+      ? calculateArmorMitigation(stats.armor)
+      : key.endsWith("Resistance")
+        ? resistance(key)
+        : (stats[key as keyof typeof stats] as number);
   const defensiveContext = getDefensiveEquipmentContext(game.equipment);
   const detailFor = (key: string) =>
-    key === "armor"
-      ? `${formatCombatStatValue(key, valueFor(key))} · ${formatPercent(calculateArmorMitigation(stats.armor))} Physical direct mitigation`
-      : key === "attackInterval"
+    key === "attackInterval"
         ? `${formatCombatStatValue(key, valueFor(key))} · ${(1 / stats.attackInterval).toFixed(2)} attacks/sec`
         : undefined;
 
@@ -214,56 +209,69 @@ export function EquipmentScreen({ embedded = false }: { embedded?: boolean } = {
               <Sparkles size={14} /> {stats.maxHealth} Max HP
             </span>
           </div>
-          <div className="equipment-slots">
-            {equipmentSlots.map((slot) => {
-              const item = itemDefinitions.find(
-                (candidate) => candidate.id === game.equipment.slots[slot],
-              );
-              const active = selected === slot;
-              return (
-                <GameTooltip
-                  key={slot}
-                  content={
-                    item
-                      ? buildItemTooltip(item, {
-                          equipped: true,
-                          quantity: game.inventory.quantities[item.id] ?? 0,
-                          defensiveContext,
-                        })
-                      : {
-                          id: `equipment-slot.${slot}`,
-                          title: `${slotLabels[slot]} slot`,
-                          description: "An equipment slot for the Hunter.",
+          <div className="equipment-slot-groups">
+            {equipmentGroups.map((group) => (
+              <section
+                key={group.id}
+                className="equipment-slot-group"
+                data-debug-kind="equipment-slot-group"
+                data-debug-group={group.id}
+              >
+                <h3 className="equipment-slot-group-title">{group.label}</h3>
+                <div className="equipment-slots">
+                  {getEquipmentSlotsByGroup(group.id).map((slot) => {
+                    const item = slot.id in game.equipment.slots
+                      ? itemById[game.equipment.slots[slot.id] as string]
+                      : undefined;
+                    const active = selected === slot.id;
+                    return (
+                      <GameTooltip
+                        key={slot.id}
+                        content={
+                          item
+                            ? buildItemTooltip(item, {
+                                equipped: true,
+                                quantity: game.inventory.quantities[item.id] ?? 0,
+                                defensiveContext,
+                              })
+                            : {
+                                id: `equipment-slot.${slot.id}`,
+                                title: `${slot.label} slot`,
+                                description: "An equipment slot for the Hunter.",
+                              }
                         }
-                  }
-                >
-                  <button
-                    className={`equipment-slot ${active ? "is-selected" : ""}`}
-                    onClick={() => selectSlot(slot)}
-                    data-debug-kind="equipment-slot"
-                    data-debug-slot={slot}
-                    data-debug-item-id={item?.id}
-                    data-debug-label={slotLabels[slot]}
-                  >
-                    <span className="slot-label">{slotLabels[slot]}</span>
-                    <PlaceholderArt
-                      icon={item?.icon ?? "shield"}
-                      size="medium"
-                      variant={active ? "gold" : "muted"}
-                    />
-                    <strong>{item?.name ?? "Empty"}</strong>
-                    <small>
-                      {active ? "Selected" : (item?.rarity ?? "Empty")}
-                    </small>
-                    {active && (
-                      <span className="selected-check">
-                        <Check size={12} />
-                      </span>
-                    )}
-                  </button>
-                </GameTooltip>
-              );
-            })}
+                      >
+                        <button
+                          className={`equipment-slot ${active ? "is-selected" : ""}`}
+                          onClick={() => selectSlot(slot.id)}
+                          data-debug-kind="equipment-slot"
+                          data-debug-slot={slot.id}
+                          data-debug-slot-id={slot.id}
+                          data-debug-slot-kind={slot.kind}
+                          data-debug-slot-group={slot.group}
+                          data-debug-item-id={item?.id}
+                          data-debug-label={slot.label}
+                        >
+                          <span className="slot-label">{slot.label}</span>
+                          <PlaceholderArt
+                            icon={item?.icon ?? slot.icon}
+                            size="medium"
+                            variant={active ? "gold" : "muted"}
+                          />
+                          <strong>{item?.name ?? "Empty"}</strong>
+                          <small>{active ? "Selected" : (item?.rarity ?? "Empty")}</small>
+                          {active && (
+                            <span className="selected-check">
+                              <Check size={12} />
+                            </span>
+                          )}
+                        </button>
+                      </GameTooltip>
+                    );
+                  })}
+                </div>
+              </section>
+            ))}
           </div>
           <div
             className="defensive-training-summary"
@@ -274,19 +282,19 @@ export function EquipmentScreen({ embedded = false }: { embedded?: boolean } = {
               <TrainingRate
                 label="Light Armor"
                 pieces={defensiveContext.lightArmorPieces}
-                rate={defensiveContext.lightArmorPieces / 4}
+                rate={defensiveContext.lightArmorPieces / ARMOR_TRAINING_SLOT_IDS.length}
                 proficiencyId="light-armor"
               />
               <TrainingRate
                 label="Medium Armor"
                 pieces={defensiveContext.mediumArmorPieces}
-                rate={defensiveContext.mediumArmorPieces / 4}
+                rate={defensiveContext.mediumArmorPieces / ARMOR_TRAINING_SLOT_IDS.length}
                 proficiencyId="medium-armor"
               />
               <TrainingRate
                 label="Heavy Armor"
                 pieces={defensiveContext.heavyArmorPieces}
-                rate={defensiveContext.heavyArmorPieces / 4}
+                rate={defensiveContext.heavyArmorPieces / ARMOR_TRAINING_SLOT_IDS.length}
                 proficiencyId="heavy-armor"
               />
               <TrainingRate
@@ -347,12 +355,12 @@ export function EquipmentScreen({ embedded = false }: { embedded?: boolean } = {
 
         <Panel
           title="Compatible items"
-          subtitle={`Owned ${slotLabels[selected]} candidates`}
+          subtitle={`Owned ${selectedDefinition.label} candidates`}
           icon={Sword}
           panelId="equipmentCandidates"
           screen="hero"
           actions={
-            <span className="target-count">{candidates.length} owned</span>
+            <span className="target-count">{candidates.length} compatible</span>
           }
         >
           <div className="candidate-list">
@@ -360,7 +368,10 @@ export function EquipmentScreen({ embedded = false }: { embedded?: boolean } = {
               <CandidateItem
                 key={item.id}
                 item={item}
+                slotId={selected}
                 equipped={item.id === equippedId}
+                canEquip={getAvailableItemCopies(game.inventory, game.equipment, item.id, selected) > 0}
+                availableCopies={getAvailableItemCopies(game.inventory, game.equipment, item.id, selected)}
                 locked={combatLocked}
                 onEquip={() => equipItem(item.id, selected)}
                 quantity={game.inventory.quantities[item.id] ?? 0}
@@ -371,11 +382,13 @@ export function EquipmentScreen({ embedded = false }: { embedded?: boolean } = {
             <span className="tiny-label">COMPARISON</span>
             <div>
               <span>Equipped</span>
-              <strong>{equipped.name}</strong>
+              <strong>{equipped?.name ?? "Empty"}</strong>
               <em>
-                {formatItemStats(equipped.stats ?? {})
-                  .map((stat) => `${stat.label} ${stat.value}`)
-                  .join(" · ") || "No combat stats"}
+                {equipped
+                  ? formatItemStats(equipped.stats ?? {})
+                      .map((stat) => `${stat.label} ${stat.value}`)
+                      .join(" · ") || "No combat stats"
+                  : "No item equipped in this slot."}
               </em>
             </div>
             <ArrowRight size={15} />
@@ -483,13 +496,19 @@ export function EquipmentStatGroup({
 
 function CandidateItem({
   item,
+  slotId,
   equipped,
+  canEquip,
+  availableCopies,
   locked,
   onEquip,
   quantity,
 }: {
   item: ItemDefinition;
+  slotId: EquipmentSlotId;
   equipped: boolean;
+  canEquip: boolean;
+  availableCopies: number;
   locked: boolean;
   onEquip: () => void;
   quantity: number;
@@ -498,10 +517,13 @@ function CandidateItem({
     <button
       className={`candidate-item ${equipped ? "is-equipped" : ""}`}
       onClick={onEquip}
-      disabled={locked}
+      disabled={locked || !canEquip}
       data-debug-kind="equipment-candidate"
       data-debug-target-id={item.id}
       data-debug-item-id={item.id}
+      data-debug-slot-id={slotId}
+      data-debug-can-equip={canEquip && !locked ? "true" : "false"}
+      data-debug-available-copies={availableCopies}
       data-debug-label={item.name}
     >
       <PlaceholderArt
@@ -527,6 +549,8 @@ function CandidateItem({
         <span className="equipped-label">
           <Check size={13} /> Equipped
         </span>
+      ) : !canEquip ? (
+        <span className="equipped-label is-unavailable">No spare copy</span>
       ) : (
         <ArrowRight size={15} />
       )}
@@ -568,7 +592,7 @@ function TrainingRate({
           ? pieces > 0
             ? "Equipped"
             : "Not equipped"
-          : `${pieces}/4 pieces`}{" "}
+          : `${pieces}/${ARMOR_TRAINING_SLOT_IDS.length} pieces`}{" "}
         · {rate.toFixed(2)}× XP
       </small>
     </span>

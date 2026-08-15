@@ -1,16 +1,17 @@
-import type { GameSaveV7 } from "./saveTypes";
+import type { GameSaveV8 } from "./saveTypes";
 import { proficiencyById } from "../data/proficiencies";
 import { perkById } from "../data/proficiencyPerks";
 import { COMBAT_SPELL_SLOT_COUNT } from "../spellbook/spellbookTypes";
+import { isEquipmentSlotId } from "../equipment/equipmentTypes";
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return Boolean(value) && typeof value === "object" && !Array.isArray(value);
 }
 
-export function isGameSave(value: unknown): value is GameSaveV7 {
+export function isGameSave(value: unknown): value is GameSaveV8 {
   if (
     !isRecord(value) ||
-    value.version !== 7 ||
+    value.version !== 8 ||
     typeof value.gold !== "number" ||
     !isRecord(value.progression) ||
     !isRecord(value.inventory) ||
@@ -67,6 +68,12 @@ export function isGameSave(value: unknown): value is GameSaveV7 {
     !isRecord(equipment.slots) ||
     !Array.isArray(collection.discoveredItems) ||
     !isRecord(collection.targets)
+  )
+    return false;
+  if (
+    Object.entries(equipment.slots).some(([slot, itemId]) =>
+      !isEquipmentSlotId(slot) || typeof itemId !== "string",
+    )
   )
     return false;
   if (

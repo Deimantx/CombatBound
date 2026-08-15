@@ -9,6 +9,7 @@ import { getPerkPurchaseState } from '../../../game/progression/perkProgression'
 import { getProficiencyLevelProgress, getProficiencyProgress, getProficiencyXpToNextLevel } from '../../../game/progression/proficiencyProgression'
 import { useGameStore } from '../../../state/gameStore'
 import { getDefensiveEquipmentContext } from '../../../game/equipment/defensiveEquipment'
+import { ARMOR_TRAINING_SLOT_IDS } from '../../../game/equipment/equipmentTypes'
 import type { CombatProficiencyId, PerkPurchaseState, ProficiencyCategory, ProficiencyPerkDefinition } from '../../../game/progression/progressionTypes'
 import { GameTooltip } from '../../components/tooltip/GameTooltip'
 import { useTooltip } from '../../components/tooltip/TooltipProvider'
@@ -110,7 +111,7 @@ function defensivePiecesFor(id: CombatProficiencyId, context: ReturnType<typeof 
 function DefensiveProgressionContext({ proficiencyId, context }: { proficiencyId: CombatProficiencyId; context: ReturnType<typeof getDefensiveEquipmentContext> }) {
   const pieces = defensivePiecesFor(proficiencyId, context)
   const shield = proficiencyId === 'shield'
-  return <div className="defensive-proficiency-context" data-debug-defensive-proficiency={proficiencyId} data-debug-armor-piece-count={pieces} data-debug-shield-equipped={shield && pieces > 0} data-debug-training-rate={shield ? pieces : pieces / 4}><span className="tiny-label">CURRENT TRAINING</span><strong>{shield ? (pieces > 0 ? 'Shield equipped' : 'No Shield equipped') : `${pieces} / 4 matching armor pieces`}</strong><small>Training rate: {(shield ? pieces : pieces / 4).toFixed(2)}× per defensive combat event</small></div>
+  return <div className="defensive-proficiency-context" data-debug-defensive-proficiency={proficiencyId} data-debug-armor-piece-count={pieces} data-debug-shield-equipped={shield && pieces > 0} data-debug-training-rate={shield ? pieces : pieces / ARMOR_TRAINING_SLOT_IDS.length}><span className="tiny-label">CURRENT TRAINING</span><strong>{shield ? (pieces > 0 ? 'Shield equipped' : 'No Shield equipped') : `${pieces} / ${ARMOR_TRAINING_SLOT_IDS.length} matching armor pieces`}</strong><small>Training rate: {(shield ? pieces : pieces / ARMOR_TRAINING_SLOT_IDS.length).toFixed(2)}× per defensive combat event</small></div>
 }
 
 function ProficiencyGroup({ category, label, definitions, selectedId, equippedId, progression, defensiveContext, onSelect }: { category: ProficiencyCategory; label: string; definitions: typeof proficiencyDefinitions; selectedId: CombatProficiencyId; equippedId: CombatProficiencyId | null; progression: Progression; defensiveContext?: ReturnType<typeof getDefensiveEquipmentContext>; onSelect: (id: CombatProficiencyId) => void }) {

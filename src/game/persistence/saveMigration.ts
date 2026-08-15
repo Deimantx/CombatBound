@@ -7,13 +7,15 @@ import type {
   CombatProficiencyId,
   ProgressionState,
 } from "../progression/progressionTypes";
-import type { GameSaveV3, GameSaveV4, GameSaveV5, GameSaveV6, GameSaveV7 } from "./saveTypes";
+import type { GameSaveV3, GameSaveV4, GameSaveV5, GameSaveV6, GameSaveV7, GameSaveV8 } from "./saveTypes";
 import { createInitialCombatAutomation } from "../automation/automationTypes";
 import { normalizeSpellbook } from "../spellbook/spellbookLogic";
 import { spellDefinitions } from "../data/spells";
 import { normalizeCombatAutomation } from "../automation/automationLogic";
 import { createInitialCombatAbilityLoadout, normalizeCombatAbilityLoadout } from "../combatAbilities/combatAbilityLogic";
-import { createInitialCombatAutomationPresets } from "../automation/automationPresets";
+import { createInitialCombatAutomationPresets, normalizeCombatAutomationPresets } from "../automation/automationPresets";
+import { normalizeEquipmentState } from "../equipment/equipmentRules";
+import { EQUIPMENT_SLOT_IDS } from "../equipment/equipmentTypes";
 
 interface LegacySkillProgress {
   totalXp?: number;
@@ -64,11 +66,19 @@ function sharedSaveShape(value: Record<string, unknown>) {
   );
 }
 
-export function migrateEquipment(value: EquipmentState): EquipmentState {
-  const slots = { ...(value.slots ?? {}) } as EquipmentState["slots"];
-  if (!slots.chest && slots.armor) slots.chest = slots.armor;
-  delete slots.armor;
-  return { ...value, slots };
+export function migrateEquipment(value: unknown, quantities?: Record<string, number>): EquipmentState {
+  const rawSlots = isRecord(value) && isRecord(value.slots) ? value.slots : {};
+  const slots: Record<string, unknown> = {};
+  for (const slot of EQUIPMENT_SLOT_IDS) {
+    if (typeof rawSlots[slot] === "string") slots[slot] = rawSlots[slot];
+  }
+  if (typeof slots.armor !== "string") {
+    const historicalArmor = typeof rawSlots.armor === "string" ? rawSlots.armor : rawSlots.chest;
+    if (typeof historicalArmor === "string") slots.armor = historicalArmor;
+  }
+  if (typeof slots.gloves !== "string" && typeof rawSlots.hands === "string") slots.gloves = rawSlots.hands;
+  if (typeof slots.boots !== "string" && typeof rawSlots.feet === "string") slots.boots = rawSlots.feet;
+  return normalizeEquipmentState({ slots }, quantities);
 }
 
 function migrateProgression(
@@ -211,6 +221,30 @@ export function migrateV6Save(value: unknown): GameSaveV7 | null {
     spellbook: normalizeSpellbook(old.spellbook),
     combatAutomation: normalizeCombatAutomation(old.combatAutomation),
     combatAutomationPresets: createInitialCombatAutomationPresets(),
+    combatAbilities: normalizeCombatAbilityLoadout(old.combatAbilities),
+  };
+}
+
+export function migrateV7Save(value: unknown): GameSaveV8 | null {
+  if (
+    !isRecord(value) ||
+    value.version !== 7 ||
+    !isRecord(value.progression) ||
+    !isRecord(value.spellbook) ||
+    !isRecord(value.combatAutomation) ||
+    !isRecord(value.combatAutomationPresets) ||
+    !isRecord(value.combatAbilities) ||
+    !sharedSaveShape(value)
+  )
+    return null;
+  const old = value as unknown as GameSaveV7;
+  return {
+    ...old,
+    version: 8,
+    equipment: migrateEquipment(old.equipment, old.inventory.quantities),
+    spellbook: normalizeSpellbook(old.spellbook),
+    combatAutomation: normalizeCombatAutomation(old.combatAutomation),
+    combatAutomationPresets: normalizeCombatAutomationPresets(old.combatAutomationPresets),
     combatAbilities: normalizeCombatAbilityLoadout(old.combatAbilities),
   };
 }

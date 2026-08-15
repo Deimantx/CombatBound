@@ -1,6 +1,6 @@
 import { Backpack, CircleDot, Coins, Crosshair, Gem, HeartPulse, Shield, Sparkles, Sword, Target } from 'lucide-react'
 
-const icons = { sword: Sword, shield: Shield, ring: CircleDot, cube: Backpack, gem: Gem, cross: HeartPulse, coin: Coins, spark: Sparkles, target: Target, helm: Shield, chest: Shield, legs: Shield }
+const icons = { sword: Sword, shield: Shield, ring: CircleDot, cube: Backpack, gem: Gem, cross: HeartPulse, coin: Coins, spark: Sparkles, target: Target, helm: Shield }
 
 interface PlaceholderArtProps {
   icon?: string

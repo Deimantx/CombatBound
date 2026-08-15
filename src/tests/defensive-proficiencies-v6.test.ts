@@ -8,10 +8,10 @@ import { getActiveDefensiveEquipmentModifiers } from '../game/progression/perkPr
 import { migrateCurrentSave } from '../game/persistence/saveMigration'
 import type { ProficiencyPerkDefinition } from '../game/progression/progressionTypes'
 
-const piece = (id: string, equipmentSlot: 'head' | 'chest' | 'hands' | 'feet' | 'offhand', defensiveProficiencyId: 'light-armor' | 'medium-armor' | 'heavy-armor' | 'shield', stats: NonNullable<ItemDefinition['stats']> = {}): ItemDefinition => ({ id, name: id, category: 'armor', rarity: 'common', description: id, icon: 'shield', equipmentSlot, defensiveProficiencyId, stats })
+const piece = (id: string, equipmentSlotKind: 'head' | 'armor' | 'gloves' | 'boots' | 'offhand', defensiveProficiencyId: 'light-armor' | 'medium-armor' | 'heavy-armor' | 'shield', stats: NonNullable<ItemDefinition['stats']> = {}): ItemDefinition => ({ id, name: id, category: 'armor', rarity: 'common', description: id, icon: 'shield', equipmentSlotKind, defensiveProficiencyId, stats })
 const items = { ...itemById, ...Object.fromEntries([
-  piece('test.light-head', 'head', 'light-armor'), piece('test.light-chest', 'chest', 'light-armor'), piece('test.light-hands', 'hands', 'light-armor'), piece('test.light-feet', 'feet', 'light-armor'),
-  piece('test.medium-chest', 'chest', 'medium-armor'), piece('test.heavy-hands', 'hands', 'heavy-armor'), piece('test.heavy-feet', 'feet', 'heavy-armor'), piece('test.shield', 'offhand', 'shield', { armor: 4, blockChance: .1, blockPower: .1, attackInterval: .5 }),
+  piece('test.light-head', 'head', 'light-armor'), piece('test.light-armor', 'armor', 'light-armor'), piece('test.light-gloves', 'gloves', 'light-armor'), piece('test.light-boots', 'boots', 'light-armor'),
+  piece('test.medium-armor', 'armor', 'medium-armor'), piece('test.heavy-gloves', 'gloves', 'heavy-armor'), piece('test.heavy-boots', 'boots', 'heavy-armor'), piece('test.shield', 'offhand', 'shield', { armor: 4, blockChance: .1, blockPower: .1, attackInterval: .5 }),
 ].map((item) => [item.id, item])) } as Record<string, ItemDefinition>
 
 describe('Defensive Proficiencies V6', () => {
@@ -23,7 +23,7 @@ describe('Defensive Proficiencies V6', () => {
 
   it('awards one event through normal proficiency and Mastery progression', () => {
     const game = createInitialGameState()
-    const equipped = { slots: { head: 'test.light-head', chest: 'test.medium-chest', hands: 'test.heavy-hands', feet: 'test.heavy-feet', offhand: 'test.shield' } }
+    const equipped = { slots: { head: 'test.light-head', armor: 'test.medium-armor', gloves: 'test.heavy-gloves', boots: 'test.heavy-boots', offhand: 'test.shield' } }
     const next = resolveDefensiveTrainingForEnemyAction({ ...game, equipment: equipped }, { source: 'enemy-direct-action', resolved: true }, items)
     expect(next.progression.proficiencies['light-armor']?.totalXp).toBe(.25)
     expect(next.progression.proficiencies['medium-armor']?.totalXp).toBe(.25)
@@ -43,7 +43,7 @@ describe('Defensive Proficiencies V6', () => {
   })
 
   it('aggregates all defensive gear while keeping attack interval weapon-controlled', () => {
-    const equipment = { slots: { weapon: 'item.training-sword', head: 'test.light-head', chest: 'test.medium-chest', hands: 'test.heavy-hands', feet: 'test.heavy-feet', offhand: 'test.shield' } }
+    const equipment = { slots: { weapon: 'item.training-sword', head: 'test.light-head', armor: 'test.medium-armor', gloves: 'test.heavy-gloves', boots: 'test.heavy-boots', offhand: 'test.shield' } }
     const stats = calculateHunterCombatStats(equipment, createInitialGameState().progression, 'mid', { 'careful-positioning': false, 'heightened-reflexes': false }, items)
     expect(stats.armor).toBe(35 + 4)
     expect(stats.blockChance).toBeCloseTo(.1)
@@ -52,8 +52,8 @@ describe('Defensive Proficiencies V6', () => {
   })
 
   it('keeps active-combat Health Regen capped and frame-independent', () => {
-    const equipment = { slots: { weapon: 'item.training-sword', chest: 'test.heavy-hands' } }
-    const stats = calculateHunterCombatStats(equipment, createInitialGameState().progression, 'mid', { 'careful-positioning': false, 'heightened-reflexes': false }, { ...items, 'test.heavy-hands': piece('test.heavy-hands', 'chest', 'heavy-armor', { healthRegen: 2 }) })
+    const equipment = { slots: { weapon: 'item.training-sword', armor: 'test.heavy-gloves' } }
+    const stats = calculateHunterCombatStats(equipment, createInitialGameState().progression, 'mid', { 'careful-positioning': false, 'heightened-reflexes': false }, { ...items, 'test.heavy-gloves': piece('test.heavy-gloves', 'armor', 'heavy-armor', { healthRegen: 2 }) })
     const base = createInitialGameState()
     const active = { ...base, equipment, combat: { ...base.combat, phase: 'active' as const, playerHp: stats.maxHealth - 1, maxPlayerHp: stats.maxHealth, enemies: [] } } as ReturnType<typeof createInitialGameState>
     const one = advanceCombat(active, 1, createInitialGameContext(), stats)
@@ -65,11 +65,10 @@ describe('Defensive Proficiencies V6', () => {
     expect(many.combat.session.healing).toBeCloseTo(one.combat.session.healing)
   })
 
-  it('moves legacy armor saves into chest without duplication', () => {
+  it('keeps historical armor saves in the canonical armor slot without duplication', () => {
     const game = createInitialGameState()
     const migrated = migrateCurrentSave({ version: 2, progression: game.progression, inventory: game.inventory, equipment: { slots: { weapon: 'item.training-sword', armor: 'item.training-armor' } }, collection: game.collection, gold: 0, settings: { reducedMotion: false, showInspectorButton: true } })
-    expect(migrated?.equipment.slots.chest).toBe('item.training-armor')
-    expect(migrated?.equipment.slots.armor).toBeUndefined()
+    expect(migrated?.equipment.slots.armor).toBe('item.training-armor')
     expect(Object.values(migrated?.equipment.slots ?? {}).filter((itemId) => itemId === 'item.training-armor')).toHaveLength(1)
   })
 })

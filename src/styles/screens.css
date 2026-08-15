@@ -558,7 +558,11 @@
 .loadout-topline h3 { font-size: 15px; }
 .loadout-topline p { color: var(--muted); font-size: 11px; }
 .loadout-rating { align-items: center; color: var(--gold); display: inline-flex; font-size: 11px; gap: 5px; margin-left: auto; }
-.equipment-slots { display: grid; gap: 8px; grid-template-columns: repeat(3, 1fr); margin-top: 18px; }
+.equipment-slot-groups { display: flex; flex-direction: column; gap: 13px; margin-top: 18px; }
+.equipment-slot-group { border-top: 1px solid var(--line-soft); padding-top: 10px; }
+.equipment-slot-group:first-child { border-top: 0; padding-top: 0; }
+.equipment-slot-group-title { color: var(--gold); font-size: 9px; letter-spacing: .12em; margin: 0 0 7px; }
+.equipment-slots { display: grid; gap: 8px; grid-template-columns: repeat(auto-fit, minmax(105px, 1fr)); }
 .spellbook-slots { display: grid; gap: 7px; grid-template-columns: repeat(2, minmax(0, 1fr)); }
 .spellbook-slot { background: var(--panel-2); border: 1px solid var(--line-soft); border-radius: 7px; display: flex; flex-direction: column; gap: 5px; padding: 8px; }
 .spellbook-slot select { background: var(--panel); border: 1px solid var(--line); border-radius: 5px; color: var(--text); font-size: 10px; padding: 5px; }
@@ -591,11 +595,14 @@
 .candidate-list { display: flex; flex-direction: column; gap: 6px; }
 .candidate-item { align-items: center; background: var(--panel-2); border: 1px solid transparent; border-radius: 7px; cursor: pointer; display: flex; gap: 9px; padding: 7px; text-align: left; }
 .candidate-item:hover { background: var(--panel-hover); border-color: var(--line); }
+.candidate-item:disabled { cursor: not-allowed; opacity: .58; }
+.candidate-item:disabled:hover { background: var(--panel-2); border-color: transparent; }
 .candidate-item > span:nth-child(2) { display: flex; flex: 1; flex-direction: column; }
 .candidate-item strong { font-size: 11px; }
 .candidate-item small { font-size: 10px; }
 .candidate-item > svg { color: var(--muted); }
 .equipped-label { align-items: center; color: var(--green); display: flex; font-size: 10px; gap: 4px; }
+.equipped-label.is-unavailable { color: var(--muted); }
 .comparison-box { align-items: center; background: #12171a; border: 1px dashed var(--line); border-radius: 7px; display: flex; gap: 9px; margin-top: 15px; padding: 10px; }
 .comparison-box > .tiny-label { left: 10px; position: absolute; transform: translateY(-28px); }
 .comparison-box > div { display: flex; flex: 1; flex-direction: column; }
@@ -809,6 +816,10 @@ html[data-reduced-motion="true"] .equipment-stat-group-chevron { transition: non
 .spellbook-list.is-unequip-target { background: rgba(213,170,98,.06); border-color: rgba(213,170,98,.42); }
 .spellbook-list[data-debug-drop-state="valid"] .section-title span:last-child { color: var(--gold-bright); }
 .spellbook-list[data-debug-drop-state="invalid"] { border-color: rgba(183,91,91,.45); }
+.spellbook-list > .search-field { margin: 8px 0 10px; }
+.spellbook-school-group + .spellbook-school-group { margin-top: 6px; }
+.spellbook-school-group .catalogue-accordion-body { padding-left: 8px; }
+.spellbook-no-results { margin-top: 8px; }
 .known-spell-card { align-items: center; background: var(--panel-2); border: 1px solid var(--line-soft); border-radius: 7px; color: inherit; cursor: pointer; display: flex; gap: 9px; margin-top: 7px; padding: 9px; text-align: left; width: 100%; }
 .known-spell-card:hover, .known-spell-card.is-selected { background: var(--gold-soft); border-color: rgba(213,170,98,.45); }
 .known-spell-card > span { display: flex; flex-direction: column; gap: 3px; min-width: 0; }

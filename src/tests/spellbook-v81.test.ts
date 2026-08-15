@@ -1,4 +1,4 @@
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
 import { createElement } from "react";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import App from "../../App";
@@ -120,5 +120,22 @@ describe("Spellbook V8.1 UI", () => {
     expect(screen.getByRole("heading", { name: "Glossary" })).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: /BACK TO RULES/i }));
     expect(screen.getByRole("button", { name: /INSTRUCTIONS/i })).toBeInTheDocument();
+  });
+
+  it("searches spell metadata and keeps school filters constraining the results", () => {
+    openSpellbook();
+    const search = screen.getByRole("textbox", { name: "Search spells" });
+    const knownList = document.querySelector('[data-debug-kind="spell-unequip-dropzone"]') as HTMLElement;
+    expect(search).toHaveAttribute("data-debug-kind", "spellbook-search");
+
+    fireEvent.change(search, { target: { value: "burn" } });
+    expect(within(knownList).getByRole("button", { name: /Flame Blast/i })).toBeInTheDocument();
+    expect(within(knownList).queryByRole("button", { name: /Shadow Bolt/i })).not.toBeInTheDocument();
+    expect(knownList).toHaveTextContent(/2\s+MATCHES/);
+
+    fireEvent.change(search, { target: { value: "" } });
+    fireEvent.click(screen.getByRole("button", { name: /WATER 1/i }));
+    expect(within(knownList).getByRole("button", { name: /Ice Shard/i })).toBeInTheDocument();
+    expect(within(knownList).queryByRole("button", { name: /Flame Blast/i })).not.toBeInTheDocument();
   });
 });

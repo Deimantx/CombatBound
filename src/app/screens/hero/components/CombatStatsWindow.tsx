@@ -2,7 +2,7 @@ import { Sparkles, Swords } from "lucide-react";
 import { statGroups, EquipmentStatGroup } from "../../equipment/EquipmentScreen";
 import { calculateHunterCombatStats } from "../../../../game/equipment/derivedStats";
 import { calculateArmorMitigation } from "../../../../game/combat/combatMath";
-import { formatCombatStatValue, formatPercent } from "../../../../game/presentation/statFormatting";
+import { formatCombatStatValue } from "../../../../game/presentation/statFormatting";
 import type { GameState } from "../../../../game/gameState";
 import { CollapsiblePanel } from "../../../components/CollapsiblePanel";
 
@@ -18,13 +18,13 @@ export function CombatStatsWindow({ game }: { game: GameState }) {
       key.replace("Resistance", "").toLowerCase() as keyof typeof stats.resistances
     ] ?? 0;
   const valueFor = (key: string) =>
-    key.endsWith("Resistance")
-      ? resistance(key)
-      : (stats[key as keyof typeof stats] as number);
+    key === "physicalDirectMitigation"
+      ? calculateArmorMitigation(stats.armor)
+      : key.endsWith("Resistance")
+        ? resistance(key)
+        : (stats[key as keyof typeof stats] as number);
   const detailFor = (key: string) =>
-    key === "armor"
-      ? `${formatCombatStatValue(key, valueFor(key))} · ${formatPercent(calculateArmorMitigation(stats.armor))} Physical direct mitigation`
-      : key === "attackInterval"
+    key === "attackInterval"
         ? `${formatCombatStatValue(key, valueFor(key))} · ${(1 / stats.attackInterval).toFixed(2)} attacks/sec`
         : undefined;
   return (
