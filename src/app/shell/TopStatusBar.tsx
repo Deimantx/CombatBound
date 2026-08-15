@@ -17,10 +17,10 @@ export function TopStatusBar({ onInspect, onDebug }: { onInspect: () => void; on
   const absorbShield = getBarrierAmount(game.combat.playerEffects, effectById)
   return (
     <header className="topbar" data-ui-region="header" data-debug-screen="shell">
-      <div className="player-identity"><div className="avatar-badge"><Shield size={19} /></div><div><strong>Vanguard</strong><span>Mastery Lv {masteryLevel} <i /> Power {stats.attack}</span></div></div>
+      <div className="player-identity"><div className="avatar-badge"><Shield size={19} /></div><div><strong>Vanguard</strong><span>Mastery Lv {masteryLevel} <i /> Power {stats.attackDamage}</span></div></div>
       <div className="topbar-stats">
         <div className="top-stat"><CircleDollarSign size={15} className="text-gold" /><span>Gold</span><strong>{game.gold.toLocaleString()}</strong></div>
-        <div className="top-stat"><Heart size={15} className="text-red" /><span>HP</span><strong>{formatHealthWithBarrier(playerHp, stats.maxHealth, absorbShield)}</strong></div>
+        <div className="top-stat"><Heart size={15} className="text-red" /><span>HP</span><strong>{formatHealthWithBarrier(playerHp, stats.maxLife ?? 0, absorbShield)}</strong></div>
         <div className="save-state"><span className="status-dot" />Saved just now</div>
       </div>
       <div className="topbar-actions">

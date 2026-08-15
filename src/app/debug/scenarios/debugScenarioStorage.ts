@@ -1,4 +1,5 @@
 import type { DebugScenarioSlot } from "./debugScenarioTypes";
+import { normalizeDebugScenarioSnapshot } from "./debugScenarioValidation";
 
 export const DEBUG_SCENARIO_STORAGE_KEY = "combatbound-debug-scenarios-v1";
 export const DEBUG_SCENARIO_SLOT_COUNT = 10;
@@ -7,7 +8,7 @@ export type DebugScenarioSlotIndex = DebugScenarioSlot["slot"];
 function isSlot(value: unknown): value is Partial<DebugScenarioSlot> & Pick<DebugScenarioSlot, "id" | "name" | "snapshot"> {
   if (!value || typeof value !== "object") return false;
   const slot = value as Partial<DebugScenarioSlot>;
-  return typeof slot.id === "string" && typeof slot.name === "string" && Boolean(slot.snapshot && typeof slot.snapshot === "object") && (slot.slot === undefined || (Number.isInteger(slot.slot) && slot.slot >= 1 && slot.slot <= DEBUG_SCENARIO_SLOT_COUNT));
+  return typeof slot.id === "string" && typeof slot.name === "string" && Boolean(normalizeDebugScenarioSnapshot(slot.snapshot)) && (slot.slot === undefined || (Number.isInteger(slot.slot) && slot.slot >= 1 && slot.slot <= DEBUG_SCENARIO_SLOT_COUNT));
 }
 
 function readRaw(): unknown[] {
@@ -21,7 +22,7 @@ function readRaw(): unknown[] {
 export function readDebugScenarioSlots(): DebugScenarioSlot[] {
   const raw = readRaw();
   const valid = raw.filter((entry) => isSlot(entry));
-  return valid.map((entry, index) => ({ ...entry, slot: entry.slot ?? (index + 1) as DebugScenarioSlotIndex })).sort((a, b) => a.slot! - b.slot!).slice(0, DEBUG_SCENARIO_SLOT_COUNT) as DebugScenarioSlot[];
+  return valid.map((entry, index) => ({ ...entry, snapshot: normalizeDebugScenarioSnapshot(entry.snapshot)!, slot: entry.slot ?? (index + 1) as DebugScenarioSlotIndex })).sort((a, b) => a.slot! - b.slot!).slice(0, DEBUG_SCENARIO_SLOT_COUNT) as DebugScenarioSlot[];
 }
 
 function write(slots: DebugScenarioSlot[]) {

@@ -1,4 +1,4 @@
-import type { GameSaveV9 } from "./saveTypes";
+import type { GameSaveV10 } from "./saveTypes";
 import { proficiencyById } from "../data/proficiencies";
 import { perkById } from "../data/proficiencyPerks";
 import { COMBAT_SPELL_SLOT_COUNT } from "../spellbook/spellbookTypes";
@@ -8,10 +8,10 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return Boolean(value) && typeof value === "object" && !Array.isArray(value);
 }
 
-export function isGameSave(value: unknown): value is GameSaveV9 {
+export function isGameSave(value: unknown): value is GameSaveV10 {
   if (
     !isRecord(value) ||
-    value.version !== 9 ||
+    value.version !== 10 ||
     typeof value.gold !== "number" ||
     !isRecord(value.progression) ||
     !isRecord(value.inventory) ||

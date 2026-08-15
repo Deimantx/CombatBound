@@ -309,7 +309,7 @@ export function debugApplyEffect(game: GameState, effectId: string, target: Debu
 export function debugApplyPlayerMaxHpBarrier(game: GameState): GameState {
   const stats = calculateHunterCombatStats(game.equipment, game.progression, game.combat.stance, game.combat.techniques);
   const playerStats = getPlayerEffectiveCombatStats(game.combat, stats, game.progression, effectById);
-  const result = applyEffectById(game.combat, "effect.protective-sign", effectById, { kind: "player" }, { kind: "player" }, { targetStats: playerStats, absorbAmount: game.combat.maxPlayerHp });
+  const result = applyEffectById(game.combat, "effect.earth-barrier", effectById, { kind: "player" }, { kind: "player" }, { targetStats: playerStats, absorbAmount: game.combat.maxPlayerHp });
   return { ...game, combat: result.combat };
 }
 

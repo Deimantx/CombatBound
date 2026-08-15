@@ -23,19 +23,19 @@ const percentHigher = (key: string): CombatStatDisplaySpec => ({ key, valueKind:
 const regenHigher = (key: string): CombatStatDisplaySpec => ({ key, valueKind: 'per-second', decimals: 1, comparisonDecimals: 2, comparisonDirection: 'higher-is-better' })
 
 const displaySpecs: CombatStatDisplaySpec[] = [
-  ...['attackPower', 'attack', 'accuracy', 'armor', 'defense', 'evasion', 'maxHealth', 'maxStamina', 'maxMana'].map((key) => flatHigher(key)),
-  ...['healthRegen', 'staminaRegen', 'manaRegen'].map((key) => regenHigher(key)),
-  { key: 'attackInterval', valueKind: 'seconds', decimals: 1, comparisonDecimals: 2, comparisonDirection: 'lower-is-better' },
-  ...['critChance', 'critDamage', 'dodgeChance', 'parryChance', 'blockChance', 'blockPower', 'statusResistance', 'physicalDirectMitigation', 'hitChance',
-    'physicalResistance', 'fireResistance', 'waterResistance', 'earthResistance', 'airResistance', 'lightResistance', 'darknessResistance', 'natureResistance', 'mysticResistance'].map((key) => percentHigher(key)),
+  ...['attackDamage', 'baseDamageMin', 'baseDamageMax', 'maxLife', 'accuracyRating', 'evasionRating', 'armour', 'maxStamina', 'maxMana', 'attacksPerSecond', 'castsPerSecond'].map((key) => flatHigher(key)),
+  ...['lifeRegenFlat', 'staminaRegen', 'manaRegenFlat'].map((key) => regenHigher(key)),
+  ...['attackInterval', 'baseAttackTime', 'baseCastTime', 'castTime'].map((key) => ({ key, valueKind: 'seconds' as const, decimals: 1, comparisonDecimals: 2, comparisonDirection: 'lower-is-better' as const })),
+  ...['baseCritChance', 'criticalStrikeMultiplier', 'attackBlockChance', 'spellBlockChance', 'spellSuppressionChance', 'suppressedSpellDamagePrevented', 'additionalPhysicalDamageReduction', 'ailmentDurationReduction', 'hitChance',
+    'fireResistance', 'coldResistance', 'lightningResistance', 'chaosResistance', 'maxFireResistance', 'maxColdResistance', 'maxLightningResistance', 'maxChaosResistance'].map((key) => percentHigher(key)),
   ...['currentHealth', 'stamina', 'mana', 'barrier'].map((key) => flatHigher(key, 1)),
 ]
 
 export const COMBAT_STAT_DISPLAY_SPECS: Readonly<Record<string, CombatStatDisplaySpec>> = Object.fromEntries(displaySpecs.map((spec) => [spec.key, spec]))
 export const COMBAT_ITEM_STAT_KEYS = [
-  'attackPower', 'attack', 'accuracy', 'armor', 'defense', 'evasion', 'maxHealth', 'healthRegen', 'maxStamina', 'staminaRegen', 'maxMana', 'manaRegen',
-  'statusResistance', 'attackInterval', 'critChance', 'critDamage', 'dodgeChance', 'parryChance', 'blockChance', 'blockPower',
-  'physicalResistance', 'fireResistance', 'waterResistance', 'earthResistance', 'airResistance', 'lightResistance', 'darknessResistance', 'natureResistance', 'mysticResistance',
+  'baseDamageMin', 'baseDamageMax', 'baseAttackTime', 'accuracyRating', 'armour', 'evasionRating', 'maxLife', 'lifeRegenFlat', 'maxStamina', 'staminaRegen', 'maxMana', 'manaRegenFlat',
+  'baseCritChance', 'criticalStrikeMultiplier', 'attackBlockChance', 'spellBlockChance', 'spellSuppressionChance', 'ailmentDurationReduction', 'additionalPhysicalDamageReduction',
+  'fireResistance', 'coldResistance', 'lightningResistance', 'chaosResistance',
 ] as const
 const combatItemStatKeySet = new Set<string>(COMBAT_ITEM_STAT_KEYS)
 
@@ -76,11 +76,11 @@ export function formatHealthWithBarrier(current: number, max: number, barrier = 
 }
 
 const labelAliases: Record<string, string> = {
-  attack: 'Attack Power', defense: 'Armor', dodge: 'Dodge Chance', parry: 'Parry Chance', block: 'Block Chance',
-  maxHealth: 'Max Health', attackPower: 'Attack Power', accuracy: 'Accuracy', attackInterval: 'Attack Interval', armor: 'Armor', physicalDirectMitigation: 'Physical direct mitigation', evasion: 'Evasion',
-  critChance: 'Critical Hit Chance', critDamage: 'Critical Hit Damage', dodgeChance: 'Dodge Chance', parryChance: 'Parry Chance', blockChance: 'Block Chance', blockPower: 'Block Power',
-  maxStamina: 'Max Stamina', staminaRegen: 'Stamina Regeneration', maxMana: 'Max Mana', manaRegen: 'Mana Regeneration', statusResistance: 'Status Resistance', healthRegen: 'Health Regen',
-  physicalResistance: 'Physical Resistance', fireResistance: 'Fire Resistance', waterResistance: 'Water Resistance', earthResistance: 'Earth Resistance', airResistance: 'Air Resistance', lightResistance: 'Light Resistance', darknessResistance: 'Darkness Resistance', natureResistance: 'Nature Resistance', mysticResistance: 'Mystic Resistance',
+  attackDamage: 'Attack Damage', baseDamageMin: 'Base Damage Min', baseDamageMax: 'Base Damage Max', baseAttackTime: 'Base Attack Time', maxLife: 'Max Life', accuracyRating: 'Accuracy Rating', attackInterval: 'Attack Interval', armour: 'Armour', evasionRating: 'Evasion Rating',
+  baseCritChance: 'Base Critical Chance', criticalStrikeMultiplier: 'Critical Strike Multiplier', attackBlockChance: 'Attack Block Chance', spellBlockChance: 'Spell Block Chance', spellSuppressionChance: 'Spell Suppression Chance', suppressedSpellDamagePrevented: 'Suppressed Spell Damage Prevented',
+  maxStamina: 'Max Stamina', staminaRegen: 'Stamina Regeneration', maxMana: 'Max Mana', manaRegenFlat: 'Mana Regeneration', lifeRegenFlat: 'Life Regen',
+  fireResistance: 'Fire Resistance', coldResistance: 'Cold Resistance', lightningResistance: 'Lightning Resistance', chaosResistance: 'Chaos Resistance',
+  ailmentDurationReduction: 'Ailment Duration Reduction',
   currentHealth: 'Current Health', stamina: 'Stamina', mana: 'Mana', barrier: 'Barrier', hitChance: 'Hit Chance',
 }
 
@@ -97,7 +97,7 @@ function formattedValue(spec: CombatStatDisplaySpec, value: number, mode: Combat
 export function formatCombatStatValue(statKey: CombatStatDisplayKey | string, value: number, mode: CombatStatFormatMode = 'normal') {
   const spec = getCombatStatDisplaySpec(statKey)
   if (!spec) return formatCompactDecimal(value, mode === 'comparison' ? 2 : 1)
-  const signedResistance = statKey.endsWith('Resistance') && statKey !== 'statusResistance'
+  const signedResistance = statKey.endsWith('Resistance')
   return formattedValue(spec, value, mode, signedResistance)
 }
 
@@ -113,7 +113,7 @@ export function formatItemStat(key: string, value: number): FormattedStat {
     if (import.meta.env.DEV) console.warn(`[equipment] Unknown item stat display key: ${key}`)
     return { label: labelForStatKey(key), value: formatSignedDecimal(value, 2), tone: 'gold' }
   }
-  if (key === 'attackInterval') return { label: 'Weapon Attack Interval', value: formattedValue(spec, value, 'comparison'), tone: 'gold' }
+  if (key === 'baseAttackTime') return { label: 'Weapon Base Attack Time', value: formattedValue(spec, value, 'comparison'), tone: 'gold' }
   if (spec.valueKind === 'percent') return { label: labelForStatKey(key), value: formattedValue(spec, value, 'normal', true), tone: value > 0 ? 'green' : value < 0 ? 'red' : 'default' }
   if (spec.valueKind === 'per-second') return { label: labelForStatKey(key), value: formattedValue(spec, value, 'comparison', true), tone: 'gold' }
   return { label: labelForStatKey(key), value: formattedValue(spec, value, 'normal', true), tone: 'gold' }

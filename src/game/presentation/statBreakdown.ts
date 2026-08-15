@@ -4,7 +4,7 @@ import { effectById } from "../data/effects";
 import { itemById } from "../data/items";
 import { calculateHunterCombatStats, type HunterCombatStats } from "../equipment/derivedStats";
 import { getEquippedItems } from "../equipment/defensiveEquipment";
-import type { CombatStatContribution, CombatStatKey } from "../combat/combatTypes";
+import type { CombatStatContribution, CombatStatKey, ModifierOperation } from "../combat/combatTypes";
 import type { GameState } from "../gameState";
 import type { EquipmentState } from "../equipment/equipmentTypes";
 import type { ProgressionState } from "../progression/progressionTypes";
@@ -17,7 +17,7 @@ export interface StatContribution {
   sourceType: "base" | "equipment" | "perk" | "stance" | "technique" | "effect" | "other";
   sourceId: string;
   sourceLabel: string;
-  operation: "flat" | "addPercent" | "multiply";
+  operation: ModifierOperation;
   before: number;
   value: number;
   after: number;
@@ -49,14 +49,14 @@ function inspectionContext(input: GameState | StatInspectionContext): StatInspec
 
 function itemStat(item: ReturnType<typeof getEquippedItems>[number], stat: DebugStatInspectionId) {
   if (stat.startsWith("resistance:")) return Number(item.stats?.[`${stat.slice(12)}Resistance` as keyof NonNullable<typeof item.stats>] ?? 0);
-  if (stat === "attackPower") return Number(item.stats?.attackPower ?? 0) + Number(item.stats?.attack ?? 0);
-  if (stat === "armor") return Number(item.stats?.armor ?? 0) + Number(item.stats?.defense ?? 0);
+  if (stat === "attackDamage") return Number(((item.stats?.baseDamageMin ?? 0) + (item.stats?.baseDamageMax ?? 0)) / 2);
+  if (stat === "armour") return Number(item.stats?.armour ?? 0);
   return Number(item.stats?.[stat as keyof NonNullable<typeof item.stats>] ?? 0);
 }
 
 function baseStatValue(stat: DebugStatInspectionId) {
   if (stat.startsWith("resistance:")) return Number(combatBalance[`base${stat.slice(12, 13).toUpperCase()}${stat.slice(13)}Resistance` as keyof typeof combatBalance] ?? 0);
-  const map: Partial<Record<CombatStatKey, number>> = { maxHealth: combatBalance.baseMaxHealth, attackPower: combatBalance.baseAttack, accuracy: combatBalance.baseAccuracy, attackInterval: combatBalance.baseAttackInterval, armor: combatBalance.baseArmor, evasion: combatBalance.baseEvasion, critChance: combatBalance.baseCritChance, critDamage: combatBalance.baseCritDamage, dodgeChance: combatBalance.baseDodgeChance, parryChance: combatBalance.baseParryChance, blockChance: combatBalance.baseBlockChance, blockPower: combatBalance.baseBlockPower, maxStamina: combatBalance.baseMaxStamina, staminaRegen: combatBalance.baseStaminaRegen, maxMana: combatBalance.baseMaxMana, manaRegen: combatBalance.baseManaRegen, statusResistance: combatBalance.baseStatusResistance, healthRegen: 0 };
+  const map: Partial<Record<CombatStatKey, number>> = { maxLife: combatBalance.baseMaxLife, attackDamage: combatBalance.baseAttackDamage, accuracyRating: combatBalance.baseAccuracy, attackInterval: combatBalance.baseAttackInterval, armour: combatBalance.baseArmour, evasionRating: combatBalance.baseEvasion, baseCritChance: combatBalance.baseCritChance, criticalStrikeMultiplier: combatBalance.baseCritDamage, attackBlockChance: combatBalance.baseAttackBlockChance, spellBlockChance: combatBalance.baseSpellBlockChance, maxStamina: combatBalance.baseMaxStamina, staminaRegen: combatBalance.baseStaminaRegen, maxMana: combatBalance.baseMaxMana, manaRegenFlat: combatBalance.baseManaRegen, lifeRegenFlat: 0 };
   return Number(map[stat as CombatStatKey] ?? 0);
 }
 
@@ -87,14 +87,14 @@ export function buildStatBreakdown(input: GameState | StatInspectionContext, sta
     current += value;
     pushContribution(contributions, stat, "equipment", `${slot}:item.${item.id}`, `${item.name} (${slot})`, "flat", before, current);
   }
-  if (stat === "accuracy" && context.techniques["heightened-reflexes"]) { const before = current; current += 5; pushContribution(contributions, stat, "technique", "technique.heightened-reflexes", "Heightened Reflexes", "flat", before, current); }
-  if ((stat === "dodgeChance" || stat === "parryChance") && context.techniques["careful-positioning"]) { const before = current; current += 0.02; pushContribution(contributions, stat, "technique", "technique.careful-positioning", "Careful Positioning", "flat", before, current); }
+  if (stat === "accuracyRating" && context.techniques["heightened-reflexes"]) { const before = current; current += 10; pushContribution(contributions, stat, "technique", "technique.heightened-reflexes", "Heightened Reflexes", "flat", before, current); }
+  if (stat === "evasionRating" && context.techniques["careful-positioning"]) { const before = current; current += 8; pushContribution(contributions, stat, "technique", "technique.careful-positioning", "Careful Positioning", "flat", before, current); }
   const buildStageRecords = canonicalContributions.filter((entry) => entry.stat === stat && (entry.sourceType === "stance" || entry.sourceType === "perk"));
   if (buildStageRecords.length) for (const entry of buildStageRecords) {
     const before = current;
-    const isStanceMultiplier = entry.sourceType === "stance" && ["attackPower", "armor", "accuracy", "attackInterval"].includes(stat);
+    const isStanceMultiplier = entry.sourceType === "stance" && ["attackDamage", "armour", "accuracyRating", "attackInterval"].includes(stat);
     const after = isStanceMultiplier && Math.abs(entry.before) > 1e-9 ? before * (entry.after / entry.before) : before + entry.value;
-    pushContribution(contributions, stat, entry.sourceType, entry.sourceId, entry.sourceLabel, isStanceMultiplier ? "multiply" : entry.operation, before, after);
+    pushContribution(contributions, stat, entry.sourceType, entry.sourceId, entry.sourceLabel, isStanceMultiplier ? "more" : entry.operation, before, after);
     current = after;
   }
   else { const buildDelta = readValue(buildStats, stat) - current; if (Math.abs(buildDelta) > 1e-9) { const before = current; current += buildDelta; pushContribution(contributions, stat, "other", "canonical-normalization", "Canonical stat normalization", "flat", before, current); } }

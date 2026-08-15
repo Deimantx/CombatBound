@@ -13,14 +13,14 @@ export type SpellTargetMode = "self" | "selectedEnemy" | "allEnemies";
 export type DamageType =
   | "physical"
   | "fire"
-  | "water"
-  | "air"
-  | "earth"
-  | "light"
-  | "darkness"
-  | "nature"
-  | "mystic"
-  | "true";
+  | "cold"
+  | "lightning"
+  | "chaos";
+/** Accepted only at save/content migration boundaries. */
+export type LegacyDamageType = "water" | "air" | "earth" | "light" | "darkness" | "nature" | "mystic" | "true";
+export type DamageSourceKind = "attack" | "spell" | "secondary";
+export type DamageDeliveryKind = "hit" | "damage-over-time";
+export type ResistanceDamageType = Exclude<DamageType, "physical">;
 export type PlayerActionKind =
   "basic-attack" | "spell" | "defensive" | "consumable" | "weapon-skill";
 export type PlayerActionTargetMode = "self" | "selected-enemy";
@@ -31,59 +31,140 @@ export type CombatantRef =
   { kind: "player" } | { kind: "enemy"; instanceId: string };
 
 export type CombatStatKey =
-  | "maxHealth"
-  | "attackPower"
-  | "accuracy"
-  | "attackInterval"
-  | "armor"
-  | "evasion"
-  | "critChance"
-  | "critDamage"
-  | "dodgeChance"
-  | "parryChance"
-  | "blockChance"
-  | "blockPower"
+  | "maxLife"
+  | "lifeRegenFlat"
+  | "lifeRegenPercent"
+  | "lifeRecoveryRate"
+  | "maxMana"
+  | "manaRegenFlat"
+  | "manaRegenPercent"
+  | "manaRecoveryRate"
   | "maxStamina"
   | "staminaRegen"
-  | "maxMana"
-  | "manaRegen"
-  | "statusResistance"
-  | "healthRegen";
+  | "accuracyRating"
+  | "evasionRating"
+  | "baseAttackTime"
+  | "increasedAttackSpeed"
+  | "moreAttackSpeed"
+  | "baseCastTime"
+  | "increasedCastSpeed"
+  | "moreCastSpeed"
+  | "actionSpeed"
+  | "attackInterval"
+  | "attacksPerSecond"
+  | "castTime"
+  | "castsPerSecond"
+  | "attackDamage"
+  | "baseCritChance"
+  | "additionalBaseCritChance"
+  | "increasedCritChance"
+  | "moreCritChance"
+  | "criticalStrikeMultiplier"
+  | "reducedExtraDamageTakenFromCriticalStrikes"
+  | "armour"
+  | "additionalPhysicalDamageReduction"
+  | "maxPhysicalDamageReduction"
+  | "attackBlockChance"
+  | "spellBlockChance"
+  | "maxAttackBlockChance"
+  | "maxSpellBlockChance"
+  | "spellSuppressionChance"
+  | "suppressedSpellDamagePrevented"
+  | "fireResistance"
+  | "coldResistance"
+  | "lightningResistance"
+  | "chaosResistance"
+  | "maxFireResistance"
+  | "maxColdResistance"
+  | "maxLightningResistance"
+  | "maxChaosResistance"
+  | "elementalAilmentAvoidance"
+  | "physicalAilmentAvoidance"
+  | "ailmentDurationReduction"
+  | "nonDamagingAilmentEffectReduction"
+  | "stunAvoidance"
+  | "stunRecovery";
 
 export interface CombatStats {
-  maxHealth: number;
-  attackPower: number;
-  accuracy: number;
+  maxLife?: number;
+  attackDamage: number;
+  lifeRegenFlat?: number;
+  lifeRegenPercent?: number;
+  lifeRecoveryRate?: number;
+  manaRegenFlat?: number;
+  manaRegenPercent?: number;
+  manaRecoveryRate?: number;
+  accuracyRating?: number;
+  evasionRating?: number;
+  baseAttackTime?: number;
+  increasedAttackSpeed?: number;
+  moreAttackSpeed?: number;
+  baseCastTime?: number;
+  increasedCastSpeed?: number;
+  moreCastSpeed?: number;
+  actionSpeed?: number;
+  baseCritChance?: number;
+  additionalBaseCritChance?: number;
+  increasedCritChance?: number;
+  moreCritChance?: number;
+  criticalStrikeMultiplier?: number;
+  reducedExtraDamageTakenFromCriticalStrikes?: number;
+  armour?: number;
+  additionalPhysicalDamageReduction?: number;
+  maxPhysicalDamageReduction?: number;
+  attackBlockChance?: number;
+  spellBlockChance?: number;
+  maxAttackBlockChance?: number;
+  maxSpellBlockChance?: number;
+  spellSuppressionChance?: number;
+  suppressedSpellDamagePrevented?: number;
+  fireResistance?: number;
+  coldResistance?: number;
+  lightningResistance?: number;
+  chaosResistance?: number;
+  maxFireResistance?: number;
+  maxColdResistance?: number;
+  maxLightningResistance?: number;
+  maxChaosResistance?: number;
+  elementalAilmentAvoidance?: number;
+  physicalAilmentAvoidance?: number;
+  ailmentDurationReduction?: number;
+  nonDamagingAilmentEffectReduction?: number;
+  stunAvoidance?: number;
+  stunRecovery?: number;
+  // Derived values kept explicit for combat and presentation consumers.
   attackInterval: number;
-  armor: number;
-  evasion: number;
-  critChance: number;
-  critDamage: number;
-  dodgeChance: number;
-  parryChance: number;
-  blockChance: number;
-  blockPower: number;
+  castTime?: number;
+  attacksPerSecond?: number;
+  castsPerSecond?: number;
   maxStamina: number;
   staminaRegen: number;
   maxMana: number;
-  manaRegen: number;
-  statusResistance: number;
-  healthRegen?: number;
-  resistances: Partial<Record<DamageType, number>>;
+  resistances: Partial<Record<ResistanceDamageType, number>>;
 }
 
 export interface StatModifier {
   stat: CombatStatKey;
-  operation: "flat" | "addPercent" | "multiply";
+  operation: ModifierOperation;
   value: number;
 }
 
+export type ModifierOperation =
+  | "flat"
+  | "increased"
+  | "reduced"
+  | "more"
+  | "less"
+  | "override"
+  | "set-minimum"
+  | "set-maximum";
+
 export interface CombatStatContribution {
-  stat: CombatStatKey | `resistance:${Exclude<DamageType, "true">}`;
+  stat: CombatStatKey | `resistance:${DamageType}`;
   sourceType: "base" | "equipment" | "perk" | "stance" | "technique" | "effect" | "other";
   sourceId: string;
   sourceLabel: string;
-  operation: "flat" | "addPercent" | "multiply";
+  operation: ModifierOperation;
   value: number;
   before: number;
   after: number;
@@ -95,14 +176,15 @@ export interface CombatStatContributionCollector {
 
 export interface DefensiveEligibility {
   canMiss?: boolean;
-  dodgeable: boolean;
-  parryable: boolean;
-  blockable: boolean;
+  canBeEvaded?: boolean;
+  blockable?: boolean;
 }
 
 export interface DamageComponent {
   damageType: DamageType;
-  scaling?: { sourceStat: "attackPower"; multiplier: number };
+  sourceKind?: DamageSourceKind;
+  deliveryKind?: DamageDeliveryKind;
+  scaling?: { sourceStat: "attackDamage" | "spellPower"; multiplier: number };
   flatDamage?: number;
   minMultiplier?: number;
   maxMultiplier?: number;
@@ -110,7 +192,9 @@ export interface DamageComponent {
   maxDamage?: number;
   canCrit: boolean;
   ignoresArmor?: boolean;
+  ignoresArmour?: boolean;
   ignoresResistance?: boolean;
+  unmitigated?: boolean;
   ignoresBarrier?: boolean;
 }
 
@@ -252,17 +336,19 @@ export interface EnemyDefinition {
   name: string;
   family: string;
   familyId?: string;
-  maxHealth: number;
-  attackPower: number;
-  accuracy: number;
-  armor: number;
-  evasion: number;
-  attackInterval: number;
-  dodgeChance: number;
-  parryChance: number;
-  blockChance: number;
-  blockPower: number;
-  resistances: Partial<Record<DamageType, number>>;
+  maxLife: number;
+  baseAttackDamageMin: number;
+  baseAttackDamageMax: number;
+  accuracyRating: number;
+  evasionRating: number;
+  armour: number;
+  baseAttackTime: number;
+  attackBlockChance?: number;
+  spellBlockChance?: number;
+  spellSuppressionChance?: number;
+  additionalPhysicalDamageReduction?: number;
+  maxResistances?: Partial<Record<ResistanceDamageType, number>>;
+  resistances: Partial<Record<ResistanceDamageType, number>>;
   traits: EnemyTraitDefinition[];
   actions: EnemyActionDefinition[];
   phases?: Array<{
@@ -275,10 +361,6 @@ export interface EnemyDefinition {
   loot: LootEntry[];
   icon: string;
   accent: "red" | "blue" | "gold";
-  /** Compatibility labels for older collection/UI data. Combat math uses resistances. */
-  weaknesses?: string[];
-  /** Compatibility labels for older collection/UI data. Combat math uses resistances. */
-  resistanceLabels?: string[];
 }
 
 export interface EnemyCombatInstance {
@@ -303,8 +385,7 @@ export type CombatEventType =
   | "actionInterrupted"
   | "actionResolved"
   | "attackMissed"
-  | "attackDodged"
-  | "attackParried"
+  | "attackEvaded"
   | "attackBlocked"
   | "criticalHit"
   | "damageDealt"

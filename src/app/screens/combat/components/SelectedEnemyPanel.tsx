@@ -18,7 +18,6 @@ import {
   getEnemyEffectiveCombatStats,
   getSelectedTargetMatchup,
 } from "../../../../game/combat/combatSelectors";
-import { calculateEffectiveAvoidanceChance } from "../../../../game/combat/combatMath";
 import { GameTooltip } from "../../../components/tooltip/GameTooltip";
 import { MatchupSummary } from "./CombatMatchupReadout";
 
@@ -48,18 +47,6 @@ export function SelectedEnemyPanel({
   const enemyStats = selectedEnemy
     ? getEnemyEffectiveCombatStats(selectedEnemy)
     : undefined;
-  const enemyDodge = calculateEffectiveAvoidanceChance(
-    enemyStats?.dodgeChance ?? definition?.dodgeChance ?? 0,
-    "dodge",
-  );
-  const enemyParry = calculateEffectiveAvoidanceChance(
-    enemyStats?.parryChance ?? definition?.parryChance ?? 0,
-    "parry",
-  );
-  const enemyBlock = calculateEffectiveAvoidanceChance(
-    enemyStats?.blockChance ?? definition?.blockChance ?? 0,
-    "block",
-  );
 
   return (
     <Panel
@@ -126,42 +113,42 @@ export function SelectedEnemyPanel({
             <TargetStat
               label="Attack Power"
               value={Math.round(
-                enemyStats?.attackPower ?? definition.attackPower,
+                enemyStats?.attackDamage ?? ((definition.baseAttackDamageMin + definition.baseAttackDamageMax) / 2),
               )}
-              statKey="attackPower"
-              statValue={enemyStats?.attackPower ?? definition.attackPower}
+              statKey="attackDamage"
+              statValue={enemyStats?.attackDamage ?? ((definition.baseAttackDamageMin + definition.baseAttackDamageMax) / 2)}
             />
             <TargetStat
-              label="Accuracy"
-              value={Math.round(enemyStats?.accuracy ?? definition.accuracy)}
-              statKey="accuracy"
-              statValue={enemyStats?.accuracy ?? definition.accuracy}
+              label="Accuracy Rating"
+              value={Math.round(enemyStats?.accuracyRating ?? definition.accuracyRating)}
+              statKey="accuracyRating"
+              statValue={enemyStats?.accuracyRating ?? definition.accuracyRating}
             />
             <TargetStat
-              label="Armor"
-              value={Math.round(enemyStats?.armor ?? definition.armor)}
-              statKey="armor"
-              statValue={enemyStats?.armor ?? definition.armor}
+              label="Armour"
+              value={Math.round(enemyStats?.armour ?? definition.armour)}
+              statKey="armour"
+              statValue={enemyStats?.armour ?? definition.armour}
             />
             <TargetStat
-              label="Evasion"
-              value={Math.round(enemyStats?.evasion ?? definition.evasion)}
-              statKey="evasion"
-              statValue={enemyStats?.evasion ?? definition.evasion}
+              label="Evasion Rating"
+              value={Math.round(enemyStats?.evasionRating ?? definition.evasionRating)}
+              statKey="evasionRating"
+              statValue={enemyStats?.evasionRating ?? definition.evasionRating}
             />
             <TargetStat
               label="Attack Interval"
-              value={`${(enemyStats?.attackInterval ?? definition.attackInterval).toFixed(1)}s`}
+              value={`${(enemyStats?.attackInterval ?? definition.baseAttackTime).toFixed(1)}s`}
               statKey="attackInterval"
               statValue={
-                enemyStats?.attackInterval ?? definition.attackInterval
+                enemyStats?.attackInterval ?? definition.baseAttackTime
               }
             />
             <TargetStat
-              label="Dodge Chance"
-              value={formatPercent(enemyDodge)}
-              statKey="dodgeChance"
-              statValue={enemyDodge}
+              label="Attack Block"
+              value={formatPercent(enemyStats?.attackBlockChance ?? definition.attackBlockChance ?? 0)}
+              statKey="attackBlockChance"
+              statValue={enemyStats?.attackBlockChance ?? definition.attackBlockChance ?? 0}
             />
           </div>
           <div className="combat-effects-inspector">
@@ -171,10 +158,10 @@ export function SelectedEnemyPanel({
             </div>
             <EffectChips effects={selectedEnemy.effects} debugId="enemy" />
           </div>
-          {enemyParry > 0 || enemyBlock > 0 ? (
+          {(enemyStats?.spellBlockChance ?? definition.spellBlockChance ?? 0) > 0 || (enemyStats?.spellSuppressionChance ?? definition.spellSuppressionChance ?? 0) > 0 ? (
             <div className="target-defenses">
-              <span>Parry {formatPercent(enemyParry)}</span>
-              <span>Block {formatPercent(enemyBlock)}</span>
+              <span>Spell Block {formatPercent(enemyStats?.spellBlockChance ?? definition.spellBlockChance ?? 0)}</span>
+              <span>Suppression {formatPercent(enemyStats?.spellSuppressionChance ?? definition.spellSuppressionChance ?? 0)}</span>
             </div>
           ) : null}
           <div className="trait-section">

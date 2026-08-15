@@ -38,15 +38,15 @@ export function HomeScreen() {
   const activeLocation = game.combat.combatLocationId ? combatLocationById[game.combat.combatLocationId] : undefined
   const activeFamily = activeLocation ? enemyFamilyById[activeLocation.familyId]?.name : undefined
   const absorbShield = getBarrierAmount(game.combat.playerEffects, effectById)
-  const playerHealth = formatHealthWithBarrier(game.combat.playerHp, stats.maxHealth, absorbShield)
+  const playerHealth = formatHealthWithBarrier(game.combat.playerHp, stats.maxLife ?? 0, absorbShield)
 
   return <div className="screen home-screen" data-debug-screen="home">
     <ScreenHeading screen="home" />
     <div className="home-overview-grid">
       <Panel title="Hunter overview" subtitle="Your current combat profile" icon={Shield} panelId="homeOverview" screen="home" className="home-overview">
-        <div className="overview-primary"><div className="large-avatar"><Shield size={35} /></div><div><h3>Vanguard</h3><p>{activeDefinition?.name ?? 'No weapon proficiency'} · {stats.attackPower} Attack Power</p><div className="identity-tags"><span>MASTERY {Math.floor(game.progression.masteryXp).toLocaleString()} XP</span><span>POWER {stats.attack}</span></div></div></div>
+        <div className="overview-primary"><div className="large-avatar"><Shield size={35} /></div><div><h3>Vanguard</h3><p>{activeDefinition?.name ?? 'No weapon proficiency'} · {stats.attackDamage} Attack Damage</p><div className="identity-tags"><span>MASTERY {Math.floor(game.progression.masteryXp).toLocaleString()} XP</span><span>POWER {stats.attackDamage}</span></div></div></div>
         <div className="overview-stats"><StatLine label="Current activity" value={activeLocation ? `${activeLocation.name} · ${activeFamily ?? 'Hunt'} · Group ${game.combat.groupNumber}` : 'Idle'} accent="blue" /><StatLine label="Total kills" value={totalDefeats} accent="gold" /><StatLine label="Active proficiency" value={activeDefinition ? `${activeDefinition.name} · Lv ${level}` : 'Untrained'} /></div>
-        <div className="home-hp"><div className="home-hp-heading"><span>Current health</span><strong>{playerHealth}</strong></div><ProgressBar value={(game.combat.playerHp / stats.maxHealth) * 100} variant="health" ariaLabel={`Player health ${playerHealth}`} /></div>
+        <div className="home-hp"><div className="home-hp-heading"><span>Current health</span><strong>{playerHealth}</strong></div><ProgressBar value={(game.combat.playerHp / Math.max(1, stats.maxLife ?? 0)) * 100} variant="health" ariaLabel={`Player health ${playerHealth}`} /></div>
         <button className="button button-primary full-button" onClick={() => setScreen('combat')}><Swords size={15} />{game.combat.phase === 'active' ? 'View live combat' : 'Open combat'}</button>{activeLocation && <p className="home-active-breadcrumb">{locationBreadcrumb(activeLocation.id)}</p>}
       </Panel>
       <Panel title="Combat Mastery" subtitle="Weapon use becomes permanent progression" icon={Sparkles} panelId="homeCombatMastery" screen="home">

@@ -7,7 +7,7 @@ import type {
   CombatProficiencyId,
   ProgressionState,
 } from "../progression/progressionTypes";
-import type { GameSaveV3, GameSaveV4, GameSaveV5, GameSaveV6, GameSaveV7, GameSaveV8, GameSaveV9 } from "./saveTypes";
+import type { GameSaveV3, GameSaveV4, GameSaveV5, GameSaveV6, GameSaveV7, GameSaveV8, GameSaveV9, GameSaveV10 } from "./saveTypes";
 import { createInitialCombatAutomation } from "../automation/automationTypes";
 import { normalizeSpellbook } from "../spellbook/spellbookLogic";
 import { spellDefinitions } from "../data/spells";
@@ -86,12 +86,8 @@ function migrateProgression(
 ): ProgressionState {
   const proficiencies: ProgressionState["proficiencies"] = {};
   for (const [rawId, value] of Object.entries(raw.proficiencies ?? {})) {
-    const migratedId =
-      rawId === "warding-magic"
-        ? "light-magic"
-        : rawId === "disruption-magic"
-          ? "air-magic"
-          : rawId;
+    if (rawId === "warding-magic" || rawId === "light-magic") continue;
+    const migratedId = rawId === "disruption-magic" ? "air-magic" : rawId;
     if (!proficiencyById[migratedId] || !isRecord(value)) continue;
     const proficiencyId = migratedId as CombatProficiencyId;
     const current = proficiencies[proficiencyId]?.totalXp ?? 0;
@@ -272,6 +268,59 @@ export function migrateV8Save(value: unknown): GameSaveV9 | null {
         : 0,
     },
     equipment: migrateEquipment(old.equipment, old.inventory.quantities),
+    spellbook: normalizeSpellbook(old.spellbook),
+    combatAutomation: normalizeCombatAutomation(old.combatAutomation),
+    combatAutomationPresets: normalizeCombatAutomationPresets(old.combatAutomationPresets),
+    combatAbilities: normalizeCombatAbilityLoadout(old.combatAbilities),
+  };
+}
+
+/**
+ * V10 removes the retired Light Magic content and normalizes all loadouts
+ * against the canonical spell, automation, and ability catalogues.
+ */
+export function migrateV9Save(value: unknown): GameSaveV10 | null {
+  if (
+    !isRecord(value) ||
+    value.version !== 9 ||
+    !isRecord(value.progression) ||
+    !isRecord(value.spellbook) ||
+    !isRecord(value.combatAutomation) ||
+    !isRecord(value.combatAutomationPresets) ||
+    !isRecord(value.combatAbilities) ||
+    !sharedSaveShape(value)
+  )
+    return null;
+
+  const old = value as unknown as GameSaveV9;
+  const proficiencies: ProgressionState["proficiencies"] = {};
+  for (const [rawId, progress] of Object.entries(old.progression.proficiencies ?? {})) {
+    if (rawId === "light-magic" || rawId === "warding-magic" || !proficiencyById[rawId] || !isRecord(progress)) continue;
+    const proficiencyId = rawId as CombatProficiencyId;
+    proficiencies[proficiencyId] = {
+      proficiencyId,
+      totalXp: xp(progress.totalXp),
+    };
+  }
+  const purchasedPerks = Object.fromEntries(
+    Object.entries(old.progression.purchasedPerks ?? {}).filter(([perkId, rank]) => {
+      const perk = perkById[perkId];
+      return Boolean(perk) && !perkId.includes("light-magic") && !perkId.includes("warding-magic") && Number.isInteger(rank) && Number(rank) >= 0 && Number(rank) <= perk.maxRank;
+    }),
+  );
+
+  return {
+    ...old,
+    version: 10,
+    progression: {
+      ...old.progression,
+      proficiencies,
+      purchasedPerks,
+      // Historical Light perk costs are not present in V9 saves, so the
+      // deterministic migration policy is to discard those ranks without
+      // manufacturing a refund from unavailable historical metadata.
+      bonusPerkPoints: Math.max(0, Math.floor(old.progression.bonusPerkPoints ?? 0)),
+    },
     spellbook: normalizeSpellbook(old.spellbook),
     combatAutomation: normalizeCombatAutomation(old.combatAutomation),
     combatAutomationPresets: normalizeCombatAutomationPresets(old.combatAutomationPresets),

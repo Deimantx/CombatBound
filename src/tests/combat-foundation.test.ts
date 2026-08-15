@@ -7,7 +7,7 @@ import {
   applyEffect,
   getBarrierAmount,
 } from "../game/combat/combatEffects";
-import { calculateEffectiveCombatStats } from "../game/combat/combatStats";
+import { calculateEffectiveCombatStats, normalizeCombatStats } from "../game/combat/combatStats";
 import {
   calculateArmorMitigation,
   calculateHitChance,
@@ -27,37 +27,17 @@ import { calculateHunterCombatStats } from "../game/equipment/derivedStats";
 import type { CombatStats } from "../game/combat/combatTypes";
 
 const rng = (value: number) => ({ next: () => value });
-const stats: CombatStats = {
-  maxHealth: 100,
-  attackPower: 100,
-  accuracy: 100,
-  attackInterval: 1,
-  armor: 0,
-  evasion: 0,
-  critChance: 0,
-  critDamage: 2,
-  dodgeChance: 0,
-  parryChance: 0,
-  blockChance: 0,
-  blockPower: combatBalance.baseBlockPower,
-  maxStamina: 0,
-  staminaRegen: 0,
-  maxMana: 0,
-  manaRegen: 1,
-  statusResistance: 0,
-  resistances: {},
-};
+const stats: CombatStats = normalizeCombatStats({ maxLife: 100, attackDamage: 100, accuracyRating: 100, baseAttackTime: 1, armour: 0, evasionRating: 0, baseCritChance: 0, criticalStrikeMultiplier: 2, maxStamina: 0, staminaRegen: 0, maxMana: 0, manaRegenFlat: 1, resistances: {} });
 
 describe("Combat Foundation 2.0 math", () => {
   it("uses Accuracy versus Evasion and remains monotonic and bounded", () => {
-    expect(calculateHitChance(100, 100)).toBeCloseTo(
-      combatBalance.baseHitChance,
+    const expected = (1.25 * 10) / (10 + Math.pow(100 / 5, 0.9));
+    expect(calculateHitChance(10, 100)).toBeCloseTo(expected);
+    expect(calculateHitChance(12, 100)).toBeGreaterThan(
+      calculateHitChance(10, 100),
     );
-    expect(calculateHitChance(120, 100)).toBeGreaterThan(
-      calculateHitChance(100, 100),
-    );
-    expect(calculateHitChance(100, 120)).toBeLessThan(
-      calculateHitChance(100, 100),
+    expect(calculateHitChance(10, 120)).toBeLessThan(
+      calculateHitChance(10, 100),
     );
     expect(calculateHitChance(100000, 0)).toBe(combatBalance.maxHitChance);
     expect(calculateHitChance(0, 100000)).toBeGreaterThanOrEqual(
@@ -76,13 +56,11 @@ describe("Combat Foundation 2.0 math", () => {
         target: { kind: "enemy", instanceId: "e" },
         defensiveEligibility: {
           canMiss: false,
-          dodgeable: false,
-          parryable: false,
           blockable: false,
         },
       },
       stats,
-      { ...stats, armor: 100 },
+      { ...stats, armour: 100 },
       rng(0.5),
     );
     const fire = resolveDamage(
@@ -94,36 +72,32 @@ describe("Combat Foundation 2.0 math", () => {
         target: { kind: "enemy", instanceId: "e" },
         defensiveEligibility: {
           canMiss: false,
-          dodgeable: false,
-          parryable: false,
           blockable: false,
         },
       },
       stats,
-      { ...stats, armor: 100, resistances: { fire: 0.2 } },
+      { ...stats, armour: 100, fireResistance: 0.2 },
       rng(0.5),
     );
-    const trueDamage = resolveDamage(
+    const chaos = resolveDamage(
       {
-        damageType: "true",
+        damageType: "chaos",
         baseDamage: 100,
         canCrit: false,
         source: { kind: "player" },
         target: { kind: "enemy", instanceId: "e" },
         defensiveEligibility: {
           canMiss: false,
-          dodgeable: false,
-          parryable: false,
           blockable: false,
         },
       },
       stats,
-      { ...stats, armor: 100, resistances: { true: 0.8 } },
+      { ...stats, armour: 100, chaosResistance: 0.8 },
       rng(0.5),
     );
-    expect(physical.healthDamage).toBe(50);
+    expect(physical.healthDamage).toBe(83);
     expect(fire.healthDamage).toBe(80);
-    expect(trueDamage.healthDamage).toBe(100);
+    expect(chaos.healthDamage).toBe(25);
   });
 });
 
@@ -161,11 +135,11 @@ describe("Combat effect runtime", () => {
       target,
     );
     const effective = calculateEffectiveCombatStats(
-      { ...stats, armor: 50 },
+      { ...stats, armour: 50 },
       broken.combat.enemies[0].effects,
       effectById,
     );
-    expect(effective.armor).toBe(35);
+    expect(effective.armour).toBe(35);
     const ticked = advanceEffectTimers(
       second.combat.enemies[0].effects,
       combatBalance.bleedInterval + 0.01,
@@ -178,7 +152,7 @@ describe("Combat effect runtime", () => {
     let combat = createCombatState();
     const applied = applyEffect(
       combat,
-      effectById["effect.protective-sign"],
+      effectById["effect.earth-barrier"],
       { kind: "player" },
       { kind: "player" },
       { absorbAmount: 65, power: 65 },
@@ -198,7 +172,7 @@ describe("Combat effect runtime", () => {
     expect(depleted.combat.playerEffects).toHaveLength(0);
   });
 
-  it("migrates Flame Blast through typed Fire damage and Burn", () => {
+  it("migrates Flame Blast through typed Fire damage and Ignite", () => {
     const game = createInitialGameState();
     const stats = calculateHunterCombatStats(
       game.equipment,
@@ -225,7 +199,7 @@ describe("Combat effect runtime", () => {
       (enemy) => enemy.instanceId === cast.combat.selectedEnemyInstanceId,
     );
     expect(
-      target?.effects.some((effect) => effect.effectId === "effect.burn"),
+      target?.effects.some((effect) => effect.effectId === "effect.ignite"),
     ).toBe(true);
     expect(target?.currentHealth).toBeLessThan(target?.maxHealth ?? Infinity);
   });

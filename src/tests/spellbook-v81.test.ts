@@ -77,9 +77,9 @@ describe("Spellbook V8.1 UI", () => {
   it("moves a known spell by drag/drop and unequips through the known list", () => {
     openSpellbook();
     openDarknessSchool();
-    const knownShadow = screen.getByRole("button", { name: /Shadow Bolt/i });
-    const slotOne = document.querySelector('[data-debug-kind="spell-loadout-slot"][data-debug-slot="0"]') as HTMLElement;
     const knownList = document.querySelector('[data-debug-kind="spell-unequip-dropzone"]') as HTMLElement;
+    const knownShadow = within(knownList).getByRole("button", { name: /Shadow Bolt/i });
+    const slotOne = document.querySelector('[data-debug-kind="spell-loadout-slot"][data-debug-slot="0"]') as HTMLElement;
     fireEvent.dragStart(knownShadow, { dataTransfer: { effectAllowed: "move", setData: () => undefined } });
     fireEvent.drop(slotOne, { dataTransfer: { dropEffect: "move" } });
     expect(useGameStore.getState().game.spellbook.equippedSpellSlots[0]).toBe("spell.shadow-bolt");
@@ -96,7 +96,7 @@ describe("Spellbook V8.1 UI", () => {
     const slotFive = document.querySelector('[data-debug-kind="spell-loadout-slot"][data-debug-slot="4"]') as HTMLElement;
     fireEvent.dragStart(slotOne, { dataTransfer: { effectAllowed: "move", setData: () => undefined } });
     fireEvent.drop(slotFive, { dataTransfer: { dropEffect: "move" } });
-    expect(useGameStore.getState().game.spellbook.equippedSpellSlots[0]).toBe("spell.stone-spike");
+    expect(useGameStore.getState().game.spellbook.equippedSpellSlots[0]).toBe("spell.shadow-bolt");
     expect(useGameStore.getState().game.spellbook.equippedSpellSlots[4]).toBe("spell.flame-blast");
   });
 
@@ -108,7 +108,8 @@ describe("Spellbook V8.1 UI", () => {
     fireEvent.click(screen.getByRole("button", { name: /Spellbook/i }));
     openDarknessSchool();
     expect(document.querySelector('[data-debug-kind="spell-loadout-slot"]')).toHaveAttribute("draggable", "false");
-    expect(screen.getByRole("button", { name: /Shadow Bolt/i })).toHaveAttribute("draggable", "false");
+    const knownList = document.querySelector('[data-debug-kind="spell-unequip-dropzone"]') as HTMLElement;
+    expect(within(knownList).getByRole("button", { name: /Shadow Bolt/i })).toHaveAttribute("draggable", "false");
   });
 
   it("shows instructions and returns to the automation editor", () => {
@@ -134,7 +135,7 @@ describe("Spellbook V8.1 UI", () => {
     const knownList = document.querySelector('[data-debug-kind="spell-unequip-dropzone"]') as HTMLElement;
     expect(search).toHaveAttribute("data-debug-kind", "spellbook-search");
 
-    fireEvent.change(search, { target: { value: "burn" } });
+    fireEvent.change(search, { target: { value: "ignite" } });
     expect(within(knownList).getByRole("button", { name: /Flame Blast/i })).toBeInTheDocument();
     expect(within(knownList).queryByRole("button", { name: /Shadow Bolt/i })).not.toBeInTheDocument();
     expect(knownList).toHaveTextContent(/1\s+MATCHES/);

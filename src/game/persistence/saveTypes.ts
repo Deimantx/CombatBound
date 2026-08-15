@@ -97,5 +97,10 @@ export interface GameSaveV9 {
   combatAbilities: CombatAbilityLoadoutState;
 }
 
+/** V10 is the first save schema after the canonical combat migration. */
+export interface GameSaveV10 extends Omit<GameSaveV9, "version"> {
+  version: 10;
+}
+
 /** Compatibility name for callers that only need the save shape. */
 export type GameSaveV2 = GameSaveV3;

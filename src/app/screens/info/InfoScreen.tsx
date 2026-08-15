@@ -45,7 +45,7 @@ export function InfoScreen() {
               <strong>Armor XP</strong>
               <p>
                 Each resolved enemy direct attack awards 0.25 XP for every
-                equipped matching armor piece. Miss, Dodge, Parry, Block, and
+                equipped matching armour piece. Miss, Evasion, Block, and
                 Hit all count; interrupted actions, damage-over-time ticks, and
                 passive time do not.
               </p>
@@ -141,9 +141,8 @@ export function InfoScreen() {
           <div className="resolution-flow">
             {[
               "Accuracy vs Evasion",
-              "Dodge",
-              "Parry",
-              "Block",
+              "Attack / Spell Block",
+              "Spell Suppression",
               "Damage / Crit",
               "Armor",
               "Resistance",
@@ -157,8 +156,8 @@ export function InfoScreen() {
             ))}
           </div>
           <p className="info-callout">
-            A failed Accuracy check Misses before Dodge, Parry, Block, Armor, or
-            Resistance. Barriers absorb incoming mitigated damage before HP.
+            A failed Accuracy check Evades before Block, Armour, or Resistance.
+            Spells bypass Accuracy; Suppression and Barriers apply afterward.
           </p>
         </Panel>
         <Panel
@@ -218,7 +217,7 @@ export function InfoScreen() {
         </Panel>
         <Panel
           title="Damage Types & Resistances"
-          subtitle="Typed mitigation and weaknesses"
+          subtitle="Typed mitigation and resistances"
           icon={Sparkles}
           panelId="infoDamageTypes"
           screen="info"

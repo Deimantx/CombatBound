@@ -81,19 +81,9 @@ export function createInitialCombatAutomation(): CombatAutomationState {
     enabled: true,
     rules: [
       {
-        id: "rule.protective-sign-low-health",
-        actionId: "spell.protective-sign",
-        priority: 10,
-        enabled: true,
-        conditions: [
-          { type: "player-hp-below", fraction: 0.7 },
-          { type: "barrier-missing" },
-        ],
-      },
-      {
         id: "rule.healing-potion-low-health",
         actionId: "consumable.healing-potion",
-        priority: 20,
+        priority: 10,
         enabled: true,
         conditions: [{ type: "player-hp-below", fraction: 0.35 }],
       },

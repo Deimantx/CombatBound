@@ -34,7 +34,7 @@ export function AutomationInstructions({ onBack }: { onBack: () => void }) {
           <div className="automation-help-heading"><BookOpen size={17} /><h4>Quick Start</h4></div>
           <p>Combat Automation tells your Hunter which active action to try without requiring you to click it manually.</p>
           <p>Each Rule means: <strong>when these conditions are true, try to use this Action.</strong> Rules are checked from the smallest Priority number to the largest.</p>
-          <div className="instruction-example"><strong>Priority 10 · Protective Sign</strong><span>IF Player HP is below 60% AND Barrier is missing</span><small>When both requirements are true, the Hunter tries to create a Barrier.</small></div>
+          <div className="instruction-example"><strong>Priority 10 · Earthen Ward</strong><span>IF Player Life is below 60% AND Barrier is missing</span><small>When both requirements are true, the Hunter tries to create a Barrier.</small></div>
           <div className="instruction-callout tip"><strong>TIP</strong><span>Start with one survival Rule, test it in Combat, then add offensive Rules below it.</span></div>
         </section>
 
@@ -129,7 +129,7 @@ export function AutomationInstructions({ onBack }: { onBack: () => void }) {
 
         <section id="effects" data-debug-help-section="effects">
           <h4>Effects and Status Conditions</h4>
-          <p>Effects are temporary statuses, buffs, debuffs, or Barriers. A condition such as Target missing Burn lets you maintain a status only when it is absent. Player has Effect and Barrier missing are useful for defensive maintenance.</p>
+          <p>Effects are temporary statuses, buffs, debuffs, or Barriers. A condition such as Target missing Ignite lets you maintain a status only when it is absent. Player has Effect and Barrier missing are useful for defensive maintenance.</p>
           <p>Effects are checked by their current Effect ID or supported tags. Automation does not invent a status that is not in the effect picker.</p>
         </section>
 
@@ -141,9 +141,9 @@ export function AutomationInstructions({ onBack }: { onBack: () => void }) {
 
         <section id="examples" data-debug-help-section="examples">
           <h4>Example Setups</h4>
-          <div className="instruction-setup"><strong>Beginner Safe Setup</strong><p>10 Healing Potion · Player HP below 35%</p><p>20 Protective Sign · Player HP below 70% AND Barrier missing</p><p>30 Flame Blast · Target missing Burn AND Mana above 40%</p><p>40 Ice Shard · Mana above 60%</p><small>This flows from emergency healing to Barrier, then status maintenance and damage.</small></div>
-          <div className="instruction-setup"><strong>Interrupt-Oriented</strong><p>10 Disrupting Pulse · Target interruptible AND danger at least High AND Mana above 20%</p><p>20 Protective Sign · Player HP below 65% AND Barrier missing</p><p>30 Flame Blast · Target missing Burn AND Mana above 35%</p><p>40 Stone Spike · Mana above 55%</p><small>Dangerous casts come first, then defense, status maintenance, and damage.</small></div>
-          <div className="instruction-setup"><strong>Resource-Conservative</strong><p>10 Healing Potion · Player HP below 30%</p><p>20 Protective Sign · Player HP below 55% AND Barrier missing AND Mana above 40%</p><p>30 Flame Blast · Target missing Burn AND Mana above 70%</p><p>40 Ice Shard · Mana above 80%</p><small>This setup intentionally saves Mana and waits for high resource thresholds.</small></div>
+          <div className="instruction-setup"><strong>Beginner Safe Setup</strong><p>10 Healing Potion · Player Life below 35%</p><p>20 Earthen Ward · Player Life below 70% AND Barrier missing</p><p>30 Flame Blast · Target missing Ignite AND Mana above 40%</p><p>40 Ice Shard · Mana above 60%</p><small>This flows from emergency healing to Barrier, then status maintenance and damage.</small></div>
+          <div className="instruction-setup"><strong>Interrupt-Oriented</strong><p>10 Disrupting Pulse · Target interruptible AND danger at least High AND Mana above 20%</p><p>20 Earthen Ward · Player Life below 65% AND Barrier missing</p><p>30 Flame Blast · Target missing Ignite AND Mana above 35%</p><p>40 Stone Spike · Mana above 55%</p><small>Dangerous casts come first, then defense, status maintenance, and damage.</small></div>
+          <div className="instruction-setup"><strong>Resource-Conservative</strong><p>10 Healing Potion · Player Life below 30%</p><p>20 Earthen Ward · Player Life below 55% AND Barrier missing AND Mana above 40%</p><p>30 Flame Blast · Target missing Ignite AND Mana above 70%</p><p>40 Ice Shard · Mana above 80%</p><small>This setup intentionally saves Mana and waits for high resource thresholds.</small></div>
         </section>
 
         <section id="mistakes" data-debug-help-section="common-mistakes">
@@ -152,7 +152,7 @@ export function AutomationInstructions({ onBack }: { onBack: () => void }) {
             <li><strong>“My Spell never casts.”</strong> Check that it is known and equipped, that you have enough Mana, that its cooldown and Global Cooldown are ready, and that it has a valid target.</li>
             <li><strong>“My lower-priority Rule never happens.”</strong> A higher-priority Rule may always be valid and available.</li>
             <li><strong>“My target keeps changing.”</strong> Check Auto Target Override and the enabled Target Priority order.</li>
-            <li><strong>“Protective Sign keeps being attempted.”</strong> Add Barrier missing or Barrier below a suitable percentage.</li>
+            <li><strong>“Earthen Ward keeps being attempted.”</strong> Add Barrier missing or Barrier below a suitable percentage.</li>
             <li><strong>“I run out of Mana.”</strong> Add Mana above thresholds to offensive Spell Rules.</li>
             <li><strong>“Interrupt never works.”</strong> Use Target interruptible and verify the enemy is casting an interruptible action.</li>
             <li><strong>“A Rule says inactive.”</strong> The Spell may not be equipped, or a defensive Action may lack its equipment requirement.</li>

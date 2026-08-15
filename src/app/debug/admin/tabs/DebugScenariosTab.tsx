@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useGameStore } from "../../../../state/gameStore";
 import { useDevToolsRuntimeStore } from "../../devtools/devToolsRuntimeStore";
 import { useDebugScenarioStore } from "../../scenarios/debugScenarioStore";
-import type { DebugScenarioSlot, DebugScenarioSnapshotV1 } from "../../scenarios/debugScenarioTypes";
+import type { DebugScenarioSlot, DebugScenarioSnapshotV2 } from "../../scenarios/debugScenarioTypes";
 import { validateDebugScenario } from "../../scenarios/debugScenarioValidation";
 import { ConfirmDialog } from "../../../components/ConfirmDialog";
 import { DebugButton } from "../components/DebugButton";
@@ -28,7 +28,7 @@ export function DebugScenariosTab({ debug, run }: DebugTabProps) {
   const selectedAreaId = useGameStore((state) => state.selectedAreaId);
   const selectedCombatLocationId = useGameStore((state) => state.selectedCombatLocationId);
   useEffect(() => { refresh(); }, [refresh]);
-  const snapshot = useMemo<DebugScenarioSnapshotV1>(() => ({ version: 1, game: { progression: game.progression, inventory: game.inventory, equipment: game.equipment, gold: game.gold, spellbook: game.spellbook, combatAutomation: game.combatAutomation, combatAbilities: game.combatAbilities, combat: game.combat }, world: { continentId: selectedContinentId, regionId: selectedRegionId, areaId: selectedAreaId, combatLocationId: selectedCombatLocationId } }), [game, selectedAreaId, selectedCombatLocationId, selectedContinentId, selectedRegionId]);
+  const snapshot = useMemo<DebugScenarioSnapshotV2>(() => ({ version: 2, game: { progression: game.progression, inventory: game.inventory, equipment: game.equipment, gold: game.gold, spellbook: game.spellbook, combatAutomation: game.combatAutomation, combatAbilities: game.combatAbilities, combat: game.combat }, world: { continentId: selectedContinentId, regionId: selectedRegionId, areaId: selectedAreaId, combatLocationId: selectedCombatLocationId } }), [game, selectedAreaId, selectedCombatLocationId, selectedContinentId, selectedRegionId]);
   const filled = slots.filter((slot): slot is DebugScenarioSlot => Boolean(slot));
   const save = () => { const slot = saveNew(name, snapshot); run(slot ? `Saved scenario to slot ${slot.slot}.` : "All 10 slots are occupied. Choose a slot and overwrite.", () => undefined); };
   const load = (slot: DebugScenarioSlot) => { const result = validateDebugScenario(slot.snapshot); if (!result.valid) { run(`Scenario incompatible: ${result.errors[0]}`, () => undefined); return; } debug.loadScenario(slot.snapshot); pause(true); openDock(); run(`Loaded scenario: ${slot.name}.`, () => undefined); };

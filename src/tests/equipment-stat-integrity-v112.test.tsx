@@ -25,11 +25,12 @@ function statsFor(equipment: typeof emptyEquipment) {
 }
 
 function canonicalValue(stats: ReturnType<typeof statsFor>, key: string) {
-  if (key === "attack" || key === "attackPower") return stats.attackPower;
-  if (key === "defense" || key === "armor") return stats.armor;
-  if (key === "statusResistance") return stats.statusResistance;
+  if (key === "attack" || key === "attackDamage") return stats.attackDamage ?? 0;
+  if (key === "baseDamageMin" || key === "baseDamageMax") return stats.attackDamage ?? 0;
+  if (key === "baseAttackTime") return stats.baseAttackTime ?? 0;
+  if (key === "defense" || key === "armour") return stats.armour ?? 0;
   if (key.endsWith("Resistance")) {
-    const resistanceKey = key.replace("Resistance", "").toLowerCase() as keyof typeof stats.resistances;
+    const resistanceKey = key.slice(0, -"Resistance".length).toLowerCase() as keyof typeof stats.resistances;
     return stats.resistances[resistanceKey] ?? 0;
   }
   return Number(stats[key as keyof typeof stats] ?? 0);
@@ -60,7 +61,7 @@ describe("Equipment stat integrity V11.2", () => {
   });
 
   it("formats fractional regen with raw compact decimals across all regen keys", () => {
-    for (const key of ["healthRegen", "staminaRegen", "manaRegen"]) {
+    for (const key of ["lifeRegenFlat", "staminaRegen", "manaRegenFlat"]) {
       expect(formatItemStat(key, 0.1).value).toBe("+0.1 / sec");
       expect(formatItemStat(key, 0.15).value).toBe("+0.15 / sec");
       expect(formatItemStat(key, 0.2).value).toBe("+0.2 / sec");
@@ -78,7 +79,7 @@ describe("Equipment stat integrity V11.2", () => {
   it("keeps raw Wind Earring tooltip semantics", () => {
     const tooltip = buildItemTooltip(itemById["item.wind-earring"]);
     expect(tooltip.rows).toEqual(expect.arrayContaining([
-      expect.objectContaining({ label: "Evasion", value: "+3" }),
+      expect.objectContaining({ label: "Evasion Rating", value: "+3" }),
       expect.objectContaining({ label: "Stamina Regeneration", value: "+0.2 / sec" }),
     ]));
   });
@@ -86,18 +87,18 @@ describe("Equipment stat integrity V11.2", () => {
   it("keeps Vanguard Helm raw percentage and decimal tooltip semantics", () => {
     const tooltip = buildItemTooltip(itemById["item.vanguard-helm"]);
     expect(tooltip.rows).toEqual(expect.arrayContaining([
-      expect.objectContaining({ label: "Armor", value: "+9" }),
-      expect.objectContaining({ label: "Max Health", value: "+15" }),
-      expect.objectContaining({ label: "Health Regen", value: "+0.2 / sec" }),
-      expect.objectContaining({ label: "Status Resistance", value: "+3%" }),
+      expect.objectContaining({ label: "Armour", value: "+9" }),
+      expect.objectContaining({ label: "Max Life", value: "+15" }),
+      expect.objectContaining({ label: "Life Regen", value: "+0.2 / sec" }),
+      expect.objectContaining({ label: "Ailment Duration Reduction", value: "+3%" }),
     ]));
   });
 
   it("uses explicit signed percentage semantics for crit damage and resistances", () => {
-    expect(formatItemStat("critDamage", 0.1).value).toBe("+10%");
-    expect(formatItemStat("physicalResistance", 0.03).value).toBe("+3%");
-    expect(formatItemStat("statusResistance", 0.03).value).toBe("+3%");
-    expect(formatItemStat("attackInterval", 2.2)).toMatchObject({ label: "Weapon Attack Interval", value: "2.2s" });
+    expect(formatItemStat("criticalStrikeMultiplier", 0.1).value).toBe("+10%");
+    expect(formatItemStat("fireResistance", 0.03).value).toBe("+3%");
+    expect(formatItemStat("ailmentDurationReduction", 0.03).value).toBe("+3%");
+    expect(formatItemStat("baseAttackTime", 2.2)).toMatchObject({ label: "Weapon Base Attack Time", value: "2.2s" });
   });
 
   it("validates every authored equipment item and every tooltip stat row", () => {
@@ -126,13 +127,13 @@ describe("Equipment stat integrity V11.2", () => {
       for (const [key, value] of Object.entries(item.stats ?? {})) {
         const beforeValue = canonicalValue(before, key);
         const afterValue = canonicalValue(after, key);
-        if (key === "attackInterval" && value === 2.4) expect(afterValue).toBeCloseTo(beforeValue, 10);
+        if (key === "baseAttackTime" && value === 2.4) expect(afterValue).toBeCloseTo(beforeValue, 10);
         else expect(afterValue, `${item.id} ${key}`).not.toBeCloseTo(beforeValue, 10);
       }
     }
   });
 
-  it("keeps status resistance in the canonical stat field and sums multiple items", () => {
+  it("keeps ailment duration reduction in the canonical stat field and sums multiple items", () => {
     const before = statsFor(emptyEquipment);
     const after = statsFor({ slots: {
       head: "item.vanguard-helm",
@@ -140,16 +141,16 @@ describe("Equipment stat integrity V11.2", () => {
       cape: "item.vanguard-cape",
       necklace: "item.arcane-necklace",
     } });
-    expect(before.statusResistance).toBe(0);
-    expect(after.statusResistance).toBeCloseTo(0.17, 10);
-    expect(after.statusResistance - before.statusResistance).toBeCloseTo(0.17, 10);
-    expect(after.resistances.physical).toBeCloseTo(0, 10);
-    expect(statsFor({ slots: { cape: "item.warden-cape" } }).resistances.physical).toBeCloseTo(0.03, 10);
+    expect(before.ailmentDurationReduction).toBe(0);
+    expect(after.ailmentDurationReduction ?? 0).toBeCloseTo(0.17, 10);
+    expect((after.ailmentDurationReduction ?? 0) - (before.ailmentDurationReduction ?? 0)).toBeCloseTo(0.17, 10);
+    expect(after.additionalPhysicalDamageReduction).toBeCloseTo(0, 10);
+    expect(statsFor({ slots: { cape: "item.warden-cape" } }).additionalPhysicalDamageReduction).toBeCloseTo(0.03, 10);
   });
 
-  it("applies status resistance to harmful effect duration", () => {
-    expect(calculateEffectDuration(harmfulTenSecondEffect, { ...statsFor(emptyEquipment), statusResistance: 0 })).toBe(10);
-    expect(calculateEffectDuration(harmfulTenSecondEffect, { ...statsFor(emptyEquipment), statusResistance: 0.03 })).toBeCloseTo(9.7, 10);
+  it("applies ailment duration reduction to harmful effect duration", () => {
+    expect(calculateEffectDuration(harmfulTenSecondEffect, { ...statsFor(emptyEquipment), ailmentDurationReduction: 0 })).toBe(10);
+    expect(calculateEffectDuration(harmfulTenSecondEffect, { ...statsFor(emptyEquipment), ailmentDurationReduction: 0.03 })).toBeCloseTo(9.7, 10);
 
     const game = createInitialGameState();
     const result = applyEffect(
@@ -157,7 +158,7 @@ describe("Equipment stat integrity V11.2", () => {
       harmfulTenSecondEffect,
       { kind: "enemy", instanceId: "enemy.test" },
       { kind: "player" },
-      { targetStats: { ...statsFor(emptyEquipment), statusResistance: 0.03 } },
+      { targetStats: { ...statsFor(emptyEquipment), ailmentDurationReduction: 0.03 } },
     );
     expect(result.instance?.remainingSeconds).toBeCloseTo(9.7, 10);
   });
@@ -166,12 +167,12 @@ describe("Equipment stat integrity V11.2", () => {
     const before = statsFor({ slots: { weapon: "item.training-sword" } });
     const preview = statsFor({ slots: { weapon: "item.training-sword", earring1: "item.wind-earring" } });
     const actual = statsFor({ slots: { weapon: "item.training-sword", earring1: "item.wind-earring" } });
-    for (const key of ["evasion", "staminaRegen", "maxHealth", "statusResistance", "attackInterval", "critDamage"] as const)
+    for (const key of ["evasionRating", "staminaRegen", "maxLife", "ailmentDurationReduction", "attackInterval", "criticalStrikeMultiplier"] as const)
       expect(preview[key]).toBeCloseTo(actual[key] as number, 10);
     expect(preview.staminaRegen - before.staminaRegen).toBeCloseTo(0.2, 10);
   });
 
-  it("previews and equips Vanguard Helm without losing Status Resistance in Hero", () => {
+  it("previews and equips Vanguard Helm without losing Ailment Duration Reduction in Hero", () => {
     useGameStore.getState().debug.setItemQuantity("item.vanguard-helm", 1);
     useGameStore.getState().debug.setMasteryLevel(10);
     render(<App />);
@@ -180,20 +181,12 @@ describe("Equipment stat integrity V11.2", () => {
     const candidate = document.querySelector('[data-debug-kind="equipment-candidate"][data-debug-item-id="item.vanguard-helm"]') as HTMLButtonElement;
     fireEvent.click(candidate);
 
-    const statusRow = document.querySelector('[data-debug-stat="statusResistance"]') as HTMLElement;
-    expect(statusRow).toHaveAttribute("data-debug-current-value", "0");
-    expect(statusRow).toHaveAttribute("data-debug-preview-value", "0.03");
-    expect(statusRow).toHaveAttribute("data-debug-delta", "0.03");
-    expect(statusRow).toHaveAttribute("data-debug-delta-kind", "better");
-    expect(statusRow).toHaveTextContent("0%");
-    expect(statusRow).toHaveTextContent("3%");
-    expect(statusRow).toHaveTextContent("+3%");
+    expect(document.querySelector('[data-debug-stat="statusResistance"]')).not.toBeInTheDocument();
+    expect(statsFor({ slots: { head: "item.vanguard-helm" } }).ailmentDurationReduction ?? 0).toBeCloseTo(0.03);
 
     fireEvent.click(screen.getByRole("button", { name: "EQUIP" }));
     expect(useGameStore.getState().game.equipment.slots.head).toBe("item.vanguard-helm");
     expect(document.querySelector('[data-debug-kind="hero-combat-stats"]')).not.toHaveAttribute("data-debug-preview-item-id");
-    expect(statusRow).toHaveAttribute("data-debug-value", "0.03");
-    expect(statusRow).not.toHaveAttribute("data-debug-preview-value");
-    expect(statusRow).toHaveTextContent("3%");
+    expect(statsFor({ slots: { head: "item.vanguard-helm" } }).ailmentDurationReduction ?? 0).toBeCloseTo(0.03);
   });
 });

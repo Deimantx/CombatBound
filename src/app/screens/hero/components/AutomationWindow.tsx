@@ -183,7 +183,7 @@ function defaultCondition(type: AutomationCondition["type"]): AutomationConditio
   if (type === "barrier-missing" || type === "target-casting" || type === "target-interruptible" || type === "always") return { type };
   if (type === "target-danger-at-least") return { type, danger: "high" };
   if (type === "alive-enemies-at-least") return { type, count: 1 };
-  return { type: type as "player-has-effect", effectId: "effect.burn" };
+  return { type: type as "player-has-effect", effectId: "effect.ignite" };
 }
 
 function conditionLabel(condition: AutomationCondition) {

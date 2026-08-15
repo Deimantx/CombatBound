@@ -56,7 +56,6 @@ import {
   getEffectiveMagicModifiers,
   getMagicCleanseEffectHooks,
   getMagicCleanseHooks,
-  getParryEffectHooks,
   getProficiencyXpMultiplier,
   getSpellCastEffectHooks,
   getSpellHitEffectHooks,
@@ -69,7 +68,6 @@ import {
   getWeaponAttackModifiers,
   getWeaponBlockEffectHooks,
   getWeaponDamageMultiplier,
-  getWeaponDodgeEffectHooks,
   getWeaponHitAdvanceHooks,
   getWeaponHitEffectHooks,
   getWeaponHitResourceHooks,
@@ -266,7 +264,7 @@ function recoverOutOfCombatResources(
   effective: ReturnType<typeof getPlayerStats>,
   step: number,
 ): CombatState {
-  const maxHealth = effective.maxHealth;
+  const maxHealth = effective.maxLife ?? 0;
   const maxStamina = effective.maxStamina;
   const maxMana = effective.maxMana;
   const healthRegen =
@@ -285,7 +283,7 @@ function recoverOutOfCombatResources(
     ),
     maxMana,
     mana: clamp(
-      combat.mana + effective.manaRegen * resourceMultiplier * step,
+      combat.mana + (effective.manaRegenFlat ?? 0) * resourceMultiplier * step,
       0,
       maxMana,
     ),
@@ -403,14 +401,9 @@ function restoreBarrierResource(
   proficiencyId: CombatProficiencyId,
   absorbedAmount: number,
 ) {
-  const resource =
-    proficiencyId === "light-magic"
-      ? "mana"
-      : proficiencyId === "earth-magic"
-        ? "stamina"
-        : null;
+  const resource = proficiencyId === "earth-magic" ? "stamina" : null;
   const magicProficiencyId =
-    proficiencyId === "light-magic" || proficiencyId === "earth-magic"
+    proficiencyId === "earth-magic"
       ? proficiencyId
       : undefined;
   if (!resource || !magicProficiencyId) return game;
@@ -422,24 +415,13 @@ function restoreBarrierResource(
       magicProficiencyId,
     ) * absorbedAmount;
   if (restored <= 0) return game;
-  return resource === "mana"
-    ? {
-        ...game,
-        combat: {
-          ...game.combat,
-          mana: Math.min(game.combat.maxMana, game.combat.mana + restored),
-        },
-      }
-    : {
-        ...game,
-        combat: {
-          ...game.combat,
-          stamina: Math.min(
-            game.combat.maxStamina,
-            game.combat.stamina + restored,
-          ),
-        },
-      };
+  return {
+    ...game,
+    combat: {
+      ...game.combat,
+      stamina: Math.min(game.combat.maxStamina, game.combat.stamina + restored),
+    },
+  };
 }
 
 function awardBarrierCredits(
@@ -563,10 +545,10 @@ function createActiveCombat(
     groupNumber,
     enemies,
     selectedEnemyInstanceId: enemies[0]?.instanceId ?? null,
-    maxPlayerHp: base.maxHealth,
+    maxPlayerHp: base.maxLife ?? 0,
     playerHp: resetResources
-      ? base.maxHealth
-      : Math.min(previous.playerHp, base.maxHealth),
+      ? base.maxLife ?? 0
+      : Math.min(previous.playerHp, base.maxLife ?? 0),
     playerAttackInterval: base.attackInterval,
     playerAttackTimer: Math.min(
       previous.playerAttackTimer,
@@ -629,8 +611,8 @@ export function setStance(
     playerAttackTimer: active
       ? Math.max(0, canonical.attackInterval * (1 - progress))
       : canonical.attackInterval,
-    maxPlayerHp: canonical.maxHealth,
-    playerHp: Math.min(combat.playerHp, canonical.maxHealth),
+    maxPlayerHp: canonical.maxLife ?? 0,
+    playerHp: Math.min(combat.playerHp, canonical.maxLife ?? 0),
     maxStamina: canonical.maxStamina,
     stamina: Math.min(combat.stamina, canonical.maxStamina),
     maxMana: canonical.maxMana,
@@ -833,12 +815,11 @@ function executeWeaponSkill(
       sourceActionId: skill.id,
       weaponSkillId: skill.id,
       damageMultiplier: skill.damageMultiplier,
-      attackerAccuracy: attackerStats.accuracy + skill.accuracyModifier,
+      attackerAccuracy: (attackerStats.accuracyRating ?? 0) + skill.accuracyModifier,
       cleave: skill.cleave,
       defensiveEligibility: {
         canMiss: true,
-        dodgeable: true,
-        parryable: true,
+        canBeEvaded: true,
         blockable: true,
       },
       progressionSource: {
@@ -922,28 +903,27 @@ export function castSpell(
     perkById,
     equipmentContext,
   );
-  if (spell.damage > 0 && target) {
+  if (effectiveSpell.baseDamageMin > 0 && target) {
     const packet: DamagePacket = {
       ...componentFromAttack(
         spell.damageType ?? "fire",
         0,
         effectiveSpell.canCrit,
       ),
+      sourceKind: "spell",
+      deliveryKind: "hit",
       source,
       target: targetRef,
       sourceActionId: spell.id,
-      baseDamage: effectiveSpell.damage,
+      baseDamage: effectiveSpell.baseDamageMin,
       criticalDamageMultiplier: effectiveSpell.criticalDamageMultiplier,
       criticalChanceBonus: effectiveSpell.criticalChanceBonus,
-      attackerAccuracy:
-        getPlayerStats(next.combat, stats, context, next.progression).accuracy +
-        effectiveSpell.accuracyModifier,
+      attackerAccuracy: getPlayerStats(next.combat, stats, context, next.progression).accuracyRating,
       minMultiplier: combatBalance.baseDamageVarianceMin,
       maxMultiplier: combatBalance.baseDamageVarianceMax,
       defensiveEligibility: {
-        canMiss: spell.canMiss ?? true,
-        dodgeable: spell.dodgeable ?? false,
-        parryable: spell.parryable ?? false,
+        canMiss: false,
+        canBeEvaded: false,
         blockable: spell.blockable ?? false,
       },
       armorPenetrationPercent: magicModifiers.spellArmorPenetrationPercent,
@@ -1045,7 +1025,7 @@ export function castSpell(
     0,
     next.combat.session.damageDealt - game.combat.session.damageDealt,
   );
-  if (castDamage > 0 && spell.damage > 0) {
+  if (castDamage > 0 && spell.baseDamageMin > 0) {
     const manaRestore =
       castDamage * magicModifiers.damageBasedManaRestoreFraction;
     if (manaRestore > 0)
@@ -1146,7 +1126,7 @@ export function castSpell(
     }
   }
   if (spell.barrierAmount !== undefined) {
-    const barrierEffectId = spell.barrierEffectId ?? "effect.protective-sign";
+    const barrierEffectId = spell.barrierEffectId ?? "effect.earth-barrier";
     const duration = effectiveSpell.effectDurationModifiers[barrierEffectId];
     next = applyEffectToGame(
       next,
@@ -1531,8 +1511,6 @@ function damageEnemy(
         (isSecondary ? secondaryFraction : 1),
       armorPenetrationPercent,
       armorPenetrationFlat,
-      blockChancePenetration: weaponAttack.blockChancePenetration,
-      blockPowerPenetration: weaponAttack.blockPowerPenetration,
     },
     attackerStats,
     defenderStats,
@@ -1636,18 +1614,13 @@ function damageEnemy(
     resolution.outcome === "hit" || resolution.outcome === "block"
       ? `${prefix} for ${resolution.healthDamage} damage${resolution.critical ? " critical" : ""}${resolution.barrierAbsorbed > 0 ? ` (${resolution.barrierAbsorbed} absorbed)` : ""}.`
       : `${prefix} ${resolution.outcome}s against ${current.displayName}.`;
-  const eventType =
-    resolution.outcome === "miss"
-      ? "attackMissed"
-      : resolution.outcome === "dodge"
-        ? "attackDodged"
-        : resolution.outcome === "parry"
-          ? "attackParried"
-          : resolution.outcome === "block"
-            ? "attackBlocked"
-            : resolution.critical
-              ? "criticalHit"
-              : "damageDealt";
+  const eventType = resolution.outcome === "evaded"
+    ? "attackEvaded"
+    : resolution.outcome === "block"
+      ? "attackBlocked"
+      : resolution.critical
+        ? "criticalHit"
+        : "damageDealt";
   next.combat = event(next.combat, {
     text: message,
     type: "player",
@@ -1758,21 +1731,6 @@ function damageEnemy(
           context,
           { durationBonusSeconds: hook.durationSeconds },
         );
-  } else if (resolution.outcome === "dodge" && weaponProficiencyId && !packet.weaponSkillId) {
-    for (const hook of getWeaponDodgeEffectHooks(
-      next.progression,
-      weaponProficiencyId,
-      perkById,
-    ))
-      next = applyEffectToGame(
-        next,
-        hook.effectId,
-        packet.source,
-        { kind: "player" },
-        attackerStats,
-        context,
-        { durationBonusSeconds: hook.durationSeconds },
-      );
   }
   if (
     allowSecondary &&
@@ -1866,7 +1824,7 @@ export function useHealingPotion(
   if (!validation.valid || game.combat.potionCooldownRemaining > 0) return game;
   const amount = Math.min(
     combatBalance.healingPotionAmount,
-    stats.maxHealth - game.combat.playerHp,
+    (stats.maxLife ?? 0) - game.combat.playerHp,
   );
   return {
     ...game,
@@ -1936,7 +1894,7 @@ function advanceStep(
     if (
       combat.recoveryRemaining <= 0 &&
       combat.combatLocationId &&
-      combat.playerHp / effective.maxHealth >= combatBalance.safetyStopThreshold
+      combat.playerHp / Math.max(1, effective.maxLife ?? 0) >= combatBalance.safetyStopThreshold
     ) {
       const location = context.locations[combat.combatLocationId];
       const group = location
@@ -1993,7 +1951,7 @@ function advanceStep(
     ),
     mana: clamp(
       combat.mana +
-        getPlayerStats(combat, stats, context, game.progression).manaRegen *
+        (getPlayerStats(combat, stats, context, game.progression).manaRegenFlat ?? 0) *
           step,
       0,
       combat.maxMana,
@@ -2010,14 +1968,14 @@ function advanceStep(
   combat = game.combat;
   if (combat.phase !== "active") return game;
   const effective = getPlayerStats(combat, stats, context, game.progression);
-  const requestedRegen = Math.max(0, effective.healthRegen ?? 0) * step;
+  const requestedRegen = Math.max(0, effective.lifeRegenFlat ?? 0) * step;
   const effectiveHealing = Math.min(
-    Math.max(0, effective.maxHealth - combat.playerHp),
+    Math.max(0, (effective.maxLife ?? 0) - combat.playerHp),
     requestedRegen,
   );
   combat = {
     ...combat,
-    maxPlayerHp: effective.maxHealth,
+    maxPlayerHp: effective.maxLife ?? 0,
     playerHp: combat.playerHp + effectiveHealing,
     session:
       effectiveHealing > 0
@@ -2128,8 +2086,7 @@ function advanceStep(
         target: { kind: "enemy", instanceId: target.instanceId },
         defensiveEligibility: {
           canMiss: true,
-          dodgeable: true,
-          parryable: true,
+          canBeEvaded: true,
           blockable: true,
         },
         progressionSource: {
@@ -2181,8 +2138,7 @@ function advanceStep(
         target: { kind: "player" },
         defensiveEligibility: {
           canMiss: true,
-          dodgeable: true,
-          parryable: true,
+          canBeEvaded: true,
           blockable: true,
         },
       };
@@ -2226,7 +2182,7 @@ function advanceStep(
         ...combat,
         enemies: combat.enemies.map((candidate) =>
           candidate.instanceId === current.instanceId
-            ? { ...candidate, attackTimer: definition.attackInterval }
+            ? { ...candidate, attackTimer: definition.baseAttackTime }
             : candidate,
         ),
       };
@@ -2240,16 +2196,11 @@ function advanceStep(
         resolved.outcome === "hit" || resolved.outcome === "block"
           ? `${current.displayName} hits you for ${resolved.healthDamage}${resolved.barrierAbsorbed > 0 ? ` (${resolved.barrierAbsorbed} absorbed)` : ""}.`
           : `${current.displayName} ${resolved.outcome}s your attack.`;
-      const type =
-        resolved.outcome === "miss"
-          ? "attackMissed"
-          : resolved.outcome === "dodge"
-            ? "attackDodged"
-            : resolved.outcome === "parry"
-              ? "attackParried"
-              : resolved.outcome === "block"
-                ? "attackBlocked"
-                : "damageDealt";
+      const type = resolved.outcome === "evaded"
+        ? "attackEvaded"
+        : resolved.outcome === "block"
+          ? "attackBlocked"
+          : "damageDealt";
       combat = event(combat, {
         text: message,
         type: "enemy",
@@ -2264,24 +2215,6 @@ function advanceStep(
           immortalPrevented: playerDamage.preventedLethalDamage,
         },
       });
-      if (resolved.outcome === "parry") {
-        let parryGame = { ...game, combat };
-        for (const hook of getParryEffectHooks(
-          parryGame.progression,
-          getEquippedWeaponProficiency(parryGame.equipment),
-          perkById,
-        ))
-          parryGame = applyEffectToGame(
-            parryGame,
-            hook.effectId,
-            { kind: "player" },
-            { kind: "player" },
-            playerStats,
-            context,
-          );
-        game = parryGame;
-        combat = game.combat;
-      }
       if (combat.playerHp <= 0)
         return {
           ...game,
@@ -2416,7 +2349,7 @@ function resolvePeriodicEffect(
         game.progression,
       );
       const healed = Math.min(
-        effective.maxHealth - game.combat.playerHp,
+        (effective.maxLife ?? 0) - game.combat.playerHp,
         amount,
       );
       if (healed > 0 && effect.sourceProficiencyId)
@@ -2471,6 +2404,8 @@ function resolvePeriodicEffect(
         : playerBaseStats(stats);
   const packet: DamagePacket = {
     ...componentFromAttack(operation.damageType, 0, operation.canCrit ?? false),
+    sourceKind: effect.source.kind === "player" ? "spell" : "secondary",
+    deliveryKind: "damage-over-time",
     source: effect.source,
     target: effect.target,
     baseDamage:
@@ -2482,8 +2417,7 @@ function resolvePeriodicEffect(
     ignoresArmor: operation.damageType === "physical",
     defensiveEligibility: {
       canMiss: false,
-      dodgeable: false,
-      parryable: false,
+      canBeEvaded: false,
       blockable: false,
     },
   };
@@ -2723,8 +2657,7 @@ function advanceEnemySpecials(
             target: { kind: "player" },
             defensiveEligibility: {
               canMiss: true,
-              dodgeable: actionDefinition.dodgeable,
-              parryable: actionDefinition.parryable,
+              canBeEvaded: true,
               blockable: actionDefinition.blockable,
             },
           };
@@ -2822,7 +2755,7 @@ function advanceEnemySpecials(
         ) {
           game = applyEffectiveHealing(
             game,
-            "light-magic",
+            "water-magic",
             Math.max(0, actionDefinition.healing),
             source,
             actionDefinition.name,
@@ -3235,8 +3168,8 @@ export function syncCombatStats(game: GameState): GameState {
     ...game,
     combat: {
       ...game.combat,
-      maxPlayerHp: canonical.maxHealth,
-      playerHp: canonical.maxHealth * healthFraction,
+      maxPlayerHp: canonical.maxLife ?? 0,
+      playerHp: (canonical.maxLife ?? 0) * healthFraction,
       playerAttackInterval: canonical.attackInterval,
       maxStamina: canonical.maxStamina,
       stamina: canonical.maxStamina * staminaFraction,

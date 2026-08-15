@@ -34,14 +34,9 @@ import type { CombatAbilityAvailability } from "../combatAbilities/combatAbility
 const damageLabels: Record<DamageType, string> = {
   physical: "Physical",
   fire: "Fire",
-  water: "Water",
-  air: "Air",
-  earth: "Earth",
-  light: "Light",
-  darkness: "Darkness",
-  nature: "Nature",
-  mystic: "Mystic",
-  true: "True",
+  cold: "Cold",
+  lightning: "Lightning",
+  chaos: "Chaos",
 };
 const kindLabels: Record<EffectDefinition["kind"], string> = {
   buff: "Buff",
@@ -343,16 +338,15 @@ export function buildEffectDefinitionTooltip(definition: EffectDefinition): Tool
 export function buildEnemyDefinitionTooltip(enemy: EnemyDefinition, options: { defeats?: number; sourceLocations?: string[] } = {}): TooltipModel {
   const rows: TooltipRow[] = [
     { label: "Family", value: enemy.family, tone: "gold" },
-    { label: "Max Health", value: `${enemy.maxHealth}`, tone: "green" },
-    { label: "Attack Power", value: `${enemy.attackPower}`, tone: "red" },
-    { label: "Accuracy", value: `${enemy.accuracy}`, tone: "gold" },
-    { label: "Armor", value: `${enemy.armor}`, tone: "blue" },
-    { label: "Evasion", value: `${enemy.evasion}`, tone: "blue" },
-    { label: "Attack Interval", value: formatSeconds(enemy.attackInterval), tone: "blue" },
-    { label: "Dodge", value: formatPercent(enemy.dodgeChance, true), tone: "blue" },
-    { label: "Parry", value: formatPercent(enemy.parryChance, true), tone: "blue" },
-    { label: "Block Chance", value: formatPercent(enemy.blockChance, true), tone: "blue" },
-    { label: "Block Power", value: formatPercent(enemy.blockPower, true), tone: "blue" },
+    { label: "Max Life", value: `${enemy.maxLife}`, tone: "green" },
+    { label: "Attack Damage", value: `${(enemy.baseAttackDamageMin + enemy.baseAttackDamageMax) / 2}`, tone: "red" },
+    { label: "Accuracy Rating", value: `${enemy.accuracyRating}`, tone: "gold" },
+    { label: "Armour", value: `${enemy.armour}`, tone: "blue" },
+    { label: "Evasion Rating", value: `${enemy.evasionRating}`, tone: "blue" },
+    { label: "Attack Interval", value: formatSeconds(enemy.baseAttackTime), tone: "blue" },
+    { label: "Attack Block", value: formatPercent(enemy.attackBlockChance ?? 0, true), tone: "blue" },
+    { label: "Spell Block", value: formatPercent(enemy.spellBlockChance ?? 0, true), tone: "blue" },
+    { label: "Spell Suppression", value: formatPercent(enemy.spellSuppressionChance ?? 0, true), tone: "blue" },
   ];
   rows.push(...Object.entries(enemy.resistances).map(([damageType, value]) => ({ label: `${damageType} resistance`, value: formatPercent(value, true), tone: toneForValue(value) } satisfies TooltipRow)));
   if (options.defeats !== undefined) rows.push({ label: "Collection defeats", value: `${options.defeats}`, tone: "gold" });
@@ -399,10 +393,10 @@ export function buildSpellTooltip(
             : "Selected enemy",
     },
   ];
-  if (spell.damage > 0)
+  if (spell.baseDamageMin > 0)
     rows.push({
       label: "Base damage",
-      value: `${effective.damage} ${damageLabels[spell.damageType ?? "physical"]}`,
+      value: `${effective.baseDamageMin}${effective.baseDamageMax !== effective.baseDamageMin ? `–${effective.baseDamageMax}` : ""} ${damageLabels[spell.damageType ?? "physical"]}`,
       tone: "red",
     });
   if (effective.barrierAmount)
@@ -453,22 +447,16 @@ export function buildTechniqueTooltip(id: TechniqueId): TooltipModel {
       tone: "blue",
     },
   ];
-  if (technique.accuracy)
+  if (technique.accuracyRating)
     rows.push({
-      label: "Accuracy",
-      value: formatSignedNumber(technique.accuracy),
+      label: "Accuracy Rating",
+      value: formatSignedNumber(technique.accuracyRating),
       tone: "gold",
     });
-  if (technique.dodge)
+  if (technique.evasionRating)
     rows.push({
-      label: "Dodge Chance",
-      value: formatPercent(technique.dodge, true),
-      tone: "green",
-    });
-  if (technique.parry)
-    rows.push({
-      label: "Parry Chance",
-      value: formatPercent(technique.parry, true),
+      label: "Evasion Rating",
+      value: formatSignedNumber(technique.evasionRating),
       tone: "green",
     });
   return {
@@ -587,24 +575,18 @@ export function buildStanceTooltip(
         tone: toneForValue(value - 1),
       });
   };
-  addMultiplier("Attack Power", stance.damage);
-  addMultiplier("Armor", stance.armor);
-  addMultiplier("Accuracy", stance.accuracy);
+  addMultiplier("Attack Damage", stance.damageMultiplier);
+  addMultiplier("Armour", stance.armourMultiplier);
+  addMultiplier("Accuracy Rating", stance.accuracyMultiplier);
   addMultiplier(
     "Attack Interval",
     stance.attackIntervalMultiplier,
     stance.attackIntervalMultiplier < 1 ? "faster" : "slower",
   );
-  if (stance.dodge)
+  if (stance.evasionRating)
     rows.push({
-      label: "Dodge Chance",
-      value: formatPercent(stance.dodge, true),
-      tone: "green",
-    });
-  if (stance.parry)
-    rows.push({
-      label: "Parry Chance",
-      value: formatPercent(stance.parry, true),
+      label: "Evasion Rating",
+      value: formatSignedNumber(stance.evasionRating),
       tone: "green",
     });
   addMultiplier("Stamina Regeneration", stance.staminaRegenMultiplier);

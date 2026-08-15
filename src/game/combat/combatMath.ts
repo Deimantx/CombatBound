@@ -1,145 +1,62 @@
 import { clamp, combatBalance } from "./combatBalance";
 import type { CombatRng, DefensiveEligibility } from "./combatTypes";
 import type { CombatStats } from "./combatTypes";
-import { getResistance } from "./combatStats";
 import { nextCombatRandom } from "./combatRng";
 
-export function calculateHitChance(
-  attackerAccuracy: number,
-  defenderEvasion: number,
-) {
-  const accuracy = Number.isFinite(attackerAccuracy)
-    ? Math.max(0, attackerAccuracy)
-    : 0;
-  const evasion = Number.isFinite(defenderEvasion)
-    ? Math.max(0, defenderEvasion)
-    : 0;
-  const total = Math.max(1, accuracy + evasion);
-  const relative = (accuracy - evasion) / total;
-  const chance =
-    relative >= 0
-      ? combatBalance.baseHitChance +
-        (combatBalance.maxHitChance - combatBalance.baseHitChance) * relative
-      : combatBalance.baseHitChance +
-        (combatBalance.baseHitChance - combatBalance.minHitChance) * relative;
-  return clamp(chance, combatBalance.minHitChance, combatBalance.maxHitChance);
+/** Path of Exile's accuracy/evasion chance to hit formula. */
+export function calculateHitChance(attackerAccuracy: number, defenderEvasion: number) {
+  const accuracy = Number.isFinite(attackerAccuracy) ? Math.max(0, attackerAccuracy) : 0;
+  const evasion = Number.isFinite(defenderEvasion) ? Math.max(0, defenderEvasion) : 0;
+  if (accuracy <= 0) return combatBalance.minHitChance;
+  if (evasion <= 0) return combatBalance.maxHitChance;
+  const uncapped = (1.25 * accuracy) / (accuracy + Math.pow(evasion / 5, 0.9));
+  return clamp(Number.isFinite(uncapped) ? uncapped : combatBalance.minHitChance, combatBalance.minHitChance, combatBalance.maxHitChance);
 }
 
-export type AvoidanceKind = "dodge" | "parry" | "block";
-
-export function calculateEffectiveAvoidanceChance(
-  rawChance: number,
-  kind: AvoidanceKind,
-) {
-  const raw = Math.max(0, Number.isFinite(rawChance) ? rawChance : 0);
-  const soft =
-    kind === "block"
-      ? combatBalance.blockSoftCap
-      : kind === "parry"
-        ? combatBalance.parrySoftCap
-        : combatBalance.dodgeSoftCap;
-  const hard =
-    kind === "block"
-      ? combatBalance.blockHardCap
-      : kind === "parry"
-        ? combatBalance.parryHardCap
-        : combatBalance.dodgeHardCap;
-  return clamp(raw <= soft ? raw : soft + (raw - soft) * 0.5, 0, hard);
-}
-
-export function calculateArmorMitigation(armor: number) {
+export function calculateArmorMitigation(armor: number, hitDamage = 100) {
   const effectiveArmor = Math.max(0, Number.isFinite(armor) ? armor : 0);
-  return effectiveArmor / (effectiveArmor + combatBalance.armorConstant);
+  const safeHit = Math.max(0, Number.isFinite(hitDamage) ? hitDamage : 0);
+  if (effectiveArmor <= 0 || safeHit <= 0) return 0;
+  return Math.min(0.9, effectiveArmor / (effectiveArmor + 5 * safeHit));
 }
 
-/** Calculates attack-local effective armor without mutating the defender. */
-export function calculateEffectiveArmor(
-  armor: number,
-  percentPenetration = 0,
-  flatPenetration = 0,
-) {
+/** Calculates attack-local effective armour without mutating the defender. */
+export function calculateEffectiveArmor(armor: number, percentPenetration = 0, flatPenetration = 0) {
   const safeArmor = Math.max(0, Number.isFinite(armor) ? armor : 0);
-  return Math.max(
-    0,
-    safeArmor * (1 - clamp(percentPenetration, 0, 1)) -
-      Math.max(0, Number.isFinite(flatPenetration) ? flatPenetration : 0),
-  );
+  return Math.max(0, safeArmor * (1 - clamp(Number.isFinite(percentPenetration) ? percentPenetration : 0, 0, 1)) - Math.max(0, Number.isFinite(flatPenetration) ? flatPenetration : 0));
 }
 
 export function calculateResistanceMultiplier(resistance: number) {
-  const effectiveResistance = clamp(
-    Number.isFinite(resistance) ? resistance : 0,
-    combatBalance.minResistance,
-    combatBalance.maxResistance,
-  );
+  const effectiveResistance = clamp(Number.isFinite(resistance) ? resistance : 0, combatBalance.minimumResistance, combatBalance.hardMaximumResistance);
   return 1 - effectiveResistance;
 }
 
-export function calculateMitigatedDamage(
-  rawDamage: number,
-  armor: number,
-  resistance = 0,
-  damageType:
-    | "physical"
-    | "fire"
-    | "earth"
-    | "air"
-    | "nature"
-    | "mystic"
-    | "true" = "physical",
-) {
+export function calculateMitigatedDamage(rawDamage: number, armor: number, resistance = 0, damageType: "physical" | "fire" | "cold" | "lightning" | "chaos" = "physical") {
   const safeRaw = Math.max(0, Number.isFinite(rawDamage) ? rawDamage : 0);
-  const armorMultiplier =
-    damageType === "physical" ? 1 - calculateArmorMitigation(armor) : 1;
-  const resistanceMultiplier =
-    damageType === "true" ? 1 : calculateResistanceMultiplier(resistance);
-  return Math.max(
-    0,
-    Math.round(safeRaw * armorMultiplier * resistanceMultiplier),
-  );
+  const armorMultiplier = damageType === "physical" ? 1 - calculateArmorMitigation(armor, safeRaw) : 1;
+  return Math.max(0, Math.round(safeRaw * armorMultiplier * calculateResistanceMultiplier(resistance)));
 }
 
-export type DefensiveOutcome = "miss" | "dodge" | "parry" | "block" | "hit";
+export type DefensiveOutcome = "evaded" | "block" | "hit";
 
-type DefensiveStats = Partial<
-  Pick<CombatStats, "evasion" | "dodgeChance" | "parryChance" | "blockChance">
-> & {
-  /** Legacy aliases are accepted at this boundary while callers migrate. */
-  dodge?: number;
-  parry?: number;
-  block?: number;
-};
+type DefensiveStats = Partial<Pick<CombatStats, "attackBlockChance" | "spellBlockChance" | "evasionRating">>;
 
+/** Resolves only canonical Attack evasion and eligible Block. DoTs never enter this path. */
 export function resolveDefensiveOutcome(
   attackerAccuracy: number,
   defenderEvasion: number,
   defender: DefensiveStats,
   eligibility: DefensiveEligibility,
   rng: CombatRng,
+  options: { sourceKind?: "attack" | "spell" | "secondary"; deliveryKind?: "hit" | "damage-over-time"; blockKind?: "attack" | "spell" } = {},
 ): DefensiveOutcome {
-  const canMiss = eligibility.canMiss !== false;
-  const dodgeChance = defender.dodgeChance ?? defender.dodge ?? 0;
-  const parryChance = defender.parryChance ?? defender.parry ?? 0;
-  const blockChance = defender.blockChance ?? defender.block ?? 0;
-  if (
-    canMiss &&
-    nextCombatRandom(rng, "hit") >= calculateHitChance(attackerAccuracy, defenderEvasion)
-  )
-    return "miss";
-  if (
-    eligibility.dodgeable &&
-    nextCombatRandom(rng, "dodge") < calculateEffectiveAvoidanceChance(dodgeChance, "dodge")
-  )
-    return "dodge";
-  if (
-    eligibility.parryable &&
-    nextCombatRandom(rng, "parry") < calculateEffectiveAvoidanceChance(parryChance, "parry")
-  )
-    return "parry";
-  if (
-    eligibility.blockable &&
-    nextCombatRandom(rng, "block") < calculateEffectiveAvoidanceChance(blockChance, "block")
-  )
-    return "block";
+  const sourceKind = options.sourceKind ?? "attack";
+  const deliveryKind = options.deliveryKind ?? "hit";
+  const canEvade = sourceKind === "attack" && deliveryKind === "hit" && eligibility.canMiss !== false && eligibility.canBeEvaded !== false;
+  if (canEvade && nextCombatRandom(rng, "hit") >= calculateHitChance(attackerAccuracy, defenderEvasion)) return "evaded";
+  if (deliveryKind !== "damage-over-time" && eligibility.blockable) {
+    const blockChance = options.blockKind === "spell" ? defender.spellBlockChance : defender.attackBlockChance;
+    if (nextCombatRandom(rng, "block") < clamp(Number.isFinite(blockChance ?? 0) ? blockChance ?? 0 : 0, 0, combatBalance.hardMaximumBlockChance)) return "block";
+  }
   return "hit";
 }

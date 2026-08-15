@@ -1,8 +1,5 @@
 import { describe, expect, it } from "vitest";
-import {
-  calculateEffectiveAvoidanceChance,
-  calculateHitChance,
-} from "../game/combat/combatMath";
+import { calculateHitChance } from "../game/combat/combatMath";
 import {
   advanceCombat,
   castSpell,
@@ -29,16 +26,11 @@ const statsFor = (game: ReturnType<typeof createInitialGameState>) =>
   );
 
 describe("Combat Systems V7", () => {
-  it("uses the piecewise hit chance curve", () => {
-    expect(calculateHitChance(100, 100)).toBeCloseTo(0.75);
-    expect(calculateHitChance(70, 30)).toBeCloseTo(0.842);
-    expect(calculateHitChance(30, 70)).toBeCloseTo(0.51);
-  });
-
-  it("applies avoidance diminishing returns by category", () => {
-    expect(calculateEffectiveAvoidanceChance(0.25, "dodge")).toBeCloseTo(0.25);
-    expect(calculateEffectiveAvoidanceChance(0.5, "dodge")).toBeCloseTo(0.375);
-    expect(calculateEffectiveAvoidanceChance(1, "block")).toBeCloseTo(0.7);
+  it("uses the canonical accuracy versus evasion formula", () => {
+    const expected = (1.25 * 10) / (10 + Math.pow(100 / 5, 0.9));
+    expect(calculateHitChance(10, 100)).toBeCloseTo(expected);
+    expect(calculateHitChance(12, 100)).toBeGreaterThan(calculateHitChance(10, 100));
+    expect(calculateHitChance(10, 120)).toBeLessThan(calculateHitChance(10, 100));
   });
 
   it("preserves current resources when starting or switching a hunt", () => {
@@ -91,7 +83,7 @@ describe("Combat Systems V7", () => {
     ).toBe("spell-not-equipped");
   });
 
-  it("runs the default Protective Sign automation rule", () => {
+  it("does not resurrect the retired Protective Sign automation", () => {
     const game = createInitialGameState();
     const stats = statsFor(game);
     const started = startHunt(
@@ -101,9 +93,7 @@ describe("Combat Systems V7", () => {
       context,
     );
     const advanced = advanceCombat(started, 0.1, context, stats);
-    expect(
-      getBarrierAmount(advanced.combat.playerEffects, effectById),
-    ).toBeGreaterThan(0);
+    expect(getBarrierAmount(advanced.combat.playerEffects, effectById)).toBe(0);
   });
 
   it("keeps Chilled when Flame Blast is cast and does not trigger a reaction", () => {
@@ -153,10 +143,10 @@ describe("Combat Systems V7", () => {
       chilledBeforeFire.combat.enemies[0].currentHealth - chilledTarget.currentHealth,
     );
     expect(chilledTarget.effects.some((effect) => effect.effectId === "effect.chilled")).toBe(true);
-    expect(chilledTarget.effects.some((effect) => effect.effectId === "effect.burn")).toBe(true);
+    expect(chilledTarget.effects.some((effect) => effect.effectId === "effect.ignite")).toBe(true);
   });
 
-  it("does not consume Burn or add a reaction when Ice Shard hits", () => {
+  it("does not consume Ignite or add a reaction when Ice Shard hits", () => {
     const game = createInitialGameState();
     const stats = statsFor(game);
     const started = startHunt(game, "location.wolf-den", stats, context);
@@ -169,7 +159,7 @@ describe("Combat Systems V7", () => {
     const afterGcd = advanceCombat(burning, 0.75, context, stats);
     const afterIce = castSpell(afterGcd, "spell.ice-shard", stats, context);
     const target = afterIce.combat.enemies[0];
-    expect(target.effects.some((effect) => effect.effectId === "effect.burn")).toBe(true);
+    expect(target.effects.some((effect) => effect.effectId === "effect.ignite")).toBe(true);
     expect(target.effects.some((effect) => effect.effectId === "effect.chilled")).toBe(true);
     expect(target.effects.some((effect) => effect.effectId === "effect.exposed")).toBe(false);
   });
@@ -177,7 +167,7 @@ describe("Combat Systems V7", () => {
   it("applies resistance modifiers through the canonical stat boundary", () => {
     const base = normalizeCombatStats({
       maxHealth: 100,
-      resistances: { air: 0, light: 0 },
+      resistances: { lightning: 0, fire: 0 },
     });
     const shocked = calculateEffectiveCombatStats(
       base,
@@ -195,6 +185,6 @@ describe("Combat Systems V7", () => {
       ],
       effectById,
     );
-    expect(shocked.resistances.air).toBeCloseTo(-0.1);
+    expect(shocked.resistances.lightning).toBeCloseTo(-0.1);
   });
 });

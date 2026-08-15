@@ -11,10 +11,7 @@ import type {
   CombatProficiencyId,
   ProgressionState,
 } from "../progression/progressionTypes";
-import {
-  calculateEffectiveAvoidanceChance,
-  calculateHitChance,
-} from "./combatMath";
+import { calculateHitChance } from "./combatMath";
 import {
   calculateEffectiveCombatStats,
   calculateEnemyBaseCombatStats,
@@ -34,9 +31,9 @@ export interface CombatMatchupView {
   playerAccuracy: number;
   targetEvasion: number;
   playerHitChance: number;
-  targetDodgeChance: number;
-  targetParryChance: number;
-  targetBlockChance: number;
+  targetAttackBlockChance: number;
+  targetSpellBlockChance: number;
+  targetSpellSuppressionChance: number;
   enemyAccuracy: number;
   playerEvasion: number;
   enemyHitChance: number;
@@ -133,31 +130,22 @@ export function getSelectedTargetMatchup(
   const enemyStats = getEnemyEffectiveCombatStats(selectedEnemy);
   return {
     targetName: selectedEnemy.displayName,
-    playerAccuracy: playerStats.accuracy,
-    targetEvasion: enemyStats.evasion,
+    playerAccuracy: playerStats.accuracyRating ?? 0,
+    targetEvasion: enemyStats.evasionRating ?? 0,
     playerHitChance: calculateHitChance(
-      playerStats.accuracy,
-      enemyStats.evasion,
+      playerStats.accuracyRating ?? 0,
+      enemyStats.evasionRating ?? 0,
     ),
-    targetDodgeChance: calculateEffectiveAvoidanceChance(
-      enemyStats.dodgeChance,
-      "dodge",
-    ),
-    targetParryChance: calculateEffectiveAvoidanceChance(
-      enemyStats.parryChance,
-      "parry",
-    ),
-    targetBlockChance: calculateEffectiveAvoidanceChance(
-      enemyStats.blockChance,
-      "block",
-    ),
-    enemyAccuracy: enemyStats.accuracy,
-    playerEvasion: playerStats.evasion,
+    targetAttackBlockChance: enemyStats.attackBlockChance ?? 0,
+    targetSpellBlockChance: enemyStats.spellBlockChance ?? 0,
+    targetSpellSuppressionChance: enemyStats.spellSuppressionChance ?? 0,
+    enemyAccuracy: enemyStats.accuracyRating ?? 0,
+    playerEvasion: playerStats.evasionRating ?? 0,
     enemyHitChance: calculateHitChance(
-      enemyStats.accuracy,
-      playerStats.evasion,
+      enemyStats.accuracyRating ?? 0,
+      playerStats.evasionRating ?? 0,
     ),
-    playerCritChance: playerStats.critChance,
+    playerCritChance: playerStats.baseCritChance ?? 0,
     playerStats,
     enemyStats,
   };

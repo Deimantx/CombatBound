@@ -58,7 +58,7 @@ export function HeroScreen() {
       <section className="hero-identity" data-debug-kind="hero-identity">
         <div className="hero-avatar"><Shield size={30} /></div>
         <div><span className="tiny-label">HUNTER</span><h2>Vanguard</h2><p>{activeDefinition?.name ?? "No weapon proficiency"} · Lv {activeLevel} · Mastery Lv {masteryLevelForXp(progression.masteryXp)}</p></div>
-        <div className="hero-resource-summary"><span>HP <strong>{Math.round(stats.maxHealth)}</strong></span><span>Stamina <strong>{Math.round(stats.maxStamina)}</strong></span><span>Mana <strong>{Math.round(stats.maxMana)}</strong></span></div>
+        <div className="hero-resource-summary"><span>HP <strong>{Math.round(stats.maxLife ?? 0)}</strong></span><span>Stamina <strong>{Math.round(stats.maxStamina)}</strong></span><span>Mana <strong>{Math.round(stats.maxMana)}</strong></span></div>
       </section>
       <div className="hero-build-workspace-layout">
         <HeroEquipmentWorkspace preview={equipmentPreview} hoveredPreview={hoveredEquipmentPreview} onPreviewChange={setEquipmentPreview} onHoverPreview={setHoveredEquipmentPreview} onSlotChange={() => { setEquipmentPreview(null); setHoveredEquipmentPreview(null); }} onEquipCommitted={() => { setEquipmentPreview(null); setHoveredEquipmentPreview(null); }} />

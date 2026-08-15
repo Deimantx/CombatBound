@@ -110,7 +110,7 @@ export function EquipmentScreen({ embedded = false }: { embedded?: boolean } = {
     ] ?? 0;
   const valueFor = (key: string) =>
     key === "physicalDirectMitigation"
-      ? calculateArmorMitigation(stats.armor)
+      ? calculateArmorMitigation(stats.armour ?? 0)
       : key.endsWith("Resistance")
         ? resistance(key)
         : (stats[key as keyof typeof stats] as number);
@@ -147,11 +147,11 @@ export function EquipmentScreen({ embedded = false }: { embedded?: boolean } = {
                 {equippedProficiencyName
                   ? `${equippedProficiencyName} · Lv ${equippedProficiencyLevel}`
                   : "No weapon proficiency"}{" "}
-                · {stats.attackPower} Attack Power
+                · {stats.attackDamage} Attack Damage
               </p>
             </div>
             <span className="loadout-rating">
-              <Sparkles size={14} /> {stats.maxHealth} Max HP
+              <Sparkles size={14} /> {stats.maxLife} Max Life
             </span>
           </div>
           <div className="equipment-slot-groups">
@@ -253,7 +253,7 @@ export function EquipmentScreen({ embedded = false }: { embedded?: boolean } = {
           </div>
           <div className="loadout-total">
             <span>Total combat rating</span>
-            <strong>{stats.attackPower}</strong>
+            <strong>{stats.attackDamage}</strong>
             <span className="text-green">
               {combatLocked ? "Locked during combat" : "Ready to equip"}
             </span>
@@ -269,10 +269,10 @@ export function EquipmentScreen({ embedded = false }: { embedded?: boolean } = {
           className="equipment-stats"
           summary={
             <>
-              <span>Attack Power {stats.attackPower}</span>
-              <span>Armor {Math.round(stats.armor)}</span>
-              <span>Accuracy {Math.round(stats.accuracy)}</span>
-              <span>Max Health {Math.round(stats.maxHealth)}</span>
+              <span>Attack Damage {stats.attackDamage}</span>
+              <span>Armour {Math.round(stats.armour ?? 0)}</span>
+              <span>Accuracy Rating {Math.round(stats.accuracyRating ?? 0)}</span>
+              <span>Max Life {Math.round(stats.maxLife ?? 0)}</span>
             </>
           }
         >
@@ -426,7 +426,7 @@ export function EquipmentStatGroup({
                       : value < 0
                         ? "red"
                         : undefined
-                    : key === "attackPower"
+                    : key === "attackDamage"
                       ? "gold"
                       : undefined
                 }

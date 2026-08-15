@@ -133,7 +133,7 @@ export function SpellbookWindow({ game, onOpenAutomation }: { game: GameState; o
         data-debug-dragging={dragState.payload?.kind === "known-spell" && dragState.payload.spellId === spell.id ? "true" : "false"}
       >
         <PlaceholderArt icon={spell.icon} size="small" variant={school.accent === "fire" ? "gold" : "blue"} />
-        <span><strong>{spell.name}</strong><small>{school.fullLabel} · {view.effectiveManaCost} Mana · {view.effectiveSpell?.cooldownSeconds.toFixed(1)}s</small><em>{spell.damage > 0 ? "Damage" : spell.barrierAmount ? "Barrier" : "Utility"}{spell.applyEffects?.length ? ` · ${spell.applyEffects.map((effect) => effectById[effect.effectId]?.name ?? effect.effectId).join(", ")}` : ""}</em></span>
+        <span><strong>{spell.name}</strong><small>{school.fullLabel} · {view.effectiveManaCost} Mana · {view.effectiveSpell?.cooldownSeconds.toFixed(1)}s</small><em>{spell.baseDamageMin > 0 ? "Damage" : spell.barrierAmount ? "Barrier" : "Utility"}{spell.applyEffects?.length ? ` · ${spell.applyEffects.map((effect) => effectById[effect.effectId]?.name ?? effect.effectId).join(", ")}` : ""}</em></span>
         {equippedSlot >= 0 && <b>EQUIPPED {equippedSlot + 1}</b>}
       </button>
     );
@@ -259,7 +259,7 @@ function spellMatchesQuery(spell: (typeof spellDefinitions)[number], normalizedQ
     const definition = effectById[effect.effectId];
     return definition ? [definition.name, definition.description, ...definition.tags] : [effect.effectId];
   }) ?? [];
-  const roleWords = spell.damage > 0 ? "damage attack offensive" : spell.barrierAmount ? "barrier defense protective" : spell.interruptsAction ? "interrupt disruption control" : "utility support";
+  const roleWords = spell.baseDamageMin > 0 ? "damage attack offensive" : spell.barrierAmount ? "barrier defense protective" : spell.interruptsAction ? "interrupt disruption control" : "utility support";
   return [spell.id, spell.name, spell.description, school.label, school.fullLabel, spell.damageType ?? "", roleWords, ...effects]
     .join(" ")
     .toLowerCase()
@@ -286,7 +286,7 @@ function SpellDetails({ game, spell, selectedView, selectedSlot, selectedRules, 
   return (
     <section className="spellbook-details" aria-label={`${spell.name} details`}>
       <div className="spell-details-heading"><PlaceholderArt icon={spell.icon} size="medium" variant="gold" /><div><h3>{spell.name}</h3><p>{school.fullLabel} · Lv {level} / {proficiency?.maxLevel ?? 100}</p></div></div>
-      <div className="spell-detail-grid"><span>Mana Cost<strong>{selectedView.effectiveSpell.manaCost}{selectedView.effectiveSpell.manaCost !== spell.manaCost && ` (${spell.manaCost} base)`}</strong></span><span>Cooldown<strong>{selectedView.effectiveSpell.cooldownSeconds.toFixed(1)}s</strong></span><span>Target<strong>{spell.targetMode === "self" ? "Self" : "Selected Enemy"}</strong></span>{spell.damage > 0 && <span>Direct Damage<strong>{Math.round(selectedView.effectiveSpell.damage)} {spell.damageType}</strong></span>}{selectedView.effectiveSpell.healing && <span>Healing<strong>{Math.round(selectedView.effectiveSpell.healing.flatAmount)}</strong></span>}{selectedView.effectiveSpell.barrierAmount && <span>Barrier<strong>{Math.round(selectedView.effectiveSpell.barrierAmount)}</strong></span>}{spell.interruptsAction && <span>Interrupt<strong>Yes</strong></span>}</div>
+      <div className="spell-detail-grid"><span>Mana Cost<strong>{selectedView.effectiveSpell.manaCost}{selectedView.effectiveSpell.manaCost !== spell.manaCost && ` (${spell.manaCost} base)`}</strong></span><span>Cooldown<strong>{selectedView.effectiveSpell.cooldownSeconds.toFixed(1)}s</strong></span><span>Target<strong>{spell.targetMode === "self" ? "Self" : "Selected Enemy"}</strong></span>{spell.baseDamageMin > 0 && <span>Direct Damage<strong>{Math.round(selectedView.effectiveSpell.baseDamageMin)}{selectedView.effectiveSpell.baseDamageMax !== selectedView.effectiveSpell.baseDamageMin ? `–${Math.round(selectedView.effectiveSpell.baseDamageMax)}` : ""} {spell.damageType}</strong></span>}{selectedView.effectiveSpell.healing && <span>Healing<strong>{Math.round(selectedView.effectiveSpell.healing.flatAmount)}</strong></span>}{selectedView.effectiveSpell.barrierAmount && <span>Barrier<strong>{Math.round(selectedView.effectiveSpell.barrierAmount)}</strong></span>}{spell.interruptsAction && <span>Interrupt<strong>Yes</strong></span>}</div>
       <div className="spell-detail-copy"><span className="tiny-label">DESCRIPTION</span><p>{spell.description}</p></div>
       {spell.applyEffects && spell.applyEffects.length > 0 && <div className="spell-detail-copy"><span className="tiny-label">EFFECTS</span><p>{spell.applyEffects.map((effect) => effectById[effect.effectId]?.name ?? effect.effectId).join(" · ")}</p></div>}
       <div className="spell-detail-copy"><span className="tiny-label">AUTOMATION</span><p>{selectedRules.length} rule{selectedRules.length === 1 ? "" : "s"} use this Spell · {automationSummary.enabledRuleCount} total active</p><div className="hero-inline-actions"><button className="button button-ghost" onClick={() => onOpenAutomation(spell.id, false)}>VIEW RULES</button><button className="button button-ghost" onClick={() => onOpenAutomation(spell.id, true)}>ADD RULE</button></div></div>

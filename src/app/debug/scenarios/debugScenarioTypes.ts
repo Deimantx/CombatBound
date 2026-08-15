@@ -6,6 +6,12 @@ export interface DebugScenarioSnapshotV1 {
   world: { continentId: string; regionId: string; areaId: string; combatLocationId: string };
 }
 
+export interface DebugScenarioSnapshotV2 extends Omit<DebugScenarioSnapshotV1, "version"> {
+  version: 2;
+}
+
+export type DebugScenarioSnapshot = DebugScenarioSnapshotV1 | DebugScenarioSnapshotV2;
+
 export interface DebugScenarioSlot {
   slot: 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10;
   /** Stable identifier for DOM inspection while slots remain numbered. */
@@ -13,5 +19,5 @@ export interface DebugScenarioSlot {
   name: string;
   createdAt: number;
   updatedAt: number;
-  snapshot: DebugScenarioSnapshotV1;
+  snapshot: DebugScenarioSnapshot;
 }

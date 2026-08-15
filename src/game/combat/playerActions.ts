@@ -19,7 +19,7 @@ export const defensiveActionDefinitions: PlayerActionDefinition[] = [
     id: "defense.guard",
     kind: "defensive",
     name: "Guard",
-    description: "Raise your shield to improve Block chance and Block power.",
+    description: "Raise your shield to improve Attack Block chance.",
     icon: "shield",
     targetMode: "self",
     cooldown: 4,
@@ -32,7 +32,7 @@ export const defensiveActionDefinitions: PlayerActionDefinition[] = [
     kind: "defensive",
     name: "Evasive Step",
     description:
-      "A short movement window that improves Evasion and Dodge chance.",
+      "A short movement window that improves Evasion Rating.",
     icon: "footprints",
     targetMode: "self",
     cooldown: 4,
@@ -45,7 +45,7 @@ export const defensiveActionDefinitions: PlayerActionDefinition[] = [
     kind: "defensive",
     name: "Brace",
     description:
-      "Brace behind your armor to improve Armor and Status Resistance.",
+      "Brace behind your armour to improve Armour and ailment duration reduction.",
     icon: "shield-check",
     targetMode: "self",
     cooldown: 5,
@@ -276,7 +276,7 @@ export function validatePlayerAction(
   if (action.id === potionAction.id) {
     if ((game.inventory.quantities[potionAction.sourceItemId!] ?? 0) <= 0)
       return { valid: false, reason: "consumable-missing", action };
-    if (combat.playerHp >= stats.maxHealth)
+    if (combat.playerHp >= (stats.maxLife ?? 0))
       return { valid: false, reason: "full-health", action };
   }
   if (action.requirements) {

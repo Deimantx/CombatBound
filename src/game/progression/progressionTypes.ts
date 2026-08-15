@@ -13,7 +13,8 @@ export type WeaponProficiencyId =
   | 'longbow'
   | 'crossbow'
 
-export type MagicProficiencyId = 'fire-magic' | 'water-magic' | 'air-magic' | 'earth-magic' | 'light-magic' | 'darkness-magic'
+/** Historical save/test boundary only; no runtime definition or progression tree exists. */
+export type MagicProficiencyId = 'fire-magic' | 'water-magic' | 'air-magic' | 'earth-magic' | 'darkness-magic'
 export type DefensiveProficiencyId = 'light-armor' | 'medium-armor' | 'heavy-armor' | 'shield'
 export type CombatProficiencyId = WeaponProficiencyId | MagicProficiencyId | DefensiveProficiencyId
 export type ProficiencyCategory = 'melee' | 'ranged' | 'magic' | 'defense'
@@ -90,7 +91,7 @@ export type ProficiencyPerkEffect =
     }
   | {
       type: 'equippedArmorSpellModifier'
-      modifier: 'damage' | 'manaCost' | 'cooldown' | 'accuracy' | 'barrierAmount' | 'barrierDuration'
+      modifier: 'damage' | 'manaCost' | 'cooldown' | 'barrierAmount' | 'barrierDuration'
       valuePerRank: number
       minimumPieces: number
     }
@@ -107,12 +108,12 @@ export type ProficiencyPerkEffect =
     }
   | {
       type: 'conditionalDamageModifier'
-      operation: 'addPercent' | 'multiply'
+      operation: 'increased' | 'more'
       valuePerRank: number
       condition: { type: 'targetHpBelow'; fraction: number } | { type: 'targetHasEffect'; effectId: string } | { type: 'targetHasEffectAndHpBelow'; effectId: string; fraction: number }
     }
   | {
-      type: 'spellDamageModifier' | 'spellManaCostModifier' | 'spellCooldownModifier' | 'spellAccuracyModifier'
+      type: 'spellDamageModifier' | 'spellManaCostModifier' | 'spellCooldownModifier'
       valuePerRank: number
     }
   | { type: 'spellCriticalChanceModifier' | 'spellHealingModifier' | 'spellHealingOverTimeModifier' | 'spellLifeDrainModifier' | 'spellDamageBasedManaRestore'; valuePerRank: number }
@@ -166,27 +167,23 @@ export type ProficiencyPerkEffect =
     }
   | { type: 'weaponDamageModifier' | 'weaponAttackIntervalModifier'; valuePerRank: number }
   | { type: 'weaponArmorPenetrationModifier'; mode: 'flat' | 'percent'; valuePerRank: number }
-  | { type: 'weaponBlockPenetrationModifier'; stat: 'blockChance' | 'blockPower'; valuePerRank: number }
   | { type: 'weaponSecondaryTargetDamage'; fractionPerRank: number; maxAdditionalTargets: number }
-  | { type: 'onDodgeApplyEffect'; effectId: string; durationSeconds?: number }
   | { type: 'onBlockApplyEffect'; effectId: string; durationSeconds?: number }
   | { type: 'weaponFlatDamageModifier'; valuePerRank: number }
   | { type: 'weaponOnHitResourceRestore'; resource: 'stamina' | 'mana'; amountPerRank: number; chancePerRank?: number }
-  | { type: 'weaponConditionalDamageModifier'; operation: 'addPercent' | 'multiply'; valuePerRank: number; condition: { type: 'targetHpAbove' | 'targetHpBelow' | 'targetHasEffect' | 'targetHasEffectAndHpBelow'; fraction?: number; effectId?: string } }
+  | { type: 'weaponConditionalDamageModifier'; operation: 'increased' | 'more'; valuePerRank: number; condition: { type: 'targetHpAbove' | 'targetHpBelow' | 'targetHasEffect' | 'targetHasEffectAndHpBelow'; fraction?: number; effectId?: string } }
   | { type: 'spellFlatDamageModifier'; valuePerRank: number }
   | { type: 'spellCritEligibility' }
   | { type: 'spellOnHpDamageResourceRestore'; resource: 'mana' | 'stamina'; amountPerRank: number; chancePerRank?: number }
-  | { type: 'spellConditionalDamageModifier'; operation: 'addPercent' | 'multiply'; valuePerRank: number; condition: { type: 'targetHpAbove' | 'targetHpBelow' | 'targetHasEffect' | 'targetHasEffectAndHpBelow' | 'manaAbove'; fraction?: number; effectId?: string } }
+  | { type: 'spellConditionalDamageModifier'; operation: 'increased' | 'more'; valuePerRank: number; condition: { type: 'targetHpAbove' | 'targetHpBelow' | 'targetHasEffect' | 'targetHasEffectAndHpBelow' | 'manaAbove'; fraction?: number; effectId?: string } }
   | { type: 'spellConditionalCritModifier'; valuePerRank: number; condition: { type: 'targetHpBelow'; fraction: number } }
   | { type: 'onSpellCastApplyEffect'; effectId: string; durationSeconds?: number }
   | { type: 'onSpellCriticalReduceCooldown'; amountSecondsPerRank: number }
-  | { type: 'onBurnTickReduceCooldown'; amountSecondsPerRank: number; chancePerRank?: number }
+  | { type: 'onIgniteTickReduceCooldown'; amountSecondsPerRank: number; chancePerRank?: number }
   | { type: 'spellCriticalDamageModifier'; valuePerRank: number }
   | { type: 'appliedEffectPeriodicDamageModifier'; effectId: string; valuePerRank: number }
   | { type: 'appliedEffectMaxStacksModifier'; effectId: string; valuePerRank: number }
   | { type: 'barrierAbsorbResourceRestore'; resource: 'stamina' | 'mana'; amountPerRank: number }
-  | { type: 'onParryApplyEffect'; effectId: string; durationSeconds?: number }
-  | { type: 'onParryStatBuff'; effectId: string; durationSeconds?: number }
   | { type: 'onStanceSwitchApplyEffect'; effectId: string; durationSeconds?: number }
   | { type: 'stanceSpecificStatModifier'; stance: 'high' | 'mid' | 'low'; stat: CombatStatKey; operation: StatModifier['operation']; valuePerRank: number }
   | { type: 'onSuccessfulInterruptRestoreStamina'; amountPerRank: number }

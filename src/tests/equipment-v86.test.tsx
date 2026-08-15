@@ -24,7 +24,7 @@ import { HERO_EQUIPMENT_LAYOUT } from "../app/screens/hero/components/HeroEquipm
 const accessory = (
   id: string,
   equipmentSlotKind: "belt" | "cape" | "necklace" | "ring" | "earring",
-  stats: NonNullable<ItemDefinition["stats"]> = { armor: 1 },
+  stats: NonNullable<ItemDefinition["stats"]> = { armour: 1 },
 ): ItemDefinition => ({
   id,
   name: id,
@@ -118,7 +118,7 @@ describe("Equipment V8.6 domain", () => {
     );
     const context = getDefensiveEquipmentContext({ slots: { belt: "test.belt", cape: "test.cape" } }, testItems);
 
-    expect(allAccessories.armor - emptyStats.armor).toBe(7);
+    expect((allAccessories.armour ?? 0) - (emptyStats.armour ?? 0)).toBe(7);
     expect(context.lightArmorPieces).toBe(0);
     expect(context.mediumArmorPieces).toBe(0);
     expect(context.heavyArmorPieces).toBe(0);

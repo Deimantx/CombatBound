@@ -14,6 +14,7 @@ import { weaponSkillDefinitions } from "../game/data/weaponSkills";
 import { createInitialGameState } from "../game/gameState";
 import { calculateHunterCombatStats } from "../game/equipment/derivedStats";
 import { evaluateAutomation } from "../game/automation/automationLogic";
+import { normalizeCombatStats } from "../game/combat/combatStats";
 
 const context = createCombatContext({ next: () => 0.5 });
 
@@ -89,8 +90,8 @@ describe("One-Handed Sword Weapon Skills V8.3", () => {
   });
 
   it("uses canonical Accuracy and the normal crit/damage pipeline", () => {
-    const normal = calculateHitChance(70, 70);
-    const precision = calculateHitChance(70 + 45, 70);
+    const normal = calculateHitChance(10, 70);
+    const precision = calculateHitChance(15, 70);
     expect(precision).toBeGreaterThan(normal);
     const resolution = resolveDamage({
       damageType: "physical",
@@ -99,12 +100,12 @@ describe("One-Handed Sword Weapon Skills V8.3", () => {
       attackerAccuracy: 115,
       source: { kind: "player" },
       target: { kind: "enemy", instanceId: "enemy" },
-      defensiveEligibility: { canMiss: true, dodgeable: false, parryable: false, blockable: false },
-    }, {
-      maxHealth: 100, attackPower: 100, accuracy: 70, attackInterval: 1, armor: 0, evasion: 0, critChance: 0, critDamage: 1.5, dodgeChance: 0, parryChance: 0, blockChance: 0, blockPower: 0, maxStamina: 0, staminaRegen: 0, maxMana: 0, manaRegen: 0, statusResistance: 0, resistances: {},
-    }, {
-      maxHealth: 100, attackPower: 0, accuracy: 0, attackInterval: 1, armor: 0, evasion: 0, critChance: 0, critDamage: 1.5, dodgeChance: 0, parryChance: 0, blockChance: 0, blockPower: 0, maxStamina: 0, staminaRegen: 0, maxMana: 0, manaRegen: 0, statusResistance: 0, resistances: {},
-    }, context.rng);
+      defensiveEligibility: { canMiss: true, blockable: false },
+    }, normalizeCombatStats({
+      maxLife: 100, attackDamage: 100, accuracyRating: 70, baseAttackTime: 1, armour: 0, evasionRating: 0, baseCritChance: 0, criticalStrikeMultiplier: 1.5, maxStamina: 0, staminaRegen: 0, maxMana: 0, manaRegenFlat: 0, resistances: {},
+    }), normalizeCombatStats({
+      maxLife: 100, attackDamage: 0, accuracyRating: 0, baseAttackTime: 1, armour: 0, evasionRating: 0, baseCritChance: 0, criticalStrikeMultiplier: 1.5, maxStamina: 0, staminaRegen: 0, maxMana: 0, manaRegenFlat: 0, resistances: {},
+    }), context.rng);
     expect(resolution.outcome).toBe("hit");
     expect(resolution.healthDamage).toBeGreaterThan(0);
   });

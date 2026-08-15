@@ -91,9 +91,11 @@ function normalizeRule(value: unknown, index: number, usedIds: Set<string>) {
     ? raw.conditions.map(normalizeCondition).filter((condition): condition is AutomationCondition => Boolean(condition))
     : [];
   const priority = Number(raw.priority);
+  const actionId = typeof raw.actionId === "string" ? raw.actionId : "";
+  if (actionId === "spell.protective-sign" || actionId.includes("light-magic")) return null;
   return {
     id,
-    actionId: typeof raw.actionId === "string" ? raw.actionId : "",
+    actionId,
     priority: Number.isFinite(priority) ? Math.max(1, Math.round(priority)) : (index + 1) * 10,
     enabled: raw.enabled !== false,
     conditions: conditions.length ? conditions : [{ type: "always" }],
@@ -125,7 +127,7 @@ export function normalizeCombatAutomation(value: unknown): CombatAutomationState
   const raw = value && typeof value === "object" ? (value as Record<string, unknown>) : {};
   const usedRuleIds = new Set<string>();
   const rules = Array.isArray(raw.rules)
-    ? raw.rules.map((rule, index) => normalizeRule(rule, index, usedRuleIds))
+    ? raw.rules.map((rule, index) => normalizeRule(rule, index, usedRuleIds)).filter((rule): rule is AutomationRule => Boolean(rule))
     : defaults.rules;
   const usedTargetIds = new Set<string>();
   const targetPriorityRules = Array.isArray(raw.targetPriorityRules)
@@ -205,7 +207,7 @@ function conditionMatches(
     case "target-hp-above":
       return Boolean(target && target.currentHealth / Math.max(1, target.maxHealth) > condition.fraction);
     case "barrier-below":
-      return actionBarrier(game, context) / Math.max(1, game.combat.maxPlayerHp || stats.maxHealth) < condition.fraction;
+      return actionBarrier(game, context) / Math.max(1, game.combat.maxPlayerHp || stats.maxLife || 1) < condition.fraction;
     case "barrier-missing":
       return actionBarrier(game, context) <= 0;
     case "player-has-effect":
@@ -276,7 +278,7 @@ function criterionScore(
       Math.max(
         1,
         getEnemyEffectiveCombatStats(enemy, context.effects, context.enemies)
-          .evasion,
+          .evasionRating ?? 0,
       )
     );
   return 0;

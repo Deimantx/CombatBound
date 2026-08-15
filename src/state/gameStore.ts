@@ -131,7 +131,7 @@ import type { DebugEffectTarget, DebugResource } from "../game/debug/debugTypes"
 import type { CombatProficiencyId } from "../game/progression/progressionTypes";
 import { useDevToolsRuntimeStore } from "../app/debug/devtools/devToolsRuntimeStore";
 import { useDebugTelemetryStore } from "../app/debug/telemetry/debugTelemetryStore";
-import type { DebugScenarioSnapshotV1 } from "../app/debug/scenarios/debugScenarioTypes";
+import type { DebugScenarioSnapshot } from "../app/debug/scenarios/debugScenarioTypes";
 import { validateDebugScenario } from "../app/debug/scenarios/debugScenarioValidation";
 
 interface GameStoreState {
@@ -279,7 +279,7 @@ export interface DebugStoreApi {
   equipBothTechniques: () => void;
   setGold: (amount: number) => void;
   addGold: (amount: number) => void;
-  loadScenario: (snapshot: DebugScenarioSnapshotV1) => void;
+  loadScenario: (snapshot: DebugScenarioSnapshot) => void;
   startEncounter: (locationId: string, enemyIds: string[]) => void;
   importSave: (raw: string) => { ok: boolean; error?: string };
 }

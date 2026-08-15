@@ -62,7 +62,7 @@ describe('tooltip presentation models', () => {
     expect(tooltip.subtitle).toContain('Weapon')
     expect(tooltip.subtitle).toContain('Common')
     expect(tooltip.description).toBe('A dependable starter weapon.')
-    expect(tooltip.rows?.map((row) => `${row.label} ${row.value}`).join(' ')).toContain('Attack Interval 2.4s')
+    expect(tooltip.rows?.map((row) => `${row.label} ${row.value}`).join(' ')).toContain('Weapon Base Attack Time 2.4s')
     expect(JSON.stringify(tooltip)).not.toContain('attackInterval')
   })
 })

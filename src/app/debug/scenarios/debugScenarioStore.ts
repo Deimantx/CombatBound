@@ -1,12 +1,12 @@
 import { create } from "zustand";
 import { firstEmptyDebugScenarioSlot, readDebugScenarioSlots, saveDebugScenario, deleteDebugScenario, renameDebugScenario } from "./debugScenarioStorage";
-import type { DebugScenarioSlot, DebugScenarioSnapshotV1 } from "./debugScenarioTypes";
+import type { DebugScenarioSlot, DebugScenarioSnapshot } from "./debugScenarioTypes";
 
 interface DebugScenarioState {
   slots: Array<DebugScenarioSlot | null>;
   refresh: () => void;
-  saveNew: (name: string, snapshot: DebugScenarioSnapshotV1) => DebugScenarioSlot | null;
-  overwrite: (slot: DebugScenarioSlot, name: string, snapshot: DebugScenarioSnapshotV1) => void;
+  saveNew: (name: string, snapshot: DebugScenarioSnapshot) => DebugScenarioSlot | null;
+  overwrite: (slot: DebugScenarioSlot, name: string, snapshot: DebugScenarioSnapshot) => void;
   rename: (slot: DebugScenarioSlot, name: string) => void;
   remove: (slot: DebugScenarioSlot) => void;
 }
@@ -32,4 +32,3 @@ export const useDebugScenarioStore = create<DebugScenarioState>((set) => ({
   rename: (slot, name) => { renameDebugScenario(slot.slot, name); set({ slots: toFixedSlots() }); },
   remove: (slot) => { deleteDebugScenario(slot.slot); set({ slots: toFixedSlots() }); },
 }));
-

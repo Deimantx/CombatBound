@@ -9,22 +9,22 @@ export const combatStatGroups = [
   {
     id: "offense",
     title: "OFFENSE",
-    keys: ["attackPower", "accuracy", "attackInterval", "critChance", "critDamage"],
+    keys: ["attackDamage", "accuracyRating", "attackInterval", "attacksPerSecond", "baseCritChance", "criticalStrikeMultiplier"],
   },
   {
     id: "defense",
     title: "DEFENSE",
-    keys: ["armor", "physicalDirectMitigation", "evasion", "dodgeChance", "parryChance", "blockChance", "blockPower", "statusResistance"],
+    keys: ["armour", "additionalPhysicalDamageReduction", "evasionRating", "attackBlockChance", "spellBlockChance", "spellSuppressionChance", "suppressedSpellDamagePrevented"],
   },
   {
     id: "resources",
     title: "RESOURCES & REGEN",
-    keys: ["maxHealth", "healthRegen", "maxStamina", "staminaRegen", "maxMana", "manaRegen"],
+    keys: ["maxLife", "lifeRegenFlat", "maxStamina", "staminaRegen", "maxMana", "manaRegenFlat"],
   },
   {
     id: "resistances",
     title: "RESISTANCES",
-    keys: ["physicalResistance", "fireResistance", "waterResistance", "airResistance", "earthResistance", "lightResistance", "darknessResistance", "natureResistance", "mysticResistance"],
+    keys: ["fireResistance", "coldResistance", "lightningResistance", "chaosResistance"],
   },
 ] as const satisfies ReadonlyArray<{
   id: CombatReferenceCategory;

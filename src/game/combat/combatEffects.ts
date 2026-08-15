@@ -39,8 +39,8 @@ export function calculateEffectDuration(definition: EffectDefinition, targetStat
   if (definition.durationSeconds === null) return null
   const duration = Math.max(0, definition.durationSeconds)
   const resistant = !((definition.beneficial ?? (definition.kind === 'buff' || definition.kind === 'barrier')))
-  const statusResistance = resistant ? clamp(targetStats?.statusResistance ?? 0, 0, combatBalance.maxStatusResistance) : 0
-  return Math.max(0, (duration + durationBonusSeconds) * durationMultiplier * (1 - statusResistance))
+  const durationReduction = resistant ? clamp(targetStats?.ailmentDurationReduction ?? 0, 0, 1) : 0
+  return Math.max(0, (duration + durationBonusSeconds) * durationMultiplier * (1 - durationReduction))
 }
 
 export function applyEffect(combat: CombatState, definition: EffectDefinition, source: CombatantRef, target: CombatantRef, options: EffectApplyOptions = {}): EffectApplicationResult {

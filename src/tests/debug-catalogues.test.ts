@@ -49,13 +49,13 @@ describe("debug catalogue presentation", () => {
   });
 
   it("classifies effect definitions and exposes static tooltip content", () => {
-    expect(classifyEffect(effectDefinitions.find((effect) => effect.name === "Burn")!)).toBe("dot");
+    expect(classifyEffect(effectDefinitions.find((effect) => effect.name === "Ignite")!)).toBe("dot");
     expect(classifyEffect(effectDefinitions.find((effect) => effect.name === "Bleed")!)).toBe("dot");
-    expect(classifyEffect(effectDefinitions.find((effect) => effect.name === "Protective Sign")!)).toBe("barriers");
-    expect(classifyEffect(effectDefinitions.find((effect) => effect.name === "Armor Broken")!)).toBe("harmful");
-    const burn = buildEffectDefinitionTooltip(effectDefinitions.find((effect) => effect.name === "Burn")!);
-    expect(burn.description).toContain("periodic Fire damage");
-    expect(burn.rows?.map((row) => row.label)).toEqual(expect.arrayContaining(["Kind", "Duration", "Stacking", "Persistence", "Periodic damage", "Tick interval"]));
+    expect(classifyEffect(effectDefinitions.find((effect) => effect.name === "Earthen Ward")!)).toBe("barriers");
+    expect(classifyEffect(effectDefinitions.find((effect) => effect.name === "Armour Broken")!)).toBe("harmful");
+    const ignite = buildEffectDefinitionTooltip(effectDefinitions.find((effect) => effect.name === "Ignite")!);
+    expect(ignite.description).toContain("periodic Fire damage");
+    expect(ignite.rows?.map((row) => row.label)).toEqual(expect.arrayContaining(["Kind", "Duration", "Stacking", "Persistence", "Periodic damage", "Tick interval"]));
     expect(buildEffectCatalogue(effectDefinitions).some((group) => group.id === "defense")).toBe(true);
   });
 
@@ -64,15 +64,15 @@ describe("debug catalogue presentation", () => {
     const itemTooltip = buildItemTooltip(item, { quantity: 2, masteryLevel: 10, equipped: true });
     expect(itemTooltip.title).toBe("Vanguard Plate");
     expect(itemTooltip.description).toContain("heavy torso");
-    expect(itemTooltip.rows?.map((row) => row.label)).toEqual(expect.arrayContaining(["Required Mastery", "Equipment Type", "Max Health", "Health Regen", "Status Resistance"]));
+    expect(itemTooltip.rows?.map((row) => row.label)).toEqual(expect.arrayContaining(["Required Mastery", "Equipment Type", "Max Life", "Life Regen", "Armour", "Ailment Duration Reduction"]));
     const enemyTooltip = buildEnemyDefinitionTooltip(enemyById["enemy.grey-wolf"], { defeats: 3, sourceLocations: ["Wolf Den"] });
     expect(enemyTooltip.title).toBe("Grey Wolf");
-    expect(enemyTooltip.rows?.map((row) => row.label)).toEqual(expect.arrayContaining(["Family", "Max Health", "Attack Power", "Accuracy", "Armor", "Evasion"]));
+    expect(enemyTooltip.rows?.map((row) => row.label)).toEqual(expect.arrayContaining(["Family", "Max Life", "Attack Damage", "Accuracy Rating", "Armour", "Evasion Rating"]));
     expect(enemyTooltip.notes?.join(" ")).toContain("Wolf Den");
     const spell = spellDefinitions.find((entry) => entry.name === "Flame Blast")!;
     const spellTooltip = buildSpellTooltip(spell);
-    expect(spellTooltip.description).toContain("Burn");
+    expect(spellTooltip.description).toContain("Ignite");
     expect(spellTooltip.rows?.map((row) => row.value).join(" ")).toContain(getMagicSchoolPresentation("fire-magic").fullLabel);
-    expect(magicSchoolOrder).toEqual(["fire-magic", "water-magic", "air-magic", "earth-magic", "light-magic", "darkness-magic"]);
+    expect(magicSchoolOrder).toEqual(["fire-magic", "water-magic", "air-magic", "earth-magic", "darkness-magic"]);
   });
 });

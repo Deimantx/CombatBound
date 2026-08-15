@@ -114,13 +114,13 @@ export function LiveHuntPanel({
     combat.phase === "active" &&
     combat.potionCooldownRemaining <= 0 &&
     potionQuantity > 0 &&
-    combat.playerHp < stats.maxHealth;
+    combat.playerHp < (stats.maxLife ?? 0);
   const potionStatus =
     combat.potionCooldownRemaining > 0
       ? `COOLDOWN ${combat.potionCooldownRemaining.toFixed(1)}s`
       : potionQuantity <= 0
         ? "OUT OF STOCK"
-        : combat.playerHp >= stats.maxHealth
+        : combat.playerHp >= (stats.maxLife ?? 0)
           ? "FULL HEALTH"
           : "READY";
 
@@ -159,7 +159,7 @@ export function LiveHuntPanel({
           <Resource
             label="HP"
             value={combat.playerHp}
-            max={stats.maxHealth}
+            max={stats.maxLife ?? 0}
             shield={absorbShield}
             icon={<Heart size={13} />}
             variant="health"
@@ -213,7 +213,7 @@ export function LiveHuntPanel({
         />
         <small>
           {selectedEnemy && !selectedEnemy.defeated
-            ? `Target: ${selectedEnemy.displayName} · Hit ${selectedMatchup ? formatPercent(selectedMatchup.playerHitChance) : "—"} · Crit ${selectedMatchup ? formatPercent(selectedMatchup.playerCritChance) : formatPercent(stats.critChance)}`
+            ? `Target: ${selectedEnemy.displayName} · Hit ${selectedMatchup ? formatPercent(selectedMatchup.playerHitChance) : "—"} · Crit ${selectedMatchup ? formatPercent(selectedMatchup.playerCritChance) : formatPercent(stats.baseCritChance ?? 0)}`
             : "Select an enemy target"}
         </small>
       </div>

@@ -18,7 +18,7 @@ describe("Hierarchical action catalogue V8.4", () => {
 
     expect(catalogue.map((group) => group.id)).toEqual(["magic", "weapon-skills", "active-defense", "consumables"]);
     expect(catalogue.find((group) => group.id === "magic")?.children?.map((group) => group.label)).toEqual([
-      "Fire Magic", "Water Magic", "Air Magic", "Earth Magic", "Light Magic", "Darkness Magic",
+      "Fire Magic", "Water Magic", "Air Magic", "Earth Magic", "Darkness Magic",
     ]);
     expect(catalogue.find((group) => group.id === "weapon-skills")?.children?.[0]).toMatchObject({
       id: "weapon.one-handed-sword",

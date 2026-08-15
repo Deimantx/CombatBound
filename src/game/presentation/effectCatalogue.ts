@@ -15,8 +15,8 @@ export type EffectCatalogueCategory = (typeof effectCatalogueCategories)[number]
 export type EffectCategoryNode = { id: Exclude<EffectCatalogueCategory, "all">; label: string; icon: string; effects: EffectDefinition[] };
 const effectCategoryDefinitions = effectCatalogueCategories.slice(1) as ReadonlyArray<{ id: Exclude<EffectCatalogueCategory, "all">; label: string }>;
 
-const offensiveStats = new Set(["attackPower", "accuracy", "attackInterval", "critChance", "critDamage"]);
-const defensiveStats = new Set(["armor", "evasion", "dodgeChance", "parryChance", "blockChance", "blockPower", "statusResistance", "maxHealth", "healthRegen"]);
+const offensiveStats = new Set(["attackDamage", "accuracyRating", "attackInterval", "baseCritChance", "criticalStrikeMultiplier"]);
+const defensiveStats = new Set(["armour", "evasionRating", "attackBlockChance", "spellBlockChance", "spellSuppressionChance", "ailmentDurationReduction", "maxLife", "lifeRegenFlat"]);
 
 export function classifyEffect(definition: EffectDefinition): Exclude<EffectCatalogueCategory, "all"> {
   if (definition.kind === "barrier") return "barriers";

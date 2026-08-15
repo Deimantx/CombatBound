@@ -8,6 +8,7 @@ import { migrateLegacySave } from '../game/persistence/saveMigration'
 import { getEquippedWeaponProficiency } from '../game/progression/progressionSelectors'
 import { perkById } from '../game/data/proficiencyPerks'
 import type { CombatStats } from '../game/combat/combatTypes'
+import { normalizeCombatStats } from '../game/combat/combatStats'
 
 describe('weapon proficiency progression', () => {
   it('uses the capped weapon XP curve and supports multi-level jumps', () => {
@@ -67,8 +68,8 @@ describe('weapon proficiency progression', () => {
   it('scopes sword stat perks to the equipped weapon proficiency', () => {
     const progression = { ...createInitialGameState().progression, purchasedPerks: { 'perk.one-handed-sword.blade-familiarity': 3 } }
     const active = getActiveProficiencyStatModifiers(progression, 'one-handed-sword', perkById)
-    const baseStats: CombatStats = { maxHealth: 100, attackPower: 20, accuracy: 50, attackInterval: 2, armor: 10, evasion: 10, critChance: 0.05, critDamage: 1.5, dodgeChance: 0.03, parryChance: 0.03, blockChance: 0, blockPower: 0.5, maxStamina: 100, staminaRegen: 5, maxMana: 100, manaRegen: 5, statusResistance: 0, resistances: {} }
-    expect(applyProficiencyStatModifiers(baseStats, active).accuracy).toBe(56)
+    const baseStats: CombatStats = normalizeCombatStats({ maxLife: 100, attackDamage: 20, accuracyRating: 50, baseAttackTime: 2, armour: 10, evasionRating: 10, baseCritChance: 0.05, criticalStrikeMultiplier: 1.5, maxStamina: 100, staminaRegen: 5, maxMana: 100, manaRegenFlat: 5, resistances: {} })
+    expect(applyProficiencyStatModifiers(baseStats, active).accuracyRating).toBe(56)
     expect(active).toHaveLength(1)
     expect(active[0].value).toBe(6)
     expect(getEquippedWeaponProficiency(createInitialGameState().equipment)).toBe('one-handed-sword')

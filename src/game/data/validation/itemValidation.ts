@@ -3,8 +3,8 @@ import { COMBAT_ITEM_STAT_KEYS, isKnownCombatItemStatKey } from "../../presentat
 import { EQUIPMENT_SLOT_DEFINITIONS } from "../../equipment/equipmentTypes";
 
 const percentageStatKeys = new Set([
-  "critChance", "critDamage", "dodgeChance", "parryChance", "blockChance", "blockPower", "statusResistance",
-  "physicalResistance", "fireResistance", "waterResistance", "earthResistance", "airResistance", "lightResistance", "darknessResistance", "natureResistance", "mysticResistance",
+  "baseCritChance", "criticalStrikeMultiplier", "attackBlockChance", "spellBlockChance", "spellSuppressionChance", "ailmentDurationReduction",
+  "fireResistance", "coldResistance", "lightningResistance", "chaosResistance", "additionalPhysicalDamageReduction",
 ]);
 
 export interface ItemValidationResult {
@@ -30,11 +30,10 @@ export function validateItemDefinition(item: ItemDefinition): ItemValidationResu
       continue;
     }
     if (!Number.isFinite(value)) errors.push(`${item.id}: ${key} must be finite`);
-    if (key === "attackInterval" && (!(value > 0) || item.equipmentSlotKind !== "weapon"))
-      errors.push(`${item.id}: attackInterval must be positive and belong to a weapon`);
+    if (key === "baseAttackTime" && (!(value > 0) || item.equipmentSlotKind !== "weapon"))
+      errors.push(`${item.id}: baseAttackTime must be positive and belong to a weapon`);
     if (percentageStatKeys.has(key) && (value < -1 || value > 1))
       errors.push(`${item.id}: ${key} must be between -1 and 1 for prototype percentage semantics`);
-    if (key === "attack" || key === "defense") warnings.push(`${item.id}: prefer canonical ${key === "attack" ? "attackPower" : "armor"} instead of ${key}`);
   }
   return { errors, warnings };
 }

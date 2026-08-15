@@ -123,16 +123,16 @@ describe("CombatBound V8.7 prototype gear", () => {
     };
     const stats = calculateHunterCombatStats(equipped, game.progression, "mid", game.combat.techniques);
 
-    expect(stats.maxHealth - empty.maxHealth).toBe(85);
-    expect(stats.armor - empty.armor).toBe(24);
-    expect((stats.healthRegen ?? 0) - (empty.healthRegen ?? 0)).toBeCloseTo(0.5);
+    expect((stats.maxLife ?? 0) - (empty.maxLife ?? 0)).toBe(85);
+    expect((stats.armour ?? 0) - (empty.armour ?? 0)).toBe(24);
+    expect((stats.lifeRegenFlat ?? 0) - (empty.lifeRegenFlat ?? 0)).toBeCloseTo(0.5);
     expect(stats.maxStamina - empty.maxStamina).toBe(20);
     expect(stats.staminaRegen - empty.staminaRegen).toBeCloseTo(0.6);
     expect(stats.maxMana - empty.maxMana).toBe(22);
-    expect(stats.manaRegen - empty.manaRegen).toBeCloseTo(0.6);
-    expect(stats.accuracy - empty.accuracy).toBe(5);
-    expect(stats.evasion - empty.evasion).toBe(2);
-    expect(stats.critChance - empty.critChance).toBeCloseTo(0.02);
+    expect((stats.manaRegenFlat ?? 0) - (empty.manaRegenFlat ?? 0)).toBeCloseTo(0.6);
+    expect((stats.accuracyRating ?? 0) - (empty.accuracyRating ?? 0)).toBe(5);
+    expect((stats.evasionRating ?? 0) - (empty.evasionRating ?? 0)).toBe(2);
+    expect((stats.baseCritChance ?? 0) - (empty.baseCritChance ?? 0)).toBeCloseTo(0.02);
   });
 
   it("keeps tier identities aligned with Light, Medium and Heavy armor training", () => {
@@ -191,12 +191,12 @@ describe("CombatBound V8.7 prototype gear", () => {
     const initial = createInitialGameState();
     const stats = calculateHunterCombatStats(initial.equipment, initial.progression, "mid", initial.combat.techniques);
     const active = startHunt(initial, "location.wolf-den", stats, context);
-    const withBurn = debugApplyEffect(active, "effect.burn", "selected-enemy");
-    const selected = withBurn.combat.enemies.find((enemy) => enemy.instanceId === withBurn.combat.selectedEnemyInstanceId);
-    expect(selected?.effects.some((effect) => effect.effectId === "effect.burn")).toBe(true);
-    expect(effectById["effect.burn"]).toBeDefined();
+    const withIgnite = debugApplyEffect(active, "effect.ignite", "selected-enemy");
+    const selected = withIgnite.combat.enemies.find((enemy) => enemy.instanceId === withIgnite.combat.selectedEnemyInstanceId);
+    expect(selected?.effects.some((effect) => effect.effectId === "effect.ignite")).toBe(true);
+    expect(effectById["effect.ignite"]).toBeDefined();
 
-    const defeated = debugKillSelectedEnemy(withBurn);
+    const defeated = debugKillSelectedEnemy(withIgnite);
     expect(defeated.combat.events.some((event) => event.type === "enemyDefeated")).toBe(true);
     expect(defeated.combat.enemies.find((enemy) => enemy.instanceId === selected?.instanceId)?.rewardResolved).toBe(true);
 
@@ -214,8 +214,8 @@ describe("CombatBound V8.7 prototype gear", () => {
     expect(debugRevivePlayer(defeatedPlayer).combat.phase).toBe("stopped");
   });
 
-  it("uses the V9 persistent save schema", () => {
-    expect(CURRENT_SAVE_VERSION).toBe(9);
+  it("uses the V10 persistent save schema", () => {
+    expect(CURRENT_SAVE_VERSION).toBe(10);
     expect(itemDefinitions.every((item) => item.requiredMasteryLevel === undefined || item.requiredMasteryLevel > 0)).toBe(true);
     expect(enemyDefinitions.length).toBeGreaterThan(0);
   });

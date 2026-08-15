@@ -29,12 +29,12 @@ describe("Developer Toolkit V9.3", () => {
     expect(offense).toHaveAttribute("aria-expanded", "true");
     expect(defense).toHaveAttribute("aria-expanded", "true");
 
-    fireEvent.click(screen.getByRole("button", { name: /Attack Power/ }));
-    expect(screen.getByRole("button", { name: /Attack Power/ })).toHaveAttribute("aria-expanded", "true");
+    fireEvent.click(screen.getByRole("button", { name: /Accuracy Rating/ }));
+    expect(screen.getByRole("button", { name: /Accuracy Rating/ })).toHaveAttribute("aria-expanded", "true");
     expect(defense).toHaveAttribute("aria-expanded", "true");
 
-    fireEvent.click(screen.getByRole("button", { name: /Armor/ }));
-    expect(screen.getByRole("button", { name: /Armor/ })).toHaveAttribute("aria-expanded", "true");
+    fireEvent.click(screen.getByRole("button", { name: /Armour/ }));
+    expect(screen.getByRole("button", { name: /Armour/ })).toHaveAttribute("aria-expanded", "true");
     expect(offense).toHaveAttribute("aria-expanded", "true");
     expect(defense).toHaveAttribute("aria-expanded", "true");
 
@@ -45,10 +45,10 @@ describe("Developer Toolkit V9.3", () => {
 
   it("applies a max-health canonical barrier without progression credit", () => {
     const game = createInitialGameState();
-    const beforeXp = game.progression.proficiencies["light-magic"]?.totalXp ?? 0;
+    const beforeXp = game.progression.proficiencies["earth-magic"]?.totalXp ?? 0;
     const next = debugApplyPlayerMaxHpBarrier(game);
     expect(getBarrierAmount(next.combat.playerEffects, effectById)).toBe(game.combat.maxPlayerHp);
-    expect(next.progression.proficiencies["light-magic"]?.totalXp ?? 0).toBe(beforeXp);
+    expect(next.progression.proficiencies["earth-magic"]?.totalXp ?? 0).toBe(beforeXp);
   });
 
   it("heals a selected living enemy without reviving defeated enemies", () => {

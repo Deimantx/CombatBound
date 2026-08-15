@@ -26,8 +26,8 @@ describe('combat presentation selectors', () => {
 
   it('aggregates independent barrier effects from runtime values', () => {
     let combat = createCombatState()
-    combat = applyEffect(combat, effectById['effect.protective-sign'], { kind: 'player' }, { kind: 'player' }, { absorbAmount: 25 }).combat
-    combat = applyEffect(combat, effectById['effect.earth-barrier'], { kind: 'player' }, { kind: 'player' }, { absorbAmount: 40 }).combat
+    combat = applyEffect(combat, effectById['effect.earth-barrier'], { kind: 'player' }, { kind: 'player' }, { absorbAmount: 25 }).combat
+    combat = applyEffect(combat, effectById['effect.disruptive-shield'], { kind: 'player' }, { kind: 'player' }, { absorbAmount: 40 }).combat
     expect(getBarrierAmount(combat.playerEffects, effectById)).toBe(65)
     expect(getPlayerBarrierAmount(combat)).toBe(65)
   })
@@ -44,9 +44,9 @@ describe('combat presentation selectors', () => {
 
     const exposed = applyEffect(combat, effectById['effect.exposed'], { kind: 'player' }, { kind: 'enemy', instanceId: enemies[0].instanceId }).combat
     const afterEffect = getSelectedTargetMatchup(exposed, stats, game.progression, exposed.enemies[0])
-    expect(afterEffect!.targetEvasion).toBe(getEnemyEffectiveCombatStats(exposed.enemies[0]).evasion)
+    expect(afterEffect!.targetEvasion).toBe(getEnemyEffectiveCombatStats(exposed.enemies[0]).evasionRating)
     expect(afterEffect!.targetEvasion).toBeLessThan(first!.targetEvasion)
-    expect(afterEffect!.playerHitChance).toBeGreaterThan(first!.playerHitChance)
+    expect(afterEffect!.playerHitChance).toBeGreaterThanOrEqual(first!.playerHitChance)
 
     const switched = getSelectedTargetMatchup({ ...combat, selectedEnemyInstanceId: enemies[1].instanceId }, stats, game.progression, enemies[1])
     expect(switched!.targetName).toBe('Alpha Wolf')

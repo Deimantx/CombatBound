@@ -62,8 +62,7 @@ export function HeroCombatStatsPanel({ preview, hoveredPreview }: { preview: Her
   }, [activePreview, equipment, progression, stance, techniques]);
   const panelContentId = `hero-combat-stats-content-${instanceId}`;
   const valueFor = (key: string, source = stats) => {
-    if (key === "physicalDirectMitigation") return calculateArmorMitigation(source.armor);
-    if (key === "statusResistance") return source.statusResistance;
+    if (key === "physicalDirectMitigation") return calculateArmorMitigation(source.armour ?? 0);
     if (key.endsWith("Resistance")) {
       const resistanceKey = key.replace("Resistance", "").toLowerCase() as keyof typeof source.resistances;
       return source.resistances[resistanceKey] ?? 0;
@@ -85,7 +84,7 @@ export function HeroCombatStatsPanel({ preview, hoveredPreview }: { preview: Her
         <DisclosureChevron open={preferences.panel} />
       </button>
       <div id={panelContentId} className="hero-combat-stats-content" hidden={!preferences.panel}>
-        <div className="hero-stats-summary"><span>Attack <strong>{formatCombatStatValue("attackPower", stats.attackPower)}</strong></span><span>Armor <strong>{formatCombatStatValue("armor", stats.armor)}</strong></span><span>Max HP <strong>{formatCombatStatValue("maxHealth", stats.maxHealth)}</strong></span></div>
+        <div className="hero-stats-summary"><span>Attack <strong>{formatCombatStatValue("attackDamage", stats.attackDamage)}</strong></span><span>Armour <strong>{formatCombatStatValue("armour", stats.armour ?? 0)}</strong></span><span>Max Life <strong>{formatCombatStatValue("maxLife", stats.maxLife ?? 0)}</strong></span></div>
         <div className="hero-stat-groups">
           {combatStatGroups.map((group) => <HeroStatCategory key={group.id} group={group} open={preferences[group.id]} onToggle={() => toggle(group.id)} valueFor={valueFor} previewStats={previewStats} />)}
         </div>
@@ -108,7 +107,7 @@ function HeroStatCategory({ group, open, onToggle, valueFor, previewStats }: { g
           const changed = delta !== undefined && Math.abs(delta) > COMBAT_STAT_EPSILON;
           const direction = getCombatStatDisplaySpec(key)?.comparisonDirection;
           const deltaKind = !changed || direction === "neutral" ? "neutral" : direction === "lower-is-better" ? delta! < 0 ? "better" : "worse" : delta! > 0 ? "better" : "worse";
-          return <div key={key} className="hero-stat-row" data-debug-kind="hero-stat-row" data-debug-stat={key} data-debug-value={value} data-debug-current-value={previewStats ? value : undefined} data-debug-preview-value={changed ? previewValue : undefined} data-debug-delta={changed ? delta : undefined} data-debug-delta-kind={previewStats ? deltaKind : undefined}><StatLine label={labelForStatKey(key)} value={<StatValue statKey={key} current={value} preview={changed ? previewValue : undefined} delta={changed ? delta : undefined} deltaKind={deltaKind} />} detail={key === "attackInterval" ? `${(1 / Math.max(0.01, value)).toFixed(2)} attacks/sec` : undefined} accent={key.endsWith("Resistance") ? value > 0 ? "green" : value < 0 ? "red" : undefined : key === "attackPower" ? "gold" : undefined} statKey={key} statValue={value} /></div>;
+          return <div key={key} className="hero-stat-row" data-debug-kind="hero-stat-row" data-debug-stat={key} data-debug-value={value} data-debug-current-value={previewStats ? value : undefined} data-debug-preview-value={changed ? previewValue : undefined} data-debug-delta={changed ? delta : undefined} data-debug-delta-kind={previewStats ? deltaKind : undefined}><StatLine label={labelForStatKey(key)} value={<StatValue statKey={key} current={value} preview={changed ? previewValue : undefined} delta={changed ? delta : undefined} deltaKind={deltaKind} />} detail={key === "attackInterval" ? `${(1 / Math.max(0.01, value)).toFixed(2)} attacks/sec` : undefined} accent={key.endsWith("Resistance") ? value > 0 ? "green" : value < 0 ? "red" : undefined : key === "attackDamage" ? "gold" : undefined} statKey={key} statValue={value} /></div>;
         })}
       </div>
     </section>

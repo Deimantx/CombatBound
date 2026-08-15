@@ -335,7 +335,7 @@ function combatAbilityEntryMatchesQuery(entry: CombatAbilityCatalogueEntry, norm
   const category = entry.kind === "core"
     ? "core combat"
     : entry.kind === "technique"
-      ? "technique sustained stamina dodge parry accuracy"
+      ? "technique sustained stamina evasion accuracy"
       : entry.category === "weapon-skill"
         ? "weapon skill stamina"
         : "active defense stamina";
@@ -501,7 +501,7 @@ function CombatAbilityDetails({
     const equippedSlot = getTechniqueEquippedSlot(game, entry.techniqueId);
     const equippedDrain = game.combatAbilities.techniqueSlots.reduce((sum, id) => sum + (id ? techniqueDefinitions[id].staminaDrainPerSecond : 0), 0);
     const net = stats.staminaRegen - equippedDrain;
-    return <section className="combat-ability-details" aria-label={`${entry.name} details`}><DetailHeading icon={entry.icon} title={entry.name} subtitle="Sustained Technique" /><div className="combat-ability-detail-grid"><DetailRow label="Stamina Drain" value={`${technique.staminaDrainPerSecond.toFixed(1)} / second`} /><DetailRow label="Current Slot" value={equippedSlot >= 0 ? `Technique ${equippedSlot + 1}` : "Not Equipped"} /><DetailRow label="Current Regen" value={`${stats.staminaRegen.toFixed(1)} / second`} /><DetailRow label="Net with Loadout" value={`${net >= 0 ? "+" : ""}${net.toFixed(1)} / second`} /></div><DetailCopy label="DESCRIPTION" value={technique.description} /><DetailCopy label="STAT EFFECTS" value={`${technique.dodge ? `+${Math.round(technique.dodge * 100)}% Dodge` : ""}${technique.parry ? `${technique.dodge ? " · " : ""}+${Math.round(technique.parry * 100)}% Parry` : ""}${technique.accuracy ? `+${technique.accuracy} Accuracy` : ""}`} /><DetailCopy label="ACTIVATION" value="Toggle during Combat. Automatically disables if Stamina reaches zero." /><div className="combat-ability-equip-actions"><button className="button button-primary" disabled={combatLocked || equippedSlot === selectedTechniqueSlot} onClick={() => onEquipTechnique(entry.techniqueId)}>{combatLocked ? "LOADOUT LOCKED" : `EQUIP TO SLOT ${selectedTechniqueSlot + 1}`}</button>{equippedSlot >= 0 && <button className="button button-ghost" disabled={combatLocked} onClick={() => onUnequipTechnique(equippedSlot)}>UNEQUIP</button>}</div></section>;
+    return <section className="combat-ability-details" aria-label={`${entry.name} details`}><DetailHeading icon={entry.icon} title={entry.name} subtitle="Sustained Technique" /><div className="combat-ability-detail-grid"><DetailRow label="Stamina Drain" value={`${technique.staminaDrainPerSecond.toFixed(1)} / second`} /><DetailRow label="Current Slot" value={equippedSlot >= 0 ? `Technique ${equippedSlot + 1}` : "Not Equipped"} /><DetailRow label="Current Regen" value={`${stats.staminaRegen.toFixed(1)} / second`} /><DetailRow label="Net with Loadout" value={`${net >= 0 ? "+" : ""}${net.toFixed(1)} / second`} /></div><DetailCopy label="DESCRIPTION" value={technique.description} /><DetailCopy label="STAT EFFECTS" value={`${technique.accuracyRating ? `+${technique.accuracyRating} Accuracy Rating` : ""}${technique.evasionRating ? `${technique.accuracyRating ? " · " : ""}+${technique.evasionRating} Evasion Rating` : ""}`} /><DetailCopy label="ACTIVATION" value="Toggle during Combat. Automatically disables if Stamina reaches zero." /><div className="combat-ability-equip-actions"><button className="button button-primary" disabled={combatLocked || equippedSlot === selectedTechniqueSlot} onClick={() => onEquipTechnique(entry.techniqueId)}>{combatLocked ? "LOADOUT LOCKED" : `EQUIP TO SLOT ${selectedTechniqueSlot + 1}`}</button>{equippedSlot >= 0 && <button className="button button-ghost" disabled={combatLocked} onClick={() => onUnequipTechnique(equippedSlot)}>UNEQUIP</button>}</div></section>;
   }
   const action = getActionById(game, entry.actionId, context);
   const availability = getCombatAbilityAvailability(game, entry.actionId);
@@ -512,10 +512,10 @@ function CombatAbilityDetails({
   const effectivePlayerStats = getPlayerEffectiveCombatStats(game.combat, stats, game.progression);
   const effectiveTargetStats = target ? getEnemyEffectiveCombatStats(target) : undefined;
   const normalHitChance = effectiveTargetStats
-    ? calculateHitChance(effectivePlayerStats.accuracy, effectiveTargetStats.evasion)
+    ? calculateHitChance(effectivePlayerStats.accuracyRating ?? 0, effectiveTargetStats.evasionRating ?? 0)
     : undefined;
   const skillHitChance = skill && effectiveTargetStats
-    ? calculateHitChance(effectivePlayerStats.accuracy + skill.accuracyModifier, effectiveTargetStats.evasion)
+    ? calculateHitChance((effectivePlayerStats.accuracyRating ?? 0) + skill.accuracyModifier, effectiveTargetStats.evasionRating ?? 0)
     : undefined;
   const rules = game.combatAutomation.rules.filter((rule) => rule.actionId === entry.actionId);
   /*

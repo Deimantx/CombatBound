@@ -78,10 +78,10 @@ describe("Developer Toolkit V9.4", () => {
     const context = createCombatContext({ next: () => 0.5 });
     const started = startHunt(initial, "location.wolf-den", stats, context);
     const target = started.combat.enemies[0];
-    const withEffect = applyEffect({ ...started.combat, enemies: started.combat.enemies.map((enemy) => enemy.instanceId === target.instanceId ? { ...enemy, currentHealth: 5, attackTimer: 10 } : enemy) }, effectById["effect.burn"], { kind: "player" }, { kind: "enemy", instanceId: target.instanceId }).combat;
+    const withEffect = applyEffect({ ...started.combat, enemies: started.combat.enemies.map((enemy) => enemy.instanceId === target.instanceId ? { ...enemy, currentHealth: 5, attackTimer: 10 } : enemy) }, effectById["effect.ignite"], { kind: "player" }, { kind: "enemy", instanceId: target.instanceId }).combat;
     const prepared = { ...started, combat: { ...withEffect, playerAttackTimer: 10 } };
     context.debugHooks = { isEnemyImmortal: (instanceId) => instanceId === target.instanceId };
-    const afterTick = advanceCombat(prepared, combatBalance.burnInterval + 0.1, context, stats);
+    const afterTick = advanceCombat(prepared, combatBalance.igniteInterval + 0.1, context, stats);
     const result = afterTick.combat.enemies.find((enemy) => enemy.instanceId === target.instanceId);
     expect(result?.currentHealth).toBe(1);
     expect(result?.defeated).toBe(false);

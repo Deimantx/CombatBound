@@ -1,4 +1,4 @@
-import { normalizeCombatStats } from '../combat/combatStats'
+import { canonicalStatKey, normalizeCombatStats } from '../combat/combatStats'
 import type { CombatStats, StatModifier } from '../combat/combatTypes'
 import { perkById } from '../data/proficiencyPerks'
 import { proficiencyById } from '../data/proficiencies'
@@ -167,7 +167,7 @@ export function getActiveProficiencyStatModifiers(
   const modifiers: StatModifier[] = []
   for (const { effect, rank } of activeEffects(progression, proficiencyId, definitions)) {
     if (effect.type === 'statModifier') modifiers.push(toStatModifier(effect, rank))
-    if (effect.type === 'weaponAttackIntervalModifier') modifiers.push({ stat: 'attackInterval', operation: 'addPercent', value: effect.valuePerRank * rank })
+    if (effect.type === 'weaponAttackIntervalModifier') modifiers.push({ stat: 'attackInterval', operation: 'increased', value: effect.valuePerRank * rank })
     if (effect.type === 'conditionalStatModifier') {
       const matches = effect.condition.type === 'active-barrier' ? context.barrierActive === true
         : effect.condition.type === 'stamina-above' ? (context.staminaFraction ?? 0) >= (effect.condition.fraction ?? 0)
@@ -203,17 +203,29 @@ export function getConditionalProficiencyStatModifiers(
 export function applyProficiencyStatModifiers(baseStats: CombatStats, modifiers: StatModifier[]) {
   const next = normalizeCombatStats({ ...baseStats } as CombatStats & Record<string, unknown>)
   const flat: Partial<Record<keyof CombatStats, number>> = {}
-  const additive: Partial<Record<keyof CombatStats, number>> = {}
-  const multiplicative: Partial<Record<keyof CombatStats, number>> = {}
+  const increased: Partial<Record<keyof CombatStats, number>> = {}
+  const reduced: Partial<Record<keyof CombatStats, number>> = {}
+  const more: Partial<Record<keyof CombatStats, number>> = {}
+  const less: Partial<Record<keyof CombatStats, number>> = {}
+  const overrides: Partial<Record<keyof CombatStats, number>> = {}
+  const minimums: Partial<Record<keyof CombatStats, number>> = {}
+  const maximums: Partial<Record<keyof CombatStats, number>> = {}
   for (const modifier of modifiers) {
-    if (modifier.operation === 'flat') flat[modifier.stat] = (flat[modifier.stat] ?? 0) + modifier.value
-    if (modifier.operation === 'addPercent') additive[modifier.stat] = (additive[modifier.stat] ?? 0) + modifier.value
-    if (modifier.operation === 'multiply') multiplicative[modifier.stat] = (multiplicative[modifier.stat] ?? 1) * modifier.value
+    const stat = canonicalStatKey(modifier.stat) as keyof CombatStats
+    if (modifier.operation === 'flat') flat[stat] = (flat[stat] ?? 0) + modifier.value
+    if (modifier.operation === 'increased') increased[stat] = (increased[stat] ?? 0) + modifier.value
+    if (modifier.operation === 'reduced') reduced[stat] = (reduced[stat] ?? 0) + modifier.value
+    if (modifier.operation === 'more') more[stat] = (more[stat] ?? 1) * (1 + modifier.value)
+    if (modifier.operation === 'less') less[stat] = (less[stat] ?? 1) * (1 - modifier.value)
+    if (modifier.operation === 'override') overrides[stat] = modifier.value
+    if (modifier.operation === 'set-minimum') minimums[stat] = Math.max(minimums[stat] ?? -Infinity, modifier.value)
+    if (modifier.operation === 'set-maximum') maximums[stat] = Math.min(maximums[stat] ?? Infinity, modifier.value)
   }
-  for (const stat of new Set(Object.keys(flat).concat(Object.keys(additive), Object.keys(multiplicative))) as Set<keyof CombatStats>) {
+  for (const stat of new Set(Object.keys(flat).concat(Object.keys(increased), Object.keys(reduced), Object.keys(more), Object.keys(less), Object.keys(overrides), Object.keys(minimums), Object.keys(maximums))) as Set<keyof CombatStats>) {
     if (typeof next[stat] !== 'number') continue
     const base = next[stat] as number
-    next[stat] = (base + (flat[stat] ?? 0)) * (1 + (additive[stat] ?? 0)) * (multiplicative[stat] ?? 1) as never
+    const calculated = (base + (flat[stat] ?? 0)) * (1 + (increased[stat] ?? 0) - (reduced[stat] ?? 0)) * (more[stat] ?? 1) * (less[stat] ?? 1)
+    next[stat] = Math.min(maximums[stat] ?? Infinity, Math.max(minimums[stat] ?? -Infinity, overrides[stat] ?? calculated)) as never
   }
   return normalizeCombatStats(next as CombatStats & Record<string, unknown>)
 }
@@ -236,24 +248,18 @@ export function getWeaponHitAdvanceHooks(progression: ProgressionState, proficie
 export interface WeaponAttackModifiers {
   armorPenetrationPercent: number
   armorPenetrationFlat: number
-  blockChancePenetration: number
-  blockPowerPenetration: number
   secondaryTargetFraction: number
   secondaryTargetCount: number
 }
 
 /** Aggregates attack-local weapon effects. These are applied to one hit only. */
 export function getWeaponAttackModifiers(progression: ProgressionState, proficiencyId: WeaponProficiencyId | null, definitions: Record<string, ProficiencyPerkDefinition> = perkById, equipmentContext?: DefensiveEquipmentContext): WeaponAttackModifiers {
-  const result: WeaponAttackModifiers = { armorPenetrationPercent: 0, armorPenetrationFlat: 0, blockChancePenetration: 0, blockPowerPenetration: 0, secondaryTargetFraction: 0, secondaryTargetCount: 0 }
+  const result: WeaponAttackModifiers = { armorPenetrationPercent: 0, armorPenetrationFlat: 0, secondaryTargetFraction: 0, secondaryTargetCount: 0 }
   if (!proficiencyId) return result
   for (const { effect, rank } of activeEffects(progression, proficiencyId, definitions)) {
     if (effect.type === 'weaponArmorPenetrationModifier') {
       if (effect.mode === 'percent') result.armorPenetrationPercent += effect.valuePerRank * rank
       else result.armorPenetrationFlat += effect.valuePerRank * rank
-    }
-    if (effect.type === 'weaponBlockPenetrationModifier') {
-      if (effect.stat === 'blockChance') result.blockChancePenetration += effect.valuePerRank * rank
-      else result.blockPowerPenetration += effect.valuePerRank * rank
     }
     if (effect.type === 'weaponSecondaryTargetDamage') {
       result.secondaryTargetFraction += effect.fractionPerRank * rank
@@ -261,11 +267,6 @@ export function getWeaponAttackModifiers(progression: ProgressionState, proficie
     }
   }
   return result
-}
-
-export function getWeaponDodgeEffectHooks(progression: ProgressionState, proficiencyId: WeaponProficiencyId | null, definitions: Record<string, ProficiencyPerkDefinition> = perkById) {
-  if (!proficiencyId) return [] as Array<{ effectId: string; durationSeconds?: number }>
-  return activeEffects(progression, proficiencyId, definitions).flatMap(({ effect, rank }) => effect.type === 'onDodgeApplyEffect' ? Array.from({ length: rank }, () => ({ effectId: effect.effectId, durationSeconds: effect.durationSeconds })) : [])
 }
 
 export function getWeaponBlockEffectHooks(progression: ProgressionState, proficiencyId: WeaponProficiencyId | null, definitions: Record<string, ProficiencyPerkDefinition> = perkById) {
@@ -281,11 +282,6 @@ export function getTechniqueStaminaDrainMultiplier(progression: ProgressionState
 export function getStanceSwitchCooldownMultiplier(progression: ProgressionState, proficiencyId: WeaponProficiencyId | null, definitions: Record<string, ProficiencyPerkDefinition> = perkById) {
   if (!proficiencyId) return 1
   return Math.max(.1, 1 + activeEffects(progression, proficiencyId, definitions).reduce((sum, { effect, rank }) => sum + (effect.type === 'stanceSwitchCooldownModifier' ? effect.valuePerRank * rank : 0), 0))
-}
-
-export function getParryEffectHooks(progression: ProgressionState, proficiencyId: WeaponProficiencyId | null, definitions: Record<string, ProficiencyPerkDefinition> = perkById) {
-  if (!proficiencyId) return [] as Array<{ effectId: string; durationSeconds?: number }>
-  return activeEffects(progression, proficiencyId, definitions).flatMap(({ effect, rank }) => effect.type === 'onParryApplyEffect' || effect.type === 'onParryStatBuff' ? Array.from({ length: rank }, () => ({ effectId: effect.effectId, durationSeconds: effect.durationSeconds })) : [])
 }
 
 export function getStanceSwitchEffectHooks(progression: ProgressionState, proficiencyId: WeaponProficiencyId | null, definitions: Record<string, ProficiencyPerkDefinition> = perkById) {
@@ -314,12 +310,12 @@ export function getConditionalWeaponDamageMultiplier(
   for (const { effect, rank } of activeEffects(progression, proficiencyId, definitions)) {
     if (effect.type === 'conditionalDamageModifier') {
       if (!matchesCondition(effect.condition, targetHpFraction, targetEffectIds)) continue
-      if (effect.operation === 'addPercent') additive.value += effect.valuePerRank * rank
-      else multiplicative.value *= Math.pow(effect.valuePerRank, rank)
+      if (effect.operation === 'increased') additive.value += effect.valuePerRank * rank
+      else multiplicative.value *= Math.pow(1 + effect.valuePerRank, rank)
     }
     if (effect.type === 'weaponConditionalDamageModifier' && matchesCondition(effect.condition, targetHpFraction, targetEffectIds)) {
-      if (effect.operation === 'addPercent') additive.value += effect.valuePerRank * rank
-      else multiplicative.value *= Math.pow(effect.valuePerRank, rank)
+      if (effect.operation === 'increased') additive.value += effect.valuePerRank * rank
+      else multiplicative.value *= Math.pow(1 + effect.valuePerRank, rank)
     }
   }
   return (1 + additive.value) * multiplicative.value
@@ -333,12 +329,12 @@ export function getWeaponDamageMultiplier(progression: ProgressionState, profici
     if (effect.type === 'weaponDamageModifier') additive += effect.valuePerRank * rank
     if (effect.type === 'stanceSpecificDamageModifier' && stance === effect.stance) additive += effect.valuePerRank * rank
     if (effect.type === 'weaponConditionalDamageModifier' && matchesCondition(effect.condition, targetHpFraction, targetEffectIds)) {
-      if (effect.operation === 'addPercent') additive += effect.valuePerRank * rank
-      else multiplicative *= Math.pow(effect.valuePerRank, rank)
+      if (effect.operation === 'increased') additive += effect.valuePerRank * rank
+      else multiplicative *= Math.pow(1 + effect.valuePerRank, rank)
     }
     if (effect.type === 'conditionalDamageModifier' && matchesCondition(effect.condition, targetHpFraction, targetEffectIds)) {
-      if (effect.operation === 'addPercent') additive += effect.valuePerRank * rank
-      else multiplicative *= Math.pow(effect.valuePerRank, rank)
+      if (effect.operation === 'increased') additive += effect.valuePerRank * rank
+      else multiplicative *= Math.pow(1 + effect.valuePerRank, rank)
     }
   }
   if (equipmentContext) additive += getActiveDefensiveEquipmentModifiers(progression, equipmentContext, definitions).weaponModifiers.filter((modifier) => modifier.modifier === 'damage').reduce((sum, modifier) => sum + modifier.value, 0)
@@ -350,11 +346,11 @@ function activeMagicEffects(progression: ProgressionState, proficiencyId: MagicP
 }
 
 export function getActiveGlobalMagicStatModifiers(progression: ProgressionState, definitions: Record<string, ProficiencyPerkDefinition> = perkById): StatModifier[] {
-  return (['fire-magic', 'water-magic', 'air-magic', 'earth-magic', 'light-magic', 'darkness-magic'] as MagicProficiencyId[]).flatMap((id) => getActiveProficiencyStatModifiers(progression, id, definitions))
+  return (['fire-magic', 'water-magic', 'air-magic', 'earth-magic', 'darkness-magic'] as MagicProficiencyId[]).flatMap((id) => getActiveProficiencyStatModifiers(progression, id, definitions))
 }
 
 export function getConditionalMagicStatModifiers(progression: ProgressionState, barrierActive: boolean, definitions: Record<string, ProficiencyPerkDefinition> = perkById): StatModifier[] {
-  return (['fire-magic', 'water-magic', 'air-magic', 'earth-magic', 'light-magic', 'darkness-magic'] as MagicProficiencyId[]).flatMap((id) => getConditionalProficiencyStatModifiers(progression, id, { barrierActive }, definitions))
+  return (['fire-magic', 'water-magic', 'air-magic', 'earth-magic', 'darkness-magic'] as MagicProficiencyId[]).flatMap((id) => getConditionalProficiencyStatModifiers(progression, id, { barrierActive }, definitions))
 }
 
 export interface EffectiveMagicModifiers {
@@ -362,7 +358,6 @@ export interface EffectiveMagicModifiers {
   spellFlatDamage: number
   manaCostPercent: number
   cooldownPercent: number
-  accuracy: number
   barrierAmountPercent: number
   barrierAmountFlat: number
   barrierDurationBonus: number
@@ -385,13 +380,12 @@ export interface EffectiveMagicModifiers {
 }
 
 export function getEffectiveMagicModifiers(progression: ProgressionState, proficiencyId: MagicProficiencyId, definitions: Record<string, ProficiencyPerkDefinition> = perkById, equipmentContext?: DefensiveEquipmentContext): EffectiveMagicModifiers {
-  const result: EffectiveMagicModifiers = { spellDamagePercent: 0, spellFlatDamage: 0, manaCostPercent: 0, cooldownPercent: 0, accuracy: 0, barrierAmountPercent: 0, barrierAmountFlat: 0, barrierDurationBonus: 0, barrierDurationPercent: 0, canCrit: false, spellCriticalDamagePercent: 0, conditionalCriticalChance: 0, effectPeriodicPowerPercent: {}, effectDurationBonus: {}, effectMaxStacksBonus: {}, spellCriticalChance: 0, healingPercent: 0, healingOverTimePercent: 0, lifeDrainFraction: 0, damageBasedManaRestoreFraction: 0, spellArmorPenetrationPercent: 0, spellArmorPenetrationFlat: 0, spellSecondaryTargetFraction: 0, spellSecondaryTargetCount: 0 }
+  const result: EffectiveMagicModifiers = { spellDamagePercent: 0, spellFlatDamage: 0, manaCostPercent: 0, cooldownPercent: 0, barrierAmountPercent: 0, barrierAmountFlat: 0, barrierDurationBonus: 0, barrierDurationPercent: 0, canCrit: false, spellCriticalDamagePercent: 0, conditionalCriticalChance: 0, effectPeriodicPowerPercent: {}, effectDurationBonus: {}, effectMaxStacksBonus: {}, spellCriticalChance: 0, healingPercent: 0, healingOverTimePercent: 0, lifeDrainFraction: 0, damageBasedManaRestoreFraction: 0, spellArmorPenetrationPercent: 0, spellArmorPenetrationFlat: 0, spellSecondaryTargetFraction: 0, spellSecondaryTargetCount: 0 }
   for (const { effect, rank } of activeMagicEffects(progression, proficiencyId, definitions)) {
     if (effect.type === 'spellDamageModifier') result.spellDamagePercent += effect.valuePerRank * rank
     if (effect.type === 'spellFlatDamageModifier') result.spellFlatDamage += effect.valuePerRank * rank
     if (effect.type === 'spellManaCostModifier') result.manaCostPercent += effect.valuePerRank * rank
     if (effect.type === 'spellCooldownModifier') result.cooldownPercent += effect.valuePerRank * rank
-    if (effect.type === 'spellAccuracyModifier') result.accuracy += effect.valuePerRank * rank
     if (effect.type === 'barrierAmountModifier') result.barrierAmountPercent += effect.valuePerRank * rank
     if (effect.type === 'barrierFlatAmountModifier') result.barrierAmountFlat += effect.valuePerRank * rank
     if (effect.type === 'barrierDurationModifier') {
@@ -421,7 +415,6 @@ export function getEffectiveMagicModifiers(progression: ProgressionState, profic
     if (modifier.modifier === 'damage') result.spellDamagePercent += modifier.value
     if (modifier.modifier === 'manaCost') result.manaCostPercent += modifier.value
     if (modifier.modifier === 'cooldown') result.cooldownPercent += modifier.value
-    if (modifier.modifier === 'accuracy') result.accuracy += modifier.value
     if (modifier.modifier === 'barrierAmount') result.barrierAmountPercent += modifier.value
     if (modifier.modifier === 'barrierDuration') result.barrierDurationPercent += modifier.value
   }
@@ -437,8 +430,8 @@ export function getConditionalMagicDamageMultiplier(progression: ProgressionStat
       ? manaFraction >= (effect.condition.fraction ?? 0)
       : matchesCondition(effect.condition, targetHpFraction, targetEffectIds)
     if (!matches) continue
-    if (effect.operation === 'addPercent') additive += effect.valuePerRank * rank
-    if (effect.operation === 'multiply') multiplier *= Math.pow(effect.valuePerRank, rank)
+    if (effect.operation === 'increased') additive += effect.valuePerRank * rank
+    if (effect.operation === 'more') multiplier *= Math.pow(1 + effect.valuePerRank, rank)
   }
   return (1 + additive) * multiplier
 }
@@ -519,7 +512,7 @@ export function getSuccessfulInterruptHooks(progression: ProgressionState, defin
 }
 
 export function getBarrierAbsorbResourceRestore(progression: ProgressionState, resource: 'mana' | 'stamina', definitions: Record<string, ProficiencyPerkDefinition> = perkById, proficiencyId?: MagicProficiencyId) {
-  const schools = proficiencyId ? [proficiencyId] : ['fire-magic', 'water-magic', 'air-magic', 'earth-magic', 'light-magic', 'darkness-magic'] as MagicProficiencyId[]
+  const schools = proficiencyId ? [proficiencyId] : ['fire-magic', 'water-magic', 'air-magic', 'earth-magic', 'darkness-magic'] as MagicProficiencyId[]
   return schools.flatMap((id) => activeMagicEffects(progression, id, definitions)).reduce((sum, { effect, rank }) => sum + (effect.type === 'onBarrierAbsorbRestoreMana' && resource === 'mana' ? effect.amountPerRank * rank : effect.type === 'barrierAbsorbResourceRestore' && effect.resource === resource ? effect.amountPerRank * rank : 0), 0)
 }
 

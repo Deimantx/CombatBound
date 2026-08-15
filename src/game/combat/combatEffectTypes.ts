@@ -22,7 +22,7 @@ export interface EffectDefinition {
     maxStacks: number
   }
   statModifiers?: StatModifier[]
-  resistanceModifiers?: Array<{ damageType: DamageType; operation: 'flat' | 'multiply'; value: number }>
+  resistanceModifiers?: Array<{ damageType: DamageType; operation: 'flat' | 'more'; value: number }>
   periodic?: {
     intervalSeconds: number
     operation: PeriodicOperation
@@ -31,7 +31,7 @@ export interface EffectDefinition {
   persistence: EffectPersistence
   /** Barrier definitions use this as the initial absorb pool. */
   barrierAmount?: number
-  /** Beneficial effects are not shortened by status resistance. */
+  /** Beneficial effects are not shortened by ailment-duration reduction. */
   beneficial?: boolean
 }
 

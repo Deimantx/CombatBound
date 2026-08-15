@@ -70,7 +70,7 @@ describe("Hero Build Workspace V11", () => {
     expect(candidate).toBeInTheDocument();
     fireEvent.mouseEnter(candidate);
     expect(document.querySelector('[data-debug-kind="hero-combat-stats"]')).toHaveAttribute("data-debug-preview-item-id", "item.hunter-sword");
-    expect(document.querySelector('[data-debug-stat="attackPower"]')).toHaveAttribute("data-debug-delta-kind", "better");
+    expect(document.querySelector('[data-debug-stat="attackDamage"]')).toHaveAttribute("data-debug-delta-kind", "better");
     expect(document.querySelector('[data-debug-stat="attackInterval"]')).toHaveAttribute("data-debug-delta-kind", "better");
     expect(useGameStore.getState().game.equipment.slots.weapon).toBe(before);
     fireEvent.mouseLeave(candidate);
@@ -106,8 +106,8 @@ describe("Hero Build Workspace V11", () => {
     const candidate = document.querySelector('[data-debug-kind="equipment-candidate"][data-debug-item-id="item.training-armor"]') as HTMLButtonElement;
     fireEvent.click(candidate);
     expect(document.querySelector('[data-debug-kind="hero-stat-category"][data-debug-category="defense"]')).toHaveAttribute("data-debug-expanded", "false");
-    expect(document.querySelector('[data-debug-stat="armor"]')).toHaveAttribute("data-debug-delta-kind", "worse");
-    expect(document.querySelector('[data-debug-stat="armor"]')).not.toBeVisible();
+    expect(document.querySelector('[data-debug-stat="armour"]')).toHaveAttribute("data-debug-delta-kind", "worse");
+    expect(document.querySelector('[data-debug-stat="armour"]')).not.toBeVisible();
   });
 
   it("keeps deep links to the three full build-system windows", () => {
