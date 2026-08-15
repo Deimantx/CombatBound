@@ -5,13 +5,15 @@ export function HeroSystemCard({
   title,
   description,
   summary,
+  preview,
   icon: Icon,
   onOpen,
 }: {
-  system: "equipment" | "spellbook" | "abilities" | "automation" | "stats";
+  system: "spellbook" | "abilities" | "automation";
   title: string;
   description: string;
   summary: React.ReactNode;
+  preview: React.ReactNode;
   icon: LucideIcon;
   onOpen: (button: HTMLButtonElement) => void;
 }) {
@@ -19,7 +21,7 @@ export function HeroSystemCard({
     <button
       className="hero-system-card"
       onClick={(event) => onOpen(event.currentTarget)}
-      data-debug-kind="hero-system-card"
+      data-debug-kind="hero-build-system"
       data-debug-system={system}
     >
       <span className="hero-card-icon"><Icon size={18} /></span>
@@ -27,8 +29,13 @@ export function HeroSystemCard({
         <strong>{title}</strong>
         <small>{description}</small>
         <span className="hero-card-summary">{summary}</span>
+        <span className="hero-build-preview">{preview}</span>
       </span>
       <span className="hero-card-open">OPEN <span aria-hidden="true">→</span></span>
     </button>
   );
+}
+
+export function HeroBuildPreviewSlots({ slots }: { slots: Array<{ actionId?: string | null; icon?: string; label?: string }> }) {
+  return <span className="hero-build-preview-slots">{slots.map((slot, index) => <span key={`${slot.actionId ?? "empty"}-${index}`} className={`hero-build-preview-slot ${slot.actionId ? "is-filled" : "is-empty"}`} data-debug-kind="hero-build-preview-slot" data-debug-action-id={slot.actionId ?? ""} data-debug-empty={slot.actionId ? "false" : "true"} aria-label={slot.label ?? (slot.actionId ? `Slot ${index + 1}` : `Empty slot ${index + 1}`)}><span className="hero-build-preview-art">{slot.icon ?? "·"}</span></span>)}</span>;
 }

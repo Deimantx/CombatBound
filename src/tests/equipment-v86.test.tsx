@@ -164,7 +164,6 @@ describe("Equipment V8.6 UI", () => {
   it("renders thirteen inspector-addressable slots and a true empty-slot comparison", () => {
     render(<App />);
     fireEvent.click(screen.getByRole("button", { name: "Hero" }));
-    fireEvent.click(screen.getByRole("button", { name: /Equipment/i }));
 
     expect(document.querySelectorAll('[data-debug-kind="equipment-slot"]')).toHaveLength(13);
     expect(document.querySelectorAll('[data-debug-kind="equipment-slot-group"]')).toHaveLength(3);

@@ -38,7 +38,8 @@ export function parseGameSaveJson(raw: string): GameSaveV9 | null {
   }
 }
 
-export function loadGameSave(): GameSaveV9 | null {
+/** Reads the pre-profile global save chain for the one-time Profile 1 migration only. */
+export function loadLegacySingleGameSaveForProfileMigration(): GameSaveV9 | null {
   if (typeof localStorage === "undefined") return null;
   try {
     const currentRaw = localStorage.getItem(GAME_SAVE_KEY);
@@ -61,7 +62,7 @@ export function loadGameSave(): GameSaveV9 | null {
           JSON.stringify(migrated.combatAutomationPresets) !== JSON.stringify(current.combatAutomationPresets) ||
           JSON.stringify(migrated.combatAbilities) !== JSON.stringify(current.combatAbilities)
         ) {
-          saveGame(migrated);
+          saveLegacySingleGameSave(migrated);
           return migrated;
         }
         return current;
@@ -109,18 +110,18 @@ export function loadGameSave(): GameSaveV9 | null {
       ?? (migratedV3 ? migrateV8Save(migrateV7Save(migrateV6Save(migrateV5Save(migrateV4Save(migratedV3))))) : null)
       ?? (migratedV2 ? migrateV8Save(migrateV7Save(migrateV6Save(migrateV5Save(migrateV4Save(migrateV3Save(migratedV2)))))) : null)
       ?? (migratedV1 ? migrateV8Save(migrateV7Save(migrateV6Save(migrateV5Save(migrateV4Save(migrateV3Save(migratedV1)))))) : null);
-    if (migrated) saveGame(migrated);
+    if (migrated) saveLegacySingleGameSave(migrated);
     return migrated;
   } catch {
     return null;
   }
 }
 
-export function saveGame(save: GameSaveV9) {
+export function saveLegacySingleGameSave(save: GameSaveV9) {
   if (typeof localStorage !== "undefined")
     localStorage.setItem(GAME_SAVE_KEY, JSON.stringify(save));
 }
-export function clearGameSave() {
+export function clearLegacySingleGameSave() {
   if (typeof localStorage !== "undefined") {
     localStorage.removeItem(GAME_SAVE_KEY);
     localStorage.removeItem(LEGACY_V8_GAME_SAVE_KEY);

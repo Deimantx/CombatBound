@@ -21,16 +21,16 @@ import {
   ARMOR_TRAINING_SLOT_IDS,
   EQUIPMENT_SLOT_DEFINITIONS,
   getEquipmentSlotsByGroup,
-  type EquipmentSlotGroup,
   type EquipmentSlotId,
 } from "../../../game/equipment/equipmentTypes";
 import { canEquipItemToSlot, getAvailableItemCopies, validateEquipmentChange } from "../../../game/equipment/equipmentRules";
-import type { CombatReferenceCategory } from "../../../game/data/combatGlossary";
 import {
   formatCombatStatValue,
   formatItemStats,
   labelForStatKey,
 } from "../../../game/presentation/statFormatting";
+import { combatStatGroups } from "../../../game/presentation/combatStatGroups";
+import { equipmentGroups } from "../../../game/presentation/equipmentGroups";
 import { buildItemTooltip } from "../../../game/presentation/tooltipBuilders";
 import { useGameStore } from "../../../state/gameStore";
 import { CollapsiblePanel } from "../../components/CollapsiblePanel";
@@ -40,66 +40,9 @@ import { PlaceholderArt } from "../../components/PlaceholderArt";
 import { StatLine } from "../../components/StatLine";
 import { ScreenHeading } from "../../shell/ScreenHeading";
 
-export const statGroups: Array<{
-  id: CombatReferenceCategory;
-  title: string;
-  keys: string[];
-}> = [
-  {
-    id: "offense",
-    title: "OFFENSE",
-    keys: [
-      "attackPower",
-      "accuracy",
-      "attackInterval",
-      "critChance",
-      "critDamage",
-    ],
-  },
-  {
-    id: "defense",
-    title: "DEFENSE",
-    keys: [
-      "maxHealth",
-      "armor",
-      "physicalDirectMitigation",
-      "evasion",
-      "dodgeChance",
-      "parryChance",
-      "blockChance",
-      "blockPower",
-      "statusResistance",
-      "healthRegen",
-    ],
-  },
-  {
-    id: "resources",
-    title: "RESOURCES",
-    keys: ["maxStamina", "staminaRegen", "maxMana", "manaRegen"],
-  },
-  {
-    id: "resistances",
-    title: "RESISTANCES",
-    keys: [
-      "physicalResistance",
-      "fireResistance",
-      "waterResistance",
-      "airResistance",
-      "earthResistance",
-      "lightResistance",
-      "darknessResistance",
-      "natureResistance",
-      "mysticResistance",
-    ],
-  },
-];
+export const statGroups = combatStatGroups;
 
 const EQUIPMENT_STAT_GROUPS_STORAGE_KEY = "combatbound-equipment-stat-groups";
-const equipmentGroups: Array<{ id: EquipmentSlotGroup; label: string }> = [
-  { id: "weapons", label: "WEAPONS" },
-  { id: "armor", label: "ARMOR & GEAR" },
-  { id: "accessories", label: "ACCESSORIES" },
-];
 type EquipmentStatGroupId = (typeof statGroups)[number]["id"];
 type EquipmentStatGroupState = Partial<Record<EquipmentStatGroupId, boolean>>;
 

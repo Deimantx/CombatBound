@@ -3,41 +3,40 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import App from '../../App'
 import { useGameStore } from '../state/gameStore'
 
-beforeEach(() => { useGameStore.getState().resetGameplay(); window.localStorage.removeItem('combatbound-equipment-stat-groups') })
-afterEach(() => { cleanup(); window.localStorage.removeItem('combatbound-equipment-stat-groups') })
+beforeEach(() => { useGameStore.getState().resetGameplay(); window.localStorage.removeItem('combatbound-hero-stats-v1') })
+afterEach(() => { cleanup(); window.localStorage.removeItem('combatbound-hero-stats-v1') })
 
 describe('combat information surfaces', () => {
-  it('renders the complete collapsible Hunter Combat Stats sheet', () => {
+  it('renders the complete collapsible Hero Combat Stats inspector', () => {
     render(<App />)
     fireEvent.click(screen.getByRole('button', { name: 'Hero' }))
-    fireEvent.click(screen.getByRole('button', { name: /Combat Stats/i }))
-    const toggle = screen.getByRole('button', { name: /Hunter Combat Stats/ })
+    const toggle = screen.getByRole('button', { name: /COMBAT STATS/i })
     expect(toggle).toHaveAttribute('aria-expanded', 'true')
     for (const label of ['Attack Power', 'Accuracy', 'Attack Interval', 'Critical Hit Chance', 'Critical Hit Damage', 'Max Health', 'Armor', 'Physical direct mitigation', 'Evasion', 'Dodge Chance', 'Parry Chance', 'Block Chance', 'Block Power', 'Status Resistance', 'Max Stamina', 'Stamina Regeneration', 'Max Mana', 'Mana Regeneration', 'Physical Resistance', 'Fire Resistance', 'Water Resistance', 'Air Resistance', 'Earth Resistance', 'Light Resistance', 'Darkness Resistance', 'Nature Resistance', 'Mystic Resistance']) expect(screen.getAllByText(label).length).toBeGreaterThan(0)
-    const defenseSection = screen.getByRole('button', { name: 'DEFENSE' }).closest('section')
+    const defenseSection = screen.getByRole('button', { name: /^DEFENSE/ }).closest('section')
     expect(defenseSection).not.toBeNull()
     const defenseLabels = Array.from(defenseSection!.querySelectorAll('.stat-label')).map((label) => label.textContent)
     expect(defenseLabels[defenseLabels.indexOf('Physical direct mitigation') - 1]).toBe('Armor')
-    const offenseToggle = screen.getByRole('button', { name: 'OFFENSE' })
+    const offenseToggle = screen.getByRole('button', { name: /^OFFENSE/ })
     expect(offenseToggle).toHaveAttribute('aria-expanded', 'true')
     fireEvent.click(offenseToggle)
     expect(offenseToggle).toHaveAttribute('aria-expanded', 'false')
     expect(screen.getByText('Critical Hit Chance')).not.toBeVisible()
-    expect(screen.getAllByText('Max Health')[1]).toBeVisible()
+    fireEvent.click(screen.getByRole('button', { name: /^RESOURCES & REGEN/ }))
+    expect(screen.getByText('Max Health')).toBeVisible()
     fireEvent.click(toggle)
     expect(toggle).toHaveAttribute('aria-expanded', 'false')
-    expect(screen.getAllByText('Attack Power')[1]).not.toBeVisible()
+    expect(screen.getByText('Attack Power')).not.toBeVisible()
   })
 
   it('keeps each group state when returning to Equipment', () => {
     render(<App />)
     fireEvent.click(screen.getByRole('button', { name: 'Hero' }))
-    fireEvent.click(screen.getByRole('button', { name: /Combat Stats/i }))
-    fireEvent.click(screen.getByRole('button', { name: 'OFFENSE' }))
+    fireEvent.click(screen.getByRole('button', { name: /^OFFENSE/ }))
     fireEvent.click(screen.getByRole('button', { name: 'Info' }))
     fireEvent.click(screen.getByRole('button', { name: 'Hero' }))
-    fireEvent.click(screen.getByRole('button', { name: /Combat Stats/i }))
-    expect(screen.getByRole('button', { name: 'OFFENSE' })).toHaveAttribute('aria-expanded', 'false')
+    expect(screen.getByRole('button', { name: /COMBAT STATS/i })).toHaveAttribute('aria-expanded', 'true')
+    expect(screen.getByRole('button', { name: /^OFFENSE/ })).toHaveAttribute('aria-expanded', 'false')
     expect(screen.getByText('Critical Hit Chance')).not.toBeVisible()
   })
 

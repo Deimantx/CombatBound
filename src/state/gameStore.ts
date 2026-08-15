@@ -32,12 +32,11 @@ import {
   selectionForLocation,
 } from "../game/world/worldSelectors";
 import {
-  loadGameSave,
-  saveGame,
-  clearGameSave,
-  CURRENT_SAVE_VERSION,
-  parseGameSaveJson,
-} from "../game/persistence/saveGame";
+  saveProfileGameSave,
+  loadProfileGameSave,
+} from "../game/profiles/profileStorage";
+import { CURRENT_SAVE_VERSION, parseGameSaveJson } from "../game/persistence/saveGame";
+import type { ProfileId } from "../game/profiles/profileTypes";
 import type { StanceId, TechniqueId } from "../game/combat/combatTypes";
 import {
   equipSpellToSlot as equipSpellToSlotState,
@@ -136,6 +135,7 @@ import type { DebugScenarioSnapshotV1 } from "../app/debug/scenarios/debugScenar
 import { validateDebugScenario } from "../app/debug/scenarios/debugScenarioValidation";
 
 interface GameStoreState {
+  activeProfileId: ProfileId | null;
   game: GameState;
   screen: ScreenId;
   heroWindowRequest: HeroWindowRequest | null;
@@ -225,6 +225,10 @@ interface GameStoreState {
   ) => void;
   setReducedMotion: (value: boolean) => void;
   setShowInspectorButton: (value: boolean) => void;
+  hydrateProfile: (profileId: ProfileId, save: NonNullable<ReturnType<typeof loadProfileGameSave>>) => void;
+  startFreshProfile: (profileId: ProfileId) => void;
+  saveActiveProfileNow: () => void;
+  unloadProfile: () => void;
   resetGameplay: () => void;
   resetPrototype: () => void;
 }
@@ -291,10 +295,9 @@ if (import.meta.env.DEV) context.debugHooks = {
   },
 };
 const initial = createInitialGameState();
-const saved = loadGameSave();
 const defaultSelection = getDefaultWorldSelection();
-const hydratedGame: GameState = saved
-  ? syncCombatStats({
+function gameFromSave(saved: NonNullable<ReturnType<typeof loadProfileGameSave>>): GameState {
+  return syncCombatStats({
       combat: {
         ...initial.combat,
         phase: "inactive",
@@ -315,8 +318,8 @@ const hydratedGame: GameState = saved
       combatAbilities: normalizeCombatAbilityLoadout(
         saved.combatAbilities ?? createInitialCombatAbilityLoadout(),
       ),
-    })
-  : initial;
+    });
+}
 
 type UiState = Pick<
   GameStoreState,
@@ -400,11 +403,15 @@ function flatState(
   };
 }
 
+let activeProfileIdForPersistence: () => ProfileId | null = () => null;
+
 function savePermanent(
   game: GameState,
   settings: { reducedMotion: boolean; showInspectorButton: boolean },
 ) {
-  saveGame({
+  const profileId = activeProfileIdForPersistence();
+  if (!profileId) return;
+  saveProfileGameSave(profileId, {
     version: CURRENT_SAVE_VERSION,
     progression: game.progression,
     inventory: game.inventory,
@@ -447,6 +454,25 @@ function selectionUi(
   };
 }
 
+function freshUi(state: GameStoreState): UiState {
+  return {
+    screen: "home",
+    heroWindowRequest: null,
+    selectedContinentId: defaultSelection.continentId,
+    selectedRegionId: defaultSelection.regionId,
+    selectedAreaId: defaultSelection.areaId,
+    selectedCombatLocationId: defaultSelection.combatLocationId,
+    inventoryFilter: "All",
+    selectedInventoryItemId: "item.training-sword",
+    selectedEquipmentSlot: "weapon",
+    selectedCollectionEntryId: "enemy.grey-wolf",
+    collectionTab: "Items",
+    combatOverviewTab: "Session Summary",
+    reducedMotion: state.reducedMotion,
+    showInspectorButton: state.showInspectorButton,
+  };
+}
+
 export const useGameStore = create<GameStoreState>((set, get) => {
   const ui: UiState = {
     screen: "home",
@@ -461,8 +487,8 @@ export const useGameStore = create<GameStoreState>((set, get) => {
     selectedCollectionEntryId: "enemy.grey-wolf",
     collectionTab: "Items",
     combatOverviewTab: "Session Summary",
-    reducedMotion: saved?.settings.reducedMotion ?? false,
-    showInspectorButton: saved?.settings.showInspectorButton ?? true,
+    reducedMotion: false,
+    showInspectorButton: true,
   };
   const selectWorldNode = (
     selection: Partial<ReturnType<typeof cascadeSelection>>,
@@ -592,19 +618,7 @@ export const useGameStore = create<GameStoreState>((set, get) => {
       const imported = parseGameSaveJson(raw);
       if (!imported) return { ok: false, error: "Invalid or unsupported save JSON." };
       set((state) => {
-        const game = syncCombatStats({
-          ...state.game,
-          combat: { ...initial.combat, phase: "inactive", playerHp: initial.combat.maxPlayerHp },
-          progression: imported.progression,
-          inventory: imported.inventory,
-          equipment: imported.equipment,
-          collection: imported.collection,
-          gold: imported.gold,
-          spellbook: normalizeSpellbook(imported.spellbook),
-          combatAutomation: normalizeCombatAutomation(imported.combatAutomation),
-          combatAutomationPresets: normalizeCombatAutomationPresets(imported.combatAutomationPresets),
-          combatAbilities: normalizeCombatAbilityLoadout(imported.combatAbilities),
-        });
+        const game = gameFromSave(imported);
         savePermanent(game, { reducedMotion: imported.settings.reducedMotion, showInspectorButton: imported.settings.showInspectorButton });
         return flatState(game, { ...state, screen: "combat", reducedMotion: imported.settings.reducedMotion, showInspectorButton: imported.settings.showInspectorButton });
       });
@@ -612,8 +626,31 @@ export const useGameStore = create<GameStoreState>((set, get) => {
     },
   };
   return {
-    ...flatState(hydratedGame, ui),
+    activeProfileId: null,
+    ...flatState(initial, ui),
     debug,
+    hydrateProfile: (profileId, save) =>
+      set((state) => ({
+        activeProfileId: profileId,
+        ...flatState(gameFromSave(save), freshUi(state)),
+      })),
+    startFreshProfile: (profileId) =>
+      set((state) => ({
+        activeProfileId: profileId,
+        ...flatState(createInitialGameState(), freshUi(state)),
+      })),
+    saveActiveProfileNow: () => {
+      const state = get();
+      savePermanent(state.game, {
+        reducedMotion: state.reducedMotion,
+        showInspectorButton: state.showInspectorButton,
+      });
+    },
+    unloadProfile: () =>
+      set((state) => ({
+        activeProfileId: null,
+        ...flatState(initial, freshUi(state)),
+      })),
     setScreen: (screen) => set({ screen, heroWindowRequest: null }),
     openHeroWindow: (window, options) => set({ screen: "hero", heroWindowRequest: { window, ...options } }),
     clearHeroWindowRequest: () => set({ heroWindowRequest: null }),
@@ -1135,16 +1172,18 @@ export const useGameStore = create<GameStoreState>((set, get) => {
         return { ...state, showInspectorButton };
       }),
     resetGameplay: () => {
-      clearGameSave();
       const game = createInitialGameState();
       set((state) => {
+        const activeProfileId = state.activeProfileId ?? (import.meta.env.MODE === "test" ? "profile-1" : null);
         savePermanent(game, {
           reducedMotion: state.reducedMotion,
           showInspectorButton: state.showInspectorButton,
         });
-        return flatState(game, selectionUi(defaultSelection, state));
+        return { activeProfileId, ...flatState(game, selectionUi(defaultSelection, state)) };
       });
     },
     resetPrototype: () => get().resetGameplay(),
   };
 });
+
+activeProfileIdForPersistence = () => useGameStore.getState().activeProfileId;

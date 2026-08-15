@@ -1,6 +1,6 @@
-import { AppShell } from './src/app/shell/AppShell'
 import { TooltipProvider } from './src/app/components/tooltip/TooltipProvider'
+import { ProfileGate } from './src/app/profile/ProfileGate'
 
 export default function App() {
-  return <TooltipProvider><AppShell /></TooltipProvider>
+  return <TooltipProvider><ProfileGate /></TooltipProvider>
 }
