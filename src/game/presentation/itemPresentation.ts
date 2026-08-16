@@ -57,6 +57,17 @@ function modifierLabel(modifier: ItemAffixModifierDefinition) {
   return target;
 }
 
+/** Search-only text. Keep this path independent from formatted stat presentation. */
+export function buildItemInstanceSearchText(resolved: ResolvedItemInstance) {
+  const { definition, instance } = resolved;
+  const affixText = instance.affixes.flatMap((affixInstance) => {
+    const affix = itemAffixById[affixInstance.affixId];
+    const tier = affix?.tiers.find((candidate) => candidate.id === affixInstance.tierId);
+    return [affix?.name ?? affixInstance.affixId, ...(tier?.modifiers ?? []).map(modifierLabel)];
+  });
+  return [definition.id, definition.name, definition.description, definition.category, definition.rarity, definition.equipmentSlotKind ?? "", definition.weaponProficiencyId ?? "", definition.defensiveProficiencyId ?? "", ...affixText].join(" ").toLowerCase();
+}
+
 export function itemModifierDisplays(resolved: ResolvedItemInstance): ItemModifierDisplay[] {
   const displays: ItemModifierDisplay[] = [];
   if (resolved.instance.quality > 0) displays.push({ id: "quality", source: "quality", label: "Quality", value: `+${resolved.instance.quality}%`, tone: "green" });

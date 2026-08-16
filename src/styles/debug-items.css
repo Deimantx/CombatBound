@@ -1,5 +1,11 @@
 .debug-items-workspace-grid { display: grid; grid-template-columns: minmax(250px, .7fr) minmax(0, 1.3fr); min-height: 520px; }
 .debug-item-browser { border-right: 1px solid var(--line-soft); min-width: 0; padding: 10px; }
+.debug-item-taxonomy-tree { display: flex; flex-direction: column; gap: 4px; }
+.debug-item-tree-branch { border: 1px solid var(--line-soft); border-radius: 6px; overflow: hidden; }
+.debug-item-tree-branch-header { align-items: center; background: #182023; border: 0; color: var(--muted); cursor: pointer; display: flex; font-size: 9px; gap: 5px; justify-content: flex-start; letter-spacing: .06em; padding: 7px 8px; text-align: left; text-transform: uppercase; width: 100%; }
+.debug-item-tree-branch-header strong { flex: 1; }
+.debug-item-tree-branch-header span { color: var(--gold); }
+.debug-item-tree-children { padding: 4px; }
 .debug-item-group { border: 1px solid var(--line-soft); border-radius: 7px; margin-bottom: 8px; overflow: hidden; }
 .debug-item-group > header { align-items: center; background: #182023; color: var(--muted); display: flex; font-size: 9px; justify-content: space-between; letter-spacing: .08em; padding: 7px 9px; text-transform: uppercase; }
 .debug-item-group > header span { color: var(--gold); }
@@ -25,6 +31,7 @@
 .debug-set-count-popover small { color: var(--muted); flex-basis: 100%; font-size: 8px; }
 .debug-set-count-popover input, .debug-copy-controls input, .debug-affix-add-row select { background: #101517; border: 1px solid var(--line); border-radius: 4px; color: var(--text); font-size: 10px; min-height: 27px; padding: 0 7px; }
 .debug-copy-list, .debug-copy-inspector, .debug-stackable-inspector { border-bottom: 1px solid var(--line-soft); padding: 12px 0; }
+.debug-copy-list { max-height: 310px; overflow-y: auto; padding-right: 4px; }
 .debug-inspector-label { color: var(--muted); display: flex; font-size: 9px; justify-content: space-between; letter-spacing: .08em; margin-bottom: 7px; }
 .debug-inspector-label span { color: var(--gold); }
 .debug-copy-row { align-items: center; background: #182023; border: 1px solid var(--line-soft); border-radius: 5px; color: var(--text); cursor: pointer; display: flex; justify-content: space-between; margin-bottom: 5px; padding: 8px; text-align: left; width: 100%; }
@@ -49,6 +56,9 @@
 .debug-affix-row > div:last-child { display: flex; flex-shrink: 0; gap: 4px; }
 .debug-affix-row button { align-items: center; display: inline-flex; gap: 4px; }
 .debug-feedback { background: rgba(92,170,124,.1); border: 1px solid rgba(92,170,124,.35); border-radius: 4px; color: var(--green); font-size: 9px; padding: 7px; }
+.debug-copy-actions { border-top: 1px solid var(--line-soft); display: flex; flex-direction: column; gap: 6px; margin-top: 10px; padding: 11px 0; }
+.debug-copy-actions header { color: var(--muted); font-size: 9px; letter-spacing: .08em; text-transform: uppercase; }
+.debug-copy-actions small { color: var(--red); font-size: 8px; }
 .debug-effective-stats { display: flex; flex-direction: column; gap: 4px; padding: 12px 0; }
 .debug-effective-stats > div:not(.debug-inspector-label) { display: flex; font-size: 9px; justify-content: space-between; }
 .debug-effective-stats span { color: var(--muted); }

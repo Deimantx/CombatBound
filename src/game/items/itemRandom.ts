@@ -1,6 +1,6 @@
 import type { ItemRollRng } from "./itemModifierTypes";
 
-/** Small deterministic stream for debug/prototype item mutations. Production loot will provide its own seed. */
+/** Small deterministic stream for debug/prototype item mutations while loot generation is not authored. */
 export function createDeterministicItemRng(seed = 0x00c0ffee): ItemRollRng {
   let state = seed >>> 0;
   return {

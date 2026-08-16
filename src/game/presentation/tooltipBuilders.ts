@@ -171,7 +171,7 @@ export function buildItemTooltip(
   };
 }
 
-/** Owned-item tooltip entry point. Phase 1 resolves base stats unchanged. */
+/** Player-facing owned-item tooltip entry point; technical identity stays in Advanced debug data. */
 export function buildItemInstanceTooltip(
   resolved: ResolvedItemInstance,
   options: {

@@ -1,8 +1,13 @@
-import type { ItemDefinition } from "../data/items";
-import type { EquipmentSlotKind } from "../equipment/equipmentTypes";
-import type { WeaponProficiencyId } from "../progression/progressionTypes";
-import { proficiencyById } from "../data/proficiencies";
+import { itemById, type ItemDefinition } from "../data/items";
+import {
+  buildItemTaxonomy,
+  findItemTaxonomyNode,
+  itemDefinitionSearchText,
+  weaponCatalogueByProficiencyId,
+  type ItemTaxonomyNode,
+} from "./itemTaxonomy";
 
+/** Compatibility shape for older catalogue consumers. New UI uses ItemTaxonomyNode. */
 export interface ItemCatalogueNode {
   id: string;
   label: string;
@@ -11,124 +16,51 @@ export interface ItemCatalogueNode {
   children: ItemCatalogueNode[];
 }
 
-interface WeaponTaxonomyEntry {
-  handling: "one-handed" | "two-handed" | "ranged";
-  family: string;
-  label: string;
+export { weaponCatalogueByProficiencyId };
+
+function asLegacyNode(node: ItemTaxonomyNode, id = node.id.replace(/^items/, "debug.items")): ItemCatalogueNode {
+  return {
+    id,
+    label: node.label,
+    icon: node.icon ?? "cube",
+    items: node.children.length ? [] : node.definitionIds.map((definitionId) => itemById[definitionId]).filter(Boolean),
+    children: node.children.map((child) => asLegacyNode(child)),
+  };
 }
 
-export const weaponCatalogueByProficiencyId = {
-  "one-handed-sword": { handling: "one-handed", family: "one-handed-swords", label: "One-Handed Swords" },
-  "one-handed-axe": { handling: "one-handed", family: "one-handed-axes", label: "One-Handed Axes" },
-  "one-handed-mace": { handling: "one-handed", family: "one-handed-maces", label: "One-Handed Maces" },
-  dagger: { handling: "one-handed", family: "daggers", label: "Daggers" },
-  "two-handed-sword": { handling: "two-handed", family: "two-handed-swords", label: "Two-Handed Swords" },
-  "two-handed-axe": { handling: "two-handed", family: "two-handed-axes", label: "Two-Handed Axes" },
-  "two-handed-hammer": { handling: "two-handed", family: "two-handed-hammers", label: "Two-Handed Hammers" },
-  spear: { handling: "two-handed", family: "spears", label: "Spears" },
-  shortbow: { handling: "ranged", family: "shortbows", label: "Shortbows" },
-  longbow: { handling: "ranged", family: "longbows", label: "Longbows" },
-  crossbow: { handling: "ranged", family: "crossbows", label: "Crossbows" },
-} satisfies Record<WeaponProficiencyId, WeaponTaxonomyEntry>;
-
-const equipmentSlots: Array<{ slot: EquipmentSlotKind; label: string }> = [
-  { slot: "head", label: "Head" },
-  { slot: "armor", label: "Armor" },
-  { slot: "gloves", label: "Gloves" },
-  { slot: "boots", label: "Boots" },
-];
-const accessorySlots: Array<{ slot: EquipmentSlotKind; label: string }> = [
-  { slot: "belt", label: "Belts" },
-  { slot: "cape", label: "Capes" },
-  { slot: "necklace", label: "Necklaces" },
-  { slot: "ring", label: "Rings" },
-  { slot: "earring", label: "Earrings" },
-];
-const armorWeights = [
-  { id: "light-armor", label: "Light Armor" },
-  { id: "medium-armor", label: "Medium Armor" },
-  { id: "heavy-armor", label: "Heavy Armor" },
-] as const;
-
-function leaf(id: string, label: string, items: ItemDefinition[], icon = "cube"): ItemCatalogueNode | null {
-  return items.length ? { id, label, icon, items, children: [] } : null;
-}
-
-function branch(id: string, label: string, children: Array<ItemCatalogueNode | null>, icon = "cube"): ItemCatalogueNode | null {
-  const present = children.filter((child): child is ItemCatalogueNode => Boolean(child));
-  return present.length ? { id, label, icon, items: [], children: present } : null;
-}
-
-function equipmentTree(items: ItemDefinition[]): ItemCatalogueNode | null {
-  const weapons = items.filter((item) => item.equipmentSlotKind === "weapon");
-  const oneHanded = new Map<string, ItemDefinition[]>();
-  const twoHanded = new Map<string, ItemDefinition[]>();
-  const ranged = new Map<string, ItemDefinition[]>();
-  const otherWeapons: ItemDefinition[] = [];
-  for (const item of weapons) {
-    const taxonomy = item.weaponProficiencyId ? weaponCatalogueByProficiencyId[item.weaponProficiencyId] : undefined;
-    if (!taxonomy) {
-      otherWeapons.push(item);
-      continue;
-    }
-    const target = taxonomy.handling === "one-handed" ? oneHanded : taxonomy.handling === "two-handed" ? twoHanded : ranged;
-    target.set(taxonomy.family, [...(target.get(taxonomy.family) ?? []), item]);
-  }
-  const weaponLeaves = (handling: "one-handed" | "two-handed" | "ranged", entries: Map<string, ItemDefinition[]>) => [...entries.entries()].map(([family, familyItems]) => {
-    const proficiencyId = familyItems[0]?.weaponProficiencyId;
-    const taxonomy = proficiencyId ? weaponCatalogueByProficiencyId[proficiencyId] : undefined;
-    return leaf(`debug.items.equipment.weapons.${handling}.${family}`, taxonomy?.label ?? "Other Weapons", familyItems, familyItems[0]?.icon ?? "sword");
-  });
-  const weaponGroups = [
-    branch("debug.items.equipment.weapons.one-handed", "One-Handed", weaponLeaves("one-handed", oneHanded), "sword"),
-    branch("debug.items.equipment.weapons.two-handed", "Two-Handed", weaponLeaves("two-handed", twoHanded), "swords"),
-    branch("debug.items.equipment.weapons.ranged", "Ranged", weaponLeaves("ranged", ranged), "bow"),
-    leaf("debug.items.equipment.weapons.other", "Other Weapons", otherWeapons, "sword"),
-  ];
-  const offhands = leaf("debug.items.equipment.offhands.shields", "Shields", items.filter((item) => item.equipmentSlotKind === "offhand" && item.defensiveProficiencyId === "shield"), "shield");
-  const otherOffhands = leaf("debug.items.equipment.offhands.other", "Other Offhands", items.filter((item) => item.equipmentSlotKind === "offhand" && item.defensiveProficiencyId !== "shield"), "shield");
-  const armor = equipmentSlots.map(({ slot, label }) => {
-    const slotItems = items.filter((item) => item.equipmentSlotKind === slot);
-    const typedGroups = armorWeights.map(({ id, label: weightLabel }) => leaf(
-      `debug.items.equipment.armor.${slot}.${id}`,
-      weightLabel,
-      slotItems.filter((item) => item.defensiveProficiencyId === id),
-      slotItems.find((item) => item.defensiveProficiencyId === id)?.icon ?? "shield",
-    ));
-    const unclassified = slotItems.filter((item) => !armorWeights.some(({ id }) => item.defensiveProficiencyId === id));
-    return branch(
-      `debug.items.equipment.armor.${slot}`,
-      label,
-      [...typedGroups, leaf(`debug.items.equipment.armor.${slot}.unclassified`, "Unclassified", unclassified, "shield")],
-      slotItems[0]?.icon ?? "shield",
-    );
-  });
-  const accessories = accessorySlots.map(({ slot, label }) => leaf(`debug.items.equipment.accessories.${slot}`, label, items.filter((item) => item.equipmentSlotKind === slot), items.find((item) => item.equipmentSlotKind === slot)?.icon));
-  return branch("debug.items.equipment", "Equipment", [
-    branch("debug.items.equipment.weapons", "Weapons", weaponGroups, "sword"),
-    branch("debug.items.equipment.offhands", "Offhands", [offhands, otherOffhands], "shield"),
-    branch("debug.items.equipment.armor", "Armor", armor, "shield"),
-    branch("debug.items.equipment.accessories", "Accessories", accessories, "ring"),
-  ], "sword");
+function legacyArmorTree(root: ItemTaxonomyNode) {
+  const armor = findItemTaxonomyNode(root, "items.equipment.armor");
+  if (!armor) return undefined;
+  const weights = armor.children.filter((child) => child.id !== "items.equipment.armor.unclassified");
+  const slots = ["head", "armor", "gloves", "boots"] as const;
+  const slotLabels = { head: "Head", armor: "Armor", gloves: "Gloves", boots: "Boots" };
+  const slotNodes = slots.map((slot): ItemCatalogueNode | null => {
+    const weightChildren = weights.map((weight) => {
+      const leaf = weight.children.find((child) => child.id.endsWith(`.${slot}`));
+      return leaf ? asLegacyNode(leaf, `debug.items.equipment.armor.${slot}.${weight.id.split(".").at(-1)}`) : null;
+    }).filter((child): child is ItemCatalogueNode => Boolean(child));
+    return weightChildren.length ? { id: `debug.items.equipment.armor.${slot}`, label: slotLabels[slot], icon: "shield", items: [], children: weightChildren } : null;
+  }).filter((child): child is ItemCatalogueNode => Boolean(child));
+  return { id: "debug.items.equipment.armor", label: "Armor", icon: armor.icon ?? "shield", items: [], children: slotNodes };
 }
 
 export function buildItemCatalogue(items: ItemDefinition[]): ItemCatalogueNode[] {
+  const root = buildItemTaxonomy(items);
+  const equipment = findItemTaxonomyNode(root, "items.equipment");
   const nodes: ItemCatalogueNode[] = [];
-  const equipment = equipmentTree(items.filter((item) => Boolean(item.equipmentSlotKind)));
-  if (equipment) nodes.push(equipment);
-  for (const category of ["consumable", "material", "currency"] as const) {
-    const categoryItems = items.filter((item) => item.category === category);
-    const label = category === "consumable" ? "Consumables" : category === "material" ? "Materials" : "Currency";
-    const node = leaf(`debug.items.${category}`, label, categoryItems, category === "currency" ? "coin" : "cube");
-    if (node) nodes.push(node);
+  if (equipment) {
+    const children = equipment.children.map((child) => child.id === "items.equipment.armor" ? legacyArmorTree(root) : asLegacyNode(child));
+    nodes.push({ id: "debug.items.equipment", label: "Equipment", icon: equipment.icon ?? "sword", items: [], children: children.filter((child): child is ItemCatalogueNode => Boolean(child)) });
+  }
+  for (const id of ["items.consumables", "items.materials", "items.currency"]) {
+    const category = findItemTaxonomyNode(root, id);
+    if (category) nodes.push(asLegacyNode(category));
   }
   return nodes;
 }
 
-export function itemSearchText(item: ItemDefinition): string {
-  const proficiency = item.weaponProficiencyId ? proficiencyById[item.weaponProficiencyId]?.name ?? item.weaponProficiencyId : "";
-  const defensive = item.defensiveProficiencyId ? proficiencyById[item.defensiveProficiencyId]?.name ?? item.defensiveProficiencyId : "";
-  return [item.id, item.name, item.description, item.category, item.equipmentSlotKind, item.rarity, item.requiredMasteryLevel, proficiency, defensive, ...Object.keys(item.stats ?? {}), ...Object.values(item.stats ?? {})].join(" ").toLowerCase();
+export function itemSearchText(item: ItemDefinition) {
+  return itemDefinitionSearchText(item);
 }
 
 export function nodeItemCount(node: ItemCatalogueNode): number {

@@ -1,11 +1,11 @@
-import { itemAffixById } from "../data/itemAffixes";
 import { itemDefinitions, type ItemDefinition, type ItemRarity } from "../data/items";
 import { equippedSlotForInstance } from "../equipment/equipmentRules";
 import { getItemInstances, getStackableQuantity } from "../items/itemOwnership";
 import { resolveItemInstance } from "../items/itemResolver";
 import { itemInstanceSequence, type InventoryEntryRef, type ResolvedItemInstance } from "../items/itemTypes";
-import { buildItemPresentation, itemInstanceIsModified } from "../presentation/itemPresentation";
-import type { EquipmentState } from "../equipment/equipmentTypes";
+import { buildItemInstanceSearchText, itemInstanceIsModified } from "../presentation/itemPresentation";
+import { buildItemTaxonomy, getDefinitionIdsUnderNode, itemDefinitionSearchText } from "../presentation/itemTaxonomy";
+import type { EquipmentSlotDefinition, EquipmentSlotId, EquipmentState } from "../equipment/equipmentTypes";
 import type { InventoryState } from "./inventoryTypes";
 
 export type InventoryPrimaryCategory = "all" | "equipment" | "consumables" | "materials" | "currency";
@@ -20,6 +20,7 @@ export interface InventoryFilters {
   rarity: ItemRarity | "all";
   equipmentState: InventoryEquipmentStateFilter;
   modification: InventoryModificationFilter;
+  nodeId?: string;
 }
 
 export interface InventoryViewEntry {
@@ -43,11 +44,27 @@ export const defaultInventoryFilters: InventoryFilters = {
   modification: "all",
 };
 
+export function chooseEquipmentTargetSlot(
+  slotTargets: readonly Pick<EquipmentSlotDefinition, "id">[],
+  equipment: EquipmentState,
+  instanceId: string,
+): EquipmentSlotId | undefined {
+  return slotTargets.find((slot) => equipment.slots[slot.id] === instanceId)?.id
+    ?? slotTargets.find((slot) => !equipment.slots[slot.id])?.id
+    ?? slotTargets[0]?.id;
+}
+
+const itemTaxonomy = buildItemTaxonomy(itemDefinitions);
+
 export function inventoryRefsEqual(left: InventoryEntryRef | null | undefined, right: InventoryEntryRef | null | undefined) {
   if (!left || !right || left.kind !== right.kind) return false;
   return left.kind === "stack" && right.kind === "stack"
     ? left.definitionId === right.definitionId
     : left.kind === "instance" && right.kind === "instance" ? left.instanceId === right.instanceId : false;
+}
+
+export function paginateInventoryEntries(entries: readonly InventoryViewEntry[], visibleLimit: number) {
+  return entries.slice(0, Math.max(0, Math.floor(visibleLimit)));
 }
 
 function equipmentFilterMatches(definition: ItemDefinition, filter: InventoryEquipmentFilter) {
@@ -59,20 +76,8 @@ function equipmentFilterMatches(definition: ItemDefinition, filter: InventoryEqu
   return ["belt", "cape", "necklace", "ring", "earring"].includes(definition.equipmentSlotKind);
 }
 
-function definitionSearchText(definition: ItemDefinition) {
-  const proficiency = definition.weaponProficiencyId ?? definition.defensiveProficiencyId ?? "";
-  return [definition.name, definition.category, definition.rarity, proficiency, definition.equipmentSlotKind ?? ""].join(" ").toLowerCase();
-}
-
-function resolvedSearchText(resolved: ResolvedItemInstance) {
-  const affixText = resolved.instance.affixes.flatMap((entry) => {
-    const affix = itemAffixById[entry.affixId];
-    return [affix?.name ?? ""];
-  });
-  return [definitionSearchText(resolved.definition), ...affixText, ...buildItemPresentation(resolved).modifiers.map((modifier) => modifier.label)].join(" ").toLowerCase();
-}
-
-function matchesDefinition(definition: ItemDefinition, filters: InventoryFilters) {
+function matchesDefinition(definition: ItemDefinition, filters: InventoryFilters, allowedDefinitionIds?: ReadonlySet<string>) {
+  if (allowedDefinitionIds && !allowedDefinitionIds.has(definition.id)) return false;
   if (filters.category === "equipment" && !definition.equipmentSlotKind) return false;
   if (filters.category === "consumables" && definition.category !== "consumable") return false;
   if (filters.category === "materials" && definition.category !== "material") return false;
@@ -103,29 +108,39 @@ export function selectInventoryEntries(
   filters: InventoryFilters = defaultInventoryFilters,
   query = "",
   sort: InventorySort = "name",
+  instanceSource: (source: InventoryState) => ReturnType<typeof getItemInstances> = getItemInstances,
 ) {
   const normalizedQuery = query.trim().toLowerCase();
   const equippedIds = new Set(Object.values(equipment.slots).filter((value): value is string => Boolean(value)));
+  const instancesByDefinition = new Map<string, ReturnType<typeof getItemInstances>[number][]>();
+  for (const instance of instanceSource(inventory)) {
+    const instances = instancesByDefinition.get(instance.definitionId) ?? [];
+    instances.push(instance);
+    instancesByDefinition.set(instance.definitionId, instances);
+  }
+  const allowedDefinitionIds = filters.nodeId && filters.nodeId !== "items"
+    ? getDefinitionIdsUnderNode(itemTaxonomy, filters.nodeId)
+    : undefined;
   const entries: InventoryViewEntry[] = [];
   for (const [index, definition] of itemDefinitions.entries()) {
-    if (!matchesDefinition(definition, filters)) continue;
+    if (!matchesDefinition(definition, filters, allowedDefinitionIds)) continue;
     if (definition.inventoryMode === "stackable") {
       if (filters.equipmentState !== "all" || filters.modification !== "all") continue;
       const quantity = getStackableQuantity(inventory, definition.id);
       if (quantity <= 0) continue;
-      const searchText = definitionSearchText(definition);
+      const searchText = itemDefinitionSearchText(definition);
       if (normalizedQuery && !searchText.includes(normalizedQuery)) continue;
       entries.push({ ref: { kind: "stack", definitionId: definition.id }, definition, quantity, equipped: false, modified: false, sequence: index, searchText });
       continue;
     }
-    for (const instance of getItemInstances(inventory).filter((candidate) => candidate.definitionId === definition.id)) {
+    for (const instance of instancesByDefinition.get(definition.id) ?? []) {
       const resolved = resolveItemInstance(inventory, instance.id);
       if (!resolved) continue;
       const equipped = equippedIds.has(instance.id);
       const modified = itemInstanceIsModified(instance);
       if (filters.equipmentState === "equipped" && !equipped || filters.equipmentState === "unequipped" && equipped) continue;
       if (filters.modification === "modified" && !modified || filters.modification === "unmodified" && modified) continue;
-      const searchText = resolvedSearchText(resolved);
+      const searchText = buildItemInstanceSearchText(resolved);
       if (normalizedQuery && !searchText.includes(normalizedQuery)) continue;
       entries.push({ ref: { kind: "instance", instanceId: instance.id }, definition, quantity: 1, instanceId: instance.id, resolved, equipped, equippedSlot: equippedSlotForInstance(equipment, instance.id), modified, sequence: itemInstanceSequence(instance.id), searchText });
     }

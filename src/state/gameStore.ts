@@ -106,6 +106,7 @@ import {
   debugGrantAllEquipment,
   debugGrantEquipmentTier,
   debugGrantItem,
+  debugDeleteItemInstance,
   debugGrantPerkPoints,
   debugResetBonusPerkPoints,
   debugHealPlayer,
@@ -242,6 +243,7 @@ interface GameStoreState {
 
 export interface DebugStoreApi {
   grantItem: (itemId: string, quantity: number) => void;
+  deleteItemInstance: (instanceId: string) => void;
   setOwnedItemCount: (itemId: string, quantity: number) => void;
   setItemQuality: (instanceId: string, quality: number) => void;
   setItemUpgradeLevel: (instanceId: string, upgradeLevel: number) => void;
@@ -568,6 +570,7 @@ export const useGameStore = create<GameStoreState>((set, get) => {
     });
   const debug: DebugStoreApi = {
     grantItem: (itemId, quantity) => commitDebug((game) => debugGrantItem(game, itemId, quantity), true),
+    deleteItemInstance: (instanceId) => commitDebug((game) => debugDeleteItemInstance(game, instanceId), true),
     setOwnedItemCount: (itemId, quantity) => commitDebug((game) => debugSetOwnedItemCount(game, itemId, quantity), true),
     setItemQuality: (instanceId, quality) => commitDebug((game) => debugSetItemQuality(game, instanceId, quality), true),
     setItemUpgradeLevel: (instanceId, upgradeLevel) => commitDebug((game) => debugSetItemUpgradeLevel(game, instanceId, upgradeLevel), true),
