@@ -65,8 +65,6 @@ interface DevToolsRuntimeState extends DevToolsVisibilityState {
 }
 
 const preferences = readDevToolsPreferences();
-let nextRuntimeId = 1;
-
 function persist(state: Pick<DevToolsRuntimeState, "dockSize" | "dockAnchor" | "dockPosition" | "dockDimensions" | "expandedSections" | "eventFilter" | "lastConsoleTab" | "consoleTabOrder">) {
   writeDevToolsPreferences({
     ...defaultDevToolsPreferences,

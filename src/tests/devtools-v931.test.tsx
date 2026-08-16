@@ -1,7 +1,6 @@
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { TooltipProvider } from "../app/components/tooltip/TooltipProvider";
-import { DebugCombatTab } from "../app/debug/admin/tabs/DebugCombatTab";
 import { DebugAdminPanel } from "../app/debug/admin/DebugAdminPanel";
 import { DevToolsHost } from "../app/debug/devtools/DevToolsHost";
 import { DEVTOOLS_PREFERENCES_KEY } from "../app/debug/devtools/devToolsPreferences";

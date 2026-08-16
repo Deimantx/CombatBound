@@ -1,4 +1,4 @@
-import type { CombatStatKey, StatModifier } from '../combat/combatTypes'
+import type { ModifiableCombatStatKey, ResistanceDamageType, StatModifier } from '../combat/combatTypes'
 
 export type WeaponProficiencyId =
   | 'one-handed-sword'
@@ -72,20 +72,20 @@ export type PerkPresentationSize = 'minor' | 'major' | 'capstone' | 'root'
 export type ProficiencyPerkEffect =
   | {
       type: 'statModifier'
-      stat: CombatStatKey
+      stat: ModifiableCombatStatKey
       operation: StatModifier['operation']
       valuePerRank: number
     }
   | {
       type: 'equippedArmorStatModifier'
-      stat: CombatStatKey
+      stat: ModifiableCombatStatKey
       operation: StatModifier['operation']
       valuePerRankPerPiece: number
       minimumPieces?: number
     }
   | {
       type: 'equippedArmorResistanceModifier'
-      damageType: Exclude<import('../combat/combatTypes').DamageType, 'true'>
+      damageType: ResistanceDamageType
       valuePerRankPerPiece: number
       minimumPieces?: number
     }
@@ -97,7 +97,7 @@ export type ProficiencyPerkEffect =
     }
   | {
       type: 'equippedArmorWeaponModifier'
-      modifier: 'damage' | 'attackInterval' | 'accuracy'
+      modifier: 'damage' | 'attackSpeed' | 'accuracy'
       valuePerRank: number
       minimumPieces: number
     }
@@ -160,12 +160,12 @@ export type ProficiencyPerkEffect =
     }
   | {
       type: 'conditionalStatModifier'
-      stat: CombatStatKey
+      stat: ModifiableCombatStatKey
       operation: StatModifier['operation']
       valuePerRank: number
       condition: { type: 'active-barrier' | 'active-technique' | 'stamina-above' | 'player-hp-below'; fraction?: number }
     }
-  | { type: 'weaponDamageModifier' | 'weaponAttackIntervalModifier'; valuePerRank: number }
+  | { type: 'weaponDamageModifier' | 'weaponAttackSpeedModifier'; valuePerRank: number }
   | { type: 'weaponArmorPenetrationModifier'; mode: 'flat' | 'percent'; valuePerRank: number }
   | { type: 'weaponSecondaryTargetDamage'; fractionPerRank: number; maxAdditionalTargets: number }
   | { type: 'onBlockApplyEffect'; effectId: string; durationSeconds?: number }
@@ -185,7 +185,7 @@ export type ProficiencyPerkEffect =
   | { type: 'appliedEffectMaxStacksModifier'; effectId: string; valuePerRank: number }
   | { type: 'barrierAbsorbResourceRestore'; resource: 'stamina' | 'mana'; amountPerRank: number }
   | { type: 'onStanceSwitchApplyEffect'; effectId: string; durationSeconds?: number }
-  | { type: 'stanceSpecificStatModifier'; stance: 'high' | 'mid' | 'low'; stat: CombatStatKey; operation: StatModifier['operation']; valuePerRank: number }
+  | { type: 'stanceSpecificStatModifier'; stance: 'high' | 'mid' | 'low'; stat: ModifiableCombatStatKey; operation: StatModifier['operation']; valuePerRank: number }
   | { type: 'onSuccessfulInterruptRestoreStamina'; amountPerRank: number }
   | { type: 'interruptedActionCooldownModifier'; valuePerRank: number }
   | { type: 'interruptedEnemyAttackDelay'; valuePerRank: number }
@@ -193,7 +193,7 @@ export type ProficiencyPerkEffect =
   | { type: 'stanceSwitchCooldownModifier'; valuePerRank: number }
   | { type: 'stanceSpecificDamageModifier'; stance: 'high' | 'mid' | 'low'; valuePerRank: number }
   | { type: 'weaponOnHitAdvanceAttack'; chancePerRank: number; fraction: number }
-  | { type: 'activeTechniqueStatModifier'; stat: CombatStatKey; operation: StatModifier['operation']; valuePerRank: number }
+  | { type: 'activeTechniqueStatModifier'; stat: ModifiableCombatStatKey; operation: StatModifier['operation']; valuePerRank: number }
   | { type: 'appliedEffectRefreshOnMaxStacks'; effectId: string; fraction: number }
   | { type: 'spellConditionalCooldownModifier'; valuePerRank: number; condition: { type: 'targetHasEffect'; effectId: string } }
   | { type: 'spellConditionalManaCostModifier'; valuePerRank: number; condition: { type: 'manaAbove'; fraction: number } }

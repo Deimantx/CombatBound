@@ -3,7 +3,7 @@ import { perkById } from '../data/proficiencyPerks'
 import type { EquipmentState } from '../equipment/equipmentTypes'
 import { getPurchasedPerkRank } from './perkProgression'
 import { getProficiencyLevel, getProficiencyProgress } from './proficiencyProgression'
-import type { ProgressionState, ProficiencyPerkDefinition, WeaponProficiencyId } from './progressionTypes'
+import type { ProgressionState, ProficiencyPerkDefinition } from './progressionTypes'
 
 export function getEquippedWeaponProficiency(equipment: EquipmentState) {
   const weaponId = equipment.slots.weapon

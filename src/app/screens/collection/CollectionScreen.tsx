@@ -1,4 +1,4 @@
-import { BookOpen, Crosshair, Gem, Search, Shield, Sparkles, Target } from 'lucide-react'
+import { BookOpen, Crosshair, Gem, Shield, Sparkles, Target } from 'lucide-react'
 import { Fragment, useMemo, useState } from 'react'
 import { enemyById, enemyDefinitions } from '../../../game/data/enemies'
 import { itemDefinitions } from '../../../game/data/items'

@@ -8,10 +8,7 @@ import {
   getBarrierAmount,
 } from "../game/combat/combatEffects";
 import { calculateEffectiveCombatStats, normalizeCombatStats } from "../game/combat/combatStats";
-import {
-  calculateArmorMitigation,
-  calculateHitChance,
-} from "../game/combat/combatMath";
+import { calculateHitChance } from "../game/combat/combatMath";
 import { effectById } from "../game/data/effects";
 import {
   createCombatState,

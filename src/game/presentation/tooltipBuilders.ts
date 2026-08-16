@@ -1,7 +1,6 @@
 import type {
   ActiveEffectInstance,
   EffectDefinition,
-  CombatStatKey,
   DamageType,
   EnemyDefinition,
   PlayerActionDefinition,

@@ -44,7 +44,7 @@ export interface ActiveEffectInstance {
   remainingSeconds: number | null
   nextTickRemaining: number | null
   appliedSequence: number
-  snapshot?: { power?: number; periodicPowerMultiplier?: number }
+  snapshot?: { power?: number; periodicPowerMultiplier?: number; effectMagnitudeMultiplier?: number }
   progressionCredit?: ProgressionCredit
   /** School/weapon ownership for source-aware perk modifiers. */
   sourceProficiencyId?: CombatProficiencyId

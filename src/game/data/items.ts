@@ -23,12 +23,22 @@ export interface ItemDefinition {
     evasionRating?: number
     armour?: number
     attackBlockChance?: number
+    maxAttackBlockChance?: number
     additionalPhysicalDamageReduction?: number
     spellBlockChance?: number
+    maxSpellBlockChance?: number
     spellSuppressionChance?: number
     manaRegenFlat?: number
     ailmentDurationReduction?: number
+    elementalAilmentAvoidance?: number
+    physicalAilmentAvoidance?: number
+    nonDamagingAilmentEffectReduction?: number
+    increasedDamageTaken?: number
+    actionSpeed?: number
+    increasedAttackSpeed?: number
+    increasedCastSpeed?: number
     baseCritChance?: number
+    additionalBaseCritChance?: number
     criticalStrikeMultiplier?: number
     baseDamageMin?: number
     baseDamageMax?: number
@@ -40,6 +50,10 @@ export interface ItemDefinition {
     coldResistance?: number
     lightningResistance?: number
     chaosResistance?: number
+    maxFireResistance?: number
+    maxColdResistance?: number
+    maxLightningResistance?: number
+    maxChaosResistance?: number
   }
 }
 
@@ -73,8 +87,8 @@ const authoredItemDefinitions: ItemDefinition[] = [
   { id: 'item.elemental-pendant', name: 'Elemental Pendant', category: 'accessory', rarity: 'uncommon', description: 'A pendant tuned to the elemental schools.', icon: 'necklace', requiredMasteryLevel: 5, equipmentSlotKind: 'necklace', stats: { maxMana: 14, manaRegenFlat: .35, fireResistance: .03, coldResistance: .03 } },
   { id: 'item.arcane-necklace', name: 'Arcane Necklace', category: 'accessory', rarity: 'rare', description: 'A necklace that carries a deep reserve of arcane energy.', icon: 'necklace', requiredMasteryLevel: 10, equipmentSlotKind: 'necklace', stats: { maxMana: 22, manaRegenFlat: .6, ailmentDurationReduction: .04 } },
   { id: 'item.copper-signet', name: 'Copper Signet', category: 'accessory', rarity: 'common', description: 'A plain signet prized for its reliable fit.', icon: 'ring', requiredMasteryLevel: 1, equipmentSlotKind: 'ring', stats: { accuracyRating: 3 } },
-  { id: 'item.duelist-ring', name: 'Duelist Ring', category: 'accessory', rarity: 'uncommon', description: 'A ring favored by hunters who value timing and footwork.', icon: 'ring', requiredMasteryLevel: 5, equipmentSlotKind: 'ring', stats: { accuracyRating: 5, evasionRating: 2, baseCritChance: .02 } },
-  { id: 'item.ring-of-precision', name: 'Ring of Precision', category: 'accessory', rarity: 'rare', description: 'A finely balanced ring for exacting strikes.', icon: 'ring', requiredMasteryLevel: 10, equipmentSlotKind: 'ring', stats: { accuracyRating: 8, baseCritChance: .03, criticalStrikeMultiplier: .1 } },
+  { id: 'item.duelist-ring', name: 'Duelist Ring', category: 'accessory', rarity: 'uncommon', description: 'A ring favored by hunters who value timing and footwork.', icon: 'ring', requiredMasteryLevel: 5, equipmentSlotKind: 'ring', stats: { accuracyRating: 5, evasionRating: 2, additionalBaseCritChance: .02 } },
+  { id: 'item.ring-of-precision', name: 'Ring of Precision', category: 'accessory', rarity: 'rare', description: 'A finely balanced ring for exacting strikes.', icon: 'ring', requiredMasteryLevel: 10, equipmentSlotKind: 'ring', stats: { accuracyRating: 8, additionalBaseCritChance: .03, criticalStrikeMultiplier: .1 } },
   { id: 'item.mana-stud', name: 'Mana Stud', category: 'accessory', rarity: 'common', description: 'A small stud with a faint magical pulse.', icon: 'earring', requiredMasteryLevel: 1, equipmentSlotKind: 'earring', stats: { manaRegenFlat: .15 } },
   { id: 'item.wind-earring', name: 'Wind Earring', category: 'accessory', rarity: 'uncommon', description: 'An earring that makes every step feel lighter.', icon: 'earring', requiredMasteryLevel: 5, equipmentSlotKind: 'earring', stats: { evasionRating: 3, staminaRegen: .2 } },
   { id: 'item.star-earring', name: 'Star Earring', category: 'accessory', rarity: 'rare', description: 'A star-bright earring tuned to shadow and arcane forces.', icon: 'earring', requiredMasteryLevel: 10, equipmentSlotKind: 'earring', stats: { manaRegenFlat: .35, accuracyRating: 4, chaosResistance: .03 } },

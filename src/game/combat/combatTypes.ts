@@ -16,8 +16,6 @@ export type DamageType =
   | "cold"
   | "lightning"
   | "chaos";
-/** Accepted only at save/content migration boundaries. */
-export type LegacyDamageType = "water" | "air" | "earth" | "light" | "darkness" | "nature" | "mystic" | "true";
 export type DamageSourceKind = "attack" | "spell" | "secondary";
 export type DamageDeliveryKind = "hit" | "damage-over-time";
 export type ResistanceDamageType = Exclude<DamageType, "physical">;
@@ -55,6 +53,8 @@ export type CombatStatKey =
   | "castTime"
   | "castsPerSecond"
   | "attackDamage"
+  | "attackDamageMin"
+  | "attackDamageMax"
   | "baseCritChance"
   | "additionalBaseCritChance"
   | "increasedCritChance"
@@ -82,12 +82,18 @@ export type CombatStatKey =
   | "physicalAilmentAvoidance"
   | "ailmentDurationReduction"
   | "nonDamagingAilmentEffectReduction"
-  | "stunAvoidance"
-  | "stunRecovery";
+  | "increasedDamageTaken";
+
+export type ModifiableCombatStatKey = Exclude<
+  CombatStatKey,
+  "attackInterval" | "attacksPerSecond" | "castTime" | "castsPerSecond"
+>;
 
 export interface CombatStats {
   maxLife?: number;
   attackDamage: number;
+  attackDamageMin?: number;
+  attackDamageMax?: number;
   lifeRegenFlat?: number;
   lifeRegenPercent?: number;
   lifeRecoveryRate?: number;
@@ -130,8 +136,7 @@ export interface CombatStats {
   physicalAilmentAvoidance?: number;
   ailmentDurationReduction?: number;
   nonDamagingAilmentEffectReduction?: number;
-  stunAvoidance?: number;
-  stunRecovery?: number;
+  increasedDamageTaken?: number;
   // Derived values kept explicit for combat and presentation consumers.
   attackInterval: number;
   castTime?: number;
@@ -140,11 +145,10 @@ export interface CombatStats {
   maxStamina: number;
   staminaRegen: number;
   maxMana: number;
-  resistances: Partial<Record<ResistanceDamageType, number>>;
 }
 
 export interface StatModifier {
-  stat: CombatStatKey;
+  stat: ModifiableCombatStatKey;
   operation: ModifierOperation;
   value: number;
 }
@@ -184,14 +188,13 @@ export interface DamageComponent {
   damageType: DamageType;
   sourceKind?: DamageSourceKind;
   deliveryKind?: DamageDeliveryKind;
-  scaling?: { sourceStat: "attackDamage" | "spellPower"; multiplier: number };
+  scaling?: { sourceStat: "attackDamage"; multiplier: number };
   flatDamage?: number;
   minMultiplier?: number;
   maxMultiplier?: number;
   minDamage?: number;
   maxDamage?: number;
   canCrit: boolean;
-  ignoresArmor?: boolean;
   ignoresArmour?: boolean;
   ignoresResistance?: boolean;
   unmitigated?: boolean;

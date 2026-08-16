@@ -1,0 +1,16 @@
+node_modules/
+dist/
+
+.vite/
+.vitest/
+
+*.tsbuildinfo
+
+.DS_Store
+Thumbs.db
+
+.env
+.env.*
+!.env.example
+
+coverage/

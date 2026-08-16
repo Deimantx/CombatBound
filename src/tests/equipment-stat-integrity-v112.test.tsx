@@ -30,8 +30,7 @@ function canonicalValue(stats: ReturnType<typeof statsFor>, key: string) {
   if (key === "baseAttackTime") return stats.baseAttackTime ?? 0;
   if (key === "defense" || key === "armour") return stats.armour ?? 0;
   if (key.endsWith("Resistance")) {
-    const resistanceKey = key.slice(0, -"Resistance".length).toLowerCase() as keyof typeof stats.resistances;
-    return stats.resistances[resistanceKey] ?? 0;
+    return Number(stats[`${key.slice(0, -"Resistance".length)}Resistance` as keyof typeof stats] ?? 0);
   }
   return Number(stats[key as keyof typeof stats] ?? 0);
 }
@@ -46,6 +45,11 @@ const harmfulTenSecondEffect: EffectDefinition = {
   durationSeconds: 10,
   stacking: { mode: "refresh", maxStacks: 1 },
   persistence: "enemy-life",
+};
+const ailmentTenSecondEffect: EffectDefinition = {
+  ...harmfulTenSecondEffect,
+  id: "test.ailment-ten-second",
+  tags: ["test", "harmful", "ailment", "non-damaging-ailment"],
 };
 
 describe("Equipment stat integrity V11.2", () => {
@@ -148,14 +152,15 @@ describe("Equipment stat integrity V11.2", () => {
     expect(statsFor({ slots: { cape: "item.warden-cape" } }).additionalPhysicalDamageReduction).toBeCloseTo(0.03, 10);
   });
 
-  it("applies ailment duration reduction to harmful effect duration", () => {
+  it("applies ailment duration reduction only to ailment effects", () => {
     expect(calculateEffectDuration(harmfulTenSecondEffect, { ...statsFor(emptyEquipment), ailmentDurationReduction: 0 })).toBe(10);
-    expect(calculateEffectDuration(harmfulTenSecondEffect, { ...statsFor(emptyEquipment), ailmentDurationReduction: 0.03 })).toBeCloseTo(9.7, 10);
+    expect(calculateEffectDuration(harmfulTenSecondEffect, { ...statsFor(emptyEquipment), ailmentDurationReduction: 0.03 })).toBe(10);
+    expect(calculateEffectDuration(ailmentTenSecondEffect, { ...statsFor(emptyEquipment), ailmentDurationReduction: 0.03 })).toBeCloseTo(9.7, 10);
 
     const game = createInitialGameState();
     const result = applyEffect(
       game.combat,
-      harmfulTenSecondEffect,
+      ailmentTenSecondEffect,
       { kind: "enemy", instanceId: "enemy.test" },
       { kind: "player" },
       { targetStats: { ...statsFor(emptyEquipment), ailmentDurationReduction: 0.03 } },

@@ -1,12 +1,12 @@
-import type { CombatStatKey, DamageType } from '../../combat/combatTypes'
-import type { CombatProficiencyId, ProficiencyPerkDefinition, ProficiencyPerkEffect } from '../../progression/progressionTypes'
+import type { ModifiableCombatStatKey, ResistanceDamageType } from '../../combat/combatTypes'
+import type { ProficiencyPerkDefinition, ProficiencyPerkEffect } from '../../progression/progressionTypes'
 import { all, id, pos } from './helpers'
 
 type DefensiveId = 'light-armor' | 'medium-armor' | 'heavy-armor' | 'shield'
 type BranchSpec = { name: string; names: [string, string, string, string, string, string, string]; icon: string }
 
-const stat = (statName: CombatStatKey, valuePerRankPerPiece: number, minimumPieces?: number): ProficiencyPerkEffect => ({ type: 'equippedArmorStatModifier', stat: statName, operation: 'flat', valuePerRankPerPiece, minimumPieces })
-const resistance = (damageType: Exclude<DamageType, 'true'>, valuePerRankPerPiece: number, minimumPieces?: number): ProficiencyPerkEffect => ({ type: 'equippedArmorResistanceModifier', damageType, valuePerRankPerPiece, minimumPieces })
+const stat = (statName: ModifiableCombatStatKey, valuePerRankPerPiece: number, minimumPieces?: number): ProficiencyPerkEffect => ({ type: 'equippedArmorStatModifier', stat: statName, operation: 'flat', valuePerRankPerPiece, minimumPieces })
+const resistance = (damageType: ResistanceDamageType, valuePerRankPerPiece: number, minimumPieces?: number): ProficiencyPerkEffect => ({ type: 'equippedArmorResistanceModifier', damageType, valuePerRankPerPiece, minimumPieces })
 const spell = (modifier: Extract<ProficiencyPerkEffect, { type: 'equippedArmorSpellModifier' }>['modifier'], valuePerRank: number, minimumPieces: number): ProficiencyPerkEffect => ({ type: 'equippedArmorSpellModifier', modifier, valuePerRank, minimumPieces })
 const weapon = (modifier: Extract<ProficiencyPerkEffect, { type: 'equippedArmorWeaponModifier' }>['modifier'], valuePerRank: number, minimumPieces: number): ProficiencyPerkEffect => ({ type: 'equippedArmorWeaponModifier', modifier, valuePerRank, minimumPieces })
 
@@ -44,7 +44,7 @@ const branchData: Record<DefensiveId, { name: string; icon: string; root: string
     effects: (branch, index) => {
       if (branch === 0) return [index === 0 ? stat('staminaRegen', .25) : index === 1 ? stat('maxStamina', 5, 2) : index === 2 ? stat('staminaRegen', .25, 2) : index === 3 ? stat('maxStamina', 8, 2) : index === 4 ? stat('staminaRegen', .5, 3) : index === 5 ? stat('maxStamina', 15, 3) : stat('staminaRegen', 1, 4)]
       if (branch === 1) return [index === 0 ? stat('evasionRating', 2) : index === 1 ? stat('evasionRating', 5, 2) : index === 2 ? stat('evasionRating', 3, 2) : index === 3 ? stat('evasionRating', 7, 2) : index === 4 ? stat('evasionRating', 6, 3) : index === 5 ? stat('evasionRating', 10, 3) : stat('evasionRating', 12, 4)]
-      if (branch === 2) return [index === 0 ? weapon('accuracy', 2, 1) : index === 1 ? weapon('damage', .03, 2) : index === 2 ? weapon('attackInterval', -.02, 2) : index === 3 ? stat('accuracyRating', 3, 2) : index === 4 ? weapon('damage', .06, 3) : index === 5 ? weapon('attackInterval', -.04, 3) : weapon('damage', .12, 4)]
+      if (branch === 2) return [index === 0 ? weapon('accuracy', 2, 1) : index === 1 ? weapon('damage', .03, 2) : index === 2 ? weapon('attackSpeed', 1 / .98 - 1, 2) : index === 3 ? stat('accuracyRating', 3, 2) : index === 4 ? weapon('damage', .06, 3) : index === 5 ? weapon('attackSpeed', 1 / .96 - 1, 3) : weapon('damage', .12, 4)]
       if (branch === 3) return [index === 0 ? stat('armour', 2) : index === 1 ? stat('attackBlockChance', .01, 2) : index === 2 ? stat('attackBlockChance', .02, 2) : index === 3 ? stat('armour', 4, 2) : index === 4 ? stat('attackBlockChance', .015, 3) : index === 5 ? stat('attackBlockChance', .04, 3) : stat('armour', 12, 4)]
       return [index === 0 ? stat('maxLife', 5) : index === 1 ? stat('ailmentDurationReduction', .01, 2) : index === 2 ? stat('additionalPhysicalDamageReduction', .01, 2) : index === 3 ? stat('maxLife', 8, 2) : index === 4 ? resistance('fire', .01, 3) : index === 5 ? stat('ailmentDurationReduction', .02, 3) : stat('additionalPhysicalDamageReduction', .04, 4)]
     },

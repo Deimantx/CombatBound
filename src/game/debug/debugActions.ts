@@ -21,7 +21,7 @@ import { COMBAT_SPELL_SLOT_COUNT } from "../spellbook/spellbookTypes";
 import { allProficiencyDefinitions, discoverProficiency, proficiencyXpForLevel } from "../progression/proficiencyProgression";
 import { MAX_MASTERY_LEVEL, MAX_PROFICIENCY_LEVEL } from "../progression/progressionBalance";
 import { masteryXpForLevel } from "../progression/masteryProgression";
-import type { CombatProficiencyId, ProgressionState } from "../progression/progressionTypes";
+import type { CombatProficiencyId } from "../progression/progressionTypes";
 import type { CombatantRef } from "../combat/combatTypes";
 import type { GameState } from "../gameState";
 import type { DebugEffectTarget, DebugResource } from "./debugTypes";

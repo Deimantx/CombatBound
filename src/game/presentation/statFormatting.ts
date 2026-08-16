@@ -1,6 +1,7 @@
 import type { CombatStatDisplayKey } from '../data/combatGlossary'
 import { combatStatReferenceById } from '../data/combatGlossary'
 import type { ItemDefinition } from '../data/items'
+import { COMBAT_STAT_DEFINITION_BY_ID, COMBAT_STAT_REGISTRY } from './combatStatRegistry'
 
 export type ItemStatKey = NonNullable<ItemDefinition['stats']> extends infer Stats ? keyof Stats & string : string
 export interface FormattedStat { label: string; value: string; tone?: 'default' | 'gold' | 'blue' | 'green' | 'red' }
@@ -22,11 +23,19 @@ const flatHigher = (key: string, decimals = 0): CombatStatDisplaySpec => ({ key,
 const percentHigher = (key: string): CombatStatDisplaySpec => ({ key, valueKind: 'percent', decimals: 0, comparisonDirection: 'higher-is-better' })
 const regenHigher = (key: string): CombatStatDisplaySpec => ({ key, valueKind: 'per-second', decimals: 1, comparisonDecimals: 2, comparisonDirection: 'higher-is-better' })
 
+const canonicalDisplaySpecs: CombatStatDisplaySpec[] = COMBAT_STAT_REGISTRY.map((entry) => ({
+  key: entry.id,
+  valueKind: entry.format === 'number' ? 'flat' : entry.format,
+  decimals: entry.format === 'seconds' || entry.format === 'per-second' ? 1 : 0,
+  comparisonDecimals: entry.format === 'seconds' || entry.format === 'per-second' ? 2 : undefined,
+  comparisonDirection: entry.comparisonDirection,
+}))
 const displaySpecs: CombatStatDisplaySpec[] = [
+  ...canonicalDisplaySpecs,
   ...['attackDamage', 'baseDamageMin', 'baseDamageMax', 'maxLife', 'accuracyRating', 'evasionRating', 'armour', 'maxStamina', 'maxMana', 'attacksPerSecond', 'castsPerSecond'].map((key) => flatHigher(key)),
   ...['lifeRegenFlat', 'staminaRegen', 'manaRegenFlat'].map((key) => regenHigher(key)),
   ...['attackInterval', 'baseAttackTime', 'baseCastTime', 'castTime'].map((key) => ({ key, valueKind: 'seconds' as const, decimals: 1, comparisonDecimals: 2, comparisonDirection: 'lower-is-better' as const })),
-  ...['baseCritChance', 'criticalStrikeMultiplier', 'attackBlockChance', 'spellBlockChance', 'spellSuppressionChance', 'suppressedSpellDamagePrevented', 'additionalPhysicalDamageReduction', 'ailmentDurationReduction', 'hitChance',
+  ...['baseCritChance', 'additionalBaseCritChance', 'criticalStrikeMultiplier', 'attackBlockChance', 'maxAttackBlockChance', 'spellBlockChance', 'maxSpellBlockChance', 'spellSuppressionChance', 'suppressedSpellDamagePrevented', 'additionalPhysicalDamageReduction', 'ailmentDurationReduction', 'nonDamagingAilmentEffectReduction', 'increasedDamageTaken', 'hitChance',
     'fireResistance', 'coldResistance', 'lightningResistance', 'chaosResistance', 'maxFireResistance', 'maxColdResistance', 'maxLightningResistance', 'maxChaosResistance'].map((key) => percentHigher(key)),
   ...['currentHealth', 'stamina', 'mana', 'barrier'].map((key) => flatHigher(key, 1)),
 ]
@@ -34,8 +43,8 @@ const displaySpecs: CombatStatDisplaySpec[] = [
 export const COMBAT_STAT_DISPLAY_SPECS: Readonly<Record<string, CombatStatDisplaySpec>> = Object.fromEntries(displaySpecs.map((spec) => [spec.key, spec]))
 export const COMBAT_ITEM_STAT_KEYS = [
   'baseDamageMin', 'baseDamageMax', 'baseAttackTime', 'accuracyRating', 'armour', 'evasionRating', 'maxLife', 'lifeRegenFlat', 'maxStamina', 'staminaRegen', 'maxMana', 'manaRegenFlat',
-  'baseCritChance', 'criticalStrikeMultiplier', 'attackBlockChance', 'spellBlockChance', 'spellSuppressionChance', 'ailmentDurationReduction', 'additionalPhysicalDamageReduction',
-  'fireResistance', 'coldResistance', 'lightningResistance', 'chaosResistance',
+  'baseCritChance', 'additionalBaseCritChance', 'criticalStrikeMultiplier', 'attackBlockChance', 'maxAttackBlockChance', 'spellBlockChance', 'maxSpellBlockChance', 'spellSuppressionChance', 'ailmentDurationReduction', 'elementalAilmentAvoidance', 'physicalAilmentAvoidance', 'nonDamagingAilmentEffectReduction', 'increasedDamageTaken', 'actionSpeed', 'increasedAttackSpeed', 'increasedCastSpeed', 'additionalPhysicalDamageReduction',
+  'fireResistance', 'coldResistance', 'lightningResistance', 'chaosResistance', 'maxFireResistance', 'maxColdResistance', 'maxLightningResistance', 'maxChaosResistance',
 ] as const
 const combatItemStatKeySet = new Set<string>(COMBAT_ITEM_STAT_KEYS)
 
@@ -77,14 +86,14 @@ export function formatHealthWithBarrier(current: number, max: number, barrier = 
 
 const labelAliases: Record<string, string> = {
   attackDamage: 'Attack Damage', baseDamageMin: 'Base Damage Min', baseDamageMax: 'Base Damage Max', baseAttackTime: 'Base Attack Time', maxLife: 'Max Life', accuracyRating: 'Accuracy Rating', attackInterval: 'Attack Interval', armour: 'Armour', evasionRating: 'Evasion Rating',
-  baseCritChance: 'Base Critical Chance', criticalStrikeMultiplier: 'Critical Strike Multiplier', attackBlockChance: 'Attack Block Chance', spellBlockChance: 'Spell Block Chance', spellSuppressionChance: 'Spell Suppression Chance', suppressedSpellDamagePrevented: 'Suppressed Spell Damage Prevented',
+  baseCritChance: 'Base Critical Chance', additionalBaseCritChance: 'Additional Base Critical Chance', criticalStrikeMultiplier: 'Critical Strike Multiplier', attackBlockChance: 'Attack Block Chance', maxAttackBlockChance: 'Maximum Attack Block Chance', spellBlockChance: 'Spell Block Chance', maxSpellBlockChance: 'Maximum Spell Block Chance', spellSuppressionChance: 'Spell Suppression Chance', suppressedSpellDamagePrevented: 'Suppressed Spell Damage Prevented', increasedDamageTaken: 'Increased Damage Taken', nonDamagingAilmentEffectReduction: 'Non-Damaging Ailment Effect Reduction',
   maxStamina: 'Max Stamina', staminaRegen: 'Stamina Regeneration', maxMana: 'Max Mana', manaRegenFlat: 'Mana Regeneration', lifeRegenFlat: 'Life Regen',
   fireResistance: 'Fire Resistance', coldResistance: 'Cold Resistance', lightningResistance: 'Lightning Resistance', chaosResistance: 'Chaos Resistance',
   ailmentDurationReduction: 'Ailment Duration Reduction',
   currentHealth: 'Current Health', stamina: 'Stamina', mana: 'Mana', barrier: 'Barrier', hitChance: 'Hit Chance',
 }
 
-export function labelForStatKey(key: string) { return labelAliases[key] ?? key.replace(/([A-Z])/g, ' $1').replace(/^./, (value) => value.toUpperCase()) }
+export function labelForStatKey(key: string) { return labelAliases[key] ?? COMBAT_STAT_DEFINITION_BY_ID[key as keyof typeof COMBAT_STAT_DEFINITION_BY_ID]?.label ?? key.replace(/([A-Z])/g, ' $1').replace(/^./, (value) => value.toUpperCase()) }
 
 function formattedValue(spec: CombatStatDisplaySpec, value: number, mode: CombatStatFormatMode, signed = false) {
   const decimals = mode === 'comparison' ? spec.comparisonDecimals ?? spec.decimals : spec.decimals

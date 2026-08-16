@@ -39,7 +39,7 @@ export function calculateMitigatedDamage(rawDamage: number, armor: number, resis
 
 export type DefensiveOutcome = "evaded" | "block" | "hit";
 
-type DefensiveStats = Partial<Pick<CombatStats, "attackBlockChance" | "spellBlockChance" | "evasionRating">>;
+type DefensiveStats = Partial<Pick<CombatStats, "attackBlockChance" | "spellBlockChance" | "maxAttackBlockChance" | "maxSpellBlockChance" | "evasionRating">>;
 
 /** Resolves only canonical Attack evasion and eligible Block. DoTs never enter this path. */
 export function resolveDefensiveOutcome(
@@ -56,7 +56,9 @@ export function resolveDefensiveOutcome(
   if (canEvade && nextCombatRandom(rng, "hit") >= calculateHitChance(attackerAccuracy, defenderEvasion)) return "evaded";
   if (deliveryKind !== "damage-over-time" && eligibility.blockable) {
     const blockChance = options.blockKind === "spell" ? defender.spellBlockChance : defender.attackBlockChance;
-    if (nextCombatRandom(rng, "block") < clamp(Number.isFinite(blockChance ?? 0) ? blockChance ?? 0 : 0, 0, combatBalance.hardMaximumBlockChance)) return "block";
+    const blockMaximum = options.blockKind === "spell" ? defender.maxSpellBlockChance : defender.maxAttackBlockChance;
+    const effectiveBlockChance = clamp(Number.isFinite(blockChance ?? 0) ? blockChance ?? 0 : 0, 0, Math.min(blockMaximum ?? combatBalance.maximumBlockChance, combatBalance.hardMaximumBlockChance));
+    if (nextCombatRandom(rng, "block") < effectiveBlockChance) return "block";
   }
   return "hit";
 }

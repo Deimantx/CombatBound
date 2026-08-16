@@ -1,5 +1,5 @@
-import type { DamageType, CombatStatKey } from '../../combat/combatTypes'
-import type { MagicProficiencyId, PerkPrerequisiteRule, ProficiencyPerkDefinition, ProficiencyPerkEffect } from '../../progression/progressionTypes'
+import type { DamageType, ModifiableCombatStatKey } from '../../combat/combatTypes'
+import type { MagicProficiencyId, ProficiencyPerkDefinition, ProficiencyPerkEffect } from '../../progression/progressionTypes'
 import { all, id, pos } from './helpers'
 
 export type MagicBranchKind = 'frost' | 'tidal' | 'flow' | 'restoration' | 'mist' | 'lightning' | 'chain' | 'haste' | 'interrupt' | 'wind' | 'stone' | 'armor-penetration' | 'fortification' | 'barrier' | 'quake' | 'shadow' | 'curse' | 'decay' | 'drain' | 'doom'
@@ -30,7 +30,7 @@ export interface MagicTreeProfile {
   apexEffects: ProficiencyPerkEffect[]
 }
 
-const stat = (statName: CombatStatKey, valuePerRank: number): ProficiencyPerkEffect => ({ type: 'statModifier', stat: statName, operation: 'flat', valuePerRank })
+const stat = (statName: ModifiableCombatStatKey, valuePerRank: number): ProficiencyPerkEffect => ({ type: 'statModifier', stat: statName, operation: 'flat', valuePerRank })
 const spellDamage = (valuePerRank: number): ProficiencyPerkEffect => ({ type: 'spellDamageModifier', valuePerRank })
 const conditional = (valuePerRank: number, condition: Extract<ProficiencyPerkEffect, { type: 'spellConditionalDamageModifier' }>['condition']): ProficiencyPerkEffect => ({ type: 'spellConditionalDamageModifier', operation: 'increased', valuePerRank, condition })
 const effectChance = (effectId: string, chancePerRank: number): ProficiencyPerkEffect => ({ type: 'onSpellHitApplyEffect', effectId, chancePerRank })
@@ -39,19 +39,8 @@ const effectStacks = (effectId: string, valuePerRank: number): ProficiencyPerkEf
 const cost = (valuePerRank: number): ProficiencyPerkEffect => ({ type: 'spellManaCostModifier', valuePerRank })
 const cooldown = (valuePerRank: number): ProficiencyPerkEffect => ({ type: 'spellCooldownModifier', valuePerRank })
 
-function sourceStatus(profile: MagicTreeProfile) {
-  if (profile.proficiencyId === 'water-magic') return 'effect.chilled'
-  if (profile.proficiencyId === 'air-magic') return 'effect.shocked'
-  if (profile.proficiencyId === 'earth-magic') return 'effect.concussed'
-  if (profile.proficiencyId === 'darkness-magic') return 'effect.cursed'
-  return 'effect.exposed'
-}
-
 function branchEffects(profile: MagicTreeProfile, kind: MagicBranchKind, index: number): ProficiencyPerkEffect[] {
-  const status = sourceStatus(profile)
-  const statusDuration = profile.proficiencyId === 'water-magic' ? 'effect.chilled' : profile.proficiencyId === 'air-magic' ? 'effect.shocked' : profile.proficiencyId === 'earth-magic' ? 'effect.concussed' : 'effect.cursed'
   const decay = 'effect.shadow-decay'
-  const barrier = 'effect.earth-barrier'
   const variants: Record<MagicBranchKind, ProficiencyPerkEffect[][]> = {
     frost: [[effectChance('effect.chilled', .06)], [effectDuration('effect.chilled', .1)], [{ type: 'sourceEffectOutgoingDamageModifier', effectId: 'effect.chilled', valuePerRank: .02 }], [conditional(.05, { type: 'targetHasEffect', effectId: 'effect.chilled' })], [stat('evasionRating', -8)], [conditional(.15, { type: 'targetHasEffect', effectId: 'effect.chilled' }), effectStacks('effect.chilled', 1)], [conditional(.25, { type: 'targetHasEffect', effectId: 'effect.chilled' }), effectDuration('effect.chilled', .15)]],
     tidal: [[spellDamage(.03)], [spellDamage(.03)], [spellDamage(.05)], [{ type: 'spellCriticalDamageModifier', valuePerRank: .05 }], [conditional(.12, { type: 'manaAbove', fraction: .7 })], [spellDamage(.15)], [conditional(.25, { type: 'targetHpAbove', fraction: .6 })]],
@@ -61,10 +50,10 @@ function branchEffects(profile: MagicTreeProfile, kind: MagicBranchKind, index: 
     lightning: [[effectChance('effect.shocked', .06)], [conditional(.05, { type: 'targetHasEffect', effectId: 'effect.shocked' })], [{ type: 'spellCriticalChanceModifier', valuePerRank: .02 }], [{ type: 'spellCriticalDamageModifier', valuePerRank: .08 }], [effectDuration('effect.shocked', .1)], [conditional(.15, { type: 'targetHasEffect', effectId: 'effect.shocked' }), { type: 'spellCriticalDamageModifier', valuePerRank: .1 }], [conditional(.3, { type: 'targetHasEffectAndHpBelow', effectId: 'effect.shocked', fraction: .4 })]],
     chain: [[{ type: 'spellSecondaryTargetDamage', fractionPerRank: .1, maxAdditionalTargets: 1 }], [{ type: 'spellSecondaryTargetDamage', fractionPerRank: .05, maxAdditionalTargets: 1 }], [{ type: 'spellSecondaryTargetDamage', fractionPerRank: .1, maxAdditionalTargets: 2 }], [spellDamage(.03)], [{ type: 'onSpellHitApplyEffect', effectId: 'effect.shocked', chancePerRank: .1, secondaryOnly: true }], [{ type: 'spellSecondaryTargetDamage', fractionPerRank: .2, maxAdditionalTargets: 2 }], [{ type: 'spellSecondaryTargetDamage', fractionPerRank: .55, maxAdditionalTargets: 3 }]],
     haste: [[cooldown(-.04)], [cost(-.03)], [stat('manaRegenFlat', .25)], [cooldown(-.025)], [cooldown(-.08)], [cooldown(-.1), spellDamage(.03)], [cooldown(-.15)]],
-    interrupt: [[cost(-.04)], [cooldown(-.04)], [{ type: 'onSuccessfulInterruptRestoreMana', amountPerRank: 2 }], [{ type: 'onSuccessfulInterruptApplyEffect', effectId: 'effect.exposed' }], [{ type: 'proficiencyXpModifier', valuePerRank: .1, reasonType: 'successful-interrupt' }], [{ type: 'interruptedActionCooldownModifier', valuePerRank: .15 }], [{ type: 'onSuccessfulInterruptRestoreMana', amountPerRank: 15 }, { type: 'onSuccessfulInterruptApplyEffect', effectId: 'effect.shocked' }]],
+    interrupt: [[cost(-.04)], [cooldown(-.04)], [{ type: 'onSuccessfulInterruptRestoreMana', amountPerRank: 2 }], [{ type: 'onSuccessfulInterruptApplyEffect', effectId: 'effect.off-balance' }], [{ type: 'proficiencyXpModifier', valuePerRank: .1, reasonType: 'successful-interrupt' }], [{ type: 'interruptedActionCooldownModifier', valuePerRank: .15 }], [{ type: 'onSuccessfulInterruptRestoreMana', amountPerRank: 15 }, { type: 'onSuccessfulInterruptApplyEffect', effectId: 'effect.shocked' }]],
     wind: [[stat('evasionRating', 5)], [stat('evasionRating', 2)], [spellDamage(.03)], [{ type: 'onSpellCastApplyEffect', effectId: 'effect.air-windstep', durationSeconds: 3 }], [stat('evasionRating', 8)], [stat('evasionRating', 12)], [cooldown(-.1)]],
     stone: [[spellDamage(.03)], [spellDamage(.03)], [spellDamage(.05)], [{ type: 'spellCriticalDamageModifier', valuePerRank: .07 }], [conditional(.15, { type: 'targetHpAbove', fraction: .6 })], [spellDamage(.15)], [{ type: 'spellCriticalDamageModifier', valuePerRank: .3 }]],
-    'armor-penetration': [[effectChance('effect.armor-broken', .06)], [{ type: 'spellArmorPenetrationModifier', mode: 'flat', valuePerRank: 5 }], [{ type: 'spellArmorPenetrationModifier', mode: 'percent', valuePerRank: .05 }], [conditional(.12, { type: 'targetHasEffect', effectId: 'effect.armor-broken' })], [effectDuration('effect.armor-broken', .1)], [effectChance('effect.exposed', .1)], [conditional(.35, { type: 'targetHasEffect', effectId: 'effect.armor-broken' })]],
+    'armor-penetration': [[effectChance('effect.armor-broken', .06)], [{ type: 'spellArmorPenetrationModifier', mode: 'flat', valuePerRank: 5 }], [{ type: 'spellArmorPenetrationModifier', mode: 'percent', valuePerRank: .05 }], [conditional(.12, { type: 'targetHasEffect', effectId: 'effect.armor-broken' })], [effectDuration('effect.armor-broken', .1)], [effectChance('effect.off-balance', .1)], [conditional(.35, { type: 'targetHasEffect', effectId: 'effect.armor-broken' })]],
     fortification: [[{ type: 'onSpellCastApplyEffect', effectId: 'effect.earth-fortified', durationSeconds: 5 }], [stat('armour', 3)], [stat('attackBlockChance', .05)], [stat('ailmentDurationReduction', .03)], [stat('armour', 10)], [stat('armour', 12), stat('ailmentDurationReduction', .1)], [stat('armour', 20), stat('attackBlockChance', .1), stat('ailmentDurationReduction', .15)]],
     barrier: [[{ type: 'barrierAmountModifier', valuePerRank: .05 }], [{ type: 'barrierFlatAmountModifier', valuePerRank: 5 }], [{ type: 'barrierDurationModifier', valuePerRank: 1 }], [{ type: 'barrierAbsorbResourceRestore', resource: 'stamina', amountPerRank: .05 }], [{ type: 'barrierAmountModifier', valuePerRank: .15 }], [{ type: 'barrierAmountModifier', valuePerRank: .15 }, { type: 'barrierDurationModifier', valuePerRank: .15 }], [{ type: 'barrierAmountModifier', valuePerRank: .3 }, stat('armour', 10)]],
     quake: [[effectChance('effect.concussed', .06)], [effectDuration('effect.concussed', .1)], [{ type: 'sourceEffectOutgoingDamageModifier', effectId: 'effect.concussed', valuePerRank: .02 }], [{ type: 'sourceEffectOutgoingDamageModifier', effectId: 'effect.concussed', valuePerRank: .03 }], [conditional(.15, { type: 'targetHasEffect', effectId: 'effect.concussed' })], [effectDuration('effect.concussed', .1)], [conditional(.25, { type: 'targetHasEffect', effectId: 'effect.concussed' }), stat('evasionRating', -10)]],

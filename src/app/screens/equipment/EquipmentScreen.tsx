@@ -103,11 +103,7 @@ export function EquipmentScreen({ embedded = false }: { embedded?: boolean } = {
     ? getProficiencyLevel(game.progression, equippedProficiency)
     : 0;
   const resistance = (key: string) =>
-    stats.resistances[
-      key
-        .replace("Resistance", "")
-        .toLowerCase() as keyof typeof stats.resistances
-    ] ?? 0;
+    Number(stats[`${key.replace("Resistance", "")}Resistance` as keyof typeof stats] ?? 0);
   const valueFor = (key: string) =>
     key === "physicalDirectMitigation"
       ? calculateArmorMitigation(stats.armour ?? 0)

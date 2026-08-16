@@ -64,8 +64,7 @@ export function HeroCombatStatsPanel({ preview, hoveredPreview }: { preview: Her
   const valueFor = (key: string, source = stats) => {
     if (key === "physicalDirectMitigation") return calculateArmorMitigation(source.armour ?? 0);
     if (key.endsWith("Resistance")) {
-      const resistanceKey = key.replace("Resistance", "").toLowerCase() as keyof typeof source.resistances;
-      return source.resistances[resistanceKey] ?? 0;
+      return Number(source[`${key.replace("Resistance", "")}Resistance` as keyof typeof source] ?? 0);
     }
     return Number(source[key as keyof typeof source] ?? 0);
   };

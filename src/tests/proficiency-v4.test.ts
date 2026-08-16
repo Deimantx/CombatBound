@@ -45,7 +45,7 @@ describe('V4 weapon proficiency mechanics', () => {
     const progression = { ...base, purchasedPerks: { 'perk.dagger.counterstep': 1, 'perk.dagger.fast-recovery': 1 } }
     expect(getActiveProficiencyStatModifiers(progression, 'dagger', perkById)).toHaveLength(2)
     expect(getActiveProficiencyStatModifiers(progression, 'one-handed-sword', perkById)).toHaveLength(0)
-    expect(getActiveProficiencyStatModifiers(progression, 'dagger', perkById).some((modifier) => modifier.stat === 'attackInterval')).toBe(true)
+    expect(getActiveProficiencyStatModifiers(progression, 'dagger', perkById).some((modifier) => modifier.stat === 'moreAttackSpeed')).toBe(true)
 
     const enemy = instantiateEnemies(['enemy.grey-wolf'], 1)[0]
     const target = { kind: 'enemy' as const, instanceId: enemy.instanceId }

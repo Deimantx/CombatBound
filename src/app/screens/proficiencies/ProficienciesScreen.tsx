@@ -10,7 +10,7 @@ import { getProficiencyLevelProgress, getProficiencyProgress, getProficiencyXpTo
 import { useGameStore } from '../../../state/gameStore'
 import { getDefensiveEquipmentContext } from '../../../game/equipment/defensiveEquipment'
 import { ARMOR_TRAINING_SLOT_IDS } from '../../../game/equipment/equipmentTypes'
-import type { CombatProficiencyId, PerkPurchaseState, ProficiencyCategory, ProficiencyPerkDefinition } from '../../../game/progression/progressionTypes'
+import type { CombatProficiencyId, ProficiencyCategory, ProficiencyPerkDefinition } from '../../../game/progression/progressionTypes'
 import { GameTooltip } from '../../components/tooltip/GameTooltip'
 import { useTooltip } from '../../components/tooltip/TooltipProvider'
 import { Panel } from '../../components/Panel'
@@ -130,12 +130,10 @@ function ProficiencyTile({ definition, selected, active, progression, onSelect }
   return <GameTooltip content={tooltip}>{content}</GameTooltip>
 }
 
-function SelectedHeaderLegacy({ definition, progression, equipped, activeWeapon }: { definition: typeof proficiencyDefinitions[number]; progression: Progression; equipped: boolean; activeWeapon?: string }) {
+export function SelectedHeaderLegacy({ definition, progression, equipped, activeWeapon }: { definition: typeof proficiencyDefinitions[number]; progression: Progression; equipped: boolean; activeWeapon?: string }) {
   const storedProgress = getProficiencyProgress(progression, definition.id)
   const xp = storedProgress?.totalXp ?? 0
   const levelProgress = getProficiencyLevelProgress(xp, definition.maxLevel)
-  const levelLabel = levelProgress.level > 0 ? `Lv ${levelProgress.level} / ${definition.maxLevel}` : 'UNTRAINED'
-  const nextLevelLabel = levelProgress.isMaxLevel ? 'MAX LEVEL' : `${levelProgress.xpToNextLevel.toLocaleString()} XP to next level`
   const level = levelProgress.level
   const percent = levelProgress.progressFraction * 100
   return <div className="selected-proficiency-header" data-debug-kind="selected-proficiency" data-debug-proficiency-id={definition.id}><div className="selected-proficiency-heading"><div><span className="tiny-label">{equipped ? 'ACTIVE WEAPON PROFICIENCY' : definition.category === 'magic' ? 'MAGIC PROFICIENCY' : 'WEAPON PROFICIENCY'}</span><h3>{level > 0 ? `Lv ${level} / ${definition.maxLevel}` : 'UNTRAINED'}</h3></div>{equipped && <span className="proficiency-active-badge"><Check size={12} /> ACTIVE</span>}</div>{level > 0 ? <><div className="selected-xp-line"><span>Current XP {Math.floor(xp).toLocaleString()}</span><strong>{getProficiencyXpToNextLevel(progression, definition.id).toLocaleString()} XP to next level</strong></div><ProgressBar value={Math.max(0, Math.min(100, percent))} variant="experience" showValue ariaLabel={`${definition.name} selected XP progress`} /><small className="selected-lifetime-xp">Lifetime Proficiency XP: {Math.floor(xp).toLocaleString()}{activeWeapon && equipped ? ` · Equipped item: ${activeWeapon}` : ''}</small></> : <p className="untrained-copy">Use a {definition.category === 'magic' ? 'spell from' : ''} {definition.name} to begin gaining Proficiency XP.</p>}</div>
@@ -271,7 +269,7 @@ function PerkTree({ definition, perks, progression, selectedPerkId, onSelectPerk
   </div>
 }
 
-function PerkNodeLegacy({ perk, progression, selected, onSelect }: { perk: ProficiencyPerkDefinition; progression: Progression; selected: boolean; onSelect: (id: string) => void }) {
+export function PerkNodeLegacy({ perk, progression, selected, onSelect }: { perk: ProficiencyPerkDefinition; progression: Progression; selected: boolean; onSelect: (id: string) => void }) {
   const state = getPerkPurchaseState(progression, perk.id, perkById)
   const rank = state.currentRank
   const visualStatus = rank > 0 && state.status !== 'maxed' ? 'purchased-partial' : state.status

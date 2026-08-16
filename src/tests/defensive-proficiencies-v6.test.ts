@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { createInitialGameState } from '../game/gameState'
 import { calculateHunterCombatStats } from '../game/equipment/derivedStats'
-import { calculateDefensiveTrainingAwards, getDefensiveEquipmentContext } from '../game/equipment/defensiveEquipment'
+import { calculateDefensiveTrainingAwards } from '../game/equipment/defensiveEquipment'
 import { advanceCombat, resolveDefensiveTrainingForEnemyAction } from '../game/combat/combatEngine'
 import { itemById, type ItemDefinition } from '../game/data/items'
 import { getActiveDefensiveEquipmentModifiers } from '../game/progression/perkProgression'

@@ -77,7 +77,6 @@ import {
   updateAutomationCondition,
   updateAutomationRule,
 } from "../game/automation/automationLogic";
-import { COMBAT_SPELL_SLOT_COUNT } from "../game/spellbook/spellbookTypes";
 import { isEquipmentSlotId, type EquipmentSlotId } from "../game/equipment/equipmentTypes";
 import type { HeroWindowRequest, ScreenId } from "../shared/types";
 import type { AutomationCondition, AutomationRule } from "../game/automation/automationTypes";

@@ -1,4 +1,4 @@
-import { Search, Sparkles, Swords, X, Zap } from "lucide-react";
+import { Search, X } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import {
   getActionById,
@@ -7,7 +7,6 @@ import {
 import { createCombatPreviewContext } from "../../../../game/combat/combatEngine";
 import { techniqueDefinitions } from "../../../../game/data/techniques";
 import { weaponSkillById } from "../../../../game/data/weaponSkills";
-import { getDefensiveEquipmentContext } from "../../../../game/equipment/defensiveEquipment";
 import { calculateHunterCombatStats } from "../../../../game/equipment/derivedStats";
 import { calculateHitChance } from "../../../../game/combat/combatMath";
 import { getEnemyEffectiveCombatStats, getPlayerEffectiveCombatStats } from "../../../../game/combat/combatSelectors";

@@ -16,7 +16,6 @@ import {
 import { getDefensiveEquipmentContext } from "../game/equipment/defensiveEquipment";
 import { getEquipmentSlotDefinition } from "../game/equipment/equipmentTypes";
 import {
-  debugAddMasteryXp,
   debugApplyEffect,
   debugDiscoverAllItems,
   debugDiscoverAllTargets,
@@ -132,7 +131,7 @@ describe("CombatBound V8.7 prototype gear", () => {
     expect((stats.manaRegenFlat ?? 0) - (empty.manaRegenFlat ?? 0)).toBeCloseTo(0.6);
     expect((stats.accuracyRating ?? 0) - (empty.accuracyRating ?? 0)).toBe(5);
     expect((stats.evasionRating ?? 0) - (empty.evasionRating ?? 0)).toBe(2);
-    expect((stats.baseCritChance ?? 0) - (empty.baseCritChance ?? 0)).toBeCloseTo(0.02);
+    expect((stats.additionalBaseCritChance ?? 0) - (empty.additionalBaseCritChance ?? 0)).toBeCloseTo(0.02);
   });
 
   it("keeps tier identities aligned with Light, Medium and Heavy armor training", () => {

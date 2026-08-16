@@ -7,7 +7,7 @@ const profile: WeaponTreeProfile = {
     { name: 'Armour Crushing', kind: 'armour', names: ['Dent Plate', 'Crack the Shell', 'Crushing Geometry', 'Collapsed Defense', 'Pulverize', 'Nothing Left to Guard', 'Platebreaker'] },
     { name: 'Guard / Block', kind: 'guard', names: ['Defensive Grip', 'Solid Guard', 'Brace for Impact', 'Guarded Counter', 'Iron Wrist', 'Counterweight', 'Unmoving Hand'] },
     { name: 'Tempo / Stamina', kind: 'tempo', names: ['Conditioned Arms', 'Short Recovery', 'Efficient Impact', 'Economical Motion', 'Rhythmic Strikes', 'Hammering Rhythm', 'Unbroken Cadence'] },
-    { name: 'Punisher / Exposed', kind: 'control', names: ['Read the Opening', 'Punishing Blow', 'Concussive Hit', 'Staggering Presence', 'Exploit Weakness', 'Relentless Punishment', 'Crushing Sentence'] },
+    { name: 'Punisher / Off-Balance', kind: 'control', names: ['Read the Opening', 'Punishing Blow', 'Concussive Hit', 'Staggering Presence', 'Exploit Weakness', 'Relentless Punishment', 'Crushing Sentence'] },
   ],
   crossNodes: [
     { name: "Breaker's Rhythm", links: [[1, 6], [3, 6]], effects: [interval(-.05), { type: 'weaponConditionalDamageModifier', operation: 'increased', valuePerRank: .08, condition: { type: 'targetHasEffect', effectId: 'effect.armor-broken' } }] },

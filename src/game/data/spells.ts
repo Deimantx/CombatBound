@@ -11,6 +11,7 @@ export interface SpellDefinition {
   targetMode: SpellTargetMode
   baseDamageMin: number
   baseDamageMax: number
+  baseCritChance?: number
   healing?: { flatAmount: number }
   damageType?: DamageType
   canMiss?: boolean

@@ -17,6 +17,7 @@ export interface DamagePacket extends DamageComponent {
   cleave?: { maxSecondaryTargets: number; primaryResolvedDamageFraction: number };
   damageMultiplier?: number;
   criticalDamageMultiplier?: number;
+  criticalBaseChance?: number;
   criticalChanceBonus?: number;
   armorPenetrationPercent?: number;
   armorPenetrationFlat?: number;
@@ -47,10 +48,14 @@ const safe = (value: number | undefined, fallback = 0) => Number.isFinite(value)
 
 export function rollDamage(component: DamageComponent & { baseDamage?: number }, attacker: CombatStats, rng: CombatRng) {
   const multiplier = Math.max(0, safe((component as DamagePacket).damageMultiplier, 1));
-  const sourceValue = component.scaling?.sourceStat === "attackDamage" ? attacker.attackDamage : 0;
-  const base = Math.max(0, (safe(component.baseDamage, 0) + safe(component.flatDamage, 0) + sourceValue * safe(component.scaling?.multiplier, 0)) * multiplier);
-  const minimum = component.minDamage !== undefined ? component.minDamage * multiplier : base * (component.minMultiplier ?? combatBalance.baseDamageVarianceMin);
-  const maximum = component.maxDamage !== undefined ? component.maxDamage * multiplier : base * (component.maxMultiplier ?? combatBalance.baseDamageVarianceMax);
+  const sourceMultiplier = safe(component.scaling?.multiplier, 0);
+  const sourceMin = component.scaling?.sourceStat === "attackDamage" ? attacker.attackDamageMin ?? attacker.attackDamage : 0;
+  const sourceMax = component.scaling?.sourceStat === "attackDamage" ? attacker.attackDamageMax ?? attacker.attackDamage : 0;
+  const flatBase = safe(component.baseDamage, 0) + safe(component.flatDamage, 0);
+  const base = Math.max(0, (flatBase + attacker.attackDamage * sourceMultiplier) * multiplier);
+  const hasExplicitSourceRange = component.scaling?.sourceStat === "attackDamage" && sourceMin !== sourceMax;
+  const minimum = component.minDamage !== undefined ? component.minDamage * multiplier : hasExplicitSourceRange ? Math.max(0, (flatBase + sourceMin * sourceMultiplier) * multiplier) : base * (component.minMultiplier ?? combatBalance.baseDamageVarianceMin);
+  const maximum = component.maxDamage !== undefined ? component.maxDamage * multiplier : hasExplicitSourceRange ? Math.max(minimum, (flatBase + sourceMax * sourceMultiplier) * multiplier) : base * (component.maxMultiplier ?? combatBalance.baseDamageVarianceMax);
   const low = Math.min(minimum, maximum);
   return Math.max(0, low + (Math.max(minimum, maximum) - low) * clamp(nextCombatRandom(rng, "damage"), 0, 1));
 }
@@ -72,12 +77,14 @@ export function resolveDamage(packet: DamagePacket, attacker: CombatStats, defen
   if (outcome === "evaded" || outcome === "block") return emptyDamageResolution(outcome);
 
   const rolledDamage = rollDamage(packet, attacker, rng);
-  const baseCritChance = (attacker.baseCritChance ?? 0) + (attacker.additionalBaseCritChance ?? 0);
+  const baseCritChance = (packet.criticalBaseChance ?? attacker.baseCritChance ?? 0) + (attacker.additionalBaseCritChance ?? 0);
   const criticalChance = clamp(baseCritChance * (1 + (attacker.increasedCritChance ?? 0)) * (1 + (attacker.moreCritChance ?? 0)) + (packet.criticalChanceBonus ?? 0), 0, combatBalance.maxCritChance);
   const critical = Boolean(packet.canCrit && nextCombatRandom(rng, "crit") < criticalChance);
   const critMultiplier = Math.max(1, (attacker.criticalStrikeMultiplier ?? 1) * (packet.criticalDamageMultiplier ?? 1));
-  const rawDamage = Math.max(0, rolledDamage * (critical ? critMultiplier : 1));
-  const armorMitigation = packet.ignoresArmor || packet.ignoresArmour || packet.unmitigated || deliveryKind === "damage-over-time" || damageType !== "physical" ? 0 : calculateArmorMitigation(effectiveDefender.armour, rawDamage);
+  const reducedExtraCrit = clamp(defender.reducedExtraDamageTakenFromCriticalStrikes ?? 0, 0, 1);
+  const effectiveCritMultiplier = 1 + Math.max(0, critMultiplier - 1) * (1 - reducedExtraCrit);
+  const rawDamage = Math.max(0, rolledDamage * (critical ? effectiveCritMultiplier : 1));
+  const armorMitigation = packet.ignoresArmour || packet.unmitigated || deliveryKind === "damage-over-time" || damageType !== "physical" ? 0 : calculateArmorMitigation(effectiveDefender.armour, rawDamage);
   const additionalPhysicalReduction = damageType === "physical" && !packet.unmitigated ? clamp(defender.additionalPhysicalDamageReduction ?? 0, 0, defender.maxPhysicalDamageReduction ?? 0.9) : 0;
   const totalPhysicalReduction = damageType === "physical" && !packet.unmitigated ? Math.min(defender.maxPhysicalDamageReduction ?? 0.9, armorMitigation + additionalPhysicalReduction) : 0;
   const afterPhysicalReduction = rawDamage * (1 - totalPhysicalReduction);
@@ -86,7 +93,9 @@ export function resolveDamage(packet: DamagePacket, attacker: CombatStats, defen
   const eligibleForSuppression = sourceKind === "spell" && deliveryKind === "hit" && packet.spellSuppressionEligible !== false && !packet.unmitigated;
   const suppressed = eligibleForSuppression && nextCombatRandom(rng, "misc") < clamp(defender.spellSuppressionChance ?? 0, 0, 1);
   const suppressionPrevented = suppressed ? afterResistance * clamp(defender.suppressedSpellDamagePrevented ?? combatBalance.suppressedSpellDamagePrevented, 0, 1) : 0;
-  const mitigatedDamage = Math.max(0, Math.round(afterResistance - suppressionPrevented));
+  const damageTakenMultiplier = Math.max(0, 1 + (defender.increasedDamageTaken ?? 0));
+  const afterDamageTaken = Math.max(0, afterResistance - suppressionPrevented) * damageTakenMultiplier;
+  const mitigatedDamage = Math.max(0, Math.round(afterDamageTaken));
   return { outcome, critical, suppressed, rawDamage, rolledDamage, armorMitigated: Math.max(0, rawDamage * armorMitigation), physicalReductionMitigated: Math.max(0, rawDamage * Math.max(0, totalPhysicalReduction - armorMitigation)), resistanceMitigated: Math.max(0, afterPhysicalReduction - afterResistance), blockedDamage: 0, suppressionPrevented: Math.max(0, Math.round(suppressionPrevented)), mitigatedDamage, absorbedDamage: 0, barrierAbsorbed: 0, healthDamage: mitigatedDamage, targetDied: false };
 }
 

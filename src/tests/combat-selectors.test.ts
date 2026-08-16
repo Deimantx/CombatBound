@@ -42,9 +42,9 @@ describe('combat presentation selectors', () => {
     expect(first?.playerHitChance).toBe(calculateHitChance(first!.playerAccuracy, first!.targetEvasion))
     expect(first?.enemyHitChance).toBe(calculateHitChance(first!.enemyAccuracy, first!.playerEvasion))
 
-    const exposed = applyEffect(combat, effectById['effect.exposed'], { kind: 'player' }, { kind: 'enemy', instanceId: enemies[0].instanceId }).combat
-    const afterEffect = getSelectedTargetMatchup(exposed, stats, game.progression, exposed.enemies[0])
-    expect(afterEffect!.targetEvasion).toBe(getEnemyEffectiveCombatStats(exposed.enemies[0]).evasionRating)
+    const offBalance = applyEffect(combat, effectById['effect.off-balance'], { kind: 'player' }, { kind: 'enemy', instanceId: enemies[0].instanceId }).combat
+    const afterEffect = getSelectedTargetMatchup(offBalance, stats, game.progression, offBalance.enemies[0])
+    expect(afterEffect!.targetEvasion).toBe(getEnemyEffectiveCombatStats(offBalance.enemies[0]).evasionRating)
     expect(afterEffect!.targetEvasion).toBeLessThan(first!.targetEvasion)
     expect(afterEffect!.playerHitChance).toBeGreaterThanOrEqual(first!.playerHitChance)
 

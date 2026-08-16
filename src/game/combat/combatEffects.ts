@@ -1,6 +1,7 @@
-import { combatBalance, clamp } from './combatBalance'
-import type { CombatStats, CombatState, CombatantRef } from './combatTypes'
-import type { ActiveEffectInstance, EffectDefinition, EffectStackingMode, EffectTick, EffectTimerResult } from './combatEffectTypes'
+import { clamp } from './combatBalance'
+import { nextCombatRandom } from './combatRng'
+import type { CombatRng, CombatStats, CombatState, CombatantRef } from './combatTypes'
+import type { ActiveEffectInstance, EffectDefinition, EffectTick, EffectTimerResult } from './combatEffectTypes'
 import type { ProgressionCredit } from '../progression/progressionTypes'
 
 export interface EffectApplyOptions {
@@ -13,12 +14,14 @@ export interface EffectApplyOptions {
   durationMultiplier?: number
   periodicPowerMultiplier?: number
   maxStacksBonus?: number
+  rng?: CombatRng
+  forceApply?: boolean
 }
 
 export interface EffectApplicationResult {
   combat: CombatState
   instance: ActiveEffectInstance | null
-  outcome: 'applied' | 'refreshed' | 'stacked' | 'extended' | 'replaced' | 'rejected' | 'missing-target'
+  outcome: 'applied' | 'refreshed' | 'stacked' | 'extended' | 'replaced' | 'rejected' | 'avoided' | 'missing-target'
 }
 
 const aliveRef = (combat: CombatState, target: CombatantRef) => target.kind === 'player'
@@ -38,13 +41,21 @@ export function updateActiveEffects(combat: CombatState, target: CombatantRef, e
 export function calculateEffectDuration(definition: EffectDefinition, targetStats?: CombatStats, durationBonusSeconds = 0, durationMultiplier = 1) {
   if (definition.durationSeconds === null) return null
   const duration = Math.max(0, definition.durationSeconds)
-  const resistant = !((definition.beneficial ?? (definition.kind === 'buff' || definition.kind === 'barrier')))
+  const resistant = definition.tags.includes('ailment')
   const durationReduction = resistant ? clamp(targetStats?.ailmentDurationReduction ?? 0, 0, 1) : 0
   return Math.max(0, (duration + durationBonusSeconds) * durationMultiplier * (1 - durationReduction))
 }
 
 export function applyEffect(combat: CombatState, definition: EffectDefinition, source: CombatantRef, target: CombatantRef, options: EffectApplyOptions = {}): EffectApplicationResult {
   if (!aliveRef(combat, target)) return { combat, instance: null, outcome: 'missing-target' }
+  if (!options.forceApply && options.targetStats && options.rng && definition.tags.includes('ailment')) {
+    const avoidance = definition.tags.includes('elemental-ailment')
+      ? options.targetStats.elementalAilmentAvoidance ?? 0
+      : definition.tags.includes('physical-ailment')
+        ? options.targetStats.physicalAilmentAvoidance ?? 0
+        : 0
+    if (avoidance > 0 && nextCombatRandom(options.rng, 'effect') < clamp(avoidance, 0, 1)) return { combat, instance: null, outcome: 'avoided' }
+  }
   const effects = getActiveEffects(combat, target)
   const duration = calculateEffectDuration(definition, options.targetStats, options.durationBonusSeconds, options.durationMultiplier)
   const interval = definition.periodic && definition.periodic.intervalSeconds > 0 ? definition.periodic.intervalSeconds : null
@@ -63,7 +74,7 @@ export function applyEffect(combat: CombatState, definition: EffectDefinition, s
       stacks: mode === 'stack-refresh' ? Math.min(maxStacks, current.stacks + 1) : current.stacks,
       remainingSeconds: mode === 'extend' ? (current.remainingSeconds === null || duration === null ? null : current.remainingSeconds + duration) : duration,
       nextTickRemaining: interval,
-      snapshot: options.power !== undefined || current.snapshot || options.periodicPowerMultiplier !== undefined ? { power: options.power ?? current.snapshot?.power, periodicPowerMultiplier: options.periodicPowerMultiplier ?? current.snapshot?.periodicPowerMultiplier } : current.snapshot,
+      snapshot: options.power !== undefined || current.snapshot || options.periodicPowerMultiplier !== undefined || definition.tags.includes('non-damaging-ailment') ? { power: options.power ?? current.snapshot?.power, periodicPowerMultiplier: options.periodicPowerMultiplier ?? current.snapshot?.periodicPowerMultiplier, effectMagnitudeMultiplier: definition.tags.includes('non-damaging-ailment') ? 1 - clamp(options.targetStats?.nonDamagingAilmentEffectReduction ?? 0, 0, 1) : current.snapshot?.effectMagnitudeMultiplier } : current.snapshot,
       progressionCredit: options.progressionCredit ?? current.progressionCredit,
       sourceProficiencyId: options.sourceProficiencyId ?? current.sourceProficiencyId,
       runtimeValues: definition.kind === 'barrier' ? { absorbRemaining: options.absorbAmount ?? definition.barrierAmount ?? current.runtimeValues?.absorbRemaining ?? 0 } : current.runtimeValues,
@@ -81,7 +92,7 @@ export function applyEffect(combat: CombatState, definition: EffectDefinition, s
     remainingSeconds: duration,
     nextTickRemaining: interval,
     appliedSequence: nextSequence,
-    snapshot: options.power !== undefined || definition.barrierAmount !== undefined || options.periodicPowerMultiplier !== undefined ? { power: options.power ?? definition.barrierAmount, periodicPowerMultiplier: options.periodicPowerMultiplier } : undefined,
+    snapshot: options.power !== undefined || definition.barrierAmount !== undefined || options.periodicPowerMultiplier !== undefined || definition.tags.includes('non-damaging-ailment') ? { power: options.power ?? definition.barrierAmount, periodicPowerMultiplier: options.periodicPowerMultiplier, effectMagnitudeMultiplier: definition.tags.includes('non-damaging-ailment') ? 1 - clamp(options.targetStats?.nonDamagingAilmentEffectReduction ?? 0, 0, 1) : undefined } : undefined,
     progressionCredit: options.progressionCredit,
     sourceProficiencyId: options.sourceProficiencyId,
     runtimeValues: definition.kind === 'barrier' ? { absorbRemaining: options.absorbAmount ?? definition.barrierAmount ?? 0 } : undefined,

@@ -1,5 +1,4 @@
-import { addItem, removeItem } from "../inventory/inventoryLogic";
-import { discoverItem } from "../collection/collectionLogic";
+import { removeItem } from "../inventory/inventoryLogic";
 import {
   calculateHunterCombatStats,
   type HunterCombatStats,
@@ -19,21 +18,29 @@ import {
   applyBarrierToDamage,
   type DamagePacket,
 } from "./combatDamage";
-import { normalizeCombatStats } from "./combatStats";
 import {
   applyEffectById,
   absorbDamage,
   advanceEffectTimers,
   cleanseEffects,
-  getBarrierAmount,
   updateActiveEffects,
 } from "./combatEffects";
 import {
-  getEnemyEffectiveCombatStats,
-  getPlayerEffectiveCombatStats,
-} from "./combatSelectors";
+  awardCombatXp,
+  clearEndedHuntEffects,
+  clone,
+  combatEvent as event,
+  getEnemyStats,
+  getPlayerStats,
+  playerBaseStats,
+  recoverOutOfCombatResources,
+} from "./combatRuntime";
 import { interruptAction, selectNextEnemyAction } from "./combatActions";
 import { nextCombatRandom } from "./combatRng";
+import { enemyActionTargets } from "./combatEnemyTargets";
+import { applyEnemyHealthDamage, applyPlayerHealthDamage, type EnemyDamageApplication, type PlayerDamageApplication } from "./combatHealth";
+import { applyEffectToGame, applyPlayerSuccessfulBlockHooks } from "./combatEffectRuntime";
+export { applyEnemyHealthDamage, applyPlayerHealthDamage } from "./combatHealth";
 import { instantiateEnemies } from "./combatState";
 import { generateCombatGroup } from "./combatGroupGenerator";
 import {
@@ -66,7 +73,6 @@ import {
   getSuccessfulInterruptHooks,
   getTechniqueStaminaDrainMultiplier,
   getWeaponAttackModifiers,
-  getWeaponBlockEffectHooks,
   getWeaponDamageMultiplier,
   getWeaponHitAdvanceHooks,
   getWeaponHitEffectHooks,
@@ -99,9 +105,6 @@ import type {
 } from "./combatEffectTypes";
 import type {
   CombatContext,
-  CombatEvent,
-  CombatEventType,
-  CombatLogEntry,
   CombatState,
   CombatStats,
   CombatantRef,
@@ -116,31 +119,6 @@ import type {
   WeaponProficiencyId,
 } from "../progression/progressionTypes";
 
-const clone = <T>(value: T): T => JSON.parse(JSON.stringify(value)) as T;
-
-function event(state: CombatState, item: CombatEvent) {
-  const nextSequence = state.eventSequence + 1;
-  const log: CombatLogEntry = {
-    id: nextSequence,
-    text: item.text,
-    type: item.type,
-    time: `T+${Math.floor(state.session.elapsedSeconds)}s`,
-  };
-  const record = {
-    id: nextSequence,
-    type: item.eventType ?? ("actionResolved" as CombatEventType),
-    source: item.source,
-    target: item.target,
-    data: item.data,
-  };
-  return {
-    ...state,
-    eventSequence: nextSequence,
-    log: [log, ...state.log].slice(0, 30),
-    events: [...state.events, record].slice(-100),
-  };
-}
-
 export function createCombatContext(rng: CombatContext["rng"]): CombatContext {
   return {
     enemies: enemyById,
@@ -154,169 +132,9 @@ export function createCombatContext(rng: CombatContext["rng"]): CombatContext {
   };
 }
 
-export interface PlayerDamageApplication {
-  combat: CombatState;
-  requestedDamage: number;
-  appliedDamage: number;
-  preventedLethalDamage: number;
-  wouldHaveDied: boolean;
-}
-
-export interface EnemyDamageApplication {
-  combat: CombatState;
-  requestedDamage: number;
-  appliedDamage: number;
-  preventedLethalDamage: number;
-  wouldHaveDied: boolean;
-  targetDied: boolean;
-}
-
-/** Applies post-barrier enemy damage through one canonical path. */
-export function applyEnemyHealthDamage(
-  combat: CombatState,
-  instanceId: string,
-  requestedDamage: number,
-  context: CombatContext,
-): EnemyDamageApplication {
-  const requested = Math.max(0, Number.isFinite(requestedDamage) ? requestedDamage : 0);
-  const enemy = combat.enemies.find((candidate) => candidate.instanceId === instanceId);
-  if (!enemy || enemy.defeated)
-    return {
-      combat,
-      requestedDamage: requested,
-      appliedDamage: 0,
-      preventedLethalDamage: 0,
-      wouldHaveDied: false,
-      targetDied: false,
-    };
-  const immortal = context.debugHooks?.isEnemyImmortal?.(instanceId) === true;
-  const minimumHp = immortal ? 1 : 0;
-  const appliedDamage = Math.min(requested, Math.max(0, enemy.currentHealth - minimumHp));
-  const nextHealth = Math.max(minimumHp, enemy.currentHealth - appliedDamage);
-  const wouldHaveDied = enemy.currentHealth - requested <= 0;
-  const targetDied = !immortal && nextHealth <= 0;
-  return {
-    combat: {
-      ...combat,
-      enemies: combat.enemies.map((candidate) => candidate.instanceId === instanceId
-        ? { ...candidate, currentHealth: nextHealth, defeated: targetDied, currentAction: targetDied ? null : candidate.currentAction }
-        : candidate),
-      session: {
-        ...combat.session,
-        damageDealt: combat.session.damageDealt + appliedDamage,
-        highestHit: Math.max(combat.session.highestHit, appliedDamage),
-      },
-    },
-    requestedDamage: requested,
-    appliedDamage,
-    preventedLethalDamage: immortal ? Math.max(0, requested - appliedDamage) : 0,
-    wouldHaveDied,
-    targetDied,
-  };
-}
-
-/** Applies post-barrier player damage through one canonical path. */
-export function applyPlayerHealthDamage(combat: CombatState, requestedDamage: number, context: CombatContext): PlayerDamageApplication {
-  const requested = Math.max(0, Number.isFinite(requestedDamage) ? requestedDamage : 0);
-  const immortal = context.debugHooks?.isPlayerImmortal?.() === true;
-  const minimumHp = immortal ? 1 : 0;
-  const appliedDamage = Math.min(requested, Math.max(0, combat.playerHp - minimumHp));
-  return {
-    combat: {
-      ...combat,
-      playerHp: Math.max(minimumHp, combat.playerHp - appliedDamage),
-      session: { ...combat.session, damageTaken: combat.session.damageTaken + appliedDamage },
-    },
-    requestedDamage: requested,
-    appliedDamage,
-    preventedLethalDamage: immortal ? Math.max(0, requested - appliedDamage) : 0,
-    wouldHaveDied: combat.playerHp - requested <= 0,
-  };
-}
-
 /** Read-only domain context for previews and editors; it contains no UI-fabricated data. */
 export function createCombatPreviewContext(): CombatContext {
   return createCombatContext({ next: () => 0.5 });
-}
-
-function playerBaseStats(stats: HunterCombatStats): CombatStats {
-  return normalizeCombatStats(
-    stats as HunterCombatStats & Record<string, unknown>,
-  );
-}
-
-function getPlayerStats(
-  combat: CombatState,
-  stats: HunterCombatStats,
-  context: CombatContext,
-  progression?: GameState["progression"],
-) {
-  return getPlayerEffectiveCombatStats(
-    combat,
-    stats,
-    progression,
-    context.effects,
-  );
-}
-
-function recoverOutOfCombatResources(
-  combat: CombatState,
-  effective: ReturnType<typeof getPlayerStats>,
-  step: number,
-): CombatState {
-  const maxHealth = effective.maxLife ?? 0;
-  const maxStamina = effective.maxStamina;
-  const maxMana = effective.maxMana;
-  const healthRegen =
-    maxHealth * combatBalance.recoveryHealthFractionPerSecond * step;
-  const resourceMultiplier = combatBalance.recoveryResourceRegenMultiplier;
-
-  return {
-    ...combat,
-    maxPlayerHp: maxHealth,
-    playerHp: Math.min(maxHealth, combat.playerHp + healthRegen),
-    maxStamina,
-    stamina: clamp(
-      combat.stamina + effective.staminaRegen * resourceMultiplier * step,
-      0,
-      maxStamina,
-    ),
-    maxMana,
-    mana: clamp(
-      combat.mana + (effective.manaRegenFlat ?? 0) * resourceMultiplier * step,
-      0,
-      maxMana,
-    ),
-  };
-}
-
-function awardCombatXp(
-  game: GameState,
-  proficiencyId: CombatProficiencyId,
-  amount: number,
-) {
-  if (!(amount > 0)) return { game, result: null };
-  const result = awardProficiencyXp(game.progression, proficiencyId, amount);
-  const current = game.combat.session.proficiencyXpGained[proficiencyId] ?? 0;
-  return {
-    game: {
-      ...game,
-      progression: result.progression,
-      combat: {
-        ...game.combat,
-        session: {
-          ...game.combat.session,
-          proficiencyXpGained: {
-            ...game.combat.session.proficiencyXpGained,
-            [proficiencyId]: current + result.proficiencyXpGained,
-          },
-          masteryXpGained:
-            game.combat.session.masteryXpGained + result.proficiencyXpGained,
-        },
-      },
-    },
-    result,
-  };
 }
 
 /** Canonical defensive progression hook: invoke once after a direct enemy action resolves. */
@@ -451,29 +269,6 @@ function awardBarrierCredits(
     );
   }
   return next;
-}
-
-function getEnemyStats(
-  combat: CombatState,
-  enemy: EnemyCombatInstance,
-  context: CombatContext,
-) {
-  return getEnemyEffectiveCombatStats(enemy, context.effects, context.enemies);
-}
-
-function clearEndedHuntEffects(
-  combat: CombatState,
-  definitions: Record<string, EffectDefinition>,
-) {
-  const shouldKeep = (effect: ActiveEffectInstance) => {
-    const persistence = definitions[effect.effectId]?.persistence;
-    return persistence !== "hunt" && persistence !== "between-enemies";
-  };
-  return {
-    ...combat,
-    playerEffects: combat.playerEffects.filter(shouldKeep),
-    enemies: combat.enemies.map((enemy) => ({ ...enemy, effects: [] })),
-  };
 }
 
 export function startHunt(
@@ -915,12 +710,14 @@ export function castSpell(
       source,
       target: targetRef,
       sourceActionId: spell.id,
-      baseDamage: effectiveSpell.baseDamageMin,
+      minDamage: effectiveSpell.baseDamageMin,
+      maxDamage: effectiveSpell.baseDamageMax,
       criticalDamageMultiplier: effectiveSpell.criticalDamageMultiplier,
+      criticalBaseChance: effectiveSpell.criticalBaseChance,
       criticalChanceBonus: effectiveSpell.criticalChanceBonus,
       attackerAccuracy: getPlayerStats(next.combat, stats, context, next.progression).accuracyRating,
-      minMultiplier: combatBalance.baseDamageVarianceMin,
-      maxMultiplier: combatBalance.baseDamageVarianceMax,
+      minMultiplier: 1,
+      maxMultiplier: 1,
       defensiveEligibility: {
         canMiss: false,
         canBeEvaded: false,
@@ -1287,63 +1084,6 @@ export function castSpell(
     }
   }
   return next;
-}
-
-function applyEffectToGame(
-  game: GameState,
-  effectId: string,
-  source: CombatantRef,
-  target: CombatantRef,
-  targetStats: CombatStats,
-  context: CombatContext,
-  options: {
-    absorbAmount?: number;
-    power?: number;
-    progressionCredit?: ProgressionCredit;
-    sourceProficiencyId?: CombatProficiencyId;
-    secondaryOnly?: boolean;
-    targetMode?: "source" | "target";
-    requireHpDamage?: boolean;
-    durationBonusSeconds?: number;
-    durationMultiplier?: number;
-    periodicPowerMultiplier?: number;
-    maxStacksBonus?: number;
-  } = {},
-) {
-  const result = applyEffectById(
-    game.combat,
-    effectId,
-    context.effects,
-    source,
-    target,
-    { targetStats, ...options },
-  );
-  if (
-    !result.instance ||
-    result.outcome === "rejected" ||
-    result.outcome === "missing-target"
-  )
-    return game;
-  const eventType: CombatEventType =
-    result.outcome === "refreshed"
-      ? "effectRefreshed"
-      : result.outcome === "stacked"
-        ? "effectStacked"
-        : "effectApplied";
-  const definition = context.effects[effectId];
-  const suffix =
-    result.instance.stacks > 1 ? ` x${result.instance.stacks}` : "";
-  return {
-    ...game,
-    combat: event(result.combat, {
-      text: `${definition.name}${suffix} applied to ${target.kind === "player" ? "you" : (game.combat.enemies.find((enemy) => enemy.instanceId === target.instanceId)?.displayName ?? "target")}.`,
-      type: source.kind === "player" ? "player" : "enemy",
-      eventType,
-      source,
-      target,
-      data: { effectId, stacks: result.instance.stacks },
-    }),
-  };
 }
 
 function applyDerivedCleaveDamage(
@@ -1716,21 +1456,6 @@ function damageEnemy(
             ),
           };
     }
-    if (resolution.outcome === "block" && weaponProficiencyId && !packet.weaponSkillId)
-      for (const hook of getWeaponBlockEffectHooks(
-        next.progression,
-        weaponProficiencyId,
-        perkById,
-      ))
-        next = applyEffectToGame(
-          next,
-          hook.effectId,
-          packet.source,
-          { kind: "player" },
-          attackerStats,
-          context,
-          { durationBonusSeconds: hook.durationSeconds },
-        );
   }
   if (
     allowSecondary &&
@@ -2182,10 +1907,14 @@ function advanceStep(
         ...combat,
         enemies: combat.enemies.map((candidate) =>
           candidate.instanceId === current.instanceId
-            ? { ...candidate, attackTimer: definition.baseAttackTime }
+            ? { ...candidate, attackTimer: Math.max(combatBalance.minimumAttackInterval, enemyStats.attackInterval) }
             : candidate,
-        ),
+      ),
       };
+      if (resolved.outcome === "block") {
+        game = applyPlayerSuccessfulBlockHooks({ ...game, combat }, playerStats, context);
+        combat = game.combat;
+      }
       game = resolveDefensiveTrainingForEnemyAction(
         { ...game, combat },
         { source: "enemy-normal-attack", resolved: true },
@@ -2414,7 +2143,7 @@ function resolvePeriodicEffect(
       (effect.snapshot?.periodicPowerMultiplier ?? 1),
     minMultiplier: 1,
     maxMultiplier: 1,
-    ignoresArmor: operation.damageType === "physical",
+    ignoresArmour: operation.damageType === "physical",
     defensiveEligibility: {
       canMiss: false,
       canBeEvaded: false,
@@ -2494,51 +2223,6 @@ function resolvePeriodicEffect(
     },
   });
   return next;
-}
-
-function enemyActionTargets(
-  action: import("./combatTypes").EnemyActionDefinition,
-  current: EnemyCombatInstance,
-  combat: CombatState,
-  rng: CombatContext["rng"],
-): CombatantRef[] {
-  if (action.targetMode === "self")
-    return [{ kind: "enemy", instanceId: current.instanceId }];
-  const allies = combat.enemies.filter(
-    (enemy) => !enemy.defeated && enemy.instanceId !== current.instanceId,
-  );
-  if (action.targetMode === "lowest-health-ally")
-    return allies.length
-      ? [
-          {
-            kind: "enemy",
-            instanceId: [...allies].sort(
-              (a, b) =>
-                a.currentHealth / a.maxHealth - b.currentHealth / b.maxHealth,
-            )[0].instanceId,
-          },
-        ]
-      : [];
-  if (action.targetMode === "random-living-ally")
-    return allies.length
-      ? [
-          {
-            kind: "enemy",
-            instanceId:
-              allies[
-                Math.floor(
-                  Math.max(0, Math.min(0.999999, nextCombatRandom(rng, "target"))) * allies.length,
-                )
-              ].instanceId,
-          },
-        ]
-      : [];
-  if (action.targetMode === "all-living-allies")
-    return allies.map((enemy) => ({
-      kind: "enemy",
-      instanceId: enemy.instanceId,
-    }));
-  return [{ kind: "player" }];
 }
 
 function advanceEnemySpecials(
@@ -2650,6 +2334,7 @@ function advanceEnemySpecials(
         let totalAbsorbed = 0;
         let requestedDamage = 0;
         let lastOutcome: string = "hit";
+        let playerBlockedAction = false;
         for (const component of components) {
           const packet: DamagePacket = {
             ...component,
@@ -2691,6 +2376,7 @@ function advanceEnemySpecials(
           totalDamage += appliedResolved.healthDamage;
           totalAbsorbed += appliedResolved.barrierAbsorbed;
           lastOutcome = result.outcome;
+          playerBlockedAction = playerBlockedAction || result.outcome === "block";
           combat = {
             ...playerDamage.combat,
             lastDamageSource: definition.name,
@@ -2713,6 +2399,10 @@ function advanceEnemySpecials(
             candidate.instanceId === current.instanceId ? current : candidate,
           ),
         };
+        if (playerBlockedAction) {
+          game = applyPlayerSuccessfulBlockHooks({ ...game, combat }, playerStats, context);
+          combat = game.combat;
+        }
         game = resolveDefensiveTrainingForEnemyAction(
           { ...game, combat },
           { source: "enemy-direct-action", resolved: true },

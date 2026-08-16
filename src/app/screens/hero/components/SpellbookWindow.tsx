@@ -1,4 +1,4 @@
-import { Check, ChevronDown, Sparkles, X } from "lucide-react";
+import { Sparkles, X } from "lucide-react";
 import { useMemo, useState } from "react";
 import { spellDefinitions } from "../../../../game/data/spells";
 import { effectById } from "../../../../game/data/effects";

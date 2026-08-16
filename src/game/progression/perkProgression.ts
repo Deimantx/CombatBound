@@ -1,5 +1,5 @@
-import { canonicalStatKey, normalizeCombatStats } from '../combat/combatStats'
-import type { CombatStats, StatModifier } from '../combat/combatTypes'
+import { normalizeCombatStats } from '../combat/combatStats'
+import type { CombatStats, ResistanceDamageType, StatModifier } from '../combat/combatTypes'
 import { perkById } from '../data/proficiencyPerks'
 import { proficiencyById } from '../data/proficiencies'
 import { calculateAvailablePerkPoints } from './masteryProgression'
@@ -110,7 +110,7 @@ function defensivePieceCount(proficiencyId: CombatProficiencyId, context: Defens
 
 export interface ActiveDefensiveEquipmentModifiers {
   statModifiers: StatModifier[]
-  resistanceModifiers: Array<{ damageType: Exclude<import('../combat/combatTypes').DamageType, 'true'>; value: number }>
+  resistanceModifiers: Array<{ damageType: ResistanceDamageType; value: number }>
   spellModifiers: Array<{ modifier: Extract<ProficiencyPerkEffect, { type: 'equippedArmorSpellModifier' }>['modifier']; value: number }>
   weaponModifiers: Array<{ modifier: Extract<ProficiencyPerkEffect, { type: 'equippedArmorWeaponModifier' }>['modifier']; value: number }>
 }
@@ -167,7 +167,7 @@ export function getActiveProficiencyStatModifiers(
   const modifiers: StatModifier[] = []
   for (const { effect, rank } of activeEffects(progression, proficiencyId, definitions)) {
     if (effect.type === 'statModifier') modifiers.push(toStatModifier(effect, rank))
-    if (effect.type === 'weaponAttackIntervalModifier') modifiers.push({ stat: 'attackInterval', operation: 'increased', value: effect.valuePerRank * rank })
+    if (effect.type === 'weaponAttackSpeedModifier') modifiers.push({ stat: 'moreAttackSpeed', operation: 'more', value: effect.valuePerRank * rank })
     if (effect.type === 'conditionalStatModifier') {
       const matches = effect.condition.type === 'active-barrier' ? context.barrierActive === true
         : effect.condition.type === 'stamina-above' ? (context.staminaFraction ?? 0) >= (effect.condition.fraction ?? 0)
@@ -211,7 +211,7 @@ export function applyProficiencyStatModifiers(baseStats: CombatStats, modifiers:
   const minimums: Partial<Record<keyof CombatStats, number>> = {}
   const maximums: Partial<Record<keyof CombatStats, number>> = {}
   for (const modifier of modifiers) {
-    const stat = canonicalStatKey(modifier.stat) as keyof CombatStats
+    const stat = modifier.stat as keyof CombatStats
     if (modifier.operation === 'flat') flat[stat] = (flat[stat] ?? 0) + modifier.value
     if (modifier.operation === 'increased') increased[stat] = (increased[stat] ?? 0) + modifier.value
     if (modifier.operation === 'reduced') reduced[stat] = (reduced[stat] ?? 0) + modifier.value

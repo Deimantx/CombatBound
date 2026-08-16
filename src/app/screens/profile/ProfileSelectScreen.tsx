@@ -3,7 +3,7 @@ import { useState } from "react";
 import { masteryLevelForXp } from "../../../game/progression/masteryProgression";
 import { formatDuration, formatProfileAge } from "../../../game/profiles/profileFormatting";
 import { getProfileSave, useProfileStore } from "../../../state/profileStore";
-import type { ProfileId, ProfileMetadata, ProfileSlot } from "../../../game/profiles/profileTypes";
+import type { ProfileMetadata, ProfileSlot } from "../../../game/profiles/profileTypes";
 import { ConfirmDialog } from "../../components/ConfirmDialog";
 import { CreateProfilePanel } from "./CreateProfilePanel";
 import { loadAndEnterProfile } from "../../profile/profileSessionController";

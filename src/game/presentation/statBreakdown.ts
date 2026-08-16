@@ -60,8 +60,8 @@ function baseStatValue(stat: DebugStatInspectionId) {
   return Number(map[stat as CombatStatKey] ?? 0);
 }
 
-function readValue(stats: HunterCombatStats, stat: DebugStatInspectionId) { return Number(stat.startsWith("resistance:") ? stats.resistances[stat.slice(12) as keyof typeof stats.resistances] ?? 0 : stats[stat as CombatStatKey]); }
-function readEffectiveValue(stats: ReturnType<typeof calculateEffectiveCombatStats>, stat: DebugStatInspectionId) { return Number(stat.startsWith("resistance:") ? stats.resistances[stat.slice(12) as keyof typeof stats.resistances] ?? 0 : stats[stat as CombatStatKey]); }
+function readValue(stats: HunterCombatStats, stat: DebugStatInspectionId) { return Number(stat.startsWith("resistance:") ? stats[`${stat.slice(12)}Resistance` as keyof HunterCombatStats] ?? 0 : stats[stat as CombatStatKey]); }
+function readEffectiveValue(stats: ReturnType<typeof calculateEffectiveCombatStats>, stat: DebugStatInspectionId) { return Number(stat.startsWith("resistance:") ? stats[`${stat.slice(12)}Resistance` as keyof typeof stats] ?? 0 : stats[stat as CombatStatKey]); }
 
 function pushContribution(contributions: StatContribution[], stat: DebugStatInspectionId, sourceType: StatContribution["sourceType"], sourceId: string, sourceLabel: string, operation: StatContribution["operation"], before: number, after: number) {
   const value = after - before;

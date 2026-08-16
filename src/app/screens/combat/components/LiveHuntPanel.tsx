@@ -31,11 +31,7 @@ import {
   validatePlayerAction,
   reasonLabel,
 } from "../../../../game/combat/playerActions";
-import type {
-  EnemyActionDefinition,
-  EnemyCombatInstance,
-  CombatState,
-} from "../../../../game/combat/combatTypes";
+import type { EnemyCombatInstance } from "../../../../game/combat/combatTypes";
 import type { GameState } from "../../../../game/gameState";
 import type { HunterCombatStats } from "../../../../game/equipment/derivedStats";
 import type { CombatLocationDefinition } from "../../../../game/world/worldTypes";

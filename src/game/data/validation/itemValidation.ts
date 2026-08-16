@@ -3,8 +3,8 @@ import { COMBAT_ITEM_STAT_KEYS, isKnownCombatItemStatKey } from "../../presentat
 import { EQUIPMENT_SLOT_DEFINITIONS } from "../../equipment/equipmentTypes";
 
 const percentageStatKeys = new Set([
-  "baseCritChance", "criticalStrikeMultiplier", "attackBlockChance", "spellBlockChance", "spellSuppressionChance", "ailmentDurationReduction",
-  "fireResistance", "coldResistance", "lightningResistance", "chaosResistance", "additionalPhysicalDamageReduction",
+  "baseCritChance", "additionalBaseCritChance", "criticalStrikeMultiplier", "attackBlockChance", "maxAttackBlockChance", "spellBlockChance", "maxSpellBlockChance", "spellSuppressionChance", "ailmentDurationReduction", "elementalAilmentAvoidance", "physicalAilmentAvoidance", "nonDamagingAilmentEffectReduction", "increasedDamageTaken", "actionSpeed", "increasedAttackSpeed", "increasedCastSpeed",
+  "fireResistance", "coldResistance", "lightningResistance", "chaosResistance", "maxFireResistance", "maxColdResistance", "maxLightningResistance", "maxChaosResistance", "additionalPhysicalDamageReduction",
 ]);
 
 export interface ItemValidationResult {

@@ -35,33 +35,49 @@ export function calculateHunterCombatStats(
   const carefulEvasion = techniques["careful-positioning"] ? techniqueDefinitions["careful-positioning"].evasionRating : 0;
   const base = normalizeCombatStats({
     maxLife: combatBalance.baseMaxLife + total("maxLife"),
-    attackDamage: (weaponDamageMin + weaponDamageMax) / 2,
+    attackDamageMin: weaponDamageMin,
+    attackDamageMax: weaponDamageMax,
     accuracyRating: combatBalance.baseAccuracy + total("accuracyRating") + (techniques["heightened-reflexes"] ? techniqueDefinitions["heightened-reflexes"].accuracyRating : 0),
     armour: combatBalance.baseArmour + total("armour"),
     additionalPhysicalDamageReduction: total("additionalPhysicalDamageReduction"),
     evasionRating: combatBalance.baseEvasion + total("evasionRating") + carefulEvasion,
     baseAttackTime: weaponStats.baseAttackTime ?? combatBalance.baseAttackInterval,
-    baseCritChance: combatBalance.baseCritChance + total("baseCritChance"),
+    baseCritChance: combatBalance.baseCritChance + (weaponStats.baseCritChance ?? 0),
+    additionalBaseCritChance: total("additionalBaseCritChance"),
     criticalStrikeMultiplier: combatBalance.baseCritDamage + total("criticalStrikeMultiplier"),
     attackBlockChance: combatBalance.baseAttackBlockChance + total("attackBlockChance"),
+    spellBlockChance: combatBalance.baseSpellBlockChance + total("spellBlockChance"),
+    maxAttackBlockChance: combatBalance.maximumBlockChance + total("maxAttackBlockChance"),
+    maxSpellBlockChance: combatBalance.maximumBlockChance + total("maxSpellBlockChance"),
     maxStamina: combatBalance.baseMaxStamina + total("maxStamina"),
     staminaRegen: (combatBalance.baseStaminaRegen + total("staminaRegen")) * stanceData.staminaRegenMultiplier,
     maxMana: combatBalance.baseMaxMana + total("maxMana"),
     manaRegenFlat: combatBalance.baseManaRegen + total("manaRegenFlat"),
     lifeRegenFlat: total("lifeRegenFlat"),
     ailmentDurationReduction: total("ailmentDurationReduction"),
+    elementalAilmentAvoidance: total("elementalAilmentAvoidance"),
+    physicalAilmentAvoidance: total("physicalAilmentAvoidance"),
+    nonDamagingAilmentEffectReduction: total("nonDamagingAilmentEffectReduction"),
+    increasedDamageTaken: total("increasedDamageTaken"),
+    actionSpeed: 1 + total("actionSpeed"),
+    increasedAttackSpeed: total("increasedAttackSpeed"),
+    increasedCastSpeed: total("increasedCastSpeed"),
     spellSuppressionChance: total("spellSuppressionChance"),
-    resistances: {
-      fire: total("fireResistance"),
-      cold: total("coldResistance"),
-      lightning: total("lightningResistance"),
-      chaos: total("chaosResistance"),
-    },
+    fireResistance: total("fireResistance"),
+    coldResistance: total("coldResistance"),
+    lightningResistance: total("lightningResistance"),
+    chaosResistance: total("chaosResistance"),
+    maxFireResistance: combatBalance.defaultMaximumResistance + total("maxFireResistance"),
+    maxColdResistance: combatBalance.defaultMaximumResistance + total("maxColdResistance"),
+    maxLightningResistance: combatBalance.defaultMaximumResistance + total("maxLightningResistance"),
+    maxChaosResistance: combatBalance.defaultMaximumResistance + total("maxChaosResistance"),
   });
 
   const canonical = normalizeCombatStats({
     ...base,
     attackDamage: base.attackDamage * stanceData.damageMultiplier,
+    attackDamageMin: (base.attackDamageMin ?? base.attackDamage) * stanceData.damageMultiplier,
+    attackDamageMax: (base.attackDamageMax ?? base.attackDamage) * stanceData.damageMultiplier,
     armour: (base.armour ?? 0) * stanceData.armourMultiplier,
     accuracyRating: (base.accuracyRating ?? 0) * stanceData.accuracyMultiplier,
     baseAttackTime: (base.baseAttackTime ?? combatBalance.baseAttackInterval) * stanceData.attackIntervalMultiplier,
@@ -73,7 +89,7 @@ export function calculateHunterCombatStats(
   const weaponScopedStats: StatModifier[] = [];
   for (const modifier of defensivePerks.weaponModifiers) {
     if (modifier.modifier === "accuracy") weaponScopedStats.push({ stat: "accuracyRating", operation: "flat", value: modifier.value });
-    if (modifier.modifier === "attackInterval") weaponScopedStats.push({ stat: "attackInterval", operation: "increased", value: modifier.value });
+    if (modifier.modifier === "attackSpeed") weaponScopedStats.push({ stat: "moreAttackSpeed", operation: "more", value: modifier.value });
   }
   const withPerks = applyProficiencyStatModifiers(canonical, [
     ...getActiveProficiencyStatModifiers(progression, weaponProficiencyId, perkById, { stance, activeTechniqueCount }),
@@ -83,7 +99,10 @@ export function calculateHunterCombatStats(
   ]);
   for (const modifier of defensivePerks.resistanceModifiers) {
     const resistance = modifier.damageType;
-    if (resistance !== "physical" && resistance in withPerks.resistances) withPerks.resistances[resistance as keyof typeof withPerks.resistances] = (withPerks.resistances[resistance as keyof typeof withPerks.resistances] ?? 0) + modifier.value;
+    if (resistance === "fire") withPerks.fireResistance = (withPerks.fireResistance ?? 0) + modifier.value;
+    if (resistance === "cold") withPerks.coldResistance = (withPerks.coldResistance ?? 0) + modifier.value;
+    if (resistance === "lightning") withPerks.lightningResistance = (withPerks.lightningResistance ?? 0) + modifier.value;
+    if (resistance === "chaos") withPerks.chaosResistance = (withPerks.chaosResistance ?? 0) + modifier.value;
   }
   const stats: HunterCombatStats = {
     ...normalizeCombatStats(withPerks as CombatStats & Record<string, unknown>),

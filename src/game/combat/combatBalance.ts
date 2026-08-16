@@ -32,14 +32,10 @@ export const combatBalance = {
   baseMaxMana: 100, // [TUNING] Prototype value.
   baseManaRegen: 1, // [TUNING] Prototype value.
   baseStaminaDrain: 3, // [TUNING] Prototype value.
-  baseFireResistance: 0, // [TUNING] Prototype value.
   baseDamageVarianceMin: 0.9, // [TUNING] Prototype value.
   baseDamageVarianceMax: 1.1, // [TUNING] Prototype value.
   minHitChance: 0.05,
   maxHitChance: 1,
-  armorConstant: 100, // [TUNING] Prototype value.
-  minResistance: -2,
-  maxResistance: 0.9,
   maxCritChance: 1, // [TUNING] Prototype value.
   minimumAttackInterval: 0.05, // [TUNING] Prototype value.
   igniteDuration: 6, // [TUNING] Prototype value.
@@ -49,7 +45,7 @@ export const combatBalance = {
   bleedInterval: 2, // [TUNING] Prototype value.
   bleedDamage: 4, // [TUNING] Prototype value.
   armorBrokenDuration: 6, // [TUNING] Prototype value.
-  exposedDuration: 6, // [TUNING] Prototype value.
+  offBalanceDuration: 6, // [TUNING] Prototype value.
   spellCooldown: 8, // [TUNING] Prototype value.
 } as const
 

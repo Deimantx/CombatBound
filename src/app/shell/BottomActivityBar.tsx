@@ -4,7 +4,6 @@ import { getBarrierAmount } from '../../game/combat/combatEffects'
 import { combatLocationById } from '../../game/data/world/combatLocations'
 import { formatHealthWithBarrier } from '../../game/presentation/statFormatting'
 import { enemyFamilyById } from '../../game/data/world/enemyFamilies'
-import { locationBreadcrumb } from '../../game/world/worldSelectors'
 import { useGameStore } from '../../state/gameStore'
 import { ProgressBar } from '../components/ProgressBar'
 

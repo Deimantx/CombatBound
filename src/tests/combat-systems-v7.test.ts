@@ -161,7 +161,7 @@ describe("Combat Systems V7", () => {
     const target = afterIce.combat.enemies[0];
     expect(target.effects.some((effect) => effect.effectId === "effect.ignite")).toBe(true);
     expect(target.effects.some((effect) => effect.effectId === "effect.chilled")).toBe(true);
-    expect(target.effects.some((effect) => effect.effectId === "effect.exposed")).toBe(false);
+    expect(target.effects.some((effect) => effect.effectId === "effect.off-balance")).toBe(false);
   });
 
   it("applies resistance modifiers through the canonical stat boundary", () => {
@@ -185,6 +185,6 @@ describe("Combat Systems V7", () => {
       ],
       effectById,
     );
-    expect(shocked.resistances.lightning).toBeCloseTo(-0.1);
+    expect(shocked.increasedDamageTaken).toBeCloseTo(0.1);
   });
 });

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { advanceCombat, castSpell, createCombatContext, startHunt } from '../game/combat/combatEngine'
+import { castSpell, createCombatContext, startHunt } from '../game/combat/combatEngine'
 import { resolveDamage } from '../game/combat/combatDamage'
 import type { CombatStats } from '../game/combat/combatTypes'
 import { effectById } from '../game/data/effects'
@@ -34,8 +34,8 @@ describe('Magic Schools V5', () => {
   })
 
   it('provides source-owned core statuses and Darkness periodic progression credit', () => {
-    expect(effectById['effect.chilled'].statModifiers).toContainEqual({ stat: 'attackInterval', operation: 'increased', value: .03 })
-    expect(effectById['effect.shocked'].statModifiers).toContainEqual({ stat: 'evasionRating', operation: 'flat', value: -8 })
+    expect(effectById['effect.chilled'].statModifiers).toContainEqual({ stat: 'actionSpeed', operation: 'flat', value: -.03 })
+    expect(effectById['effect.shocked'].statModifiers).toContainEqual({ stat: 'increasedDamageTaken', operation: 'flat', value: .1 })
     expect(effectById['effect.cursed'].statModifiers).toContainEqual({ stat: 'accuracyRating', operation: 'flat', value: -5 })
     expect(effectById['effect.shadow-decay'].periodic?.operation).toEqual({ type: 'damage', damageType: 'chaos', baseAmount: 7, canCrit: false })
   })
