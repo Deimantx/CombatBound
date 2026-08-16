@@ -6,6 +6,7 @@ import { COMBAT_STAT_DEFINITION_BY_ID, COMBAT_STAT_REGISTRY } from './combatStat
 
 export type ItemStatKey = NonNullable<ItemDefinition['stats']> extends infer Stats ? keyof Stats & string : string
 export interface FormattedStat { label: string; value: string; tone?: 'default' | 'gold' | 'blue' | 'green' | 'red' }
+export interface FormattedItemStat extends FormattedStat { key: string; numericValue: number; range?: DamageRange }
 export interface DamageRange { min: number; max: number }
 export const DAMAGE_TYPE_LABELS: Record<DamageType, string> = { physical: 'Physical', fire: 'Fire', cold: 'Cold', lightning: 'Lightning', chaos: 'Chaos' }
 
@@ -151,6 +152,19 @@ export function formatItemStats(stats: NonNullable<ItemDefinition['stats']>) {
   for (const [key, value] of Object.entries(stats)) {
     if (key === 'baseDamageMin' || key === 'baseDamageMax') continue
     rows.push(formatItemStat(key, value))
+  }
+  return rows
+}
+
+/** Keyed presentation rows for surfaces that need to attach canonical stat tooltips. */
+export function formatItemStatsWithKeys(stats: NonNullable<ItemDefinition['stats']>): FormattedItemStat[] {
+  const rows: FormattedItemStat[] = []
+  const hasMin = typeof stats.baseDamageMin === 'number' && Number.isFinite(stats.baseDamageMin)
+  const hasMax = typeof stats.baseDamageMax === 'number' && Number.isFinite(stats.baseDamageMax)
+  if (hasMin || hasMax) rows.push({ key: 'attackDamage', label: 'Physical Damage', value: formatDamageRange(hasMin ? stats.baseDamageMin! : stats.baseDamageMax!, hasMax ? stats.baseDamageMax! : stats.baseDamageMin!), tone: 'gold', numericValue: ((hasMin ? stats.baseDamageMin! : stats.baseDamageMax!) + (hasMax ? stats.baseDamageMax! : stats.baseDamageMin!)) / 2, range: { min: hasMin ? stats.baseDamageMin! : stats.baseDamageMax!, max: hasMax ? stats.baseDamageMax! : stats.baseDamageMin! } })
+  for (const [key, value] of Object.entries(stats)) {
+    if (key === 'baseDamageMin' || key === 'baseDamageMax') continue
+    rows.push({ key, numericValue: value, ...formatItemStat(key, value) })
   }
   return rows
 }

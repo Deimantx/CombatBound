@@ -14,10 +14,10 @@ describe("Phase 4 inventory contracts", () => {
     const game = createInitialGameState();
     const granted = grantItem(game.inventory, "item.hunter-sword", 40);
     let enumerationCount = 0;
-    const entries = selectInventoryEntries(granted.inventory, game.equipment, defaultInventoryFilters, "", "name", (inventory) => {
+    const entries = selectInventoryEntries(granted.inventory, game.equipment, defaultInventoryFilters, "", { key: "name", direction: "asc" }, { instanceSource: (inventory) => {
       enumerationCount += 1;
       return getItemInstances(inventory);
-    });
+    } });
     expect(enumerationCount).toBe(1);
     expect(entries.filter((entry) => entry.definition.id === "item.hunter-sword")).toHaveLength(40);
   });

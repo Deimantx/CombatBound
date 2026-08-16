@@ -6,6 +6,13 @@ export interface TooltipRow {
   tone?: TooltipTone
 }
 
+export interface TooltipSection {
+  id: string
+  title?: string
+  rows?: TooltipRow[]
+  notes?: string[]
+}
+
 export interface TooltipModel {
   id: string
   icon?: string
@@ -14,5 +21,6 @@ export interface TooltipModel {
   tone?: TooltipTone
   description?: string
   rows?: TooltipRow[]
+  sections?: TooltipSection[]
   notes?: string[]
 }

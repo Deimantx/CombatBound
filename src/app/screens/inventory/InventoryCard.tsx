@@ -1,5 +1,6 @@
-import { Lock, Sparkles } from "lucide-react";
-import { getEquipmentSlotDefinition, type EquipmentSlotId } from "../../../game/equipment/equipmentTypes";
+import { GripVertical, Lock, Sparkles } from "lucide-react";
+import type { DragEvent } from "react";
+import { getEquipmentSlotDefinition } from "../../../game/equipment/equipmentTypes";
 import { buildItemPresentation, buildStackableItemPresentation } from "../../../game/presentation/itemPresentation";
 import { buildItemTooltip, buildPlayerItemInstanceTooltip } from "../../../game/presentation/tooltipBuilders";
 import type { InventoryViewEntry } from "../../../game/inventory/inventorySelectors";
@@ -21,26 +22,35 @@ interface InventoryCardProps {
   masteryLevel: number;
   selected: boolean;
   onSelect: () => void;
+  manualMode?: boolean;
+  dragging?: boolean;
+  dragTarget?: "before" | "after";
+  onDragStart?: (event: DragEvent<HTMLButtonElement>) => void;
+  onDragOver?: (event: DragEvent<HTMLButtonElement>) => void;
+  onDrop?: (event: DragEvent<HTMLButtonElement>) => void;
+  onDragEnd?: () => void;
 }
 
-export function InventoryCard({ entry, masteryLevel, selected, onSelect }: InventoryCardProps) {
+export function InventoryCard({ entry, masteryLevel, selected, onSelect, manualMode = false, dragging = false, dragTarget, onDragStart, onDragOver, onDrop, onDragEnd }: InventoryCardProps) {
   const presentation = entry.resolved ? buildItemPresentation(entry.resolved, { equipped: entry.equipped }) : buildStackableItemPresentation(entry.definition, entry.quantity);
-  const tooltip = entry.resolved ? buildPlayerItemInstanceTooltip(entry.resolved, { equipped: entry.equipped, masteryLevel }) : buildItemTooltip(entry.definition, { quantity: entry.quantity, masteryLevel });
+  const tooltip = entry.resolved ? buildPlayerItemInstanceTooltip(entry.resolved, { equipped: entry.equipped, equippedSlot: entry.equippedSlot, masteryLevel }) : buildItemTooltip(entry.definition, { quantity: entry.quantity, masteryLevel });
   const instance = entry.resolved?.instance;
   const upgradeLevel = instance?.upgradeLevel ?? 0;
   const quality = instance?.quality ?? 0;
-  const equippedSlot = entry.equippedSlot as EquipmentSlotId | undefined;
+  const equippedSlot = entry.equippedSlot;
   const masteryLocked = Boolean(entry.definition.equipmentSlotKind && (entry.definition.requiredMasteryLevel ?? 0) > masteryLevel && !entry.equipped);
   const lockLabel = masteryLocked ? `Requires Mastery ${entry.definition.requiredMasteryLevel}; Current Mastery ${masteryLevel}` : undefined;
-  return <GameTooltip content={tooltip}><button type="button" className={`inventory-card rarity-${entry.definition.rarity} ${selected ? "is-selected" : ""}`} onClick={onSelect} data-debug-kind="inventory-item" data-debug-target-id={entry.instanceId ?? entry.definition.id} data-debug-item-id={entry.definition.id} data-debug-instance-id={entry.instanceId} data-debug-label={entry.definition.name} aria-label={`Select ${entry.definition.name}${entry.equipped ? ", equipped" : ""}`}>
+  const affixLabel = instance && instance.affixes.length > 0 ? presentation.modifiers.filter((modifier) => modifier.source === "affix").map((modifier) => `${modifier.label} ${modifier.value}`).join("; ") : undefined;
+  return <GameTooltip content={tooltip}><button type="button" className={`inventory-card rarity-${entry.definition.rarity} ${selected ? "is-selected" : ""} ${manualMode ? "is-manual" : ""} ${dragging ? "is-dragging" : ""} ${dragTarget ? `drag-target-${dragTarget}` : ""}`} draggable={manualMode} onClick={onSelect} onDragStart={(event) => onDragStart?.(event)} onDragOver={onDragOver} onDrop={onDrop} onDragEnd={onDragEnd} data-debug-kind="inventory-item" data-debug-target-id={entry.instanceId ?? entry.definition.id} data-debug-item-id={entry.definition.id} data-debug-instance-id={entry.instanceId} data-debug-label={entry.definition.name} aria-label={`Select ${entry.definition.name}${entry.equipped ? ", equipped" : ""}`}>
     <div className="inventory-card-art">
       <PlaceholderArt icon={entry.definition.icon} size="medium" variant={entry.definition.rarity === "rare" ? "gold" : entry.definition.rarity === "uncommon" ? "blue" : "muted"} />
+      {manualMode && <span className="item-drag-grip" aria-hidden="true"><GripVertical size={12} /></span>}
       {!entry.instanceId && <span className="item-quantity">×{formatCompactQuantity(entry.quantity)}</span>}
-      {entry.equipped && <span className="item-equipped-marker" title={`Equipped${equippedSlot ? ` · ${getEquipmentSlotDefinition(equippedSlot).label}` : ""}`} aria-label="Equipped">✓</span>}
+      {entry.equipped && <span className="item-equipped-marker" title={`Equipped${equippedSlot ? ` · ${getEquipmentSlotDefinition(equippedSlot).label}` : ""}`} aria-label={`Equipped${equippedSlot ? ` · ${getEquipmentSlotDefinition(equippedSlot).label}` : ""}`}>✓</span>}
       {masteryLocked && <span className="item-mastery-lock" title={lockLabel} aria-label={lockLabel}><Lock size={11} aria-hidden="true" /></span>}
-      {upgradeLevel > 0 && <em className="item-upgrade-marker" title={`Upgrade +${upgradeLevel}`}>+{upgradeLevel}</em>}
-      {quality > 0 && <em className="item-quality-marker" title={`Quality ${quality}%`}>Q{quality}</em>}
-      {instance && instance.affixes.length > 0 && <span className="item-affix-marker" data-debug-kind="item-affix-marker" data-debug-instance-id={instance.id} title="Has item modifiers" aria-label={`${instance.affixes.length} Affixes`}><Sparkles size={11} aria-hidden="true" /></span>}
+      {upgradeLevel > 0 && <em className="item-upgrade-marker" title={`Upgrade Level +${upgradeLevel}`} aria-label={`Upgrade Level +${upgradeLevel}`}>+{upgradeLevel}</em>}
+      {quality > 0 && <em className="item-quality-marker" title={`Quality ${quality}%`} aria-label={`Quality ${quality}%`}>Q{quality}</em>}
+      {instance && instance.affixes.length > 0 && <span className="item-affix-marker" data-debug-kind="item-affix-marker" data-debug-instance-id={instance.id} title={affixLabel ?? `${instance.affixes.length} Affixes`} aria-label={affixLabel ?? `${instance.affixes.length} Affixes`}><Sparkles size={11} aria-hidden="true" /></span>}
     </div>
     <div className="inventory-card-footer"><strong title={presentation.name}>{presentation.name}</strong></div>
   </button></GameTooltip>;

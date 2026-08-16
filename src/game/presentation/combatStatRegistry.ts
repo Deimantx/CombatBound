@@ -3,6 +3,7 @@ import type { CombatStatKey } from "../combat/combatTypes";
 export type CombatStatRegistryCategory = "offense" | "defense" | "resources" | "resistances";
 export type CombatStatRegistryFormat = "number" | "percent" | "seconds" | "per-second";
 export type CombatStatSummaryGroup = CombatStatRegistryCategory;
+export type EquipmentComparisonGroup = CombatStatRegistryCategory | "utility";
 
 export interface CombatStatRegistryEntry {
   id: CombatStatKey;
@@ -12,6 +13,11 @@ export interface CombatStatRegistryEntry {
   comparisonDirection: "higher-is-better" | "lower-is-better" | "neutral";
   description: string;
   summaryGroup?: CombatStatSummaryGroup;
+  equipmentComparison?: {
+    visible: boolean;
+    priority: number;
+    group: EquipmentComparisonGroup;
+  };
 }
 
 const stat = (
@@ -25,7 +31,7 @@ const stat = (
 ): CombatStatRegistryEntry => ({ id, label, category, format, description, comparisonDirection, summaryGroup });
 
 /** The canonical metadata catalogue for every runtime CombatStatKey. */
-export const COMBAT_STAT_REGISTRY: readonly CombatStatRegistryEntry[] = [
+const rawCombatStatRegistry: readonly CombatStatRegistryEntry[] = [
   stat("maxLife", "Maximum Life", "resources", "number", "Maximum Life before damage defeats the combatant.", "higher-is-better", "resources"),
   stat("lifeRegenFlat", "Life Regen", "resources", "per-second", "Life recovered per second.", "higher-is-better", "resources"),
   stat("lifeRegenPercent", "Life Regen Percent", "resources", "percent", "Percentage Life recovery per second."),
@@ -81,6 +87,16 @@ export const COMBAT_STAT_REGISTRY: readonly CombatStatRegistryEntry[] = [
   stat("nonDamagingAilmentEffectReduction", "Non-Damaging Ailment Effect Reduction", "defense", "percent", "Reduces the magnitude of snapshot Non-Damaging Ailments."),
   stat("increasedDamageTaken", "Increased Damage Taken", "defense", "percent", "Multiplier applied to damage after normal mitigation.", "lower-is-better"),
 ];
+
+const hiddenEquipmentComparisonStats = new Set<CombatStatKey>(["attackDamage", "attackDamageMin", "attackDamageMax", "baseAttackTime", "attacksPerSecond", "castTime", "castsPerSecond"]);
+export const COMBAT_STAT_REGISTRY: readonly CombatStatRegistryEntry[] = rawCombatStatRegistry.map((entry, priority) => ({
+  ...entry,
+  equipmentComparison: {
+    visible: !hiddenEquipmentComparisonStats.has(entry.id),
+    priority,
+    group: entry.category,
+  },
+}));
 
 export const COMBAT_STAT_DEFINITION_BY_ID = Object.fromEntries(
   COMBAT_STAT_REGISTRY.map((entry) => [entry.id, entry]),

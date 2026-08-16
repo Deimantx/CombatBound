@@ -15,11 +15,11 @@ function Harness() {
 describe('CombatBound tooltip toolkit', () => {
   beforeEach(() => vi.useFakeTimers())
 
-  it('opens after 500ms and cancels before the delay', () => {
+  it('opens after 250ms and cancels before the delay', () => {
     render(<Harness />)
     const trigger = screen.getByRole('button', { name: 'Accuracy trigger' })
     fireEvent.mouseEnter(trigger)
-    act(() => vi.advanceTimersByTime(499))
+    act(() => vi.advanceTimersByTime(249))
     expect(screen.queryByRole('tooltip')).not.toBeInTheDocument()
     fireEvent.mouseLeave(trigger)
     act(() => vi.advanceTimersByTime(10))
@@ -30,12 +30,13 @@ describe('CombatBound tooltip toolkit', () => {
     render(<Harness />)
     const trigger = screen.getByRole('button', { name: 'Accuracy trigger' })
     fireEvent.mouseEnter(trigger)
-    act(() => vi.advanceTimersByTime(500))
+    act(() => vi.advanceTimersByTime(250))
     const tooltip = screen.getByRole('tooltip')
     expect(tooltip).toHaveTextContent('Accuracy')
     expect(tooltip.closest('.panel')).toBeNull()
     expect(document.body.contains(tooltip)).toBe(true)
     fireEvent.mouseLeave(trigger)
+    act(() => vi.advanceTimersByTime(100))
     expect(screen.queryByRole('tooltip')).not.toBeInTheDocument()
   })
 

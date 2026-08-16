@@ -82,13 +82,18 @@
 
 /* CombatBound informational tooltips */
 .game-tooltip-layer { pointer-events: none; position: fixed; z-index: 90; }
-.game-tooltip { background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius-sm); box-shadow: var(--shadow); color: var(--text); min-width: 220px; max-width: min(360px, calc(100vw - 20px)); overflow: hidden; width: 310px; animation: tooltip-enter .1s ease-out both; user-select: none; }
+.game-tooltip { background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius-sm); box-shadow: var(--shadow); color: var(--text); min-width: 220px; max-width: min(380px, calc(100vw - 20px)); max-height: min(78vh, 720px); overflow-x: hidden; overflow-y: auto; pointer-events: auto; width: 320px; animation: tooltip-enter .1s ease-out both; user-select: text; }
 .game-tooltip-header { align-items: center; background: var(--panel-2); border-bottom: 1px solid var(--line-soft); display: flex; gap: 9px; padding: 10px 11px; }
 .game-tooltip-header .placeholder-art { height: 30px; width: 30px; }
 .game-tooltip-title { color: var(--text-strong); display: block; font-size: 12px; line-height: 1.2; }
 .game-tooltip-subtitle { color: var(--muted); display: block; font-size: 9px; margin-top: 3px; }
 .game-tooltip-description { color: var(--text-dim); font-size: 10px; line-height: 1.45; padding: 10px 11px 0; }
 .game-tooltip-rows { padding: 8px 11px; }
+.game-tooltip-section + .game-tooltip-section { border-top: 1px solid var(--line-soft); }
+.game-tooltip-section > h4 { color: var(--muted); font-size: 8px; letter-spacing: .08em; margin: 0; padding: 9px 11px 0; text-transform: uppercase; }
+.game-tooltip-section .game-tooltip-rows { padding-top: 5px; }
+.game-tooltip-section-notes { color: var(--muted); font-size: 9px; padding: 0 11px 8px; }
+.game-tooltip-section-notes p { margin: 3px 0 0; }
 .game-tooltip-row { align-items: baseline; border-bottom: 1px solid rgba(53,64,71,.35); display: flex; gap: 12px; justify-content: space-between; padding: 4px 0; }
 .game-tooltip-row:last-child { border-bottom: 0; }
 .game-tooltip-label { color: var(--muted); font-size: 10px; }

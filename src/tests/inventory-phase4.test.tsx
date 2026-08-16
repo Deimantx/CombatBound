@@ -42,8 +42,10 @@ describe("Phase 4 inventory and debug UI", () => {
 
   it("keeps normal inventory copy cards compact and free of implementation copy", () => {
     render(<TooltipProvider><InventoryScreen /></TooltipProvider>);
-    expect(screen.getByText("Carried Items")).toBeInTheDocument();
-    expect(screen.getByText("Item Details")).toBeInTheDocument();
+    expect(document.querySelector('[data-ui-panel="inventoryBank"]')).toBeInTheDocument();
+    expect(document.querySelector('[data-ui-panel="inventoryDetails"]')).toBeInTheDocument();
+    expect(screen.queryByText("Carried Items")).not.toBeInTheDocument();
+    expect(screen.queryByText("Item Details")).not.toBeInTheDocument();
     expect(document.body).not.toHaveTextContent(/Inventory toolbar|Human-readable item inspection|Each gear copy is shown separately/);
     const card = document.querySelector('[data-debug-kind="inventory-item"]') as HTMLElement;
     expect(card).toBeInTheDocument();
@@ -94,7 +96,8 @@ describe("Phase 4 inventory and debug UI", () => {
     const sort = screen.getByRole("combobox", { name: "Sort inventory" }) as HTMLSelectElement;
     expect(Array.from(sort.options).map((option) => option.text)).not.toContain("Quantity");
     fireEvent.click(screen.getByRole("tab", { name: "Materials" }));
-    expect(Array.from(sort.options).map((option) => option.text)).toEqual(["Name", "Rarity", "Quantity"]);
+    expect(Array.from(sort.options).map((option) => option.text)).toEqual(["Manual", "Name", "Rarity", "Quantity"]);
+    fireEvent.click(screen.getByRole("tab", { name: "All" }));
     fireEvent.change(screen.getByRole("textbox", { name: "Search inventory" }), { target: { value: "Training" } });
     expect(screen.getByText(/results/)).toBeInTheDocument();
   });

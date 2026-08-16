@@ -1,4 +1,5 @@
 export type InventorySortKey =
+  | "manual"
   | "name"
   | "rarity"
   | "mastery"
@@ -34,11 +35,13 @@ const categoryRank: Record<string, number> = { weapon: 1, armor: 1, accessory: 1
 
 export function inventorySortOptions(category: "all" | "equipment" | "consumables" | "materials" | "currency"): readonly InventorySortOption[] {
   if (category === "all") return [
+    { value: "manual", label: "Manual" },
     { value: "name", label: "Name" },
     { value: "rarity", label: "Rarity" },
     { value: "category", label: "Category" },
   ];
   if (category === "equipment") return [
+    { value: "manual", label: "Manual" },
     { value: "name", label: "Name" },
     { value: "rarity", label: "Rarity" },
     { value: "mastery", label: "Mastery Level" },
@@ -48,6 +51,7 @@ export function inventorySortOptions(category: "all" | "equipment" | "consumable
     { value: "acquired", label: "Acquired" },
   ];
   return [
+    { value: "manual", label: "Manual" },
     { value: "name", label: "Name" },
     { value: "rarity", label: "Rarity" },
     { value: "quantity", label: "Quantity" },
@@ -55,15 +59,11 @@ export function inventorySortOptions(category: "all" | "equipment" | "consumable
 }
 
 export function defaultInventorySortDirection(key: InventorySortKey): InventorySortDirection {
-  return key === "name" || key === "category" ? "asc" : "desc";
-}
-
-export function normalizeInventorySortState(sort: InventorySortState | InventorySortKey = { key: "name", direction: "asc" }): InventorySortState {
-  if (typeof sort === "object") return sort;
-  return { key: sort, direction: defaultInventorySortDirection(sort) };
+  return key === "manual" || key === "name" || key === "category" ? "asc" : "desc";
 }
 
 export function sortDirectionLabel(state: InventorySortState) {
+  if (state.key === "manual") return "Manual order";
   if (state.key === "name") return state.direction === "asc" ? "A→Z" : "Z→A";
   if (state.key === "acquired") return state.direction === "desc" ? "Newest first" : "Oldest first";
   if (state.key === "category") return state.direction === "asc" ? "A→Z" : "Z→A";
@@ -71,6 +71,7 @@ export function sortDirectionLabel(state: InventorySortState) {
 }
 
 function primaryValue(entry: SortableInventoryEntry, key: InventorySortKey): number | string {
+  if (key === "manual") return 0;
   if (key === "name") return entry.definition.name;
   if (key === "category") return categoryRank[entry.definition.category] ?? 99;
   if (key === "rarity") return rarityRank[entry.definition.rarity];
@@ -88,8 +89,7 @@ function compareValues(left: number | string, right: number | string) {
     : Number(left) - Number(right);
 }
 
-export function sortInventoryEntries<T extends SortableInventoryEntry>(entries: readonly T[], sort: InventorySortState | InventorySortKey = { key: "name", direction: "asc" }) {
-  const state = normalizeInventorySortState(sort);
+export function sortInventoryEntries<T extends SortableInventoryEntry>(entries: readonly T[], state: InventorySortState = { key: "name", direction: "asc" }) {
   return [...entries].sort((left, right) => {
     const primary = compareValues(primaryValue(left, state.key), primaryValue(right, state.key));
     if (primary) return state.direction === "asc" ? primary : -primary;

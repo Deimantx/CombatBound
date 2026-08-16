@@ -47,6 +47,7 @@ describe("Developer Toolkit V9.4", () => {
     fireEvent.focus(target);
     expect(screen.getByText("FOCUS TOOLTIP")).toBeInTheDocument();
     fireEvent.blur(target);
+    act(() => vi.advanceTimersByTime(100));
     expect(screen.queryByText("FOCUS TOOLTIP")).not.toBeInTheDocument();
 
     fireEvent.mouseEnter(target, { clientX: 10, clientY: 20 });

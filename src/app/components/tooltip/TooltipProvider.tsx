@@ -3,12 +3,14 @@ import { TooltipPortal } from './TooltipPortal'
 import type { PointerPosition } from './tooltipPosition'
 import type { TooltipInteraction, TooltipModel } from './tooltipTypes'
 
-export const TOOLTIP_OPEN_DELAY_MS = 500
+export const TOOLTIP_OPEN_DELAY_MS = 250
+export const TOOLTIP_HIDE_DELAY_MS = 100
 
 interface TooltipContextValue {
   showTooltip: (model: TooltipModel, anchor: HTMLElement, options?: { immediate?: boolean; interaction?: TooltipInteraction; pointer?: PointerPosition }) => void
   updateTooltipPointer: (anchor: HTMLElement, pointer: PointerPosition) => void
   hideTooltip: (anchor?: HTMLElement) => void
+  cancelTooltipHide: () => void
 }
 
 const TooltipContext = createContext<TooltipContextValue | null>(null)
@@ -21,9 +23,18 @@ export function TooltipProvider({ children }: { children: ReactNode }) {
   const suppressed = () => Boolean(document.querySelector('.ui-inspector-overlay'))
   const hideTooltip = useCallback((anchor?: HTMLElement) => {
     clearTimer()
-    if (!anchor || pointerRef.current?.anchor === anchor) pointerRef.current = null
-    setActive((current) => !anchor || current?.anchor === anchor ? null : current)
+    if (!anchor) {
+      pointerRef.current = null
+      setActive(null)
+      return
+    }
+    timer.current = window.setTimeout(() => {
+      if (pointerRef.current?.anchor === anchor) pointerRef.current = null
+      setActive((current) => current?.anchor === anchor ? null : current)
+      timer.current = undefined
+    }, TOOLTIP_HIDE_DELAY_MS)
   }, [clearTimer])
+  const cancelTooltipHide = useCallback(() => clearTimer(), [clearTimer])
   const updateTooltipPointer = useCallback((anchor: HTMLElement, pointer: PointerPosition) => {
     pointerRef.current = { anchor, pointer }
   }, [])
@@ -57,7 +68,7 @@ export function TooltipProvider({ children }: { children: ReactNode }) {
     observer.observe(document.body, { childList: true, subtree: true })
     return () => observer.disconnect()
   }, [active, hideTooltip])
-  const value = useMemo(() => ({ showTooltip, updateTooltipPointer, hideTooltip }), [showTooltip, updateTooltipPointer, hideTooltip])
+  const value = useMemo(() => ({ showTooltip, updateTooltipPointer, hideTooltip, cancelTooltipHide }), [showTooltip, updateTooltipPointer, hideTooltip, cancelTooltipHide])
   return <TooltipContext.Provider value={value}>{children}{active?.visible && <TooltipPortal model={active.model} anchor={active.anchor} interaction={active.interaction} pointer={active.pointer} />}</TooltipContext.Provider>
 }
 

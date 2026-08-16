@@ -17,7 +17,7 @@ import type { ProgressionState } from "../progression/progressionTypes";
 import { calculateEffectiveSpell, type SpellCalculationContext } from "../progression/spellProgression";
 import { techniqueDefinitions } from "../data/techniques";
 import { proficiencyById } from "../data/proficiencies";
-import { equipmentSlotKindLabel } from "../equipment/equipmentTypes";
+import { equipmentSlotKindLabel, getEquipmentSlotDefinition, type EquipmentSlotId } from "../equipment/equipmentTypes";
 import { weaponSkillById } from "../data/weaponSkills";
 import {
   formatCombatStatValue,
@@ -87,8 +87,7 @@ export function buildItemTooltip(
     value: row.value,
     tone: row.tone,
   }));
-  const rows = statRows.slice(0, 6);
-  if (statRows.length > 6) rows.push({ label: "More stats", value: `+${statRows.length - 6} more stats`, tone: "default" as TooltipTone });
+  const rows = statRows;
   if (item.requiredMasteryLevel !== undefined) {
     rows.unshift({
       label: "Mastery",
@@ -126,6 +125,7 @@ export function buildItemInstanceTooltip(
   resolved: ResolvedItemInstance,
   options: {
     equipped?: boolean;
+    equippedSlot?: EquipmentSlotId;
     defensiveContext?: DefensiveEquipmentContext;
     masteryLevel?: number;
   } = {},
@@ -159,6 +159,7 @@ export function buildPlayerItemInstanceTooltip(
   resolved: ResolvedItemInstance,
   options: {
     equipped?: boolean;
+    equippedSlot?: EquipmentSlotId;
     defensiveContext?: DefensiveEquipmentContext;
     masteryLevel?: number;
   } = {},
@@ -166,14 +167,26 @@ export function buildPlayerItemInstanceTooltip(
   const presentation = buildItemPresentation(resolved, { equipped: options.equipped });
   const tooltip = buildItemTooltip({ ...resolved.definition, stats: resolved.effectiveStats }, options);
   const modifierRows = presentation.modifiers.map((modifier) => ({
-    label: modifier.source === "affix" && modifier.tier ? `${modifier.label} (T${modifier.tier})` : modifier.label,
+    label: `${modifier.kind ? `${modifier.kind === "prefix" ? "Prefix" : "Suffix"} · ` : ""}${modifier.label}${modifier.source === "affix" && modifier.tier ? ` (T${modifier.tier})` : ""}`,
     value: modifier.value,
     tone: modifier.tone ?? "default",
   }));
+  const equippedRows: TooltipRow[] = options.equipped
+    ? [{ label: "Equipped", value: options.equippedSlot ? getEquipmentSlotDefinition(options.equippedSlot).label : resolved.definition.equipmentSlotKind ? equipmentSlotKindLabel(resolved.definition.equipmentSlotKind) : "Currently equipped", tone: "green" }]
+    : [];
+  const allBaseRows = [...equippedRows, ...(tooltip.rows ?? [])];
+  const requirementRows = allBaseRows.filter((row) => row.label === "Mastery" || row.label === "Availability" || row.label === "Equipped");
+  const statRows = allBaseRows.filter((row) => !requirementRows.includes(row));
+  const sections = [
+    requirementRows.length ? { id: "requirements", title: "Requirements / State", rows: requirementRows } : undefined,
+    modifierRows.length ? { id: "modifications", title: "Modifications", rows: modifierRows } : undefined,
+    statRows.length ? { id: "item-stats", title: "Item Stats", rows: statRows } : undefined,
+  ].filter((section): section is NonNullable<typeof section> => Boolean(section));
   return {
     ...tooltip,
     id: "item-player-tooltip",
-    rows: [...modifierRows, ...(tooltip.rows ?? [])],
+    rows: allBaseRows,
+    sections,
     notes: tooltip.notes,
   };
 }

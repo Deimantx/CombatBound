@@ -3,18 +3,16 @@ import { equippedSlotForInstance } from "../equipment/equipmentRules";
 import { EQUIPMENT_SLOT_DEFINITIONS } from "../equipment/equipmentTypes";
 import { getItemInstances, getStackableQuantity } from "../items/itemOwnership";
 import { resolveItemInstance } from "../items/itemResolver";
-import { itemInstanceSequence, type InventoryEntryRef, type ResolvedItemInstance } from "../items/itemTypes";
+import { itemInstanceSequence, type InventoryEntryRef, type ItemInstance, type ResolvedItemInstance } from "../items/itemTypes";
 import { buildItemInstanceSearchText, itemInstanceIsModified } from "../presentation/itemPresentation";
 import { buildItemTaxonomy, getDefinitionIdsUnderNode, itemDefinitionSearchText } from "../presentation/itemTaxonomy";
 import type { EquipmentSlotDefinition, EquipmentSlotId, EquipmentState } from "../equipment/equipmentTypes";
 import type { InventoryState } from "./inventoryTypes";
-import { normalizeInventorySortState, sortInventoryEntries, type InventorySortKey, type InventorySortState } from "./inventorySorting";
+import { sortInventoryEntries, type InventorySortState } from "./inventorySorting";
 
 export type { InventorySortDirection, InventorySortKey, InventorySortState } from "./inventorySorting";
 
 export type InventoryPrimaryCategory = "all" | "equipment" | "consumables" | "materials" | "currency";
-/** Legacy string form remains accepted by the selector while screens use InventorySortState. */
-export type InventorySort = InventorySortKey;
 export type InventoryEquipmentStateFilter = "all" | "equipped" | "unequipped";
 export type InventoryModificationFilter = "all" | "modified" | "unmodified" | "affixed" | "upgraded" | "quality";
 export type InventoryAvailabilityFilter = "all" | "usable" | "locked";
@@ -35,7 +33,7 @@ export interface InventoryViewEntry {
   instanceId?: string;
   resolved?: ResolvedItemInstance;
   equipped: boolean;
-  equippedSlot?: string;
+  equippedSlot?: EquipmentSlotId;
   modified: boolean;
   sequence: number;
   searchText: string;
@@ -86,6 +84,10 @@ export interface InventorySelectionContext {
   masteryLevel?: number;
 }
 
+export interface InventorySelectionOptions extends InventorySelectionContext {
+  instanceSource?: (inventory: InventoryState) => readonly ItemInstance[];
+}
+
 function matchesAvailability(definition: ItemDefinition, required: InventoryAvailabilityFilter, masteryLevel: number) {
   if (required === "all") return true;
   const hasValidEquipmentTarget = Boolean(definition.equipmentSlotKind)
@@ -100,15 +102,13 @@ export function selectInventoryEntries(
   equipment: EquipmentState,
   filters: InventoryFilters = defaultInventoryFilters,
   query = "",
-  sort: InventorySortState | InventorySort = { key: "name", direction: "asc" },
-  instanceSourceOrContext: ((source: InventoryState) => ReturnType<typeof getItemInstances>) | InventorySelectionContext = getItemInstances,
-  context: InventorySelectionContext = { masteryLevel: 0 },
+  sort: InventorySortState = { key: "name", direction: "asc" },
+  options: InventorySelectionOptions = {},
 ) {
   const normalizedQuery = query.trim().toLowerCase();
   const availability = filters.availability ?? "all";
-  const instanceSource = typeof instanceSourceOrContext === "function" ? instanceSourceOrContext : getItemInstances;
-  const selectionContext = typeof instanceSourceOrContext === "function" ? context : instanceSourceOrContext;
-  const masteryLevel = selectionContext.masteryLevel ?? 0;
+  const instanceSource = options.instanceSource ?? getItemInstances;
+  const masteryLevel = options.masteryLevel ?? 0;
   const equippedIds = new Set(Object.values(equipment.slots).filter((value): value is string => Boolean(value)));
   const instancesByDefinition = new Map<string, ReturnType<typeof getItemInstances>[number][]>();
   for (const instance of instanceSource(inventory)) {
@@ -145,9 +145,8 @@ export function selectInventoryEntries(
       entries.push({ ref: { kind: "instance", instanceId: instance.id }, definition, quantity: 1, instanceId: instance.id, resolved, equipped, equippedSlot: equippedSlotForInstance(equipment, instance.id), modified, sequence: itemInstanceSequence(instance.id), searchText });
     }
   }
-  const normalizedSort = normalizeInventorySortState(sort);
-  const effectiveSort = normalizedSort.key === "acquired" && filters.category !== "equipment"
+  const effectiveSort = sort.key === "acquired" && filters.category !== "equipment" || sort.key === "manual"
     ? { key: "name" as const, direction: "asc" as const }
-    : normalizedSort;
+    : sort;
   return sortInventoryEntries(entries, effectiveSort);
 }
