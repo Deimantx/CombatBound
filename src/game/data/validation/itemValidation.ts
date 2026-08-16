@@ -24,13 +24,34 @@ export function validateItemDefinition(item: ItemDefinition): ItemValidationResu
   if (item.equipmentSlotKind && item.stats === undefined)
     warnings.push(`${item.id}: equipment item has no stats`);
 
+  const hasDamageMin = stats.baseDamageMin !== undefined;
+  const hasDamageMax = stats.baseDamageMax !== undefined;
+  if (item.category === "weapon") {
+    if (!hasDamageMin || !hasDamageMax)
+      errors.push(`${item.id}: weapons must define both baseDamageMin and baseDamageMax`);
+    if (stats.baseAttackTime === undefined || !(stats.baseAttackTime > 0))
+      errors.push(`${item.id}: weapons must define a positive baseAttackTime`);
+  } else if (hasDamageMin || hasDamageMax || stats.baseAttackTime !== undefined) {
+    errors.push(`${item.id}: non-weapons cannot define weapon base damage or baseAttackTime`);
+  }
+  if (hasDamageMin !== hasDamageMax)
+    errors.push(`${item.id}: baseDamageMin and baseDamageMax must be authored together`);
+  if (hasDamageMin && (!Number.isFinite(stats.baseDamageMin) || stats.baseDamageMin! < 0))
+    errors.push(`${item.id}: baseDamageMin must be finite and non-negative`);
+  if (hasDamageMax && (!Number.isFinite(stats.baseDamageMax) || stats.baseDamageMax! < 0))
+    errors.push(`${item.id}: baseDamageMax must be finite and non-negative`);
+  if (hasDamageMin && hasDamageMax && Number.isFinite(stats.baseDamageMin) && Number.isFinite(stats.baseDamageMax) && stats.baseDamageMin! > stats.baseDamageMax!)
+    errors.push(`${item.id}: baseDamageMin must be less than or equal to baseDamageMax`);
+  if (item.category === "weapon" && stats.baseDamageMin === 0 && stats.baseDamageMax === 0)
+    warnings.push(`${item.id}: zero-zero weapon damage should be intentional`);
+
   for (const [key, value] of Object.entries(stats)) {
     if (!isKnownCombatItemStatKey(key) || !COMBAT_ITEM_STAT_KEYS.includes(key as (typeof COMBAT_ITEM_STAT_KEYS)[number])) {
       errors.push(`${item.id}: unknown item stat key ${key}`);
       continue;
     }
     if (!Number.isFinite(value)) errors.push(`${item.id}: ${key} must be finite`);
-    if (key === "baseAttackTime" && (!(value > 0) || item.equipmentSlotKind !== "weapon"))
+    if (key === "baseAttackTime" && (!(value > 0) || item.category !== "weapon"))
       errors.push(`${item.id}: baseAttackTime must be positive and belong to a weapon`);
     if (percentageStatKeys.has(key) && (value < -1 || value > 1))
       errors.push(`${item.id}: ${key} must be between -1 and 1 for prototype percentage semantics`);

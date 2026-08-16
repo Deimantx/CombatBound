@@ -26,6 +26,7 @@ import {
 import { canEquipItemToSlot, getAvailableItemCopies, validateEquipmentChange } from "../../../game/equipment/equipmentRules";
 import {
   formatCombatStatValue,
+  formatDamageRange,
   formatItemStats,
   labelForStatKey,
 } from "../../../game/presentation/statFormatting";
@@ -95,6 +96,7 @@ export function EquipmentScreen({ embedded = false }: { embedded?: boolean } = {
     game.combat.stance,
     game.combat.techniques,
   );
+  const attackDamageRange = formatDamageRange(stats.attackDamageMin ?? stats.attackDamage, stats.attackDamageMax ?? stats.attackDamage);
   const equippedProficiency = getEquippedWeaponProficiency(game.equipment);
   const equippedProficiencyName = equippedProficiency
     ? proficiencyById[equippedProficiency]?.name
@@ -143,7 +145,7 @@ export function EquipmentScreen({ embedded = false }: { embedded?: boolean } = {
                 {equippedProficiencyName
                   ? `${equippedProficiencyName} · Lv ${equippedProficiencyLevel}`
                   : "No weapon proficiency"}{" "}
-                · {stats.attackDamage} Attack Damage
+                · Physical Damage {attackDamageRange}
               </p>
             </div>
             <span className="loadout-rating">
@@ -249,7 +251,7 @@ export function EquipmentScreen({ embedded = false }: { embedded?: boolean } = {
           </div>
           <div className="loadout-total">
             <span>Total combat rating</span>
-            <strong>{stats.attackDamage}</strong>
+            <strong>{attackDamageRange}</strong>
             <span className="text-green">
               {combatLocked ? "Locked during combat" : "Ready to equip"}
             </span>
@@ -265,7 +267,7 @@ export function EquipmentScreen({ embedded = false }: { embedded?: boolean } = {
           className="equipment-stats"
           summary={
             <>
-              <span>Attack Damage {stats.attackDamage}</span>
+              <span>Attack Damage {attackDamageRange}</span>
               <span>Armour {Math.round(stats.armour ?? 0)}</span>
               <span>Accuracy Rating {Math.round(stats.accuracyRating ?? 0)}</span>
               <span>Max Life {Math.round(stats.maxLife ?? 0)}</span>
@@ -279,6 +281,7 @@ export function EquipmentScreen({ embedded = false }: { embedded?: boolean } = {
                 group={group}
                 valueFor={valueFor}
                 detailFor={detailFor}
+                rangeFor={(key) => key === "attackDamage" ? { min: stats.attackDamageMin ?? stats.attackDamage, max: stats.attackDamageMax ?? stats.attackDamage } : undefined}
               />
             ))}
           </div>
@@ -356,10 +359,12 @@ export function EquipmentStatGroup({
   group,
   valueFor,
   detailFor,
+  rangeFor,
 }: {
   group: (typeof statGroups)[number];
   valueFor: (key: string) => number;
   detailFor: (key: string) => string | undefined;
+  rangeFor?: (key: string) => { min: number; max: number } | undefined;
 }) {
   const [open, setOpen] = useState(
     () => readEquipmentStatGroupState()[group.id] ?? true,
@@ -409,11 +414,12 @@ export function EquipmentStatGroup({
         >
           {group.keys.map((key) => {
             const value = valueFor(key);
+            const range = rangeFor?.(key);
             return (
               <StatLine
                 key={key}
                 label={labelForStatKey(key)}
-                value={formatCombatStatValue(key, value)}
+                value={range ? formatDamageRange(range.min, range.max) : formatCombatStatValue(key, value)}
                 detail={detailFor(key)}
                 accent={
                   key.endsWith("Resistance")
@@ -428,6 +434,7 @@ export function EquipmentStatGroup({
                 }
                 statKey={key}
                 statValue={value}
+                statRange={range}
               />
             );
           })}

@@ -11,6 +11,7 @@ import { EffectChips } from "./EffectChips";
 import { buildStatTooltip } from "../../../../game/presentation/tooltipBuilders";
 import {
   formatResistance,
+  formatDamageRange,
   labelForStatKey,
 } from "../../../../game/presentation/statFormatting";
 import { calculateHunterCombatStats } from "../../../../game/equipment/derivedStats";
@@ -47,6 +48,10 @@ export function SelectedEnemyPanel({
   const enemyStats = selectedEnemy
     ? getEnemyEffectiveCombatStats(selectedEnemy)
     : undefined;
+  const enemyDamageRange = {
+    min: enemyStats?.attackDamageMin ?? definition?.baseAttackDamageMin ?? 0,
+    max: enemyStats?.attackDamageMax ?? definition?.baseAttackDamageMax ?? 0,
+  };
 
   return (
     <Panel
@@ -111,12 +116,11 @@ export function SelectedEnemyPanel({
           {matchup && <MatchupSummary matchup={matchup} />}
           <div className="target-stat-grid">
             <TargetStat
-              label="Attack Power"
-              value={Math.round(
-                enemyStats?.attackDamage ?? ((definition.baseAttackDamageMin + definition.baseAttackDamageMax) / 2),
-              )}
+              label="Attack Damage"
+              value={formatDamageRange(enemyDamageRange.min, enemyDamageRange.max)}
               statKey="attackDamage"
               statValue={enemyStats?.attackDamage ?? ((definition.baseAttackDamageMin + definition.baseAttackDamageMax) / 2)}
+              statRange={enemyDamageRange}
             />
             <TargetStat
               label="Accuracy Rating"
@@ -253,11 +257,13 @@ function TargetStat({
   value,
   statKey,
   statValue,
+  statRange,
 }: {
   label: string;
   value: string | number;
   statKey?: string;
   statValue?: number;
+  statRange?: { min: number; max: number };
 }) {
   const content = (
     <div data-debug-stat-key={statKey}>
@@ -266,7 +272,7 @@ function TargetStat({
     </div>
   );
   return statKey && statValue !== undefined ? (
-    <GameTooltip content={buildStatTooltip(statKey, statValue)}>
+    <GameTooltip content={buildStatTooltip(statKey, statValue, undefined, statRange)}>
       {content}
     </GameTooltip>
   ) : (

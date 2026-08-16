@@ -4,6 +4,7 @@ import { itemDefinitions } from "../data/items";
 import { perkById, proficiencyPerkDefinitions } from "../data/proficiencyPerks";
 import { spellDefinitions } from "../data/spells";
 import { weaponSkillDefinitions } from "../data/weaponSkills";
+import { proficiencyDefinitions } from "../data/proficiencies";
 import { combatLocationDefinitions } from "../data/world/combatLocations";
 import { validateEquipmentDefinitions } from "../data/validation/itemValidation";
 import type { CombatStatKey, DamageType } from "../combat/combatTypes";
@@ -39,6 +40,14 @@ function visitEffectReferences(value: unknown, callback: (effectId: string) => v
   }
 }
 
+function visitStrings(value: unknown, callback: (text: string) => void) {
+  if (typeof value === "string") { callback(value); return; }
+  if (!value || typeof value !== "object") return;
+  for (const child of Object.values(value)) visitStrings(child, callback);
+}
+
+const deprecatedLiveContentPattern = /\bmystic\b|mystic[-_ ]?(?:damage|resistance|magic)|nature[-_ ]?(?:damage|resistance|magic)|\b(?:nature|light)\s+(?:damage|resistance)|light-magic|warding-magic/i;
+
 export function validateContent(): ContentValidationIssue[] {
   const issues: ContentValidationIssue[] = [];
   const ids = (values: Array<{ id: string }>, entityType: string) => {
@@ -60,6 +69,10 @@ export function validateContent(): ContentValidationIssue[] {
     for (const reference of [...(spell.applyEffects ?? []).map((entry) => entry.effectId), ...(spell.barrierEffectId ? [spell.barrierEffectId] : [])]) if (!effectById[reference]) issues.push({ severity: "error", code: "MISSING_EFFECT_REFERENCE", entityType: "spell", entityId: spell.id, message: `Missing effect reference: ${reference}` });
   }
   for (const location of combatLocationDefinitions) for (const entry of location.enemyPool) if (!enemyById[entry.enemyId]) issues.push({ severity: "error", code: "MISSING_ENEMY_REFERENCE", entityType: "location", entityId: location.id, message: `Missing enemy in location: ${entry.enemyId}` });
+  for (const enemy of enemyDefinitions) {
+    if (!Number.isFinite(enemy.baseAttackDamageMin) || !Number.isFinite(enemy.baseAttackDamageMax) || enemy.baseAttackDamageMin > enemy.baseAttackDamageMax)
+      addIssue(issues, "enemy", enemy.id, "INVALID_DAMAGE_RANGE", "Enemy baseAttackDamageMin/baseAttackDamageMax must be finite and ordered.");
+  }
   for (const enemy of enemyDefinitions) visitEffectReferences(enemy.actions, (effectId) => { if (!effectById[effectId]) addIssue(issues, "enemy", enemy.id, "MISSING_EFFECT_REFERENCE", `Missing effect reference: ${effectId}`); });
   for (const enemy of enemyDefinitions) visitEffectReferences(enemy.phases, (effectId) => { if (!effectById[effectId]) addIssue(issues, "enemy", enemy.id, "MISSING_EFFECT_REFERENCE", `Missing effect reference: ${effectId}`); });
   for (const skill of weaponSkillDefinitions) visitEffectReferences(skill, (effectId) => { if (!effectById[effectId]) addIssue(issues, "weaponSkill", skill.id, "MISSING_EFFECT_REFERENCE", `Missing effect reference: ${effectId}`); });
@@ -67,8 +80,12 @@ export function validateContent(): ContentValidationIssue[] {
 
   for (const spell of spellDefinitions) {
     if (spell.damageType && !canonicalDamageTypes.has(spell.damageType)) addIssue(issues, "spell", spell.id, "NON_CANONICAL_DAMAGE_TYPE", `Unknown damage type: ${spell.damageType}`);
-    if (!Number.isFinite(spell.baseDamageMin) || !Number.isFinite(spell.baseDamageMax) || spell.baseDamageMin > spell.baseDamageMax)
+    if (!Number.isFinite(spell.baseDamageMin) || !Number.isFinite(spell.baseDamageMax) || spell.baseDamageMin < 0 || spell.baseDamageMax < 0 || spell.baseDamageMin > spell.baseDamageMax)
       addIssue(issues, "spell", spell.id, "INVALID_DAMAGE_RANGE", "Spell baseDamageMin/baseDamageMax must be finite and ordered.");
+    if (spell.baseDamageMin > 0 && !spell.damageType)
+      addIssue(issues, "spell", spell.id, "MISSING_DAMAGE_TYPE", "Damaging spells must declare a canonical damage type.");
+    if (spell.baseDamageMin === 0 && spell.baseDamageMax !== 0)
+      addIssue(issues, "spell", spell.id, "INVALID_DAMAGE_RANGE", "A zero-minimum utility spell must also have a zero maximum.");
   }
 
   for (const effect of effectDefinitions) {
@@ -78,6 +95,10 @@ export function validateContent(): ContentValidationIssue[] {
     for (const modifier of effect.resistanceModifiers ?? []) {
       if (!canonicalDamageTypes.has(modifier.damageType)) addIssue(issues, "effect", effect.id, "NON_CANONICAL_DAMAGE_TYPE", `Unknown resistance damage type: ${modifier.damageType}`);
       if (effect.tags.includes("exposure") && modifier.damageType === "physical") addIssue(issues, "effect", effect.id, "INVALID_EXPOSURE_TYPE", "Exposure cannot target Physical resistance.");
+    }
+    for (const modifier of effect.outgoingDamageModifiers ?? []) {
+      if (modifier.damageType && !canonicalDamageTypes.has(modifier.damageType)) addIssue(issues, "effect", effect.id, "NON_CANONICAL_DAMAGE_TYPE", `Unknown outgoing damage type: ${modifier.damageType}`);
+      if (!Number.isFinite(modifier.value)) addIssue(issues, "effect", effect.id, "INVALID_DAMAGE_MODIFIER", "Outgoing damage modifiers must be finite.");
     }
     const periodicDamage = effect.periodic?.operation.type === "damage" ? effect.periodic.operation.damageType : undefined;
     if (periodicDamage && !canonicalDamageTypes.has(periodicDamage)) addIssue(issues, "effect", effect.id, "NON_CANONICAL_DAMAGE_TYPE", `Unknown periodic damage type: ${periodicDamage}`);
@@ -100,6 +121,26 @@ export function validateContent(): ContentValidationIssue[] {
         if (!effectById[effectId]) addIssue(issues, "perk", perk.id, "MISSING_EFFECT_REFERENCE", `Missing effect reference: ${effectId}`);
       });
     }
+  }
+  const liveContent: Array<{ entityType: string; values: unknown[] }> = [
+    { entityType: "item", values: itemDefinitions },
+    { entityType: "spell", values: spellDefinitions },
+    { entityType: "effect", values: effectDefinitions },
+    { entityType: "weaponSkill", values: weaponSkillDefinitions },
+    { entityType: "enemy", values: enemyDefinitions },
+    { entityType: "perk", values: proficiencyPerkDefinitions },
+    { entityType: "proficiency", values: proficiencyDefinitions },
+    { entityType: "location", values: combatLocationDefinitions },
+  ];
+  for (const group of liveContent) for (const value of group.values) {
+    const entityId = value && typeof value === "object" && "id" in value && typeof value.id === "string" ? value.id : "catalogue";
+    let reported = false;
+    visitStrings(value, (text) => {
+      if (!reported && deprecatedLiveContentPattern.test(text)) {
+        reported = true;
+        addIssue(issues, group.entityType, entityId, "DEPRECATED_LIVE_CONTENT", `Removed combat taxonomy appears in live content: ${text}`);
+      }
+    });
   }
   return issues;
 }

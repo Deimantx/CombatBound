@@ -1,10 +1,13 @@
 import type { CombatStatDisplayKey } from '../data/combatGlossary'
+import type { DamageType } from '../combat/combatTypes'
 import { combatStatReferenceById } from '../data/combatGlossary'
 import type { ItemDefinition } from '../data/items'
 import { COMBAT_STAT_DEFINITION_BY_ID, COMBAT_STAT_REGISTRY } from './combatStatRegistry'
 
 export type ItemStatKey = NonNullable<ItemDefinition['stats']> extends infer Stats ? keyof Stats & string : string
 export interface FormattedStat { label: string; value: string; tone?: 'default' | 'gold' | 'blue' | 'green' | 'red' }
+export interface DamageRange { min: number; max: number }
+export const DAMAGE_TYPE_LABELS: Record<DamageType, string> = { physical: 'Physical', fire: 'Fire', cold: 'Cold', lightning: 'Lightning', chaos: 'Chaos' }
 
 export type CombatStatFormatMode = 'normal' | 'comparison'
 export type CombatStatValueKind = 'flat' | 'percent' | 'seconds' | 'per-second'
@@ -55,6 +58,14 @@ export function formatCompactDecimal(value: number, maxDecimals = 2) {
   if (!Number.isFinite(value)) return String(value)
   return new Intl.NumberFormat('en-US', { minimumFractionDigits: 0, maximumFractionDigits: maxDecimals }).format(value)
 }
+
+export function formatDamageRange(min: number, max: number, maxDecimals = 1) {
+  const low = formatCompactDecimal(min, maxDecimals)
+  const high = formatCompactDecimal(max, maxDecimals)
+  return min === max ? low : `${low}–${high}`
+}
+
+export function damageTypeLabel(damageType: DamageType) { return DAMAGE_TYPE_LABELS[damageType] }
 
 function formatFixedDecimal(value: number, decimals: number) {
   if (!Number.isFinite(value)) return String(value)
@@ -128,6 +139,20 @@ export function formatItemStat(key: string, value: number): FormattedStat {
   return { label: labelForStatKey(key), value: formattedValue(spec, value, 'normal', true), tone: 'gold' }
 }
 
-export function formatItemStats(stats: NonNullable<ItemDefinition['stats']>) { return Object.entries(stats).map(([key, value]) => formatItemStat(key, value)) }
+export function formatItemStats(stats: NonNullable<ItemDefinition['stats']>) {
+  const rows: FormattedStat[] = []
+  const hasMin = typeof stats.baseDamageMin === 'number' && Number.isFinite(stats.baseDamageMin)
+  const hasMax = typeof stats.baseDamageMax === 'number' && Number.isFinite(stats.baseDamageMax)
+  if (hasMin || hasMax) {
+    const min = hasMin ? stats.baseDamageMin! : stats.baseDamageMax!
+    const max = hasMax ? stats.baseDamageMax! : stats.baseDamageMin!
+    rows.push({ label: 'Physical Damage', value: formatDamageRange(min, max), tone: 'gold' })
+  }
+  for (const [key, value] of Object.entries(stats)) {
+    if (key === 'baseDamageMin' || key === 'baseDamageMax') continue
+    rows.push(formatItemStat(key, value))
+  }
+  return rows
+}
 
 export function statReferenceFor(key: string) { return combatStatReferenceById[key as CombatStatDisplayKey] }

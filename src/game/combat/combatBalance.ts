@@ -32,8 +32,6 @@ export const combatBalance = {
   baseMaxMana: 100, // [TUNING] Prototype value.
   baseManaRegen: 1, // [TUNING] Prototype value.
   baseStaminaDrain: 3, // [TUNING] Prototype value.
-  baseDamageVarianceMin: 0.9, // [TUNING] Prototype value.
-  baseDamageVarianceMax: 1.1, // [TUNING] Prototype value.
   minHitChance: 0.05,
   maxHitChance: 1,
   maxCritChance: 1, // [TUNING] Prototype value.

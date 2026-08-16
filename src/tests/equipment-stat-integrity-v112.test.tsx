@@ -12,6 +12,7 @@ import { buildItemTooltip } from "../game/presentation/tooltipBuilders";
 import {
   formatCombatStatDelta,
   formatCombatStatValue,
+  formatDamageRange,
   formatItemStat,
 } from "../game/presentation/statFormatting";
 import { useGameStore } from "../state/gameStore";
@@ -113,10 +114,17 @@ describe("Equipment stat integrity V11.2", () => {
     for (const item of prototypeEquipmentDefinitions) {
       const tooltip = buildItemTooltip(item);
       for (const [key, value] of Object.entries(item.stats ?? {})) {
+        if (key === "baseDamageMin" || key === "baseDamageMax") continue;
         const expected = formatItemStat(key, value);
         expect(tooltip.rows).toEqual(expect.arrayContaining([
           expect.objectContaining({ label: expected.label, value: expected.value }),
         ]));
+      }
+      if (item.stats?.baseDamageMin !== undefined || item.stats?.baseDamageMax !== undefined) {
+        expect(tooltip.rows).toEqual(expect.arrayContaining([
+          expect.objectContaining({ label: "Physical Damage", value: formatDamageRange(item.stats.baseDamageMin ?? item.stats.baseDamageMax!, item.stats.baseDamageMax ?? item.stats.baseDamageMin!) }),
+        ]));
+        expect(tooltip.rows?.some((row) => row.label === "Base Damage Min" || row.label === "Base Damage Max")).toBe(false);
       }
     }
   });

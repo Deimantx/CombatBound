@@ -1,5 +1,6 @@
 import { normalizeCombatStats } from '../combat/combatStats'
 import type { CombatStats, ResistanceDamageType, StatModifier } from '../combat/combatTypes'
+import { applyCombatStatModifiers } from '../combat/combatStats'
 import { perkById } from '../data/proficiencyPerks'
 import { proficiencyById } from '../data/proficiencies'
 import { calculateAvailablePerkPoints } from './masteryProgression'
@@ -201,33 +202,7 @@ export function getConditionalProficiencyStatModifiers(
 }
 
 export function applyProficiencyStatModifiers(baseStats: CombatStats, modifiers: StatModifier[]) {
-  const next = normalizeCombatStats({ ...baseStats } as CombatStats & Record<string, unknown>)
-  const flat: Partial<Record<keyof CombatStats, number>> = {}
-  const increased: Partial<Record<keyof CombatStats, number>> = {}
-  const reduced: Partial<Record<keyof CombatStats, number>> = {}
-  const more: Partial<Record<keyof CombatStats, number>> = {}
-  const less: Partial<Record<keyof CombatStats, number>> = {}
-  const overrides: Partial<Record<keyof CombatStats, number>> = {}
-  const minimums: Partial<Record<keyof CombatStats, number>> = {}
-  const maximums: Partial<Record<keyof CombatStats, number>> = {}
-  for (const modifier of modifiers) {
-    const stat = modifier.stat as keyof CombatStats
-    if (modifier.operation === 'flat') flat[stat] = (flat[stat] ?? 0) + modifier.value
-    if (modifier.operation === 'increased') increased[stat] = (increased[stat] ?? 0) + modifier.value
-    if (modifier.operation === 'reduced') reduced[stat] = (reduced[stat] ?? 0) + modifier.value
-    if (modifier.operation === 'more') more[stat] = (more[stat] ?? 1) * (1 + modifier.value)
-    if (modifier.operation === 'less') less[stat] = (less[stat] ?? 1) * (1 - modifier.value)
-    if (modifier.operation === 'override') overrides[stat] = modifier.value
-    if (modifier.operation === 'set-minimum') minimums[stat] = Math.max(minimums[stat] ?? -Infinity, modifier.value)
-    if (modifier.operation === 'set-maximum') maximums[stat] = Math.min(maximums[stat] ?? Infinity, modifier.value)
-  }
-  for (const stat of new Set(Object.keys(flat).concat(Object.keys(increased), Object.keys(reduced), Object.keys(more), Object.keys(less), Object.keys(overrides), Object.keys(minimums), Object.keys(maximums))) as Set<keyof CombatStats>) {
-    if (typeof next[stat] !== 'number') continue
-    const base = next[stat] as number
-    const calculated = (base + (flat[stat] ?? 0)) * (1 + (increased[stat] ?? 0) - (reduced[stat] ?? 0)) * (more[stat] ?? 1) * (less[stat] ?? 1)
-    next[stat] = Math.min(maximums[stat] ?? Infinity, Math.max(minimums[stat] ?? -Infinity, overrides[stat] ?? calculated)) as never
-  }
-  return normalizeCombatStats(next as CombatStats & Record<string, unknown>)
+  return applyCombatStatModifiers(normalizeCombatStats({ ...baseStats } as CombatStats & Record<string, unknown>), modifiers)
 }
 
 export function getWeaponHitEffectHooks(progression: ProgressionState, proficiencyId: WeaponProficiencyId | null, definitions: Record<string, ProficiencyPerkDefinition> = perkById) {

@@ -48,7 +48,7 @@ export const COMBAT_STAT_REGISTRY: readonly CombatStatRegistryEntry[] = [
   stat("attacksPerSecond", "Attacks per Second", "offense", "number", "Derived automatic Attack rate.", "higher-is-better", "offense"),
   stat("castTime", "Cast Time", "offense", "seconds", "Derived Spell cast time.", "lower-is-better"),
   stat("castsPerSecond", "Casts per Second", "offense", "number", "Derived Spell cast rate.", "higher-is-better"),
-  stat("attackDamage", "Attack Damage", "offense", "number", "Average damage used by weapon Attacks.", "higher-is-better", "offense"),
+  stat("attackDamage", "Attack Damage", "offense", "number", "Average of the effective minimum and maximum weapon Attack damage.", "higher-is-better", "offense"),
   stat("attackDamageMin", "Minimum Attack Damage", "offense", "number", "Minimum damage in the weapon Attack range."),
   stat("attackDamageMax", "Maximum Attack Damage", "offense", "number", "Maximum damage in the weapon Attack range."),
   stat("baseCritChance", "Base Critical Chance", "offense", "percent", "Intrinsic base chance for an eligible hit to Critically Strike.", "higher-is-better", "offense"),

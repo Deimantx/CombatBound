@@ -22,6 +22,7 @@ import {
   applyEffectById,
   absorbDamage,
   advanceEffectTimers,
+  calculateOutgoingEffectDamageMultiplier,
   cleanseEffects,
   updateActiveEffects,
 } from "./combatEffects";
@@ -1242,12 +1243,16 @@ function damageEnemy(
     weaponAttack.armorPenetrationPercent;
   const armorPenetrationFlat =
     magicAttack?.spellArmorPenetrationFlat ?? weaponAttack.armorPenetrationFlat;
+  const outgoingEffectMultiplier = packet.source.kind === "player"
+    ? calculateOutgoingEffectDamageMultiplier(game.combat.playerEffects, context.effects, packet)
+    : 1;
   let resolution = resolveDamage(
     {
       ...packet,
       damageMultiplier:
         (packet.damageMultiplier ?? 1) *
         conditionalMultiplier *
+        outgoingEffectMultiplier *
         (isSecondary ? secondaryFraction : 1),
       armorPenetrationPercent,
       armorPenetrationFlat,

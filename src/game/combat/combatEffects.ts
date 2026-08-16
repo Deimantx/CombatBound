@@ -1,6 +1,6 @@
 import { clamp } from './combatBalance'
 import { nextCombatRandom } from './combatRng'
-import type { CombatRng, CombatStats, CombatState, CombatantRef } from './combatTypes'
+import type { CombatRng, CombatStats, CombatState, CombatantRef, DamageComponent } from './combatTypes'
 import type { ActiveEffectInstance, EffectDefinition, EffectTick, EffectTimerResult } from './combatEffectTypes'
 import type { ProgressionCredit } from '../progression/progressionTypes'
 
@@ -31,6 +31,23 @@ const aliveRef = (combat: CombatState, target: CombatantRef) => target.kind === 
 export function getActiveEffects(combat: CombatState, target: CombatantRef): ActiveEffectInstance[] {
   if (target.kind === 'player') return combat.playerEffects
   return combat.enemies.find((enemy) => enemy.instanceId === target.instanceId)?.effects ?? []
+}
+
+export function calculateOutgoingEffectDamageMultiplier(effects: ActiveEffectInstance[], definitions: Record<string, EffectDefinition>, packet: Pick<DamageComponent, 'sourceKind' | 'deliveryKind' | 'damageType'>) {
+  let increased = 0
+  let more = 1
+  for (const instance of effects) {
+    const magnitude = instance.snapshot?.effectMagnitudeMultiplier ?? 1
+    const stacks = Math.max(1, instance.stacks)
+    for (const modifier of definitions[instance.effectId]?.outgoingDamageModifiers ?? []) {
+      if (modifier.sourceKind && modifier.sourceKind !== packet.sourceKind) continue
+      if (modifier.deliveryKind && modifier.deliveryKind !== packet.deliveryKind) continue
+      if (modifier.damageType && modifier.damageType !== packet.damageType) continue
+      if (modifier.operation === 'increased') increased += modifier.value * stacks * magnitude
+      else more *= Math.pow(1 + modifier.value * magnitude, stacks)
+    }
+  }
+  return Math.max(0, (1 + increased) * more)
 }
 
 export function updateActiveEffects(combat: CombatState, target: CombatantRef, effects: ActiveEffectInstance[]): CombatState {

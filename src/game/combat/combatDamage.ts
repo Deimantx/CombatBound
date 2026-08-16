@@ -52,10 +52,12 @@ export function rollDamage(component: DamageComponent & { baseDamage?: number },
   const sourceMin = component.scaling?.sourceStat === "attackDamage" ? attacker.attackDamageMin ?? attacker.attackDamage : 0;
   const sourceMax = component.scaling?.sourceStat === "attackDamage" ? attacker.attackDamageMax ?? attacker.attackDamage : 0;
   const flatBase = safe(component.baseDamage, 0) + safe(component.flatDamage, 0);
-  const base = Math.max(0, (flatBase + attacker.attackDamage * sourceMultiplier) * multiplier);
-  const hasExplicitSourceRange = component.scaling?.sourceStat === "attackDamage" && sourceMin !== sourceMax;
-  const minimum = component.minDamage !== undefined ? component.minDamage * multiplier : hasExplicitSourceRange ? Math.max(0, (flatBase + sourceMin * sourceMultiplier) * multiplier) : base * (component.minMultiplier ?? combatBalance.baseDamageVarianceMin);
-  const maximum = component.maxDamage !== undefined ? component.maxDamage * multiplier : hasExplicitSourceRange ? Math.max(minimum, (flatBase + sourceMax * sourceMultiplier) * multiplier) : base * (component.maxMultiplier ?? combatBalance.baseDamageVarianceMax);
+  const hasAttackSource = component.scaling?.sourceStat === "attackDamage";
+  const fallbackBase = flatBase + (hasAttackSource ? attacker.attackDamage * sourceMultiplier : 0);
+  const authoredMinimum = component.minDamage ?? (hasAttackSource ? flatBase + sourceMin * sourceMultiplier : fallbackBase);
+  const authoredMaximum = component.maxDamage ?? (hasAttackSource ? flatBase + sourceMax * sourceMultiplier : authoredMinimum);
+  const minimum = Math.max(0, authoredMinimum) * Math.max(0, component.minMultiplier ?? 1) * multiplier;
+  const maximum = Math.max(0, authoredMaximum) * Math.max(0, component.maxMultiplier ?? 1) * multiplier;
   const low = Math.min(minimum, maximum);
   return Math.max(0, low + (Math.max(minimum, maximum) - low) * clamp(nextCombatRandom(rng, "damage"), 0, 1));
 }
@@ -109,5 +111,5 @@ function emptyDamageResolution(outcome: DefensiveOutcome): DamageResolution {
 }
 
 export function componentFromAttack(damageType: DamageComponent["damageType"], multiplier = 1, canCrit = true): DamageComponent {
-  return { sourceKind: "attack", deliveryKind: "hit", damageType, scaling: { sourceStat: "attackDamage", multiplier }, minMultiplier: combatBalance.baseDamageVarianceMin, maxMultiplier: combatBalance.baseDamageVarianceMax, canCrit };
+  return { sourceKind: "attack", deliveryKind: "hit", damageType, scaling: { sourceStat: "attackDamage", multiplier }, canCrit };
 }

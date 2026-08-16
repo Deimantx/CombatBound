@@ -19,11 +19,14 @@ import { ARMOR_TRAINING_SLOT_IDS, equipmentSlotKindLabel } from "../equipment/eq
 import { weaponSkillById } from "../data/weaponSkills";
 import {
   formatCombatStatValue,
+  formatCompactDecimal,
+  formatDamageRange,
   formatItemStats,
   formatPercent,
   formatSeconds,
   formatSignedNumber,
   labelForStatKey,
+  type DamageRange,
 } from "./statFormatting";
 import type { DefensiveEquipmentContext } from "../equipment/defensiveEquipment";
 import type { TooltipModel, TooltipRow, TooltipTone } from "./tooltipTypes";
@@ -169,17 +172,17 @@ export function buildStatTooltip(
   key: string,
   value: number,
   detail?: string,
+  range?: DamageRange,
 ): TooltipModel {
   const reference =
     combatStatReferenceById[key as keyof typeof combatStatReferenceById];
   const label = reference?.label ?? labelForStatKey(key);
-  const rows: TooltipRow[] = [
-    {
-      label: "Current value",
-      value: formatCombatStatValue(key, value),
-      tone: toneForValue(value),
-    },
-  ];
+  const rows: TooltipRow[] = key === "attackDamage" && range
+    ? [
+        { label: "Current range", value: formatDamageRange(range.min, range.max), tone: "gold" },
+        { label: "Average", value: formatCombatStatValue(key, value), tone: toneForValue(value) },
+      ]
+    : [{ label: "Current value", value: formatCombatStatValue(key, value), tone: toneForValue(value) }];
   if (detail) rows.push({ label: "Context", value: detail, tone: "blue" });
   return {
     id: `stat.${key}`,
@@ -190,7 +193,9 @@ export function buildStatTooltip(
     tone:
       reference?.category === "resistances" ? toneForValue(value) : "default",
     description:
-      reference?.fullDescription ?? `Current combat value for ${label}.`,
+      key === "attackDamage" && range
+        ? "A weapon hit rolls a base value within this range before Critical Strikes and defensive mitigation."
+        : reference?.fullDescription ?? `Current combat value for ${label}.`,
     rows,
     notes: [reference?.formula, ...(reference?.notes ?? [])].filter(
       (note): note is string => Boolean(note),
@@ -279,6 +284,16 @@ export function buildEffectTooltip(
           : `${modifier.value > 0 ? "+" : ""}${Math.round(modifier.value * 100)}%`,
       tone: toneForValue(modifier.value),
     });
+  for (const modifier of definition.outgoingDamageModifiers ?? []) {
+    const damageLabel = modifier.damageType ? damageLabels[modifier.damageType] : "All";
+    const sourceLabel = modifier.sourceKind === "spell" ? " Spell" : modifier.sourceKind === "attack" ? " Attack" : "";
+    const value = modifier.value * instance.stacks;
+    rows.push({
+      label: `${damageLabel}${sourceLabel} Damage`,
+      value: modifier.operation === "increased" ? formatPercent(value, true) : `×${formatCompactDecimal(1 + value, 2)}`,
+      tone: toneForValue(value),
+    });
+  }
   if (definition.kind === "barrier")
     rows.push({
       label: "Remaining absorption",
@@ -321,6 +336,11 @@ export function buildEffectDefinitionTooltip(definition: EffectDefinition): Tool
   }
   if (definition.barrierAmount !== undefined) rows.push({ label: "Barrier amount", value: `${definition.barrierAmount}`, tone: "blue" });
   for (const modifier of definition.statModifiers ?? []) rows.push({ label: labelForStatKey(modifier.stat), value: modifier.operation === "flat" ? formatSignedNumber(modifier.value) : `${modifier.value > 0 ? "+" : ""}${Math.round(modifier.value * 100)}%`, tone: toneForValue(modifier.value) });
+  for (const modifier of definition.outgoingDamageModifiers ?? []) {
+    const damageLabel = modifier.damageType ? damageLabels[modifier.damageType] : "All";
+    const sourceLabel = modifier.sourceKind === "spell" ? " Spell" : modifier.sourceKind === "attack" ? " Attack" : "";
+    rows.push({ label: `${damageLabel}${sourceLabel} Damage`, value: modifier.operation === "increased" ? formatPercent(modifier.value, true) : `×${formatCompactDecimal(1 + modifier.value, 2)}`, tone: toneForValue(modifier.value) });
+  }
   for (const modifier of definition.resistanceModifiers ?? []) rows.push({ label: `${damageLabels[modifier.damageType]} resistance`, value: modifier.operation === "flat" ? formatSignedNumber(modifier.value) : `${modifier.value > 0 ? "+" : ""}${Math.round(modifier.value * 100)}%`, tone: toneForValue(modifier.value) });
   return {
     id: `effect-definition.${definition.id}`,
@@ -338,7 +358,7 @@ export function buildEnemyDefinitionTooltip(enemy: EnemyDefinition, options: { d
   const rows: TooltipRow[] = [
     { label: "Family", value: enemy.family, tone: "gold" },
     { label: "Max Life", value: `${enemy.maxLife}`, tone: "green" },
-    { label: "Attack Damage", value: `${(enemy.baseAttackDamageMin + enemy.baseAttackDamageMax) / 2}`, tone: "red" },
+    { label: "Attack Damage", value: formatDamageRange(enemy.baseAttackDamageMin, enemy.baseAttackDamageMax), tone: "red" },
     { label: "Accuracy Rating", value: `${enemy.accuracyRating}`, tone: "gold" },
     { label: "Armour", value: `${enemy.armour}`, tone: "blue" },
     { label: "Evasion Rating", value: `${enemy.evasionRating}`, tone: "blue" },
@@ -394,8 +414,8 @@ export function buildSpellTooltip(
   ];
   if (spell.baseDamageMin > 0)
     rows.push({
-      label: "Base damage",
-      value: `${effective.baseDamageMin}${effective.baseDamageMax !== effective.baseDamageMin ? `–${effective.baseDamageMax}` : ""} ${damageLabels[spell.damageType ?? "physical"]}`,
+      label: `${damageLabels[spell.damageType ?? "physical"]} Damage`,
+      value: formatDamageRange(effective.baseDamageMin, effective.baseDamageMax),
       tone: "red",
     });
   if (effective.barrierAmount)

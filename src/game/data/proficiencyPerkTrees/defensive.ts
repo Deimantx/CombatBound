@@ -22,14 +22,20 @@ const branchData: Record<DefensiveId, { name: string; icon: string; root: string
       { name: 'Mana Weaving', icon: 'spark', names: ['Threaded Mana', 'Deep Reservoir', 'Efficient Weave', 'Mana on the Move', 'Sustained Channel', 'Endless Reserve', 'Living Conduit'] },
       { name: 'Evasive Form', icon: 'wind', names: ['Featherstep', 'Reading Motion', 'Measured Footwork', 'Veiled Approach', 'Ghost Step', 'Unseen Angle', 'Untouchable Form'] },
       { name: 'Barrier Ward', icon: 'shield', names: ['Ward Stitching', 'Layered Barrier', 'Resonant Ward', 'Barrier Flow', 'Spellward Skin', 'Lasting Ward', 'Aegis of Air'] },
-      { name: 'Elemental Veil', icon: 'spark', names: ['Softened Elements', 'Fire Veil', 'Water Veil', 'Storm Veil', 'Earth Veil', 'Mystic Veil', 'Prismatic Veil'] },
+      { name: 'Elemental Veil', icon: 'spark', names: ['Softened Elements', 'Flame Veil', 'Frost Veil', 'Storm Veil', 'Chaos Veil', 'Prismatic Guard', 'Elemental Sanctuary'] },
     ],
     effects: (branch, index) => {
       if (branch === 0) return [index === 0 ? stat('manaRegenFlat', .15) : index === 1 ? stat('evasionRating', 1, 2) : index === 2 ? spell('damage', .03, 2) : index === 3 ? spell('cooldown', -.03, 2) : index === 4 ? stat('evasionRating', 5, 3) : index === 5 ? spell('manaCost', -.05, 3) : stat('manaRegenFlat', .5, 4)]
       if (branch === 1) return [index === 0 ? stat('maxMana', 4) : index === 1 ? stat('maxMana', 8, 2) : index === 2 ? spell('manaCost', -.03, 2) : index === 3 ? stat('manaRegenFlat', .2, 2) : index === 4 ? spell('barrierAmount', .05, 3) : index === 5 ? stat('maxMana', 12, 3) : spell('manaCost', -.1, 4)]
       if (branch === 2) return [index === 0 ? stat('evasionRating', 2) : index === 1 ? stat('evasionRating', 5, 2) : index === 2 ? stat('evasionRating', 3, 2) : index === 3 ? stat('evasionRating', 7, 2) : index === 4 ? stat('attackBlockChance', .01, 3) : index === 5 ? stat('evasionRating', 8, 3) : stat('evasionRating', 12, 4)]
       if (branch === 3) return [index === 0 ? spell('barrierAmount', .04, 1) : index === 1 ? spell('barrierAmount', .06, 2) : index === 2 ? stat('lifeRegenFlat', .1, 2) : index === 3 ? spell('barrierDuration', .1, 2) : index === 4 ? resistance('fire', .01, 3) : index === 5 ? stat('maxLife', 10, 3) : spell('barrierAmount', .15, 4)]
-      return [index === 0 ? resistance('fire', .01) : index === 1 ? resistance('cold', .01, 2) : index === 2 ? resistance('lightning', .01, 2) : index === 3 ? resistance('chaos', .015, 2) : index === 4 ? resistance('fire', .015, 3) : index === 5 ? resistance('chaos', .015, 3) : resistance('cold', .03, 4)]
+      if (index === 0) return [resistance('fire', .005), resistance('cold', .005), resistance('lightning', .005)] // [TUNING]
+      if (index === 1) return [resistance('fire', .01)] // [TUNING]
+      if (index === 2) return [resistance('cold', .01, 2)] // [TUNING]
+      if (index === 3) return [resistance('lightning', .01, 2)] // [TUNING]
+      if (index === 4) return [resistance('chaos', .015, 3)] // [TUNING]
+      if (index === 5) return [resistance('fire', .01, 3), resistance('cold', .01, 3), resistance('lightning', .01, 3)] // [TUNING]
+      return [resistance('fire', .015, 4), resistance('cold', .015, 4), resistance('lightning', .015, 4), resistance('chaos', .01, 4)] // [TUNING]
     },
   },
   'medium-armor': {

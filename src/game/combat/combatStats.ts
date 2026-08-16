@@ -1,6 +1,6 @@
 import { combatBalance, clamp } from "./combatBalance";
 import type { ActiveEffectInstance, EffectDefinition } from "./combatEffectTypes";
-import type { CombatStats, DamageType, EnemyDefinition } from "./combatTypes";
+import type { CombatStats, DamageType, EnemyDefinition, StatModifier } from "./combatTypes";
 
 const finite = (value: unknown, fallback = 0) => typeof value === "number" && Number.isFinite(value) ? value : fallback;
 const number = (value: unknown, fallback = 0) => finite(value, fallback);
@@ -11,7 +11,7 @@ export function normalizeCombatStats(input: Partial<CombatStats> & Record<string
   const authoredMin = finite(input.attackDamageMin, NaN);
   const authoredMax = finite(input.attackDamageMax, NaN);
   const rangeAverage = Number.isFinite(authoredMin) && Number.isFinite(authoredMax) ? (authoredMin + authoredMax) / 2 : NaN;
-  const attackDamage = Math.max(0, Number.isFinite(authoredAttackDamage) ? authoredAttackDamage : Number.isFinite(rangeAverage) ? rangeAverage : combatBalance.baseAttackDamage);
+  const attackDamage = Math.max(0, Number.isFinite(rangeAverage) ? rangeAverage : Number.isFinite(authoredAttackDamage) ? authoredAttackDamage : combatBalance.baseAttackDamage);
   const attackDamageMin = Math.max(0, Number.isFinite(authoredMin) ? authoredMin : attackDamage);
   const attackDamageMax = Math.max(attackDamageMin, Number.isFinite(authoredMax) ? authoredMax : attackDamage);
   const maxLife = Math.max(1, number(input.maxLife, combatBalance.baseMaxLife));
@@ -90,6 +90,27 @@ export function normalizeCombatStats(input: Partial<CombatStats> & Record<string
 
 export function calculateEffectiveCombatStats(baseStats: CombatStats, activeEffects: ActiveEffectInstance[], effectDefinitions: Record<string, EffectDefinition>): CombatStats {
   const result = normalizeCombatStats(baseStats as CombatStats & Record<string, unknown>);
+  const modifiers: StatModifier[] = [];
+  for (const instance of activeEffects) {
+    const definition = effectDefinitions[instance.effectId];
+    const magnitude = instance.snapshot?.effectMagnitudeMultiplier ?? 1;
+    for (const modifier of definition?.statModifiers ?? []) {
+      modifiers.push({
+        ...modifier,
+        value: finite(modifier.value) * Math.max(1, instance.stacks) * magnitude,
+      });
+    }
+    for (const modifier of definition?.resistanceModifiers ?? []) {
+      const stat = resistanceStatKey(modifier.damageType);
+      if (stat) modifiers.push({ stat, operation: modifier.operation, value: finite(modifier.value) * Math.max(1, instance.stacks) * magnitude });
+    }
+  }
+  return applyCombatStatModifiers(result, modifiers);
+}
+
+/** Applies canonical modifiers while keeping the weapon range and its average synchronized. */
+export function applyCombatStatModifiers(baseStats: CombatStats, modifiers: StatModifier[]) {
+  const next = normalizeCombatStats(baseStats as CombatStats & Record<string, unknown>);
   const flat: Record<string, number> = {};
   const increased: Record<string, number> = {};
   const reduced: Record<string, number> = {};
@@ -98,34 +119,46 @@ export function calculateEffectiveCombatStats(baseStats: CombatStats, activeEffe
   const overrides: Record<string, number> = {};
   const minimums: Record<string, number> = {};
   const maximums: Record<string, number> = {};
-  for (const instance of activeEffects) {
-    const definition = effectDefinitions[instance.effectId];
-    const magnitude = instance.snapshot?.effectMagnitudeMultiplier ?? 1;
-    for (const modifier of definition?.statModifiers ?? []) {
-      const value = finite(modifier.value) * Math.max(1, instance.stacks) * magnitude;
-      const stat = modifier.stat;
-      if (modifier.operation === "override") overrides[stat] = value;
-      else if (modifier.operation === "set-minimum") minimums[stat] = Math.max(minimums[stat] ?? -Infinity, value);
-      else if (modifier.operation === "set-maximum") maximums[stat] = Math.min(maximums[stat] ?? Infinity, value);
-      else if (modifier.operation === "flat") flat[stat] = (flat[stat] ?? 0) + value;
-      else if (modifier.operation === "increased") increased[stat] = (increased[stat] ?? 0) + value;
-      else if (modifier.operation === "reduced") reduced[stat] = (reduced[stat] ?? 0) + value;
-      else if (modifier.operation === "more") more[stat] = (more[stat] ?? 1) * (1 + value);
-      else if (modifier.operation === "less") less[stat] = (less[stat] ?? 1) * (1 - value);
-    }
-    for (const modifier of definition?.resistanceModifiers ?? []) {
-      const field = `${modifier.damageType}Resistance`;
-      const value = modifier.value * Math.max(1, instance.stacks) * magnitude;
-      flat[field] = (flat[field] ?? 0) + value;
-    }
+  for (const modifier of modifiers) {
+    const stat = modifier.stat;
+    const value = finite(modifier.value);
+    if (modifier.operation === "flat") flat[stat] = (flat[stat] ?? 0) + value;
+    else if (modifier.operation === "increased") increased[stat] = (increased[stat] ?? 0) + value;
+    else if (modifier.operation === "reduced") reduced[stat] = (reduced[stat] ?? 0) + value;
+    else if (modifier.operation === "more") more[stat] = (more[stat] ?? 1) * (1 + value);
+    else if (modifier.operation === "less") less[stat] = (less[stat] ?? 1) * (1 - value);
+    else if (modifier.operation === "override") overrides[stat] = value;
+    else if (modifier.operation === "set-minimum") minimums[stat] = Math.max(minimums[stat] ?? -Infinity, value);
+    else if (modifier.operation === "set-maximum") maximums[stat] = Math.min(maximums[stat] ?? Infinity, value);
   }
-  const keys = Object.keys(flat).concat(Object.keys(increased), Object.keys(reduced), Object.keys(more), Object.keys(less), Object.keys(overrides), Object.keys(minimums), Object.keys(maximums));
-  for (const key of new Set(keys)) {
-    const value = number((result as unknown as Record<string, unknown>)[key]);
-    const calculated = (value + (flat[key] ?? 0)) * (1 + (increased[key] ?? 0) - (reduced[key] ?? 0)) * (more[key] ?? 1) * (less[key] ?? 1);
-    (result as unknown as Record<string, unknown>)[key] = Math.min(maximums[key] ?? Infinity, Math.max(minimums[key] ?? -Infinity, overrides[key] ?? calculated));
+  const applyValue = (value: number, stat: string) => {
+    const calculated = (value + (flat[stat] ?? 0)) * (1 + (increased[stat] ?? 0) - (reduced[stat] ?? 0)) * (more[stat] ?? 1) * (less[stat] ?? 1);
+    return Math.min(maximums[stat] ?? Infinity, Math.max(minimums[stat] ?? -Infinity, overrides[stat] ?? calculated));
+  };
+  const keys = new Set(Object.keys(flat).concat(Object.keys(increased), Object.keys(reduced), Object.keys(more), Object.keys(less), Object.keys(overrides), Object.keys(minimums), Object.keys(maximums)));
+  const hasAttackRangeModifier = keys.has("attackDamage") || keys.has("attackDamageMin") || keys.has("attackDamageMax");
+  if (hasAttackRangeModifier) {
+    const minimum = Math.max(0, applyValue(applyValue(next.attackDamageMin ?? next.attackDamage, "attackDamage"), "attackDamageMin"));
+    const maximum = Math.max(minimum, applyValue(applyValue(next.attackDamageMax ?? next.attackDamage, "attackDamage"), "attackDamageMax"));
+    next.attackDamageMin = minimum;
+    next.attackDamageMax = maximum;
+    next.attackDamage = (minimum + maximum) / 2;
   }
-  return normalizeCombatStats(result as CombatStats & Record<string, unknown>);
+  for (const key of keys) {
+    if (key === "attackDamage" || key === "attackDamageMin" || key === "attackDamageMax") continue;
+    const current = (next as unknown as Record<string, unknown>)[key];
+    if (typeof current !== "number") continue;
+    (next as unknown as Record<string, unknown>)[key] = applyValue(current, key);
+  }
+  return normalizeCombatStats(next as CombatStats & Record<string, unknown>);
+}
+
+function resistanceStatKey(damageType: DamageType): StatModifier["stat"] | null {
+  if (damageType === "fire") return "fireResistance";
+  if (damageType === "cold") return "coldResistance";
+  if (damageType === "lightning") return "lightningResistance";
+  if (damageType === "chaos") return "chaosResistance";
+  return null;
 }
 
 export function calculateEnemyBaseCombatStats(definition: EnemyDefinition): CombatStats {

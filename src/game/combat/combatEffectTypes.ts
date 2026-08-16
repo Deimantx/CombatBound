@@ -1,9 +1,17 @@
-import type { CombatantRef, DamageType, StatModifier } from './combatTypes'
+import type { CombatantRef, DamageDeliveryKind, DamageSourceKind, DamageType, StatModifier } from './combatTypes'
 import type { CombatProficiencyId, ProgressionCredit } from '../progression/progressionTypes'
 
 export type EffectKind = 'buff' | 'debuff' | 'status' | 'barrier'
 export type EffectStackingMode = 'refresh' | 'stack-refresh' | 'extend' | 'replace-stronger' | 'independent'
 export type EffectPersistence = 'enemy-life' | 'between-enemies' | 'hunt'
+
+export interface EffectOutgoingDamageModifier {
+  sourceKind?: DamageSourceKind
+  deliveryKind?: DamageDeliveryKind
+  damageType?: DamageType
+  operation: 'increased' | 'more'
+  value: number
+}
 
 export type PeriodicOperation =
   | { type: 'damage'; damageType: DamageType; baseAmount: number; canCrit?: boolean }
@@ -23,6 +31,7 @@ export interface EffectDefinition {
   }
   statModifiers?: StatModifier[]
   resistanceModifiers?: Array<{ damageType: DamageType; operation: 'flat' | 'more'; value: number }>
+  outgoingDamageModifiers?: EffectOutgoingDamageModifier[]
   periodic?: {
     intervalSeconds: number
     operation: PeriodicOperation
