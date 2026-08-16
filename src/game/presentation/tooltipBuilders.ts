@@ -34,6 +34,7 @@ import type { DefensiveEquipmentContext } from "../equipment/defensiveEquipment"
 import type { TooltipModel, TooltipRow, TooltipTone } from "./tooltipTypes";
 import type { CombatAbilityCatalogueEntry } from "../combatAbilities/combatAbilityTypes";
 import type { CombatAbilityAvailability } from "../combatAbilities/combatAbilitySelectors";
+import { buildItemPresentation } from "./itemPresentation";
 
 const damageLabels: Record<DamageType, string> = {
   physical: "Physical",
@@ -201,6 +202,35 @@ export function buildItemInstanceTooltip(
     }
   }
   return { ...tooltip, id: `item-instance.${resolved.instance.id}`, rows: [...modificationRows, ...(tooltip.rows ?? [])], notes: [...(tooltip.notes ?? []), ...resolved.contributions.map((contribution) => `${contribution.sourceLabel}: ${contribution.target} ${contribution.operation} ${contribution.value}`)] };
+}
+
+/** Player-facing owned-item tooltip. Technical IDs and raw modifier keys stay out of this model. */
+export function buildPlayerItemInstanceTooltip(
+  resolved: ResolvedItemInstance,
+  options: {
+    equipped?: boolean;
+    defensiveContext?: DefensiveEquipmentContext;
+    masteryLevel?: number;
+  } = {},
+): TooltipModel {
+  const presentation = buildItemPresentation(resolved, { equipped: options.equipped });
+  const tooltip = buildItemTooltip({ ...resolved.definition, stats: resolved.effectiveStats }, options);
+  const modifierRows = presentation.modifiers.map((modifier) => ({
+    label: modifier.source === "affix" && modifier.tier ? `${modifier.label} (T${modifier.tier})` : modifier.label,
+    value: modifier.value,
+    tone: modifier.tone ?? "default",
+  }));
+  return {
+    ...tooltip,
+    id: `item.${resolved.definition.id}`,
+    rows: [...modifierRows, ...(tooltip.rows ?? [])],
+    notes: [...(tooltip.notes ?? []), options.equipped ? "Currently equipped" : "Owned item"],
+  };
+}
+
+/** Debug-only tooltip with raw identity and modifier authoring details. */
+export function buildDebugItemInstanceTooltip(resolved: ResolvedItemInstance, options: Parameters<typeof buildItemInstanceTooltip>[1] = {}) {
+  return buildItemInstanceTooltip(resolved, options);
 }
 
 export function buildStatTooltip(

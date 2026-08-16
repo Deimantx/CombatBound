@@ -1,7 +1,7 @@
 import { itemById } from "../data/items";
 import { itemAffixById } from "../data/itemAffixes";
 import { getItemInstance } from "./itemOwnership";
-import { DEFAULT_MAX_PREFIXES, DEFAULT_MAX_SUFFIXES, getItemAffixTier, isAffixApplicable, validateItemAffixInstance } from "./itemInstanceValidation";
+import { DEFAULT_MAX_PREFIXES, DEFAULT_MAX_SUFFIXES, getItemAffixTier, isAffixTierApplicable, validateItemAffixInstance, validateItemInstance } from "./itemInstanceValidation";
 import { rollItemModifier, type ItemMutationFailureReason, type ItemMutationResult, type ItemRollRng } from "./itemModifierTypes";
 import type { ItemInstance, ItemInstanceId } from "./itemTypes";
 import { isValidItemQuality, MAX_ITEM_QUALITY } from "./itemQuality";
@@ -47,7 +47,9 @@ export function addItemAffix(inventory: InventoryState, instanceId: ItemInstance
   const affix = itemAffixById[affixId];
   if (!instance || !definition || definition.inventoryMode !== "instance") return unchanged(inventory, "unknown-instance");
   if (!affix) return unchanged(inventory, "unknown-affix");
-  if (!isAffixApplicable(definition, affix)) return unchanged(inventory, "affix-not-applicable");
+  const tier = getItemAffixTier(affix, tierId);
+  if (!tier) return unchanged(inventory, "unknown-tier");
+  if (!isAffixTierApplicable(definition, affix, tier)) return unchanged(inventory, "affix-not-applicable");
   if (instance.affixes.some((entry) => entry.affixId === affixId)) return unchanged(inventory, "duplicate-affix");
   const kindCount = instance.affixes.filter((entry) => itemAffixById[entry.affixId]?.kind === affix.kind).length;
   if (affix.kind === "prefix" && kindCount >= DEFAULT_MAX_PREFIXES) return unchanged(inventory, "prefix-limit");
@@ -68,7 +70,15 @@ export function rerollItemAffix(inventory: InventoryState, instanceId: ItemInsta
   const instance = getItemInstance(inventory, instanceId);
   const current = instance?.affixes.find((entry) => entry.affixId === affixId);
   if (!instance || !current) return unchanged(inventory, "unknown-affix");
+  const definition = itemById[instance.definitionId];
+  const affix = itemAffixById[affixId];
+  const tier = affix ? getItemAffixTier(affix, current.tierId) : undefined;
+  if (!definition || !affix) return unchanged(inventory, "unknown-affix");
+  if (!tier) return unchanged(inventory, "unknown-tier");
+  if (!isAffixTierApplicable(definition, affix, tier)) return unchanged(inventory, "affix-not-applicable");
   const rolled = rollItemAffix(affixId, current.tierId, rng);
   if (!rolled.affix) return unchanged(inventory, rolled.reason);
-  return withInstance(inventory, instanceId, (next) => ({ ...next, affixes: next.affixes.map((entry) => entry.affixId === affixId ? rolled.affix! : entry) }));
+  const nextInstance = { ...instance, affixes: instance.affixes.map((entry) => entry.affixId === affixId ? rolled.affix! : entry) };
+  if (!validateItemInstance(nextInstance).valid) return unchanged(inventory, "invalid-roll-data");
+  return withInstance(inventory, instanceId, () => nextInstance);
 }

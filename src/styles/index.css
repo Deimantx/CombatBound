@@ -5,4 +5,6 @@
 @import './screens.css';
 @import './ui-inspector.css';
 @import './debug.css';
+@import './debug-items.css';
+@import './inventory.css';
 @import './profile.css';

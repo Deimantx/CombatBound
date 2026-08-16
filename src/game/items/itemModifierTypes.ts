@@ -120,8 +120,15 @@ export function clampRoll(value: number, range: ItemModifierRollRange) {
 export function rollItemModifier(range: ItemModifierRollRange, rng: ItemRollRng) {
   const random = rng.next();
   const normalized = Math.max(0, Math.min(1, Number.isFinite(random) ? random : 0));
+  if (range.valueType === "integer") {
+    const count = Math.max(1, Math.floor(range.max - range.min + 1));
+    const index = Math.min(count - 1, Math.floor(normalized * count));
+    return clampRoll(Math.floor(range.min) + index, range);
+  }
   const raw = range.min + (range.max - range.min) * normalized;
-  if (range.valueType === "integer") return Math.round(raw);
-  if (range.step && range.step > 0) return Math.round(raw / range.step) * range.step;
-  return raw;
+  if (range.step && range.step > 0) {
+    const stepIndex = Math.round((raw - range.min) / range.step);
+    return clampRoll(Number((range.min + stepIndex * range.step).toFixed(12)), range);
+  }
+  return clampRoll(raw, range);
 }

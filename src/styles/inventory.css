@@ -1,0 +1,57 @@
+.inventory-screen .inventory-toolbar .panel-body { gap: 12px; }
+.inventory-toolbar-row { align-items: center; display: flex; gap: 10px; justify-content: space-between; }
+.inventory-toolbar-row .search-field { flex: 1; max-width: 520px; }
+.inventory-toolbar-actions { align-items: center; display: flex; flex-wrap: wrap; gap: 6px; }
+.inventory-filter-popover { background: var(--panel-2); border: 1px solid var(--line); border-radius: 6px; display: flex; flex-wrap: wrap; gap: 8px; padding: 10px; }
+.inventory-filter-popover label { color: var(--muted); display: flex; flex-direction: column; font-size: 9px; gap: 4px; }
+.inventory-filter-popover select, .inventory-sort-select { background: var(--panel-2); border: 1px solid var(--line); border-radius: 4px; color: var(--text); font-size: 10px; min-height: 29px; padding: 0 7px; }
+.inventory-active-filter-count { color: var(--gold); font-size: 9px; }
+.inventory-secondary-tabs { border-top: 1px solid var(--line-soft); padding-top: 10px; }
+.inventory-layout { align-items: start; display: grid; gap: 14px; grid-template-columns: minmax(0, 1.9fr) minmax(300px, 1fr); }
+.inventory-bank, .inventory-details { min-width: 0; }
+.inventory-summary { align-items: center; color: var(--muted); display: flex; flex-wrap: wrap; font-size: 9px; gap: 10px; justify-content: space-between; margin-bottom: 10px; }
+.inventory-summary strong { color: var(--gold); }
+.inventory-grid { display: grid; gap: 8px; grid-template-columns: repeat(auto-fill, minmax(135px, 1fr)); }
+.inventory-card { align-items: center; background: var(--panel-2); border: 1px solid var(--line-soft); border-radius: 8px; color: var(--text); cursor: pointer; display: flex; flex-direction: column; gap: 6px; min-height: 164px; padding: 11px 8px 9px; position: relative; text-align: center; }
+.inventory-card:hover, .inventory-card.is-selected { background: var(--gold-soft); border-color: rgba(213,170,98,.5); }
+.inventory-card strong { font-size: 11px; }
+.inventory-card small { color: var(--muted); font-size: 9px; }
+.inventory-card .item-quantity { background: #111518; border: 1px solid var(--line); border-radius: 4px; color: var(--text-dim); font-size: 10px; padding: 1px 4px; position: absolute; right: 7px; top: 7px; }
+.inventory-card .item-status { color: var(--green); font-size: 8px; letter-spacing: .06em; text-transform: uppercase; }
+.inventory-card.rarity-rare .placeholder-art { box-shadow: inset 0 0 20px rgba(213,170,98,.08); }
+.item-modifier-badges { display: flex; flex-wrap: wrap; gap: 3px; justify-content: center; }
+.item-modifier-badges em { background: rgba(213,170,98,.12); border: 1px solid rgba(213,170,98,.25); border-radius: 3px; color: var(--gold-bright); font-size: 8px; font-style: normal; padding: 2px 4px; }
+.inventory-empty-state { border: 1px dashed var(--line); border-radius: 6px; color: var(--muted); padding: 28px 14px; text-align: center; }
+.inventory-empty-state strong { color: var(--text); display: block; margin-bottom: 5px; }
+.inventory-details .panel-body { min-height: 430px; }
+.detail-item-head { align-items: center; border-bottom: 1px solid var(--line-soft); display: flex; gap: 13px; padding-bottom: 14px; }
+.detail-item-head h3 { margin: 3px 0; }
+.detail-item-head p { color: var(--muted); font-size: 10px; margin: 0; }
+.detail-badge-row, .detail-summary-grid { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 10px; }
+.detail-badge { background: var(--panel-2); border: 1px solid var(--line-soft); border-radius: 4px; color: var(--muted); font-size: 9px; padding: 4px 6px; }
+.detail-badge.is-equipped { border-color: rgba(92,170,124,.4); color: var(--green); }
+.detail-description { color: var(--muted); font-size: 10px; line-height: 1.5; }
+.detail-section { border-top: 1px solid var(--line-soft); margin-top: 13px; padding-top: 11px; }
+.detail-section > header { color: var(--muted); font-size: 9px; letter-spacing: .08em; }
+.detail-modifier-list { display: flex; flex-direction: column; gap: 5px; margin-top: 8px; }
+.detail-modifier-list > div { display: flex; justify-content: space-between; gap: 8px; }
+.detail-modifier-list span { color: var(--muted); font-size: 9px; }
+.detail-modifier-list strong { color: var(--blue-bright); font-size: 9px; }
+.detail-stat-list { display: flex; flex-direction: column; gap: 4px; margin-top: 8px; }
+.detail-stat-list > div { display: flex; justify-content: space-between; }
+.detail-stat-list span { color: var(--muted); font-size: 9px; }
+.detail-stat-list strong { color: var(--gold-bright); font-size: 10px; }
+.detail-action-row { display: flex; flex-wrap: wrap; gap: 7px; margin-top: 15px; }
+.inventory-lock-note { background: rgba(185,93,79,.1); border: 1px solid rgba(185,93,79,.35); border-radius: 5px; color: #ec9b8d; font-size: 9px; margin-top: 10px; padding: 7px; }
+.inventory-equip-targets { background: var(--panel-2); border: 1px solid var(--line-soft); border-radius: 5px; display: flex; flex-wrap: wrap; gap: 5px; margin-top: 8px; padding: 7px; }
+.inventory-equip-targets button { background: #202a2e; border: 1px solid var(--line-soft); border-radius: 4px; color: var(--muted); cursor: pointer; font-size: 9px; padding: 5px 7px; }
+.inventory-equip-targets button:hover { border-color: var(--gold); color: var(--gold-bright); }
+.inventory-comparison { border-top: 1px solid var(--line-soft); margin-top: 14px; padding-top: 12px; }
+.inventory-comparison > header { color: var(--muted); font-size: 9px; letter-spacing: .08em; }
+.inventory-comparison-row { display: flex; justify-content: space-between; padding: 4px 0; }
+.inventory-comparison-row span { color: var(--muted); font-size: 9px; }
+.inventory-comparison-row strong { font-size: 9px; }
+.inventory-comparison-row.is-positive strong { color: var(--green); }
+.inventory-comparison-row.is-negative strong { color: var(--red); }
+@media (max-width: 900px) { .inventory-layout { grid-template-columns: 1fr; } }
+@media (max-width: 600px) { .inventory-toolbar-row { align-items: stretch; flex-direction: column; } .inventory-toolbar-row .search-field { max-width: none; } .inventory-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }

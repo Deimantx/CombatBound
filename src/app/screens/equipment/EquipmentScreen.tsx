@@ -33,7 +33,7 @@ import {
 } from "../../../game/presentation/statFormatting";
 import { combatStatGroups } from "../../../game/presentation/combatStatGroups";
 import { equipmentGroups } from "../../../game/presentation/equipmentGroups";
-import { buildItemInstanceTooltip } from "../../../game/presentation/tooltipBuilders";
+import { buildPlayerItemInstanceTooltip } from "../../../game/presentation/tooltipBuilders";
 import { useGameStore } from "../../../state/gameStore";
 import { CollapsiblePanel } from "../../components/CollapsiblePanel";
 import { GameTooltip } from "../../components/tooltip/GameTooltip";
@@ -170,7 +170,7 @@ export function EquipmentScreen({ embedded = false }: { embedded?: boolean } = {
                         key={slot.id}
                         content={
                           item
-                            ? buildItemInstanceTooltip(item, { equipped: true, defensiveContext })
+                            ? buildPlayerItemInstanceTooltip(item, { equipped: true, defensiveContext })
                             : {
                                 id: `equipment-slot.${slot.id}`,
                                 title: `${slot.label} slot`,
@@ -504,11 +504,11 @@ function CandidateItem({
     </button>
   );
   return locked ? (
-    <GameTooltip content={buildItemInstanceTooltip(item, { equipped, masteryLevel })}>
+    <GameTooltip content={buildPlayerItemInstanceTooltip(item, { equipped, masteryLevel })}>
       <span className="candidate-tooltip-host">{button}</span>
     </GameTooltip>
   ) : (
-    <GameTooltip content={buildItemInstanceTooltip(item, { equipped, masteryLevel })}>
+    <GameTooltip content={buildPlayerItemInstanceTooltip(item, { equipped, masteryLevel })}>
       {button}
     </GameTooltip>
   );

@@ -26,9 +26,10 @@ import type { CombatantRef } from "../combat/combatTypes";
 import type { GameState } from "../gameState";
 import type { DebugEffectTarget, DebugResource } from "./debugTypes";
 import type { ItemInstanceId } from "../items/itemTypes";
+import { createDeterministicItemRng } from "../items/itemRandom";
 
 const debugContext = createCombatContext({ next: () => 0.5 });
-const debugItemRng = { next: () => 0.5 };
+const debugItemRng = createDeterministicItemRng(0x00c0ffee);
 
 function safeInteger(value: number, fallback = 0) {
   return Number.isFinite(value) ? Math.floor(value) : fallback;

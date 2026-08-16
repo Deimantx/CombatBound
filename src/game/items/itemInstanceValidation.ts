@@ -21,17 +21,25 @@ function hasApplicableSlot(definition: ItemDefinition, affix: ItemAffixDefinitio
   return !affix.appliesTo.slotKinds?.length || (definition.equipmentSlotKind !== undefined && affix.appliesTo.slotKinds.includes(definition.equipmentSlotKind));
 }
 
-export function isAffixApplicable(definition: ItemDefinition, affix: ItemAffixDefinition) {
+function modifierAppliesToDefinition(definition: ItemDefinition, modifier: ItemAffixTierDefinition["modifiers"][number]) {
+  if (modifier.scope === "global") return true;
+  if (modifier.target === "physicalDamage") return definition.stats?.baseDamageMin !== undefined && definition.stats.baseDamageMax !== undefined;
+  if (modifier.target === "attackSpeed") return definition.stats?.baseAttackTime !== undefined;
+  if (modifier.target === "criticalChance") return definition.stats?.baseCritChance !== undefined;
+  if (modifier.target === "armour") return definition.stats?.armour !== undefined;
+  if (modifier.target === "evasion") return definition.stats?.evasionRating !== undefined;
+  return false;
+}
+
+export function isAffixTierApplicable(definition: ItemDefinition, affix: ItemAffixDefinition, tier: ItemAffixTierDefinition) {
+  if (!affix.tiers.some((candidate) => candidate.id === tier.id)) return false;
   if (!hasApplicableCategory(definition, affix) || !hasApplicableSlot(definition, affix)) return false;
-  return affix.tiers.some((tier) => tier.modifiers.every((modifier) => {
-    if (modifier.scope === "global") return true;
-    if (modifier.target === "physicalDamage") return definition.stats?.baseDamageMin !== undefined && definition.stats.baseDamageMax !== undefined;
-    if (modifier.target === "attackSpeed") return definition.stats?.baseAttackTime !== undefined;
-    if (modifier.target === "criticalChance") return definition.stats?.baseCritChance !== undefined;
-    if (modifier.target === "armour") return definition.stats?.armour !== undefined;
-    if (modifier.target === "evasion") return definition.stats?.evasionRating !== undefined;
-    return false;
-  }));
+  return tier.modifiers.every((modifier) => modifierAppliesToDefinition(definition, modifier));
+}
+
+/** Catalogue/UI helper: true when at least one authored tier is usable. */
+export function isAffixApplicable(definition: ItemDefinition, affix: ItemAffixDefinition) {
+  return affix.tiers.some((tier) => isAffixTierApplicable(definition, affix, tier));
 }
 
 function validRoll(value: unknown, range: { min: number; max: number; step?: number; valueType: "integer" | "decimal" }) {
@@ -57,10 +65,10 @@ export function validateItemAffixInstance(
   const errors: string[] = [];
   const affix = affixes[affixInstance.affixId];
   if (!affix) return [`Unknown affix ${affixInstance.affixId}`];
-  if (!isAffixApplicable(definition, affix)) errors.push(`Affix ${affix.id} is not applicable to ${definition.id}`);
-  if (existingAffixes.some((entry) => entry.affixId === affix.id)) errors.push(`Duplicate affix ${affix.id}`);
   const tier = findTier(affix, affixInstance.tierId);
   if (!tier) return [...errors, `Unknown tier ${affixInstance.tierId} for ${affix.id}`];
+  if (!isAffixTierApplicable(definition, affix, tier)) errors.push(`Affix ${affix.id} tier ${tier.id} is not applicable to ${definition.id}`);
+  if (existingAffixes.some((entry) => entry.affixId === affix.id)) errors.push(`Duplicate affix ${affix.id}`);
   const modifierIds = new Set(tier.modifiers.map((modifier) => modifier.id));
   for (const key of Object.keys(affixInstance.rolls ?? {})) if (!modifierIds.has(key)) errors.push(`Unknown roll key ${key} for ${affix.id}`);
   for (const modifier of tier.modifiers) {
