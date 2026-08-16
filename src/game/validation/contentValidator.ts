@@ -7,6 +7,8 @@ import { weaponSkillDefinitions } from "../data/weaponSkills";
 import { proficiencyDefinitions } from "../data/proficiencies";
 import { combatLocationDefinitions } from "../data/world/combatLocations";
 import { validateEquipmentDefinitions } from "../data/validation/itemValidation";
+import { itemAffixDefinitions } from "../data/itemAffixes";
+import { validateItemAffixDefinitions } from "../data/validation/itemAffixValidation";
 import type { CombatStatKey, DamageType } from "../combat/combatTypes";
 import { COMBAT_STAT_REGISTRY } from "../presentation/combatStatRegistry";
 
@@ -58,12 +60,14 @@ export function validateContent(): ContentValidationIssue[] {
       if (!value.id || !value.id.trim()) issues.push({ severity: "error", code: "MISSING_ID", entityType, entityId: value.id, message: "Definition has no id." });
     }
   };
-  ids(itemDefinitions, "item"); ids(spellDefinitions, "spell"); ids(effectDefinitions, "effect"); ids(weaponSkillDefinitions, "weaponSkill"); ids(enemyDefinitions, "enemy"); ids(combatLocationDefinitions, "location");
+  ids(itemDefinitions, "item"); ids(itemAffixDefinitions, "itemAffix"); ids(spellDefinitions, "spell"); ids(effectDefinitions, "effect"); ids(weaponSkillDefinitions, "weaponSkill"); ids(enemyDefinitions, "enemy"); ids(combatLocationDefinitions, "location");
   for (const message of validateEquipmentDefinitions(itemDefinitions).errors) {
     const separator = message.indexOf(": ");
     const entityId = separator > 0 ? message.slice(0, separator) : "catalogue";
     addIssue(issues, "item", entityId, "INVALID_ITEM_STAT", separator > 0 ? message.slice(separator + 2) : message);
   }
+  for (const message of validateItemAffixDefinitions(itemAffixDefinitions).errors)
+    addIssue(issues, "itemAffix", "catalogue", "INVALID_ITEM_AFFIX", message);
   for (const item of itemDefinitions) if (!item.icon) issues.push({ severity: "warning", code: "UNKNOWN_ICON", entityType: "item", entityId: item.id, message: "Item has no icon key." });
   for (const spell of spellDefinitions) {
     for (const reference of [...(spell.applyEffects ?? []).map((entry) => entry.effectId), ...(spell.barrierEffectId ? [spell.barrierEffectId] : [])]) if (!effectById[reference]) issues.push({ severity: "error", code: "MISSING_EFFECT_REFERENCE", entityType: "spell", entityId: spell.id, message: `Missing effect reference: ${reference}` });

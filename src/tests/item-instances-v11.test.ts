@@ -51,7 +51,7 @@ describe("Phase 1 item instances", () => {
   it("normalizes a stale sequence above the highest existing suffix", () => {
     const inventory = normalizeInventoryState({
       stackables: {},
-      instances: { "item-instance-00000015": { id: "item-instance-00000015", definitionId: "item.hunter-sword", version: 1 } },
+      instances: { "item-instance-00000015": { id: "item-instance-00000015", definitionId: "item.hunter-sword", version: 2, quality: 0, upgradeLevel: 0, affixes: [] } },
       nextInstanceSequence: 2,
     });
     expect(inventory.nextInstanceSequence).toBe(16);
@@ -81,7 +81,7 @@ describe("Phase 1 item instances", () => {
   it("validates modern saves against ownership and slot invariants", () => {
     const game = createInitialGameState();
     const save = {
-      version: 11 as const,
+      version: 12 as const,
       progression: game.progression,
       inventory: game.inventory,
       equipment: game.equipment,

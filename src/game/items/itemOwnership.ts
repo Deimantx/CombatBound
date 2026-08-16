@@ -2,6 +2,7 @@ import { itemById, itemDefinitions } from "../data/items";
 import type { ItemDefinitionId, ItemInstance, ItemInstanceId } from "./itemTypes";
 import { isItemInstanceId, itemInstanceSequence } from "./itemTypes";
 import type { InventoryState } from "../inventory/inventoryTypes";
+import { validateItemInstance } from "./itemInstanceValidation";
 
 export interface ItemGrantResult {
   inventory: InventoryState;
@@ -15,12 +16,9 @@ function safeQuantity(quantity: number) {
   return Number.isFinite(quantity) ? Math.max(0, Math.floor(quantity)) : 0;
 }
 
-function inventoryModeFor(definition: { inventoryMode?: "stackable" | "instance"; equipmentSlotKind?: unknown }) {
-  return definition.inventoryMode ?? (definition.equipmentSlotKind ? "instance" : "stackable");
-}
-
 export function allocateItemInstanceId(inventory: InventoryState) {
-  const sequence = Math.max(1, Math.floor(inventory.nextInstanceSequence || 1));
+  let sequence = Math.max(1, Math.floor(inventory.nextInstanceSequence || 1));
+  while (inventory.instances[`item-instance-${String(sequence).padStart(8, "0")}` as ItemInstanceId]) sequence += 1;
   return {
     id: `item-instance-${String(sequence).padStart(8, "0")}` as ItemInstanceId,
     nextInstanceSequence: sequence + 1,
@@ -32,10 +30,10 @@ export function createItemInstance(
   definitionId: ItemDefinitionId,
 ): { inventory: InventoryState; instance: ItemInstance | null } {
   const definition = itemById[definitionId];
-  if (!definition || inventoryModeFor(definition) !== "instance")
+  if (!definition || definition.inventoryMode !== "instance")
     return { inventory, instance: null };
   const allocated = allocateItemInstanceId(inventory);
-  const instance: ItemInstance = { id: allocated.id, definitionId, version: 1 };
+  const instance: ItemInstance = { id: allocated.id, definitionId, version: 2, quality: 0, upgradeLevel: 0, affixes: [] };
   return {
     inventory: {
       ...inventory,
@@ -53,7 +51,7 @@ export function addStackableItem(
 ): InventoryState {
   const definition = itemById[definitionId];
   const amount = safeQuantity(quantity);
-  if (!definition || inventoryModeFor(definition) !== "stackable" || amount <= 0)
+  if (!definition || definition.inventoryMode !== "stackable" || amount <= 0)
     return inventory;
   return {
     ...inventory,
@@ -71,7 +69,7 @@ export function removeStackableItem(
 ): InventoryState {
   const definition = itemById[definitionId];
   const amount = safeQuantity(quantity);
-  if (!definition || inventoryModeFor(definition) !== "stackable" || amount <= 0)
+  if (!definition || definition.inventoryMode !== "stackable" || amount <= 0)
     return inventory;
   const next = Math.max(0, (inventory.stackables[definitionId] ?? 0) - amount);
   return {
@@ -93,7 +91,7 @@ export function grantItem(
   const definition = itemById[definitionId];
   if (!definition || amount <= 0)
     return { inventory, definitionId, quantityGranted: 0, stackableQuantityAdded: 0, createdInstanceIds: [] };
-  if (inventoryModeFor(definition) === "stackable") {
+  if (definition.inventoryMode === "stackable") {
     return {
       inventory: addStackableItem(inventory, definitionId, amount),
       definitionId,
@@ -150,7 +148,7 @@ export function normalizeInventoryState(value: unknown): InventoryState {
   const raw = value && typeof value === "object" ? value as Partial<InventoryState> : {};
   const stackables: Record<string, number> = {};
   for (const definition of itemDefinitions) {
-    if (inventoryModeFor(definition) !== "stackable") continue;
+    if (definition.inventoryMode !== "stackable") continue;
     const rawQuantity = raw.stackables?.[definition.id];
     if (typeof rawQuantity !== "number" || !Number.isFinite(rawQuantity)) continue;
     const quantity = Math.max(0, Math.floor(rawQuantity));
@@ -161,9 +159,15 @@ export function normalizeInventoryState(value: unknown): InventoryState {
     if (!rawInstance || typeof rawInstance !== "object") continue;
     const instance = rawInstance as Partial<ItemInstance>;
     const id = typeof instance.id === "string" ? instance.id : key;
-    const definition = typeof instance.definitionId === "string" ? itemById[instance.definitionId] : undefined;
-    if (!isItemInstanceId(id) || !definition || inventoryModeFor(definition) !== "instance") continue;
-    instances[id] = { id, definitionId: definition.id, version: 1 };
+    if (!isItemInstanceId(id) || !validateItemInstance(instance).valid) continue;
+    instances[id] = {
+      id,
+      definitionId: instance.definitionId!,
+      version: 2,
+      quality: instance.quality!,
+      upgradeLevel: instance.upgradeLevel!,
+      affixes: instance.affixes!.map((affix) => ({ ...affix, rolls: { ...affix.rolls } })),
+    };
   }
   const highest = Object.keys(instances).reduce((max, id) => Math.max(max, itemInstanceSequence(id as ItemInstanceId)), 0);
   const savedNext = typeof raw.nextInstanceSequence === "number" && Number.isFinite(raw.nextInstanceSequence)

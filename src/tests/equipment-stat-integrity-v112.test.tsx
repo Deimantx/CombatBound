@@ -23,13 +23,13 @@ const initial = createInitialGameState();
 const neutralTechniques = initial.combat.techniques;
 
 function instanceBuild(equipment: TestEquipment) {
-  const instances: Record<string, { id: string; definitionId: string; version: 1 }> = {};
+  const instances: Record<string, { id: string; definitionId: string; version: 2; quality: number; upgradeLevel: number; affixes: never[] }> = {};
   const slots: Record<string, string> = {};
   let sequence = 1;
   for (const [slot, definitionId] of Object.entries(equipment.slots)) {
     if (!definitionId) continue;
     const id = `item-instance-${String(sequence).padStart(8, "0")}`;
-    instances[id] = { id, definitionId, version: 1 };
+    instances[id] = { id, definitionId, version: 2, quality: 0, upgradeLevel: 0, affixes: [] };
     slots[slot] = id;
     sequence += 1;
   }

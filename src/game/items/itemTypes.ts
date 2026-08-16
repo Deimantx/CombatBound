@@ -1,4 +1,5 @@
 import type { ItemDefinition } from "../data/items";
+import type { ItemAffixInstance } from "./itemModifierTypes";
 
 /** IDs are intentionally named separately so a definition can never be mistaken for an owned copy. */
 export type ItemDefinitionId = string;
@@ -6,16 +7,61 @@ export type ItemInstanceId = string;
 
 export type ItemInventoryMode = "stackable" | "instance";
 
+export interface ItemStats {
+  maxLife?: number;
+  lifeRegenFlat?: number;
+  accuracyRating?: number;
+  evasionRating?: number;
+  armour?: number;
+  attackBlockChance?: number;
+  maxAttackBlockChance?: number;
+  additionalPhysicalDamageReduction?: number;
+  spellBlockChance?: number;
+  maxSpellBlockChance?: number;
+  spellSuppressionChance?: number;
+  manaRegenFlat?: number;
+  ailmentDurationReduction?: number;
+  elementalAilmentAvoidance?: number;
+  physicalAilmentAvoidance?: number;
+  nonDamagingAilmentEffectReduction?: number;
+  increasedDamageTaken?: number;
+  actionSpeed?: number;
+  increasedAttackSpeed?: number;
+  increasedCastSpeed?: number;
+  baseCritChance?: number;
+  additionalBaseCritChance?: number;
+  criticalStrikeMultiplier?: number;
+  baseDamageMin?: number;
+  baseDamageMax?: number;
+  baseAttackTime?: number;
+  maxStamina?: number;
+  staminaRegen?: number;
+  maxMana?: number;
+  fireResistance?: number;
+  coldResistance?: number;
+  lightningResistance?: number;
+  chaosResistance?: number;
+  maxFireResistance?: number;
+  maxColdResistance?: number;
+  maxLightningResistance?: number;
+  maxChaosResistance?: number;
+}
+
 export interface ItemInstance {
   id: ItemInstanceId;
   definitionId: ItemDefinitionId;
-  version: 1;
+  version: 2;
+  quality: number;
+  upgradeLevel: number;
+  affixes: ItemAffixInstance[];
 }
 
 export interface ResolvedItemInstance {
   instance: ItemInstance;
   definition: ItemDefinition;
-  effectiveStats: NonNullable<ItemDefinition["stats"]>;
+  baseStats: ItemStats;
+  effectiveStats: ItemStats;
+  contributions: import("./itemModifierTypes").ItemStatContribution[];
 }
 
 export type InventoryEntryRef =

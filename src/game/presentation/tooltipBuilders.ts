@@ -6,6 +6,7 @@ import type {
   PlayerActionDefinition,
 } from "../combat/combatTypes";
 import type { ItemDefinition } from "../data/items";
+import { itemAffixById } from "../data/itemAffixes";
 import type { ResolvedItemInstance } from "../items/itemTypes";
 import { combatStatReferenceById } from "../data/combatGlossary";
 import { effectById } from "../data/effects";
@@ -182,7 +183,24 @@ export function buildItemInstanceTooltip(
     { ...resolved.definition, stats: resolved.effectiveStats },
     options,
   );
-  return { ...tooltip, id: `item-instance.${resolved.instance.id}` };
+  const modificationRows: TooltipRow[] = [
+    { label: "Instance", value: resolved.instance.id, tone: "default" },
+    { label: "Quality", value: `${resolved.instance.quality}%`, tone: resolved.instance.quality > 0 ? "green" : "default" },
+    { label: "Upgrade", value: `+${resolved.instance.upgradeLevel}`, tone: resolved.instance.upgradeLevel > 0 ? "green" : "default" },
+  ];
+  for (const affixInstance of resolved.instance.affixes) {
+    const affix = itemAffixById[affixInstance.affixId];
+    const tier = affix?.tiers.find((candidate) => candidate.id === affixInstance.tierId);
+    if (!affix || !tier) continue;
+    for (const modifier of tier.modifiers) {
+      const roll = affixInstance.rolls[modifier.id];
+      if (typeof roll !== "number") continue;
+      const label = modifier.scope === "local" ? modifier.target : modifier.stat;
+      const formatted = modifier.roll.valueType === "integer" ? `${roll >= 0 ? "+" : ""}${roll}` : `${roll >= 0 ? "+" : ""}${(roll * 100).toFixed(0)}%`;
+      modificationRows.push({ label: `${affix.kind === "prefix" ? "Prefix" : "Suffix"}: ${affix.name} · ${label}`, value: formatted, tone: "blue" });
+    }
+  }
+  return { ...tooltip, id: `item-instance.${resolved.instance.id}`, rows: [...modificationRows, ...(tooltip.rows ?? [])], notes: [...(tooltip.notes ?? []), ...resolved.contributions.map((contribution) => `${contribution.sourceLabel}: ${contribution.target} ${contribution.operation} ${contribution.value}`)] };
 }
 
 export function buildStatTooltip(

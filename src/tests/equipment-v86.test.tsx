@@ -32,6 +32,7 @@ const accessory = (
   rarity: "common",
   description: id,
   icon: "ring",
+  inventoryMode: "instance",
   equipmentSlotKind,
   stats,
 });
@@ -48,10 +49,10 @@ const testItems = {
 } as Record<string, ItemDefinition>;
 
 function inventoryFor(definitionIds: string[]) {
-  const instances: Record<string, { id: string; definitionId: string; version: 1 }> = {};
+  const instances: Record<string, { id: string; definitionId: string; version: 2; quality: number; upgradeLevel: number; affixes: never[] }> = {};
   definitionIds.forEach((definitionId, index) => {
     const id = `item-instance-${String(index + 1).padStart(8, "0")}`;
-    instances[id] = { id, definitionId, version: 1 };
+    instances[id] = { id, definitionId, version: 2, quality: 0, upgradeLevel: 0, affixes: [] };
   });
   return { stackables: {}, instances, nextInstanceSequence: definitionIds.length + 1 };
 }
@@ -97,7 +98,7 @@ describe("Equipment V8.6 domain", () => {
     state.resetGameplay();
     const resetState = useGameStore.getState();
     const before = resetState.game;
-    resetState.equipItem("item.training-sword", "weapon");
+    resetState.equipItemInstance(resetState.game.equipment.slots.weapon!, "weapon");
     expect(useGameStore.getState().game).toBe(before);
   });
 

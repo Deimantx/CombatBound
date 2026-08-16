@@ -3,12 +3,12 @@ import { combatBalance } from "../combat/combatBalance";
 import { effectById } from "../data/effects";
 import { itemById } from "../data/items";
 import { calculateHunterCombatStats, type HunterCombatStats } from "../equipment/derivedStats";
-import { getEquippedItems } from "../equipment/defensiveEquipment";
+import { getResolvedEquippedItems } from "../equipment/defensiveEquipment";
 import type { CombatStatContribution, CombatStatKey, ModifierOperation } from "../combat/combatTypes";
 import type { GameState } from "../gameState";
 import type { EquipmentState } from "../equipment/equipmentTypes";
 import type { InventoryState } from "../inventory/inventoryTypes";
-import { resolveItemInstance } from "../items/itemResolver";
+import type { ItemStats } from "../items/itemTypes";
 import type { ProgressionState } from "../progression/progressionTypes";
 import type { StanceId, TechniqueId } from "../combat/combatTypes";
 import { COMBAT_STAT_KEYS, DEBUG_STAT_DEFINITIONS, type DebugStatInspectionId } from "./debugStatRegistry";
@@ -50,11 +50,11 @@ function inspectionContext(input: GameState | StatInspectionContext): StatInspec
   return { equipment: input.equipment, inventory: input.inventory, progression: input.progression, stance: input.combat.stance, techniques: input.combat.techniques, playerEffects: input.combat.playerEffects, combatPhase: input.combat.phase };
 }
 
-function itemStat(item: ReturnType<typeof getEquippedItems>[number], stat: DebugStatInspectionId) {
-  if (stat.startsWith("resistance:")) return Number(item.stats?.[`${stat.slice(12)}Resistance` as keyof NonNullable<typeof item.stats>] ?? 0);
-  if (stat === "attackDamage") return Number(((item.stats?.baseDamageMin ?? 0) + (item.stats?.baseDamageMax ?? 0)) / 2);
-  if (stat === "armour") return Number(item.stats?.armour ?? 0);
-  return Number(item.stats?.[stat as keyof NonNullable<typeof item.stats>] ?? 0);
+function itemStat(stats: ItemStats, stat: DebugStatInspectionId) {
+  if (stat.startsWith("resistance:")) return Number(stats[`${stat.slice(12)}Resistance` as keyof ItemStats] ?? 0);
+  if (stat === "attackDamage") return Number(((stats.baseDamageMin ?? 0) + (stats.baseDamageMax ?? 0)) / 2);
+  if (stat === "armour") return Number(stats.armour ?? 0);
+  return Number(stats[stat as keyof ItemStats] ?? 0);
 }
 
 function baseStatValue(stat: DebugStatInspectionId) {
@@ -82,13 +82,14 @@ export function buildStatBreakdown(input: GameState | StatInspectionContext, sta
   const contributions: StatContribution[] = [];
   let current = baseStatValue(stat);
   pushContribution(contributions, stat, "base", "combat-balance", "Combat base", "flat", 0, current);
-  for (const [slot, instanceId] of Object.entries(context.equipment.slots)) {
-    const item = instanceId ? resolveItemInstance(context.inventory, instanceId)?.definition : undefined;
-    const value = item ? itemStat(item, stat) : 0;
-    if (!item || !value) continue;
+  for (const entry of getResolvedEquippedItems(context.equipment, context.inventory)) {
+    const value = itemStat(entry.effectiveStats, stat);
+    if (!value) continue;
     const before = current;
     current += value;
-    pushContribution(contributions, stat, "equipment", `${slot}:item.${item.id}`, `${item.name} (${slot})`, "flat", before, current);
+    const modificationLabels = [...new Set(entry.contributions.map((contribution) => contribution.sourceLabel))];
+    const sourceLabel = `${entry.definition.name} (${entry.slotId})${modificationLabels.length ? ` · ${modificationLabels.join(" · ")}` : ""}`;
+    pushContribution(contributions, stat, "equipment", entry.instance.id, sourceLabel, "flat", before, current);
   }
   if (stat === "accuracyRating" && context.techniques["heightened-reflexes"]) { const before = current; current += 10; pushContribution(contributions, stat, "technique", "technique.heightened-reflexes", "Heightened Reflexes", "flat", before, current); }
   if (stat === "evasionRating" && context.techniques["careful-positioning"]) { const before = current; current += 8; pushContribution(contributions, stat, "technique", "technique.careful-positioning", "Careful Positioning", "flat", before, current); }

@@ -8,20 +8,20 @@ import { getActiveDefensiveEquipmentModifiers } from '../game/progression/perkPr
 import { migrateCurrentSave } from '../game/persistence/saveMigration'
 import type { ProficiencyPerkDefinition } from '../game/progression/progressionTypes'
 
-const piece = (id: string, equipmentSlotKind: 'head' | 'armor' | 'gloves' | 'boots' | 'offhand', defensiveProficiencyId: 'light-armor' | 'medium-armor' | 'heavy-armor' | 'shield', stats: NonNullable<ItemDefinition['stats']> = {}): ItemDefinition => ({ id, name: id, category: 'armor', rarity: 'common', description: id, icon: 'shield', equipmentSlotKind, defensiveProficiencyId, stats })
+const piece = (id: string, equipmentSlotKind: 'head' | 'armor' | 'gloves' | 'boots' | 'offhand', defensiveProficiencyId: 'light-armor' | 'medium-armor' | 'heavy-armor' | 'shield', stats: NonNullable<ItemDefinition['stats']> = {}): ItemDefinition => ({ id, name: id, category: 'armor', rarity: 'common', description: id, icon: 'shield', inventoryMode: 'instance', equipmentSlotKind, defensiveProficiencyId, stats })
 const items = { ...itemById, ...Object.fromEntries([
   piece('test.light-head', 'head', 'light-armor'), piece('test.light-armor', 'armor', 'light-armor'), piece('test.light-gloves', 'gloves', 'light-armor'), piece('test.light-boots', 'boots', 'light-armor'),
   piece('test.medium-armor', 'armor', 'medium-armor'), piece('test.heavy-gloves', 'gloves', 'heavy-armor'), piece('test.heavy-boots', 'boots', 'heavy-armor'), piece('test.shield', 'offhand', 'shield', { armour: 4, attackBlockChance: .1, baseAttackTime: .5 }),
 ].map((item) => [item.id, item])) } as Record<string, ItemDefinition>
 
 function inventoryFor(equipment: { slots: Record<string, string | undefined> }) {
-  const instances: Record<string, { id: string; definitionId: string; version: 1 }> = {}
+  const instances: Record<string, { id: string; definitionId: string; version: 2; quality: number; upgradeLevel: number; affixes: never[] }> = {}
   const slots: Record<string, string> = {}
   let sequence = 1
   for (const [slot, definitionId] of Object.entries(equipment.slots)) {
     if (!definitionId) continue
     const id = `item-instance-${String(sequence).padStart(8, '0')}`
-    instances[id] = { id, definitionId, version: 1 }
+    instances[id] = { id, definitionId, version: 2, quality: 0, upgradeLevel: 0, affixes: [] }
     slots[slot] = id
     sequence += 1
   }

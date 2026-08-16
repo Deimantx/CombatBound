@@ -9,6 +9,9 @@ import type { CombatAbilityLoadoutState } from "../combatAbilities/combatAbility
 
 export interface LegacyInventoryStateV10 { quantities: Record<string, number> }
 export interface LegacyEquipmentStateV10 { slots: Partial<Record<EquipmentSlotId, string>> }
+export interface LegacyItemInstanceV1 { id: string; definitionId: string; version: 1 }
+export interface LegacyInventoryStateV11 { stackables: Record<string, number>; instances: Record<string, LegacyItemInstanceV1>; nextInstanceSequence: number }
+export interface LegacyEquipmentStateV11 { slots: Partial<Record<EquipmentSlotId, string>> }
 
 export interface GameSaveV4 {
   version: 4;
@@ -107,6 +110,12 @@ export interface GameSaveV10 extends Omit<GameSaveV9, "version"> {
 
 export interface GameSaveV11 extends Omit<GameSaveV9, "version" | "inventory" | "equipment"> {
   version: 11;
+  inventory: LegacyInventoryStateV11;
+  equipment: LegacyEquipmentStateV11;
+}
+
+export interface GameSaveV12 extends Omit<GameSaveV11, "version" | "inventory" | "equipment"> {
+  version: 12;
   inventory: InventoryState;
   equipment: EquipmentState;
 }

@@ -210,7 +210,7 @@ describe("CombatBound V8.7 prototype gear", () => {
   });
 
   it("uses the V11 persistent instance-ownership schema", () => {
-    expect(CURRENT_SAVE_VERSION).toBe(11);
+    expect(CURRENT_SAVE_VERSION).toBe(12);
     expect(itemDefinitions.every((item) => item.requiredMasteryLevel === undefined || item.requiredMasteryLevel > 0)).toBe(true);
     expect(enemyDefinitions.length).toBeGreaterThan(0);
   });

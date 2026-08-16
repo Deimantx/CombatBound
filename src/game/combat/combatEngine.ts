@@ -1,4 +1,4 @@
-import { removeStackableItem } from "../inventory/inventoryLogic";
+import { removeStackableItem } from "../items/itemOwnership";
 import {
   calculateHunterCombatStats,
   type HunterCombatStats,

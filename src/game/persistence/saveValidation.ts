@@ -1,4 +1,4 @@
-import type { GameSaveV11 } from "./saveTypes";
+import type { GameSaveV12 } from "./saveTypes";
 import { proficiencyById } from "../data/proficiencies";
 import { perkById } from "../data/proficiencyPerks";
 import { COMBAT_SPELL_SLOT_COUNT } from "../spellbook/spellbookTypes";
@@ -6,15 +6,16 @@ import { isEquipmentSlotId } from "../equipment/equipmentTypes";
 import { itemById } from "../data/items";
 import { isItemInstanceId, itemInstanceSequence } from "../items/itemTypes";
 import { canEquipItemToSlot } from "../equipment/equipmentRules";
+import { validateItemInstance } from "../items/itemInstanceValidation";
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return Boolean(value) && typeof value === "object" && !Array.isArray(value);
 }
 
-export function isGameSave(value: unknown): value is GameSaveV11 {
+export function isGameSave(value: unknown): value is GameSaveV12 {
   if (
     !isRecord(value) ||
-    value.version !== 11 ||
+    value.version !== 12 ||
     typeof value.gold !== "number" ||
     !isRecord(value.progression) ||
     !isRecord(value.inventory) ||
@@ -61,8 +62,8 @@ export function isGameSave(value: unknown): value is GameSaveV11 {
     })
   )
     return false;
-  const inventory = value.inventory as unknown as GameSaveV11["inventory"];
-  const equipment = value.equipment as unknown as GameSaveV11["equipment"];
+  const inventory = value.inventory as unknown as GameSaveV12["inventory"];
+  const equipment = value.equipment as unknown as GameSaveV12["equipment"];
   const collection = value.collection;
   const settings = value.settings;
   const spellbook = value.spellbook;
@@ -87,7 +88,7 @@ export function isGameSave(value: unknown): value is GameSaveV11 {
     if (!definition || definition.inventoryMode !== "stackable" || typeof quantity !== "number" || !Number.isInteger(quantity) || quantity < 0) return false;
   }
   for (const [key, rawInstance] of Object.entries(inventory.instances)) {
-    if (!isRecord(rawInstance) || rawInstance.id !== key || !isItemInstanceId(rawInstance.id) || rawInstance.version !== 1 || typeof rawInstance.definitionId !== "string") return false;
+    if (!isRecord(rawInstance) || rawInstance.id !== key || !isItemInstanceId(rawInstance.id) || rawInstance.version !== 2 || typeof rawInstance.definitionId !== "string" || !validateItemInstance(rawInstance).valid) return false;
     const definition = itemById[rawInstance.definitionId];
     if (!definition || definition.inventoryMode !== "instance") return false;
     instanceIds.add(key);

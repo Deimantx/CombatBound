@@ -2,6 +2,8 @@ import { Swords } from "lucide-react";
 import { useId, useMemo, useState } from "react";
 import { calculateArmorMitigation } from "../../../../game/combat/combatMath";
 import { calculateHunterCombatStats } from "../../../../game/equipment/derivedStats";
+import { previewEquipmentChange } from "../../../../game/equipment/equipmentRules";
+import { masteryLevelForXp } from "../../../../game/progression/masteryProgression";
 import { combatStatGroups, type CombatStatGroupId } from "../../../../game/presentation/combatStatGroups";
 import { COMBAT_STAT_EPSILON, formatCombatStatDelta, formatCombatStatValue, formatDamageRange, getCombatStatDisplaySpec, labelForStatKey } from "../../../../game/presentation/statFormatting";
 import { useGameStore } from "../../../../state/gameStore";
@@ -59,8 +61,10 @@ export function HeroCombatStatsPanel({ preview, hoveredPreview }: { preview: Her
   const activePreview = requestedPreview?.slotId === selectedEquipmentSlot ? requestedPreview : null;
   const previewStats = useMemo(() => {
     if (!activePreview) return null;
-    const previewEquipment = { ...equipment, slots: { ...equipment.slots, [activePreview.slotId]: activePreview.instanceId } };
-    return calculateHunterCombatStats(previewEquipment, inventory, progression, stance, techniques);
+    const preview = previewEquipmentChange({ equipment, inventory, instanceId: activePreview.instanceId, slotId: activePreview.slotId, masteryLevel: masteryLevelForXp(progression.masteryXp) });
+    return preview.validation.valid
+      ? calculateHunterCombatStats(preview.equipment, inventory, progression, stance, techniques)
+      : null;
   }, [activePreview, equipment, inventory, progression, stance, techniques]);
   const rangeFor = (source = stats) => ({ min: source.attackDamageMin ?? source.attackDamage, max: source.attackDamageMax ?? source.attackDamage });
   const panelContentId = `hero-combat-stats-content-${instanceId}`;

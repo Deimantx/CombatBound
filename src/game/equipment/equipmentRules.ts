@@ -17,7 +17,6 @@ export type EquipmentChangeFailureReason =
   | "unknown-slot"
   | "invalid-instance"
   | "wrong-slot-kind"
-  | "not-owned"
   | "mastery-level";
 
 export interface EquipmentChangeValidation {
@@ -26,7 +25,7 @@ export interface EquipmentChangeValidation {
 }
 
 export function canEquipItemToSlot(item: ItemDefinition, slotId: EquipmentSlotId) {
-  return (item.inventoryMode ?? (item.equipmentSlotKind ? "instance" : "stackable")) === "instance" && item.equipmentSlotKind === getEquipmentSlotDefinition(slotId).kind;
+  return item.inventoryMode === "instance" && item.equipmentSlotKind === getEquipmentSlotDefinition(slotId).kind;
 }
 
 export function validateEquipmentChange({
@@ -47,7 +46,7 @@ export function validateEquipmentChange({
   if (!instance) return { valid: false, reason: "unknown-instance" };
   const definition = itemById[instance.definitionId];
   if (!definition) return { valid: false, reason: "unknown-definition" };
-  if ((definition.inventoryMode ?? (definition.equipmentSlotKind ? "instance" : "stackable")) !== "instance") return { valid: false, reason: "invalid-instance" };
+  if (definition.inventoryMode !== "instance") return { valid: false, reason: "invalid-instance" };
   if (!canEquipItemToSlot(definition, slotId)) return { valid: false, reason: "wrong-slot-kind" };
   if (definition.requiredMasteryLevel !== undefined && Math.max(0, Math.floor(masteryLevel)) < definition.requiredMasteryLevel)
     return { valid: false, reason: "mastery-level" };
@@ -73,11 +72,22 @@ export function equipItemInstance({
 }): { equipment: EquipmentState; validation: EquipmentChangeValidation } {
   const validation = validateEquipmentChange({ instanceId, slotId, inventory, equipment, masteryLevel });
   if (!validation.valid || !isEquipmentSlotId(slotId)) return { equipment, validation };
+  if (equipment.slots[slotId] === instanceId) return { equipment, validation };
   const nextSlots = { ...equipment.slots };
   for (const slot of EQUIPMENT_SLOT_DEFINITIONS)
     if (nextSlots[slot.id] === instanceId) delete nextSlots[slot.id];
   nextSlots[slotId] = instanceId as ItemInstanceId;
   return { equipment: { slots: nextSlots }, validation };
+}
+
+export function previewEquipmentChange(input: {
+  inventory: InventoryState;
+  equipment: EquipmentState;
+  instanceId: ItemInstanceId | string;
+  slotId: EquipmentSlotId | string;
+  masteryLevel: number;
+}) {
+  return equipItemInstance(input);
 }
 
 export function unequipEquipmentSlot(equipment: EquipmentState, slotId: EquipmentSlotId | string) {

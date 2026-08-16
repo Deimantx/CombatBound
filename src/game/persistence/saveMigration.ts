@@ -1,7 +1,7 @@
 import type { CollectionState } from "../collection/collectionTypes";
-import type { InventoryState } from "../inventory/inventoryTypes";
 import { itemById, itemDefinitions } from "../data/items";
-import { grantItem } from "../items/itemOwnership";
+import { isItemInstanceId, type ItemInstance } from "../items/itemTypes";
+import { validateItemInstance } from "../items/itemInstanceValidation";
 import { canEquipItemToSlot } from "../equipment/equipmentRules";
 import { proficiencyById } from "../data/proficiencies";
 import { perkById } from "../data/proficiencyPerks";
@@ -9,7 +9,7 @@ import type {
   CombatProficiencyId,
   ProgressionState,
 } from "../progression/progressionTypes";
-import type { GameSaveV3, GameSaveV4, GameSaveV5, GameSaveV6, GameSaveV7, GameSaveV8, GameSaveV9, GameSaveV10, GameSaveV11, LegacyEquipmentStateV10, LegacyInventoryStateV10 } from "./saveTypes";
+import type { GameSaveV3, GameSaveV4, GameSaveV5, GameSaveV6, GameSaveV7, GameSaveV8, GameSaveV9, GameSaveV10, GameSaveV11, GameSaveV12, LegacyEquipmentStateV10, LegacyInventoryStateV10, LegacyInventoryStateV11 } from "./saveTypes";
 import { createInitialCombatAutomation } from "../automation/automationTypes";
 import { normalizeSpellbook } from "../spellbook/spellbookLogic";
 import { spellDefinitions } from "../data/spells";
@@ -341,27 +341,54 @@ export function migrateV9Save(value: unknown): GameSaveV10 | null {
   };
 }
 
+function isCompleteV10MigrationInput(value: unknown): value is GameSaveV10 {
+  if (!isRecord(value) || value.version !== 10 || !sharedSaveShape(value)) return false;
+  const inventory = value.inventory;
+  const equipment = value.equipment;
+  const collection = value.collection;
+  const settings = value.settings;
+  const spellbook = value.spellbook;
+  const automation = value.combatAutomation;
+  const presets = value.combatAutomationPresets;
+  const abilities = value.combatAbilities;
+  return typeof value.gold === "number" && Number.isFinite(value.gold)
+    && isRecord(value.progression)
+    && isRecord(inventory) && isRecord(inventory.quantities) && Object.entries(inventory.quantities).every(([definitionId, quantity]) => Boolean(itemById[definitionId]) && typeof quantity === "number" && Number.isFinite(quantity) && quantity >= 0)
+    && isRecord(equipment) && isRecord(equipment.slots)
+    && isRecord(collection) && Array.isArray(collection.discoveredItems) && isRecord(collection.targets)
+    && isRecord(settings) && typeof settings.reducedMotion === "boolean" && typeof settings.showInspectorButton === "boolean"
+    && isRecord(spellbook) && Array.isArray(spellbook.knownSpellIds) && Array.isArray(spellbook.equippedSpellSlots)
+    && isRecord(automation) && typeof automation.enabled === "boolean" && Array.isArray(automation.rules) && Array.isArray(automation.targetPriorityRules)
+    && isRecord(presets) && Array.isArray(presets.slots)
+    && isRecord(abilities) && Array.isArray(abilities.activeSlots) && Array.isArray(abilities.techniqueSlots);
+}
+
 /** Explicit V10 definition-ID ownership conversion. Modern runtime never accepts this legacy shape. */
 export function migrateV10Save(value: unknown): GameSaveV11 | null {
-  if (!isRecord(value) || value.version !== 10 || !sharedSaveShape(value)) return null;
-  const old = value as unknown as GameSaveV10;
-  let inventory: InventoryState = { stackables: {}, instances: {}, nextInstanceSequence: 1 };
+  if (!isCompleteV10MigrationInput(value)) return null;
+  const old = value;
+  const stackables: Record<string, number> = {};
+  const instances: Record<string, LegacyInventoryStateV11["instances"][string]> = {};
   const migratedByDefinition: Record<string, string[]> = {};
+  let sequence = 1;
   for (const definition of itemDefinitions) {
-    const quantity = typeof old.inventory.quantities[definition.id] === "number" && Number.isFinite(old.inventory.quantities[definition.id])
-      ? Math.max(0, Math.floor(old.inventory.quantities[definition.id]))
-      : 0;
+    const quantity = Math.max(0, Math.floor(old.inventory.quantities[definition.id] ?? 0));
     if (quantity <= 0) continue;
-    const grant = grantItem(inventory, definition.id, quantity);
-    inventory = grant.inventory;
-    if (grant.createdInstanceIds.length) migratedByDefinition[definition.id] = grant.createdInstanceIds;
-    if (definition.inventoryMode === "stackable" && grant.stackableQuantityAdded <= 0) continue;
+    if (definition.inventoryMode === "stackable") {
+      stackables[definition.id] = quantity;
+      continue;
+    }
+    migratedByDefinition[definition.id] = [];
+    for (let index = 0; index < quantity; index += 1) {
+      const id = `item-instance-${String(sequence++).padStart(8, "0")}`;
+      instances[id] = { id, definitionId: definition.id, version: 1 };
+      migratedByDefinition[definition.id].push(id);
+    }
   }
   const slots: Partial<Record<typeof EQUIPMENT_SLOT_IDS[number], string>> = {};
   const usedInstances = new Set<string>();
-  const legacySlots = isRecord(old.equipment) && isRecord(old.equipment.slots) ? old.equipment.slots : {};
   for (const slot of EQUIPMENT_SLOT_IDS) {
-    const definitionId = legacySlots[slot];
+    const definitionId = old.equipment.slots[slot];
     if (typeof definitionId !== "string") continue;
     const item = itemById[definitionId];
     const candidate = (migratedByDefinition[definitionId] ?? []).find((instanceId) => !usedInstances.has(instanceId));
@@ -369,12 +396,53 @@ export function migrateV10Save(value: unknown): GameSaveV11 | null {
     slots[slot] = candidate;
     usedInstances.add(candidate);
   }
-  return {
-    ...old,
-    version: 11,
-    inventory,
-    equipment: { slots },
-  };
+  const migrated: GameSaveV11 = { ...old, version: 11, inventory: { stackables, instances, nextInstanceSequence: sequence }, equipment: { slots } };
+  if (Object.values(migrated.inventory.instances).some((instance) => !isItemInstanceId(instance.id) || instance.id !== migrated.inventory.instances[instance.id]?.id || itemById[instance.definitionId]?.inventoryMode !== "instance")) return null;
+  return migrated;
+}
+
+function isCompleteV11MigrationInput(value: unknown): value is GameSaveV11 {
+  if (!isRecord(value) || value.version !== 11 || !sharedSaveShape(value)) return false;
+  return isRecord(value.inventory) && isRecord(value.inventory.stackables) && isRecord(value.inventory.instances)
+    && typeof value.inventory.nextInstanceSequence === "number" && Number.isFinite(value.inventory.nextInstanceSequence) && isRecord(value.equipment) && isRecord(value.equipment.slots)
+    && isRecord(value.progression) && isRecord(value.spellbook) && isRecord(value.combatAutomation)
+    && isRecord(value.combatAutomationPresets) && isRecord(value.combatAbilities);
+}
+
+export function migrateV11Save(value: unknown): GameSaveV12 | null {
+  if (!isCompleteV11MigrationInput(value)) return null;
+  const old = value;
+  const stackables: Record<string, number> = {};
+  for (const [definitionId, quantity] of Object.entries(old.inventory.stackables)) {
+    const definition = itemById[definitionId];
+    if (!definition || definition.inventoryMode !== "stackable" || !Number.isInteger(quantity) || quantity < 0) return null;
+    if (quantity > 0) stackables[definitionId] = quantity;
+  }
+  const instances: Record<string, ItemInstance> = {};
+  let highest = 0;
+  for (const [key, legacy] of Object.entries(old.inventory.instances)) {
+    if (!legacy || legacy.id !== key || !isItemInstanceId(key) || legacy.version !== 1) return null;
+    const definition = itemById[legacy.definitionId];
+    if (!definition || definition.inventoryMode !== "instance") return null;
+    const sequence = Number(key.slice("item-instance-".length));
+    highest = Math.max(highest, sequence);
+    instances[key] = { id: key, definitionId: legacy.definitionId, version: 2, quality: 0, upgradeLevel: 0, affixes: [] };
+  }
+  const nextInstanceSequence = Math.max(1, Math.floor(old.inventory.nextInstanceSequence), highest + 1);
+  const used = new Set<string>();
+  const slots: Partial<Record<typeof EQUIPMENT_SLOT_IDS[number], string>> = {};
+  for (const slot of EQUIPMENT_SLOT_IDS) {
+    const instanceId = old.equipment.slots[slot];
+    if (typeof instanceId !== "string" || used.has(instanceId)) continue;
+    const instance = instances[instanceId];
+    const definition = instance ? itemById[instance.definitionId] : undefined;
+    if (!instance || !definition || !canEquipItemToSlot(definition, slot)) continue;
+    slots[slot] = instanceId;
+    used.add(instanceId);
+  }
+  const migrated: GameSaveV12 = { ...old, version: 12, inventory: { stackables, instances, nextInstanceSequence }, equipment: { slots } };
+  if (Object.values(migrated.inventory.instances).some((instance) => !validateItemInstance(instance).valid)) return null;
+  return migrated;
 }
 
 export function migrateLegacySave(value: unknown): GameSaveV3 | null {

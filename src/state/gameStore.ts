@@ -18,7 +18,6 @@ import { calculateHunterCombatStats } from "../game/equipment/derivedStats";
 import { equipItemInstance as equipOwnedItemInstance } from "../game/equipment/equipmentRules";
 import { getItemDefinitionForInstance } from "../game/items/itemResolver";
 import { normalizeInventoryState } from "../game/items/itemOwnership";
-import { getInstancesByDefinitionId } from "../game/items/itemOwnership";
 import { normalizeEquipmentState } from "../game/equipment/equipmentRules";
 import { combatLocationById } from "../game/data/world/combatLocations";
 import { continentById } from "../game/data/world/continents";
@@ -124,6 +123,11 @@ import {
   debugSetAllTargetDefeatsToOne,
   debugSetGold,
   debugSetOwnedItemCount,
+  debugSetItemQuality,
+  debugSetItemUpgradeLevel,
+  debugAddItemAffix,
+  debugRemoveItemAffix,
+  debugRerollItemAffix,
   debugSetMasteryLevel,
   debugSetBonusPerkPoints,
   debugSetPlayerResource,
@@ -218,8 +222,6 @@ interface GameStoreState {
   usePotion: () => void;
   purchaseProficiencyPerk: (perkId: string) => void;
   equipItemInstance: (instanceId: string, slot: EquipmentSlotId) => void;
-  /** @deprecated Definition-level compatibility for older test/debug callers. */
-  equipItem: (definitionId: string, slot: EquipmentSlotId) => void;
   setInventoryFilter: (filter: string) => void;
   selectInventoryEntry: (entry: InventoryEntryRef | null) => void;
   selectEquipmentSlot: (slotId: EquipmentSlotId) => void;
@@ -241,6 +243,11 @@ interface GameStoreState {
 export interface DebugStoreApi {
   grantItem: (itemId: string, quantity: number) => void;
   setOwnedItemCount: (itemId: string, quantity: number) => void;
+  setItemQuality: (instanceId: string, quality: number) => void;
+  setItemUpgradeLevel: (instanceId: string, upgradeLevel: number) => void;
+  addItemAffix: (instanceId: string, affixId: string, tierId: string) => void;
+  removeItemAffix: (instanceId: string, affixId: string) => void;
+  rerollItemAffix: (instanceId: string, affixId: string) => void;
   grantAllEquipment: (quantity?: number) => void;
   grantEquipmentTier: (masteryLevel: number) => void;
   setMasteryLevel: (level: number) => void;
@@ -418,7 +425,7 @@ function savePermanent(
   const profileId = activeProfileIdForPersistence();
   if (!profileId) return;
   saveProfileGameSave(profileId, {
-    version: CURRENT_SAVE_VERSION as 11,
+    version: CURRENT_SAVE_VERSION as 12,
     progression: game.progression,
     inventory: game.inventory,
     equipment: game.equipment,
@@ -562,6 +569,11 @@ export const useGameStore = create<GameStoreState>((set, get) => {
   const debug: DebugStoreApi = {
     grantItem: (itemId, quantity) => commitDebug((game) => debugGrantItem(game, itemId, quantity), true),
     setOwnedItemCount: (itemId, quantity) => commitDebug((game) => debugSetOwnedItemCount(game, itemId, quantity), true),
+    setItemQuality: (instanceId, quality) => commitDebug((game) => debugSetItemQuality(game, instanceId, quality), true),
+    setItemUpgradeLevel: (instanceId, upgradeLevel) => commitDebug((game) => debugSetItemUpgradeLevel(game, instanceId, upgradeLevel), true),
+    addItemAffix: (instanceId, affixId, tierId) => commitDebug((game) => debugAddItemAffix(game, instanceId, affixId, tierId), true),
+    removeItemAffix: (instanceId, affixId) => commitDebug((game) => debugRemoveItemAffix(game, instanceId, affixId), true),
+    rerollItemAffix: (instanceId, affixId) => commitDebug((game) => debugRerollItemAffix(game, instanceId, affixId), true),
     grantAllEquipment: (quantity = 1) => commitDebug((game) => debugGrantAllEquipment(game, quantity), true),
     grantEquipmentTier: (level) => commitDebug((game) => debugGrantEquipmentTier(game, level), true),
     setMasteryLevel: (level) => commitDebug((game) => debugSetMasteryLevel(game, level), true),
@@ -1134,6 +1146,7 @@ export const useGameStore = create<GameStoreState>((set, get) => {
           masteryLevel: masteryLevelForXp(state.game.progression.masteryXp),
         });
         if (!result.validation.valid) return state;
+        if (result.equipment === state.game.equipment) return state;
         const item = getItemDefinitionForInstance(state.game.inventory, instanceId);
         const progression = item?.weaponProficiencyId
           ? discoverProficiency(
@@ -1152,13 +1165,6 @@ export const useGameStore = create<GameStoreState>((set, get) => {
         });
         return flatState(game, state);
       }),
-    equipItem: (definitionId, slot) => {
-      const state = get();
-      const current = state.game.equipment.slots[slot];
-      if (current && getItemDefinitionForInstance(state.game.inventory, current)?.id === definitionId) return;
-      const instance = getInstancesByDefinitionId(state.game.inventory, definitionId)[0];
-      if (instance) state.equipItemInstance(instance.id, slot);
-    },
     setInventoryFilter: (inventoryFilter) => set({ inventoryFilter }),
     selectInventoryEntry: (selectedInventoryEntry) =>
       set({ selectedInventoryEntry }),

@@ -3,6 +3,7 @@ import { canEquipItemToSlot } from "../equipment/equipmentRules";
 import { EQUIPMENT_SLOT_DEFINITIONS, isEquipmentSlotId, type EquipmentState } from "../equipment/equipmentTypes";
 import type { InventoryState } from "../inventory/inventoryTypes";
 import { isItemInstanceId, itemInstanceSequence, type ItemInstanceId } from "../items/itemTypes";
+import { validateItemInstance } from "../items/itemInstanceValidation";
 
 export interface ItemOwnershipValidationResult {
   valid: boolean;
@@ -32,6 +33,7 @@ export function validateItemOwnershipState(
     const definition = items[instance.definitionId];
     if (!definition) errors.push(`Instance ${key} references unknown definition ${instance.definitionId}`);
     else if (definition.inventoryMode !== "instance") errors.push(`Instance ${key} references stackable definition ${instance.definitionId}`);
+    if (!validateItemInstance(instance, items).valid) errors.push(`Instance ${key} has invalid V2 modification state`);
     instanceIds.add(key);
     highestSequence = Math.max(highestSequence, itemInstanceSequence(key as ItemInstanceId));
   }

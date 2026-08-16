@@ -6,12 +6,13 @@ import { normalizeCombatStats } from "../combat/combatStats";
 import { applyProficiencyStatModifiers, getActiveGlobalMagicStatModifiers, getActiveProficiencyStatModifiers, getActiveDefensiveEquipmentModifiers } from "../progression/perkProgression";
 import { getEquippedWeaponProficiency } from "../progression/progressionSelectors";
 import { perkById } from "../data/proficiencyPerks";
-import { getDefensiveEquipmentContext, getEquippedItems } from "./defensiveEquipment";
+import { getDefensiveEquipmentContext, getResolvedEquippedItems } from "./defensiveEquipment";
 import type { CombatStats, StanceId, TechniqueId, StatModifier, CombatStatContributionCollector, CombatStatKey } from "../combat/combatTypes";
 import type { EquipmentState } from "./equipmentTypes";
 import type { InventoryState } from "../inventory/inventoryTypes";
 import type { ItemDefinition } from "../data/items";
 import type { ProgressionState, WeaponProficiencyId } from "../progression/progressionTypes";
+import type { ItemStats } from "../items/itemTypes";
 
 export interface HunterCombatStats extends CombatStats {
   weaponProficiencyId?: WeaponProficiencyId | null;
@@ -28,11 +29,11 @@ export function calculateHunterCombatStats(
 ): HunterCombatStats {
   const resolvedItems = items ?? itemById;
   const stanceData = stanceDefinitions[stance];
-  const equippedItems = getEquippedItems(equipment, inventory, resolvedItems);
-  const weapon = equippedItems.find((item) => item.equipmentSlotKind === "weapon");
-  const weaponStats = weapon?.stats ?? {};
-  const equipmentStats = equippedItems.map((item) => item.stats ?? {});
-  const total = (key: keyof NonNullable<ItemDefinition["stats"]>) => equipmentStats.reduce((sum, stats) => sum + (stats[key] ?? 0), 0);
+  const equippedItems = getResolvedEquippedItems(equipment, inventory, resolvedItems);
+  const weapon = equippedItems.find((entry) => entry.definition.equipmentSlotKind === "weapon");
+  const weaponStats = weapon?.effectiveStats ?? {};
+  const equipmentStats = equippedItems.map((entry) => entry.effectiveStats);
+  const total = (key: keyof ItemStats) => equipmentStats.reduce((sum, stats) => sum + (stats[key] ?? 0), 0);
   const weaponDamageMin = weaponStats.baseDamageMin ?? combatBalance.baseAttackDamage;
   const weaponDamageMax = weaponStats.baseDamageMax ?? combatBalance.baseAttackDamage;
   const carefulEvasion = techniques["careful-positioning"] ? techniqueDefinitions["careful-positioning"].evasionRating : 0;

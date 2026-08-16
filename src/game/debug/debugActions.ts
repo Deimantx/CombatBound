@@ -1,4 +1,5 @@
-import { grantItem, getInstancesByDefinitionId, removeItemInstance } from "../inventory/inventoryLogic";
+import { grantItem, getInstancesByDefinitionId, removeItemInstance } from "../items/itemOwnership";
+import { addItemAffix, removeItemAffix, rerollItemAffix, setItemQuality, setItemUpgradeLevel } from "../items/itemMutations";
 import { discoverItem, discoverTarget } from "../collection/collectionLogic";
 import { createInitialCollection } from "../collection/collectionTypes";
 import { itemById, itemDefinitions, prototypeEquipmentDefinitions } from "../data/items";
@@ -24,8 +25,10 @@ import type { CombatProficiencyId } from "../progression/progressionTypes";
 import type { CombatantRef } from "../combat/combatTypes";
 import type { GameState } from "../gameState";
 import type { DebugEffectTarget, DebugResource } from "./debugTypes";
+import type { ItemInstanceId } from "../items/itemTypes";
 
 const debugContext = createCombatContext({ next: () => 0.5 });
+const debugItemRng = { next: () => 0.5 };
 
 function safeInteger(value: number, fallback = 0) {
   return Number.isFinite(value) ? Math.floor(value) : fallback;
@@ -66,6 +69,31 @@ export function debugSetOwnedItemCount(game: GameState, itemId: string, quantity
     for (const instance of removable) inventory = removeItemInstance(inventory, instance.id, equippedIds);
   }
   return syncCombatStats({ ...game, inventory });
+}
+
+function applyItemMutation(game: GameState, mutation: (inventory: GameState["inventory"]) => ReturnType<typeof setItemQuality>) {
+  const result = mutation(game.inventory);
+  return result.changed ? syncCombatStats({ ...game, inventory: result.inventory }) : game;
+}
+
+export function debugSetItemQuality(game: GameState, instanceId: string, quality: number): GameState {
+  return applyItemMutation(game, (inventory) => setItemQuality(inventory, instanceId as ItemInstanceId, quality));
+}
+
+export function debugSetItemUpgradeLevel(game: GameState, instanceId: string, upgradeLevel: number): GameState {
+  return applyItemMutation(game, (inventory) => setItemUpgradeLevel(inventory, instanceId as ItemInstanceId, upgradeLevel));
+}
+
+export function debugAddItemAffix(game: GameState, instanceId: string, affixId: string, tierId: string): GameState {
+  return applyItemMutation(game, (inventory) => addItemAffix(inventory, instanceId as ItemInstanceId, affixId, tierId, debugItemRng));
+}
+
+export function debugRemoveItemAffix(game: GameState, instanceId: string, affixId: string): GameState {
+  return applyItemMutation(game, (inventory) => removeItemAffix(inventory, instanceId as ItemInstanceId, affixId));
+}
+
+export function debugRerollItemAffix(game: GameState, instanceId: string, affixId: string): GameState {
+  return applyItemMutation(game, (inventory) => rerollItemAffix(inventory, instanceId as ItemInstanceId, affixId, debugItemRng));
 }
 
 export function debugGrantAllEquipment(game: GameState, quantity = 1): GameState {
