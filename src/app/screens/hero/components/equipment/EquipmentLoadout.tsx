@@ -1,4 +1,4 @@
-import { EQUIPMENT_SLOT_DEFINITIONS, type EquipmentSlotId, type EquipmentState } from "../../../../../game/equipment/equipmentTypes";
+import type { EquipmentSlotId, EquipmentState } from "../../../../../game/equipment/equipmentTypes";
 import type { DefensiveEquipmentContext } from "../../../../../game/equipment/defensiveEquipment";
 import type { InventoryState } from "../../../../../game/inventory/inventoryTypes";
 import { EquipmentSlotCard } from "./EquipmentSlotCard";
@@ -15,7 +15,6 @@ export function EquipmentLoadout({ layout, selected, equipment, inventory, defen
 }) {
   return (
     <div className="hero-equipment-loadout" data-debug-kind="hero-equipment-loadout">
-      <div className="hero-equipment-loadout-heading"><span className="tiny-label">LOADOUT</span><span>{Object.values(equipment.slots).filter(Boolean).length} / {EQUIPMENT_SLOT_DEFINITIONS.length} slots filled</span></div>
       <div className="hero-equipment-body-layout" data-debug-kind="hero-equipment-body-layout">
         {layout.flatMap((row, rowIndex) => row.map((slotId, columnIndex) => (
           <div key={`${rowIndex}-${columnIndex}-${slotId ?? "empty"}`} className={`hero-equipment-body-cell ${slotId ? "" : "is-empty"}`}>

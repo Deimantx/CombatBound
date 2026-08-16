@@ -23,6 +23,35 @@ describe("Equipment 2.0 Hero workspace", () => {
     expect(screen.queryByText("ARMOR TRAINING")).not.toBeInTheDocument();
   });
 
+  it("exposes the loadout, slot workspace, and build stats as explicit zones", () => {
+    render(<App />);
+    fireEvent.click(screen.getByRole("button", { name: "Hero" }));
+
+    expect(document.querySelector('[data-debug-kind="hero-build-workspace"]')).toBeInTheDocument();
+    expect(document.querySelector('[data-debug-kind="equipment-loadout"]')).toBeInTheDocument();
+    expect(document.querySelector('[data-debug-kind="equipment-slot-workspace"]')).toBeInTheDocument();
+    expect(document.querySelector('[data-debug-kind="hero-build-stats"]')).toBeInTheDocument();
+  });
+
+  it("keeps candidate filters behind one control and exposes active filter chips", () => {
+    render(<App />);
+    fireEvent.click(screen.getByRole("button", { name: "Hero" }));
+
+    expect(screen.getByRole("textbox", { name: "Search compatible equipment" })).toBeInTheDocument();
+    expect(document.querySelector('[data-debug-kind="equipment-candidate-sort"]')).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /^Filters/ })).toBeInTheDocument();
+    expect(document.querySelector('[data-debug-filter="rarity"]')).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: /^Filters/ }));
+    expect(screen.getByRole("combobox", { name: "Rarity" })).toBeInTheDocument();
+    expect(screen.getByRole("combobox", { name: "Modification" })).toBeInTheDocument();
+    expect(screen.getByRole("combobox", { name: "Availability" })).toBeInTheDocument();
+    expect(screen.queryByRole("combobox", { name: "Equipment state" })).not.toBeInTheDocument();
+
+    fireEvent.change(screen.getByRole("combobox", { name: "Rarity" }), { target: { value: "rare" } });
+    expect(screen.getByRole("button", { name: "Remove Rare filter" })).toBeInTheDocument();
+  });
+
   it("filters exact compatible instances without equipping a candidate", () => {
     const store = useGameStore.getState();
     store.debug.setOwnedItemCount("item.hunter-sword", 2);

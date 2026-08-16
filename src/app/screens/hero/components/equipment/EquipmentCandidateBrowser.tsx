@@ -1,20 +1,16 @@
-import { ArrowDownAZ, ArrowUpAZ, SlidersHorizontal } from "lucide-react";
+import { ArrowDownAZ, ArrowUpAZ, Filter, X } from "lucide-react";
 import { useMemo, useState } from "react";
 import { buildItemInstanceSearchText, itemInstanceIsModified } from "../../../../../game/presentation/itemPresentation";
 import { itemInstanceSequence, type InventoryEntryRef } from "../../../../../game/items/itemTypes";
 import { inventorySortOptions, sortDirectionLabel, sortInventoryEntries, type InventorySortState } from "../../../../../game/inventory/inventorySorting";
 import { loadInventoryManualOrder, manualOrderStorageKey, orderInventoryEntriesByManual, serializeInventoryEntryRef } from "../../../../../game/inventory/inventoryManualOrder";
 import { SearchField } from "../../../../components/SearchField";
+import { InventoryFiltersPopover } from "../../../inventory/InventoryFiltersPopover";
+import type { InventoryFilters } from "../../../../../game/inventory/inventorySelectors";
 import { EquipmentCandidateCard, type EquipmentCandidateModel } from "./EquipmentCandidateCard";
 import type { EquipmentSlotId } from "../../../../../game/equipment/equipmentTypes";
 
-type CandidateFilters = {
-  rarity: "all" | "common" | "uncommon" | "rare";
-  availability: "all" | "usable" | "locked";
-  modification: "all" | "modified" | "unmodified" | "affixed" | "upgraded" | "quality";
-};
-
-const defaultFilters: CandidateFilters = { rarity: "all", availability: "all", modification: "all" };
+const defaultFilters: InventoryFilters = { category: "equipment", rarity: "all", equipmentState: "all", availability: "all", modification: "all" };
 const defaultSort: InventorySortState = { key: "name", direction: "asc" };
 
 export function EquipmentCandidateBrowser({ models, slotId, masteryLevel, activeProfileId, pinned, hovered, onSelect, onHover, onLeave }: {
@@ -30,7 +26,8 @@ export function EquipmentCandidateBrowser({ models, slotId, masteryLevel, active
 }) {
   const [query, setQuery] = useState("");
   const [sort, setSort] = useState<InventorySortState>(defaultSort);
-  const [filters, setFilters] = useState<CandidateFilters>(defaultFilters);
+  const [filters, setFilters] = useState<InventoryFilters>(defaultFilters);
+  const [filtersOpen, setFiltersOpen] = useState(false);
   const filteredModels = useMemo(() => {
     const normalizedQuery = query.trim().toLowerCase();
     const filtered = models.filter((model) => {
@@ -64,21 +61,29 @@ export function EquipmentCandidateBrowser({ models, slotId, masteryLevel, active
     return sortInventoryEntries(sortable, sort).map((entry) => entry.model);
   }, [activeProfileId, filters, models, query, sort]);
 
-  const updateFilter = <K extends keyof CandidateFilters>(key: K, value: CandidateFilters[K]) => setFilters((current) => ({ ...current, [key]: value }));
+  const activeFilterChips = [
+    filters.rarity !== "all" ? { key: "rarity", label: filters.rarity[0].toUpperCase() + filters.rarity.slice(1) } : undefined,
+    filters.availability !== "all" ? { key: "availability", label: filters.availability === "usable" ? "Can Equip Now" : "Locked" } : undefined,
+    filters.modification !== "all" ? { key: "modification", label: { modified: "Modified", unmodified: "Unmodified", affixed: "Has Affixes", upgraded: "Upgraded", quality: "Quality Improved" }[filters.modification] } : undefined,
+  ].filter((chip): chip is { key: "rarity" | "availability" | "modification"; label: string } => Boolean(chip));
+  const clearFilters = () => setFilters(defaultFilters);
+  const removeFilter = (key: "rarity" | "availability" | "modification") => setFilters((current) => ({ ...current, [key]: "all" }));
   const changeSort = (key: InventorySortState["key"]) => setSort({ key, direction: key === "manual" || key === "name" ? "asc" : "desc" });
   return (
     <section className="equipment-candidate-browser" data-debug-kind="equipment-candidate-browser" data-debug-visible-count={filteredModels.length}>
-      <div className="equipment-candidate-browser-header"><div><span className="tiny-label">COMPATIBLE CANDIDATES</span><strong>{filteredModels.length} / {models.length} owned instances</strong></div><SlidersHorizontal size={15} aria-hidden="true" /></div>
+      <div className="equipment-candidate-browser-header"><div><span className="tiny-label">COMPATIBLE ITEMS</span><strong>{filteredModels.length} / {models.length} owned instances</strong></div></div>
       <div className="equipment-candidate-controls">
         <SearchField value={query} onChange={setQuery} placeholder="Search compatible items" label="Search compatible equipment" debugKind="equipment-candidate-search" />
-        <label className="equipment-sort-control"><span className="sr-only">Sort candidates</span><select value={sort.key} onChange={(event) => changeSort(event.target.value as InventorySortState["key"])} data-debug-kind="equipment-candidate-sort" title="Sort compatible equipment">{inventorySortOptions("equipment").map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}</select></label>
-        <button type="button" className="equipment-sort-direction" onClick={() => setSort((current) => ({ ...current, direction: current.direction === "asc" ? "desc" : "asc" }))} aria-label={`Change candidate sort direction (${sortDirectionLabel(sort)})`} title={sortDirectionLabel(sort)} data-debug-kind="equipment-candidate-sort-direction">{sort.direction === "asc" ? <ArrowDownAZ size={15} /> : <ArrowUpAZ size={15} />}</button>
-        <label className="equipment-filter-control"><span className="sr-only">Rarity filter</span><select value={filters.rarity} onChange={(event) => updateFilter("rarity", event.target.value as CandidateFilters["rarity"])} title="Filter by rarity" data-debug-filter="rarity"><option value="all">All rarities</option><option value="common">Common</option><option value="uncommon">Uncommon</option><option value="rare">Rare</option></select></label>
-        <label className="equipment-filter-control"><span className="sr-only">Availability filter</span><select value={filters.availability} onChange={(event) => updateFilter("availability", event.target.value as CandidateFilters["availability"])} title="Filter by mastery availability" data-debug-filter="availability"><option value="all">All mastery</option><option value="usable">Usable now</option><option value="locked">Mastery locked</option></select></label>
-        <label className="equipment-filter-control"><span className="sr-only">Modification filter</span><select value={filters.modification} onChange={(event) => updateFilter("modification", event.target.value as CandidateFilters["modification"])} title="Filter by item modification" data-debug-filter="modification"><option value="all">All modifications</option><option value="modified">Modified</option><option value="unmodified">Unmodified</option><option value="affixed">Affixed</option><option value="upgraded">Upgraded</option><option value="quality">Quality</option></select></label>
+        <div className="equipment-candidate-secondary-controls">
+          <label className="equipment-sort-control"><span>Sort</span><select value={sort.key} onChange={(event) => changeSort(event.target.value as InventorySortState["key"])} data-debug-kind="equipment-candidate-sort" title="Sort compatible equipment">{inventorySortOptions("equipment").map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}</select></label>
+          <button type="button" className="equipment-sort-direction" onClick={() => setSort((current) => ({ ...current, direction: current.direction === "asc" ? "desc" : "asc" }))} aria-label={`Change candidate sort direction (${sortDirectionLabel(sort)})`} title={sortDirectionLabel(sort)} data-debug-kind="equipment-candidate-sort-direction">{sort.direction === "asc" ? <ArrowDownAZ size={15} /> : <ArrowUpAZ size={15} />}</button>
+          <button type="button" className="button button-ghost button-small equipment-filter-button" onClick={() => setFiltersOpen((value) => !value)} aria-expanded={filtersOpen} aria-controls="equipment-candidate-filters" data-debug-kind="equipment-candidate-filters"><Filter size={14} />Filters{activeFilterChips.length > 0 && <span className="equipment-active-filter-count">{activeFilterChips.length}</span>}</button>
+        </div>
       </div>
+      {filtersOpen && <InventoryFiltersPopover id="equipment-candidate-filters" category="equipment" filters={filters} setFilters={setFilters} showEquipmentState={false} />}
+      {activeFilterChips.length > 0 && <div className="equipment-active-filter-chips" aria-label="Active equipment filters">{activeFilterChips.map((chip) => <button type="button" key={chip.key} className="equipment-filter-chip" onClick={() => removeFilter(chip.key)} aria-label={`Remove ${chip.label} filter`}>{chip.label} <span aria-hidden="true">×</span></button>)}<button type="button" className="equipment-filter-chip is-clear" onClick={clearFilters}><X size={12} />Clear</button></div>}
       <div className="hero-equipment-candidate-grid" data-debug-kind="equipment-candidate-grid">
-        {filteredModels.length ? filteredModels.map((model) => <EquipmentCandidateCard key={model.entry.instance.id} model={model} slotId={slotId} selected={pinned?.slotId === slotId && pinned.instanceId === model.entry.instance.id} hovered={hovered?.slotId === slotId && hovered.instanceId === model.entry.instance.id} masteryLevel={masteryLevel} onSelect={() => onSelect(model.entry.instance.id)} onHover={() => onHover(model.entry.instance.id)} onLeave={onLeave} />) : <p className="hero-equipment-empty-copy">No compatible owned items match these controls.</p>}
+        {filteredModels.length ? filteredModels.map((model) => <EquipmentCandidateCard key={model.entry.instance.id} model={model} slotId={slotId} selected={pinned?.slotId === slotId && pinned.instanceId === model.entry.instance.id} hovered={hovered?.slotId === slotId && hovered.instanceId === model.entry.instance.id} masteryLevel={masteryLevel} onSelect={() => onSelect(model.entry.instance.id)} onHover={() => onHover(model.entry.instance.id)} onLeave={onLeave} />) : <p className="hero-equipment-empty-copy">{models.length ? "No candidates match current filters." : "No compatible owned items."}</p>}
       </div>
     </section>
   );

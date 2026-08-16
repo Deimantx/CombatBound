@@ -9,8 +9,8 @@ import { useGameStore } from "../../../state/gameStore";
 import type { HeroWindowRequest } from "../../../shared/types";
 import { ScreenHeading } from "../../shell/ScreenHeading";
 import { HeroBuildSystems } from "./components/HeroBuildSystems";
-import { HeroCombatStatsPanel } from "./components/HeroCombatStatsPanel";
-import { HeroEquipmentWorkspace, type HeroEquipmentPreview } from "./components/HeroEquipmentWorkspace";
+import { HeroBuildWorkspace } from "./components/HeroBuildWorkspace";
+import type { HeroEquipmentPreview } from "./components/HeroEquipmentWorkspace";
 import { HeroWindow, type HeroWindowId } from "./components/HeroWindow";
 import { HeroWindowContent } from "./components/HeroWindowContent";
 
@@ -55,17 +55,14 @@ export function HeroScreen() {
   }, [clearWindowRequest, openWindow, windowRequest]);
 
   return (
-    <div className="screen hero-screen" data-debug-screen="hero" data-debug-kind="hero-build-workspace">
+    <div className="screen hero-screen" data-debug-screen="hero" data-debug-kind="hero-screen">
       <ScreenHeading screen="hero" />
       <section className="hero-identity" data-debug-kind="hero-identity">
         <div className="hero-avatar"><Shield size={30} /></div>
         <div><span className="tiny-label">HUNTER</span><h2>Vanguard</h2><p>{activeDefinition?.name ?? "No weapon proficiency"} · Lv {activeLevel} · Mastery Lv {masteryLevelForXp(progression.masteryXp)}</p></div>
         <div className="hero-resource-summary"><span>HP <strong>{Math.round(stats.maxLife ?? 0)}</strong></span><span>Stamina <strong>{Math.round(stats.maxStamina)}</strong></span><span>Mana <strong>{Math.round(stats.maxMana)}</strong></span></div>
       </section>
-      <div className="hero-build-workspace-layout">
-        <HeroEquipmentWorkspace preview={equipmentPreview} hoveredPreview={hoveredEquipmentPreview} previewState={previewState} onPreviewChange={setEquipmentPreview} onHoverPreview={setHoveredEquipmentPreview} onSlotChange={() => { setEquipmentPreview(null); setHoveredEquipmentPreview(null); }} onEquipCommitted={() => { setEquipmentPreview(null); setHoveredEquipmentPreview(null); }} />
-        <HeroCombatStatsPanel previewState={previewState} />
-      </div>
+      <HeroBuildWorkspace preview={equipmentPreview} hoveredPreview={hoveredEquipmentPreview} previewState={previewState} onPreviewChange={setEquipmentPreview} onHoverPreview={setHoveredEquipmentPreview} onSlotChange={() => { setEquipmentPreview(null); setHoveredEquipmentPreview(null); }} onEquipCommitted={() => { setEquipmentPreview(null); setHoveredEquipmentPreview(null); }} />
       <HeroBuildSystems onOpen={(system, opener) => openWindow(system, opener)} />
       {windowId && <HeroWindow windowId={windowId} title={windowTitle(windowId)} subtitle={windowSubtitle(windowId)} icon={windowIcon(windowId)} onClose={closeWindow}><HeroWindowContent windowId={windowId} automationRequest={automationRequest} onOpenAutomation={(actionId, createRule) => openWindow("automation", undefined, { actionId, createRule })} /></HeroWindow>}
     </div>
