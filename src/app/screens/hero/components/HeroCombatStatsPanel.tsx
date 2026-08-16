@@ -1,16 +1,14 @@
 import { Swords } from "lucide-react";
-import { useId, useMemo, useState } from "react";
-import { calculateArmorMitigation } from "../../../../game/combat/combatMath";
-import { calculateHunterCombatStats } from "../../../../game/equipment/derivedStats";
-import { previewEquipmentChange } from "../../../../game/equipment/equipmentRules";
-import { masteryLevelForXp } from "../../../../game/progression/masteryProgression";
+import { useId, useState } from "react";
+import type { EquipmentPreviewState } from "../../../../game/equipment/equipmentPreview";
+import type { HunterCombatStats } from "../../../../game/equipment/derivedStats";
 import { combatStatGroups, type CombatStatGroupId } from "../../../../game/presentation/combatStatGroups";
 import { COMBAT_STAT_EPSILON, formatCombatStatDelta, formatCombatStatValue, formatDamageRange, getCombatStatDisplaySpec, labelForStatKey } from "../../../../game/presentation/statFormatting";
 import { useGameStore } from "../../../../state/gameStore";
 import { DisclosureChevron } from "../../../components/DisclosureChevron";
 import { StatLine } from "../../../components/StatLine";
-import type { HeroEquipmentPreview } from "./HeroEquipmentWorkspace";
 import { getItemDefinitionForInstance } from "../../../../game/items/itemResolver";
+import { EquipmentBuildSnapshot } from "./equipment/EquipmentBuildSnapshot";
 
 const HERO_STATS_STORAGE_KEY = "combatbound-hero-stats-v1";
 const DEFAULT_PREFERENCES: HeroStatsPreferences = {
@@ -47,31 +45,19 @@ function persistPreferences(preferences: HeroStatsPreferences) {
   }
 }
 
-export function HeroCombatStatsPanel({ preview, hoveredPreview }: { preview: HeroEquipmentPreview | null; hoveredPreview: HeroEquipmentPreview | null }) {
-  const equipment = useGameStore((state) => state.game.equipment);
-  const inventory = useGameStore((state) => state.game.inventory);
-  const progression = useGameStore((state) => state.game.progression);
-  const stance = useGameStore((state) => state.game.combat.stance);
-  const techniques = useGameStore((state) => state.game.combat.techniques);
+export function HeroCombatStatsPanel({ previewState }: { previewState: EquipmentPreviewState }) {
+  const game = useGameStore((state) => state.game);
   const selectedEquipmentSlot = useGameStore((state) => state.selectedEquipmentSlot);
   const [preferences, setPreferences] = useState(readPreferences);
   const instanceId = useId().replace(/:/g, "");
-  const stats = useMemo(() => calculateHunterCombatStats(equipment, inventory, progression, stance, techniques), [equipment, inventory, progression, stance, techniques]);
-  const requestedPreview = hoveredPreview ?? preview;
-  const activePreview = requestedPreview?.slotId === selectedEquipmentSlot ? requestedPreview : null;
-  const previewStats = useMemo(() => {
-    if (!activePreview) return null;
-    const preview = previewEquipmentChange({ equipment, inventory, instanceId: activePreview.instanceId, slotId: activePreview.slotId, masteryLevel: masteryLevelForXp(progression.masteryXp) });
-    return preview.validation.valid
-      ? calculateHunterCombatStats(preview.equipment, inventory, progression, stance, techniques)
-      : null;
-  }, [activePreview, equipment, inventory, progression, stance, techniques]);
+  const stats = previewState.currentStats;
+  const activePreview = previewState.request?.slotId === selectedEquipmentSlot ? previewState.request : null;
+  const previewStats = activePreview ? previewState.previewStats ?? null : null;
   const rangeFor = (source = stats) => ({ min: source.attackDamageMin ?? source.attackDamage, max: source.attackDamageMax ?? source.attackDamage });
   const panelContentId = `hero-combat-stats-content-${instanceId}`;
   const valueFor = (key: string, source = stats) => {
-    if (key === "physicalDirectMitigation") return calculateArmorMitigation(source.armour ?? 0);
     if (key.endsWith("Resistance")) {
-      return Number(source[`${key.replace("Resistance", "")}Resistance` as keyof typeof source] ?? 0);
+      return Number(source[key as keyof typeof source] ?? 0);
     }
     return Number(source[key as keyof typeof source] ?? 0);
   };
@@ -84,13 +70,13 @@ export function HeroCombatStatsPanel({ preview, hoveredPreview }: { preview: Her
   };
 
   return (
-    <aside className={`hero-combat-stats ${preferences.panel ? "is-open" : "is-collapsed"}`} data-debug-kind="hero-combat-stats" data-debug-expanded={preferences.panel ? "true" : "false"} data-debug-preview-instance-id={activePreview?.instanceId} data-debug-preview-item-id={activePreview ? getItemDefinitionForInstance(inventory, activePreview.instanceId)?.id : undefined} data-debug-preview-slot-id={activePreview?.slotId}>
+    <aside className={`hero-combat-stats ${preferences.panel ? "is-open" : "is-collapsed"}`} data-debug-kind="hero-combat-stats" data-debug-expanded={preferences.panel ? "true" : "false"} data-debug-preview-instance-id={activePreview?.instanceId} data-debug-preview-item-id={activePreview ? getItemDefinitionForInstance(game.inventory, activePreview.instanceId)?.id : undefined} data-debug-preview-slot-id={activePreview?.slotId}>
       <button type="button" className="hero-stats-parent-toggle" onClick={() => toggle("panel")} aria-expanded={preferences.panel} aria-controls={panelContentId}>
         <span className="hero-stats-title"><span className="panel-icon"><Swords size={16} /></span><span><strong>COMBAT STATS</strong><small>Live values used by combat</small></span></span>
         <DisclosureChevron open={preferences.panel} />
       </button>
       <div id={panelContentId} className="hero-combat-stats-content" hidden={!preferences.panel}>
-        <div className="hero-stats-summary"><span>Weapon Range <strong>{formatDamageRange(rangeFor().min, rangeFor().max)}</strong></span><span>Armour <strong>{formatCombatStatValue("armour", stats.armour ?? 0)}</strong></span><span>Max Life <strong>{formatCombatStatValue("maxLife", stats.maxLife ?? 0)}</strong></span></div>
+        <EquipmentBuildSnapshot current={stats} preview={previewStats ?? undefined} />
         <div className="hero-stat-groups">
           {combatStatGroups.map((group) => <HeroStatCategory key={group.id} group={group} open={preferences[group.id]} onToggle={() => toggle(group.id)} valueFor={valueFor} rangeFor={rangeFor} previewStats={previewStats} />)}
         </div>
@@ -99,7 +85,7 @@ export function HeroCombatStatsPanel({ preview, hoveredPreview }: { preview: Her
   );
 }
 
-function HeroStatCategory({ group, open, onToggle, valueFor, rangeFor, previewStats }: { group: (typeof combatStatGroups)[number]; open: boolean; onToggle: () => void; valueFor: (key: string, source?: ReturnType<typeof calculateHunterCombatStats>) => number; rangeFor: (source?: ReturnType<typeof calculateHunterCombatStats>) => { min: number; max: number }; previewStats: ReturnType<typeof calculateHunterCombatStats> | null }) {
+function HeroStatCategory({ group, open, onToggle, valueFor, rangeFor, previewStats }: { group: (typeof combatStatGroups)[number]; open: boolean; onToggle: () => void; valueFor: (key: string, source?: HunterCombatStats) => number; rangeFor: (source?: HunterCombatStats) => { min: number; max: number }; previewStats: HunterCombatStats | null }) {
   const id = useId().replace(/:/g, "");
   const contentId = `hero-stat-category-${group.id}-${id}`;
   return (

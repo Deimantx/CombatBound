@@ -15,7 +15,7 @@ import {
   useHealingPotion,
 } from "../game/combat/combatEngine";
 import { calculateHunterCombatStats } from "../game/equipment/derivedStats";
-import { equipItemInstance as equipOwnedItemInstance } from "../game/equipment/equipmentRules";
+import { equipItemInstance as equipOwnedItemInstance, unequipEquipmentSlot as unequipOwnedEquipmentSlot } from "../game/equipment/equipmentRules";
 import { getItemDefinitionForInstance } from "../game/items/itemResolver";
 import { normalizeInventoryState } from "../game/items/itemOwnership";
 import { normalizeEquipmentState } from "../game/equipment/equipmentRules";
@@ -223,6 +223,7 @@ interface GameStoreState {
   usePotion: () => void;
   purchaseProficiencyPerk: (perkId: string) => void;
   equipItemInstance: (instanceId: string, slot: EquipmentSlotId) => void;
+  unequipEquipmentSlot: (slot: EquipmentSlotId) => void;
   setInventoryFilter: (filter: string) => void;
   selectInventoryEntry: (entry: InventoryEntryRef | null) => void;
   selectEquipmentSlot: (slotId: EquipmentSlotId) => void;
@@ -1162,6 +1163,23 @@ export const useGameStore = create<GameStoreState>((set, get) => {
           progression,
           equipment: result.equipment,
         });
+        savePermanent(game, {
+          reducedMotion: state.reducedMotion,
+          showInspectorButton: state.showInspectorButton,
+        });
+        return flatState(game, state);
+      }),
+    unequipEquipmentSlot: (slot) =>
+      set((state) => {
+        if (
+          state.game.combat.phase === "active" ||
+          state.game.combat.phase === "recovery" ||
+          !isEquipmentSlotId(slot)
+        )
+          return state;
+        const equipment = unequipOwnedEquipmentSlot(state.game.equipment, slot);
+        if (equipment === state.game.equipment) return state;
+        const game = syncCombatStats({ ...state.game, equipment });
         savePermanent(game, {
           reducedMotion: state.reducedMotion,
           showInspectorButton: state.showInspectorButton,

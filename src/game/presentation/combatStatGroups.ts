@@ -3,8 +3,8 @@ import { COMBAT_STAT_REGISTRY } from "./combatStatRegistry";
 
 /**
  * The single presentation catalogue for the combat stats shown by Hero and
- * the standalone Equipment screen.  The values themselves still come from
- * the canonical combat stat pipeline.
+ * other build-facing consumers. The values themselves still come from the
+ * canonical combat stat pipeline.
  */
 const summaryGroups = ["offense", "defense", "resources", "resistances"] as const;
 export const combatStatGroups = summaryGroups.map((id) => ({
