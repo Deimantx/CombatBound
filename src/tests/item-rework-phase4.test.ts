@@ -3,9 +3,9 @@ import { itemDefinitions } from "../game/data/items";
 import { createInitialGameState } from "../game/gameState";
 import { chooseEquipmentTargetSlot, defaultInventoryFilters, paginateInventoryEntries, selectInventoryEntries } from "../game/inventory/inventorySelectors";
 import { addItemAffix } from "../game/items/itemMutations";
-import { getItemInstances, grantItem } from "../game/items/itemOwnership";
+import { getItemInstances, grantItem, removeItemInstance } from "../game/items/itemOwnership";
 import { buildEquipmentComparisonRows } from "../game/presentation/equipmentComparison";
-import { buildItemTaxonomy, findItemTaxonomyNode } from "../game/presentation/itemTaxonomy";
+import { buildItemTaxonomy, buildOwnedItemTaxonomyCounts, findItemTaxonomyNode } from "../game/presentation/itemTaxonomy";
 import { EQUIPMENT_SLOT_DEFINITIONS } from "../game/equipment/equipmentTypes";
 import { debugDeleteItemInstance } from "../game/debug/debugActions";
 
@@ -28,6 +28,18 @@ describe("Phase 4 inventory contracts", () => {
     expect(findItemTaxonomyNode(taxonomy, "items.equipment.armor.light-armor.head")?.definitionIds).toEqual(["item.training-hood"]);
     expect(findItemTaxonomyNode(taxonomy, "items.materials")?.label).toBe("Materials");
     expect(findItemTaxonomyNode(taxonomy, "debug.items.equipment")).toBeUndefined();
+  });
+
+  it("counts exact instances and one entry per stack across the taxonomy", () => {
+    const game = createInitialGameState();
+    const swords = grantItem(game.inventory, "item.hunter-sword", 2).inventory;
+    const inventory = grantItem(swords, "item.healing-potion", 943).inventory;
+    const taxonomy = buildItemTaxonomy(itemDefinitions);
+    const counts = buildOwnedItemTaxonomyCounts(inventory, taxonomy);
+    expect(counts.get("items.equipment.weapons.one-handed.one-handed-swords")).toBe(3);
+    expect(counts.get("items.consumables")).toBe(1);
+    const deleted = removeItemInstance(inventory, Object.values(inventory.instances).find((instance) => instance.definitionId === "item.hunter-sword")!.id);
+    expect(buildOwnedItemTaxonomyCounts(deleted, taxonomy).get("items.equipment.weapons.one-handed.one-handed-swords")).toBe(2);
   });
 
   it("chooses the current shared slot, then an empty slot, then the first slot", () => {

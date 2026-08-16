@@ -2,7 +2,6 @@ import { itemById } from "../data/items";
 import { proficiencyById } from "../data/proficiencies";
 import type { ItemDefinition } from "../data/items";
 import type { InventoryState } from "../inventory/inventoryTypes";
-import { getItemInstances } from "../items/itemOwnership";
 import type { WeaponProficiencyId } from "../progression/progressionTypes";
 
 export const weaponCatalogueByProficiencyId = {
@@ -142,11 +141,30 @@ export function getItemTaxonomyPath(root: ItemTaxonomyNode, id: string): ItemTax
   return [];
 }
 
-export function countOwnedEntriesUnderNode(inventory: InventoryState, node: ItemTaxonomyNode) {
-  const definitions = new Set(node.definitionIds);
-  const stackEntries = Object.entries(inventory.stackables).filter(([definitionId, quantity]) => definitions.has(definitionId) && quantity > 0).length;
-  const instanceEntries = getItemInstances(inventory).filter((instance) => definitions.has(instance.definitionId)).length;
-  return stackEntries + instanceEntries;
+/**
+ * Counts visible owned entries for every taxonomy node in one ownership pass.
+ * Instance gear contributes one entry per copy; stackables contribute one
+ * entry per non-empty stack, regardless of quantity in that stack.
+ */
+export function buildOwnedItemTaxonomyCounts(inventory: InventoryState, root: ItemTaxonomyNode) {
+  const ownedByDefinition = new Map<string, number>();
+  for (const instance of Object.values(inventory.instances)) {
+    ownedByDefinition.set(instance.definitionId, (ownedByDefinition.get(instance.definitionId) ?? 0) + 1);
+  }
+  for (const [definitionId, quantity] of Object.entries(inventory.stackables)) {
+    if (quantity > 0) ownedByDefinition.set(definitionId, 1);
+  }
+
+  const counts = new Map<string, number>();
+  const visit = (current: ItemTaxonomyNode): number => {
+    const count = current.children.length
+      ? current.children.reduce((total, child) => total + visit(child), 0)
+      : current.definitionIds.reduce((total, definitionId) => total + (ownedByDefinition.get(definitionId) ?? 0), 0);
+    counts.set(current.id, count);
+    return count;
+  };
+  visit(root);
+  return counts;
 }
 
 export function filterItemTaxonomy(root: ItemTaxonomyNode, definitionIds: ReadonlySet<string>): ItemTaxonomyNode | null {

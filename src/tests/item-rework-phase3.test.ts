@@ -80,8 +80,8 @@ describe("Phase 3 item cleanup contracts", () => {
     const all = selectInventoryEntries(inventory, game.equipment);
     expect(all.filter((entry) => entry.definition.id === "item.hunter-sword")).toHaveLength(2);
     expect(selectInventoryEntries(inventory, game.equipment, undefined, "Sharpened")).toHaveLength(1);
-    expect(selectInventoryEntries(inventory, game.equipment, { category: "equipment", equipment: "weapons", rarity: "all", equipmentState: "all", modification: "modified" })).toHaveLength(1);
-    expect(selectInventoryEntries(inventory, game.equipment, { category: "all", equipment: "all-gear", rarity: "all", equipmentState: "all", modification: "unmodified" }).some((entry) => entry.instanceId === first)).toBe(false);
+    expect(selectInventoryEntries(inventory, game.equipment, { category: "equipment", rarity: "all", equipmentState: "all", modification: "modified", nodeId: "items.equipment.weapons" })).toHaveLength(1);
+    expect(selectInventoryEntries(inventory, game.equipment, { category: "all", rarity: "all", equipmentState: "all", modification: "unmodified" }).some((entry) => entry.instanceId === first)).toBe(false);
     expect(selectInventoryEntries(inventory, game.equipment).some((entry) => entry.definition.id === "item.healing-potion")).toBe(true);
   });
 

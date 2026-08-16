@@ -9,14 +9,12 @@ import type { EquipmentSlotDefinition, EquipmentSlotId, EquipmentState } from ".
 import type { InventoryState } from "./inventoryTypes";
 
 export type InventoryPrimaryCategory = "all" | "equipment" | "consumables" | "materials" | "currency";
-export type InventoryEquipmentFilter = "all-gear" | "weapons" | "offhands" | "armor" | "accessories";
 export type InventorySort = "name" | "rarity" | "mastery" | "quality" | "upgrade" | "recent" | "quantity";
 export type InventoryEquipmentStateFilter = "all" | "equipped" | "unequipped";
 export type InventoryModificationFilter = "all" | "modified" | "unmodified";
 
 export interface InventoryFilters {
   category: InventoryPrimaryCategory;
-  equipment: InventoryEquipmentFilter;
   rarity: ItemRarity | "all";
   equipmentState: InventoryEquipmentStateFilter;
   modification: InventoryModificationFilter;
@@ -38,7 +36,6 @@ export interface InventoryViewEntry {
 
 export const defaultInventoryFilters: InventoryFilters = {
   category: "all",
-  equipment: "all-gear",
   rarity: "all",
   equipmentState: "all",
   modification: "all",
@@ -54,7 +51,7 @@ export function chooseEquipmentTargetSlot(
     ?? slotTargets[0]?.id;
 }
 
-const itemTaxonomy = buildItemTaxonomy(itemDefinitions);
+export const inventoryItemTaxonomy = buildItemTaxonomy(itemDefinitions);
 
 export function inventoryRefsEqual(left: InventoryEntryRef | null | undefined, right: InventoryEntryRef | null | undefined) {
   if (!left || !right || left.kind !== right.kind) return false;
@@ -67,23 +64,12 @@ export function paginateInventoryEntries(entries: readonly InventoryViewEntry[],
   return entries.slice(0, Math.max(0, Math.floor(visibleLimit)));
 }
 
-function equipmentFilterMatches(definition: ItemDefinition, filter: InventoryEquipmentFilter) {
-  if (filter === "all-gear") return true;
-  if (!definition.equipmentSlotKind) return false;
-  if (filter === "weapons") return definition.equipmentSlotKind === "weapon";
-  if (filter === "offhands") return definition.equipmentSlotKind === "offhand";
-  if (filter === "armor") return ["head", "armor", "gloves", "boots"].includes(definition.equipmentSlotKind);
-  return ["belt", "cape", "necklace", "ring", "earring"].includes(definition.equipmentSlotKind);
-}
-
 function matchesDefinition(definition: ItemDefinition, filters: InventoryFilters, allowedDefinitionIds?: ReadonlySet<string>) {
   if (allowedDefinitionIds && !allowedDefinitionIds.has(definition.id)) return false;
   if (filters.category === "equipment" && !definition.equipmentSlotKind) return false;
   if (filters.category === "consumables" && definition.category !== "consumable") return false;
   if (filters.category === "materials" && definition.category !== "material") return false;
   if (filters.category === "currency" && definition.category !== "currency") return false;
-  if (filters.category === "equipment" && !equipmentFilterMatches(definition, filters.equipment)) return false;
-  if (filters.category !== "equipment" && filters.equipment !== "all-gear") return false;
   if (filters.rarity !== "all" && definition.rarity !== filters.rarity) return false;
   return true;
 }
@@ -119,7 +105,7 @@ export function selectInventoryEntries(
     instancesByDefinition.set(instance.definitionId, instances);
   }
   const allowedDefinitionIds = filters.nodeId && filters.nodeId !== "items"
-    ? getDefinitionIdsUnderNode(itemTaxonomy, filters.nodeId)
+    ? getDefinitionIdsUnderNode(inventoryItemTaxonomy, filters.nodeId)
     : undefined;
   const entries: InventoryViewEntry[] = [];
   for (const [index, definition] of itemDefinitions.entries()) {
