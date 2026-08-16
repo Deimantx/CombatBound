@@ -39,15 +39,15 @@ describe("Combat Abilities V8.2 domain", () => {
 
   it("rejects an active action that is not equipped", () => {
     const game = createInitialGameState();
-    const started = startHunt({ ...game, combatAbilities: { ...game.combatAbilities, activeSlots: ["defense.evasive-step", null, null, null] } }, "location.wolf-den", calculateHunterCombatStats(game.equipment, game.progression, game.combat.stance, game.combat.techniques), context);
-    const result = validatePlayerAction(started, "defense.guard", calculateHunterCombatStats(game.equipment, game.progression, game.combat.stance, game.combat.techniques), context);
+    const started = startHunt({ ...game, combatAbilities: { ...game.combatAbilities, activeSlots: ["defense.evasive-step", null, null, null] } }, "location.wolf-den", calculateHunterCombatStats(game.equipment, game.inventory, game.progression, game.combat.stance, game.combat.techniques), context);
+    const result = validatePlayerAction(started, "defense.guard", calculateHunterCombatStats(game.equipment, game.inventory, game.progression, game.combat.stance, game.combat.techniques), context);
     expect(result.valid).toBe(false);
     expect(result.reason).toBe("ability-not-equipped");
   });
 
   it("allows only equipped techniques to toggle during an active hunt", () => {
     const game = createInitialGameState();
-    const stats = calculateHunterCombatStats(game.equipment, game.progression, game.combat.stance, game.combat.techniques);
+    const stats = calculateHunterCombatStats(game.equipment, game.inventory, game.progression, game.combat.stance, game.combat.techniques);
     const active = startHunt(game, "location.wolf-den", stats, context);
     expect(canToggleTechnique(active, "careful-positioning")).toBe(true);
     const unavailable = { ...active, combatAbilities: { ...active.combatAbilities, techniqueSlots: [null, "heightened-reflexes"] as Array<"careful-positioning" | "heightened-reflexes" | null> } };

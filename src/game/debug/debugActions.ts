@@ -1,4 +1,4 @@
-import { addItem } from "../inventory/inventoryLogic";
+import { grantItem, getInstancesByDefinitionId, removeItemInstance } from "../inventory/inventoryLogic";
 import { discoverItem, discoverTarget } from "../collection/collectionLogic";
 import { createInitialCollection } from "../collection/collectionTypes";
 import { itemById, itemDefinitions, prototypeEquipmentDefinitions } from "../data/items";
@@ -15,7 +15,6 @@ import { createCombatContext, forceDefeatEnemiesForDebug, forceDefeatPlayerForDe
 import { normalizeCombatAbilityLoadout, equipCombatAbility, equipTechnique } from "../combatAbilities/combatAbilityLogic";
 import { COMBAT_ABILITY_SLOT_COUNT } from "../combatAbilities/combatAbilityTypes";
 import { createInitialSpellbook, normalizeSpellbook } from "../spellbook/spellbookLogic";
-import { normalizeEquipmentState } from "../equipment/equipmentRules";
 import { calculateHunterCombatStats } from "../equipment/derivedStats";
 import { COMBAT_SPELL_SLOT_COUNT } from "../spellbook/spellbookTypes";
 import { allProficiencyDefinitions, discoverProficiency, proficiencyXpForLevel } from "../progression/proficiencyProgression";
@@ -47,25 +46,26 @@ export function debugGrantItem(game: GameState, itemId: string, quantity: number
   if (!itemById[itemId]) return game;
   const amount = Math.max(0, safeInteger(quantity));
   if (amount <= 0) return game;
-  return {
-    ...game,
-    inventory: addItem(game.inventory, itemId, amount),
-    collection: discoverItem(game.collection, itemId),
-  };
+  return { ...game, inventory: grantItem(game.inventory, itemId, amount).inventory, collection: discoverItem(game.collection, itemId) };
 }
 
-export function debugSetItemQuantity(game: GameState, itemId: string, quantity: number): GameState {
+export function debugSetOwnedItemCount(game: GameState, itemId: string, quantity: number): GameState {
   if (!itemById[itemId]) return game;
-  const nextQuantities = {
-    ...game.inventory.quantities,
-    [itemId]: Math.max(0, safeInteger(quantity)),
-  };
-  const inventory = { quantities: nextQuantities };
-  return syncCombatStats({
-    ...game,
-    inventory,
-    equipment: normalizeEquipmentState(game.equipment, nextQuantities),
-  });
+  const target = Math.max(0, safeInteger(quantity));
+  const definition = itemById[itemId];
+  if (definition.inventoryMode === "stackable") {
+    const stackables = { ...game.inventory.stackables, [itemId]: target };
+    return syncCombatStats({ ...game, inventory: { ...game.inventory, stackables } });
+  }
+  const owned = getInstancesByDefinitionId(game.inventory, itemId);
+  const equippedIds = new Set(Object.values(game.equipment.slots).filter((id): id is string => Boolean(id)));
+  let inventory = game.inventory;
+  if (owned.length < target) inventory = grantItem(inventory, itemId, target - owned.length).inventory;
+  if (owned.length > target) {
+    const removable = owned.filter((instance) => !equippedIds.has(instance.id)).slice(0, owned.length - target);
+    for (const instance of removable) inventory = removeItemInstance(inventory, instance.id, equippedIds);
+  }
+  return syncCombatStats({ ...game, inventory });
 }
 
 export function debugGrantAllEquipment(game: GameState, quantity = 1): GameState {
@@ -291,7 +291,7 @@ export function debugClearAllEnemyEffects(game: GameState): GameState {
 export function debugApplyEffect(game: GameState, effectId: string, target: DebugEffectTarget): GameState {
   const definition = effectById[effectId];
   if (!definition) return game;
-  const stats = calculateHunterCombatStats(game.equipment, game.progression, game.combat.stance, game.combat.techniques);
+  const stats = calculateHunterCombatStats(game.equipment, game.inventory, game.progression, game.combat.stance, game.combat.techniques);
   const playerStats = getPlayerEffectiveCombatStats(game.combat, stats, game.progression, effectById);
   const source: CombatantRef = { kind: "player" };
   if (target === "player") {
@@ -307,7 +307,7 @@ export function debugApplyEffect(game: GameState, effectId: string, target: Debu
 }
 
 export function debugApplyPlayerMaxHpBarrier(game: GameState): GameState {
-  const stats = calculateHunterCombatStats(game.equipment, game.progression, game.combat.stance, game.combat.techniques);
+  const stats = calculateHunterCombatStats(game.equipment, game.inventory, game.progression, game.combat.stance, game.combat.techniques);
   const playerStats = getPlayerEffectiveCombatStats(game.combat, stats, game.progression, effectById);
   const result = applyEffectById(game.combat, "effect.earth-barrier", effectById, { kind: "player" }, { kind: "player" }, { targetStats: playerStats, absorbAmount: game.combat.maxPlayerHp });
   return { ...game, combat: result.combat };
@@ -368,6 +368,7 @@ export function debugResetSessionMetrics(game: GameState): GameState {
         masteryXpGained: 0,
         itemsGained: 0,
         lootGained: {},
+        itemInstanceIdsGained: [],
         goldGained: 0,
         highestHit: 0,
       },

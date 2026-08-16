@@ -34,6 +34,7 @@ export function CombatScreen() {
     : enemyById["enemy.grey-wolf"];
   const stats = calculateHunterCombatStats(
     game.equipment,
+    game.inventory,
     game.progression,
     combat.stance,
     combat.techniques,

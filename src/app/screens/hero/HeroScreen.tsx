@@ -16,6 +16,7 @@ import { HeroWindowContent } from "./components/HeroWindowContent";
 
 export function HeroScreen() {
   const equipment = useGameStore((state) => state.game.equipment);
+  const inventory = useGameStore((state) => state.game.inventory);
   const progression = useGameStore((state) => state.game.progression);
   const stance = useGameStore((state) => state.game.combat.stance);
   const techniques = useGameStore((state) => state.game.combat.techniques);
@@ -27,8 +28,8 @@ export function HeroScreen() {
   const [equipmentPreview, setEquipmentPreview] = useState<HeroEquipmentPreview | null>(null);
   const [hoveredEquipmentPreview, setHoveredEquipmentPreview] = useState<HeroEquipmentPreview | null>(null);
   const openerRef = useRef<HTMLButtonElement | null>(null);
-  const stats = calculateHunterCombatStats(equipment, progression, stance, techniques);
-  const active = getActiveWeaponProficiency(progression, equipment);
+  const stats = calculateHunterCombatStats(equipment, inventory, progression, stance, techniques);
+  const active = getActiveWeaponProficiency(progression, equipment, inventory);
   const activeDefinition = active ? proficiencyById[active.proficiencyId] : undefined;
   const activeLevel = active ? getProficiencyLevel(progression, active.proficiencyId) : 0;
   useEffect(() => {

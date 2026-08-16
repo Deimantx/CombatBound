@@ -64,6 +64,7 @@ export function CombatAbilitiesWindow({
   const context = useMemo(() => createCombatPreviewContext(), []);
   const stats = calculateHunterCombatStats(
     game.equipment,
+    game.inventory,
     game.progression,
     game.combat.stance,
     game.combat.techniques,
@@ -92,7 +93,7 @@ export function CombatAbilitiesWindow({
         ? entry.actionId === selectedId
         : entry.techniqueId === selectedId,
   );
-  const equippedWeaponProficiency = getEquippedWeaponProficiency(game.equipment);
+  const equippedWeaponProficiency = getEquippedWeaponProficiency(game.equipment, game.inventory);
   const defaultWeaponGroupId = getDefaultWeaponGroupId(game, entries, selectedId, weaponSkillGroups);
   useEffect(() => {
     if ((filter !== "weapon-skills" && filter !== "all") || !defaultWeaponGroupId) return;
@@ -352,7 +353,7 @@ function getDefaultWeaponGroupId(
 ) {
   const selected = entries.find((entry) => entry.kind === "active-action" && entry.category === "weapon-skill" && entry.actionId === selectedId);
   if (selected?.kind === "active-action" && selected.proficiencyId) return `weapon.${selected.proficiencyId}`;
-  const equippedWeapon = getEquippedWeaponProficiency(game.equipment);
+  const equippedWeapon = getEquippedWeaponProficiency(game.equipment, game.inventory);
   if (equippedWeapon && groups.some((group) => group.proficiencyId === equippedWeapon)) return `weapon.${equippedWeapon}`;
   const equippedSkill = entries.find((entry) => entry.kind === "active-action" && entry.category === "weapon-skill" && game.combatAbilities.activeSlots.includes(entry.actionId));
   if (equippedSkill?.kind === "active-action" && equippedSkill.proficiencyId) return `weapon.${equippedSkill.proficiencyId}`;

@@ -173,6 +173,7 @@ describe("Combat effect runtime", () => {
     const game = createInitialGameState();
     const stats = calculateHunterCombatStats(
       game.equipment,
+      game.inventory,
       game.progression,
       game.combat.stance,
       game.combat.techniques,

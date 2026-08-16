@@ -105,7 +105,7 @@ export function LiveHuntPanel({
       : combat.phase === "recovery"
         ? "GROUP RECOVERY"
         : combat.phase.toUpperCase();
-  const potionQuantity = game.inventory.quantities["item.healing-potion"] ?? 0;
+  const potionQuantity = game.inventory.stackables["item.healing-potion"] ?? 0;
   const potionReady =
     combat.phase === "active" &&
     combat.potionCooldownRemaining <= 0 &&

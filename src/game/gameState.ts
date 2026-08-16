@@ -43,11 +43,12 @@ export interface GameState {
 }
 
 export function createInitialGameState(): GameState {
+  const inventory = createInitialInventory();
   return {
     combat: createCombatState(),
     progression: createInitialProgression(),
-    inventory: createInitialInventory(),
-    equipment: createInitialEquipment(),
+    inventory,
+    equipment: createInitialEquipment(inventory),
     collection: {
       ...createInitialCollection(enemyDefinitions.map((enemy) => enemy.id)),
       discoveredItems: [

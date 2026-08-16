@@ -167,7 +167,7 @@ export function buildEffectiveSpellContext(
     targetEffects: target?.effects,
     manaFraction:
       game.combat.maxMana > 0 ? game.combat.mana / game.combat.maxMana : 1,
-    equipmentContext: getDefensiveEquipmentContext(game.equipment),
+    equipmentContext: getDefensiveEquipmentContext(game.equipment, game.inventory),
   };
 }
 
@@ -217,7 +217,7 @@ export function validatePlayerAction(
       (candidate) => candidate.id === action.sourceWeaponSkillId,
     );
     if (!skill) return { valid: false, reason: "weapon-requirement", action };
-    if (getEquippedWeaponProficiency(game.equipment) !== skill.proficiencyId)
+    if (getEquippedWeaponProficiency(game.equipment, game.inventory) !== skill.proficiencyId)
       return { valid: false, reason: "weapon-requirement", action };
     if (
       combatBalance.enforceWeaponSkillLevelRequirements &&
@@ -274,13 +274,13 @@ export function validatePlayerAction(
       };
   }
   if (action.id === potionAction.id) {
-    if ((game.inventory.quantities[potionAction.sourceItemId!] ?? 0) <= 0)
+    if ((game.inventory.stackables[potionAction.sourceItemId!] ?? 0) <= 0)
       return { valid: false, reason: "consumable-missing", action };
     if (combat.playerHp >= (stats.maxLife ?? 0))
       return { valid: false, reason: "full-health", action };
   }
   if (action.requirements) {
-    const equipment = getDefensiveEquipmentContext(game.equipment);
+    const equipment = getDefensiveEquipmentContext(game.equipment, game.inventory);
     if (action.requirements.requiresShield && !equipment.shieldEquipped)
       return { valid: false, reason: "equipment-requirement", action };
     if (

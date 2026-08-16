@@ -99,7 +99,7 @@ export function getCombatAbilityAvailability(
     ? weaponSkillById[action.sourceWeaponSkillId]
     : undefined;
   if (skill) {
-    const equippedWeapon = getEquippedWeaponProficiency(game.equipment);
+    const equippedWeapon = getEquippedWeaponProficiency(game.equipment, game.inventory);
     if (equippedWeapon !== skill.proficiencyId)
       return {
         usable: false,
@@ -119,7 +119,7 @@ export function getCombatAbilityAvailability(
       requirement: `${skill.proficiencyId.replaceAll("-", " ")} equipped · planned Lv ${skill.unlock.level}`,
     };
   }
-  const equipment = getDefensiveEquipmentContext(game.equipment);
+  const equipment = getDefensiveEquipmentContext(game.equipment, game.inventory);
   const requirements = action.requirements;
   if (requirements?.requiresShield && !equipment.shieldEquipped)
     return {

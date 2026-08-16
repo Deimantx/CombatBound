@@ -83,9 +83,11 @@ export function equipmentSlotKindLabel(kind: EquipmentSlotKind) {
 }
 
 export interface EquipmentState {
-  slots: Partial<Record<EquipmentSlotId, string>>;
+  slots: Partial<Record<EquipmentSlotId, import('../items/itemTypes').ItemInstanceId>>;
 }
 
-export function createInitialEquipment(): EquipmentState {
-  return { slots: { weapon: "item.training-sword", armor: "item.training-armor" } };
+export function createInitialEquipment(inventory: import('../inventory/inventoryTypes').InventoryState): EquipmentState {
+  const trainingSword = Object.values(inventory.instances).find((instance) => instance.definitionId === "item.training-sword")
+  const trainingArmor = Object.values(inventory.instances).find((instance) => instance.definitionId === "item.training-armor")
+  return { slots: { weapon: trainingSword?.id, armor: trainingArmor?.id } };
 }

@@ -1,4 +1,4 @@
-import { removeItem } from "../inventory/inventoryLogic";
+import { removeStackableItem } from "../inventory/inventoryLogic";
 import {
   calculateHunterCombatStats,
   type HunterCombatStats,
@@ -146,7 +146,7 @@ export function resolveDefensiveTrainingForEnemyAction(
 ) {
   if (!trainingEvent.resolved) return game;
   const awards = calculateDefensiveTrainingAwards(
-    getDefensiveEquipmentContext(game.equipment, items),
+    getDefensiveEquipmentContext(game.equipment, game.inventory, items),
   );
   let next = game;
   for (const [proficiencyId, amount] of Object.entries(awards) as Array<
@@ -297,6 +297,7 @@ export function startHunt(
     masteryXpGained: 0,
     itemsGained: 0,
     lootGained: {},
+    itemInstanceIdsGained: [],
     goldGained: 0,
     highestHit: 0,
   };
@@ -319,7 +320,7 @@ export function startDebugEncounter(
   if (!context.locations[locationId]) return game;
   const validEnemyIds = enemyIds.filter((enemyId) => Boolean(context.enemies[enemyId])).slice(0, 12);
   if (validEnemyIds.length === 0) return game;
-  const session = { ...game.combat.session, elapsedSeconds: 0, groupClears: 0, enemiesDefeated: 0, damageDealt: 0, damageTaken: 0, healing: 0, proficiencyXpGained: {}, masteryXpGained: 0, itemsGained: 0, lootGained: {}, goldGained: 0, highestHit: 0 };
+  const session = { ...game.combat.session, elapsedSeconds: 0, groupClears: 0, enemiesDefeated: 0, damageDealt: 0, damageTaken: 0, healing: 0, proficiencyXpGained: {}, masteryXpGained: 0, itemsGained: 0, lootGained: {}, itemInstanceIdsGained: [], goldGained: 0, highestHit: 0 };
   const clean = clearEndedHuntEffects({ ...game.combat, session }, context.effects);
   return { ...game, combat: createActiveCombat(clean, locationId, validEnemyIds, stats, Math.max(1, game.combat.groupNumber + 1), false) };
 }
@@ -647,7 +648,7 @@ export function castSpell(
       enemy.instanceId === combat.selectedEnemyInstanceId && !enemy.defeated,
   );
   if (spell.targetMode === "selectedEnemy" && !target) return game;
-  const equipmentContext = getDefensiveEquipmentContext(game.equipment);
+  const equipmentContext = getDefensiveEquipmentContext(game.equipment, game.inventory);
   const effectiveSpell = calculateEffectiveSpell(
     spell,
     game.progression,
@@ -1195,14 +1196,14 @@ function damageEnemy(
   const weaponProficiencyId =
     packet.progressionSource?.type === "equippedWeapon" &&
     packet.progressionSource.proficiencyEligible
-      ? getEquippedWeaponProficiency(game.equipment)
+      ? getEquippedWeaponProficiency(game.equipment, game.inventory)
       : null;
   const proficiencyId =
     packet.progressionSource?.type === "spell" &&
     packet.progressionSource.proficiencyEligible
       ? packet.progressionSource.proficiencyId
       : weaponProficiencyId;
-  const equipmentContext = getDefensiveEquipmentContext(game.equipment);
+  const equipmentContext = getDefensiveEquipmentContext(game.equipment, game.inventory);
   const conditionalMultiplier =
     packet.progressionSource?.proficiencyEligible &&
     packet.progressionSource.type === "equippedWeapon"
@@ -1558,7 +1559,7 @@ export function useHealingPotion(
   );
   return {
     ...game,
-    inventory: removeItem(game.inventory, "item.healing-potion", 1),
+    inventory: removeStackableItem(game.inventory, "item.healing-potion", 1),
     combat: event(
       {
         ...game.combat,
@@ -1673,7 +1674,7 @@ function advanceStep(
           stats,
           context,
           game.progression,
-          getEquippedWeaponProficiency(game.equipment),
+          getEquippedWeaponProficiency(game.equipment, game.inventory),
         ) *
           step,
       0,
@@ -2849,6 +2850,7 @@ export function stopHunt(
 export function syncCombatStats(game: GameState): GameState {
   const stats = calculateHunterCombatStats(
     game.equipment,
+    game.inventory,
     game.progression,
     game.combat.stance,
     game.combat.techniques,

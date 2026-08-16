@@ -7,6 +7,8 @@ import { getEquippedItems } from "../equipment/defensiveEquipment";
 import type { CombatStatContribution, CombatStatKey, ModifierOperation } from "../combat/combatTypes";
 import type { GameState } from "../gameState";
 import type { EquipmentState } from "../equipment/equipmentTypes";
+import type { InventoryState } from "../inventory/inventoryTypes";
+import { resolveItemInstance } from "../items/itemResolver";
 import type { ProgressionState } from "../progression/progressionTypes";
 import type { StanceId, TechniqueId } from "../combat/combatTypes";
 import { COMBAT_STAT_KEYS, DEBUG_STAT_DEFINITIONS, type DebugStatInspectionId } from "./debugStatRegistry";
@@ -35,6 +37,7 @@ export interface StatBreakdown {
 
 export interface StatInspectionContext {
   equipment: EquipmentState;
+  inventory: InventoryState;
   progression: ProgressionState;
   stance: StanceId;
   techniques: Record<TechniqueId, boolean>;
@@ -44,7 +47,7 @@ export interface StatInspectionContext {
 
 function inspectionContext(input: GameState | StatInspectionContext): StatInspectionContext {
   if ("equipment" in input && "progression" in input && "combatPhase" in input) return input;
-  return { equipment: input.equipment, progression: input.progression, stance: input.combat.stance, techniques: input.combat.techniques, playerEffects: input.combat.playerEffects, combatPhase: input.combat.phase };
+  return { equipment: input.equipment, inventory: input.inventory, progression: input.progression, stance: input.combat.stance, techniques: input.combat.techniques, playerEffects: input.combat.playerEffects, combatPhase: input.combat.phase };
 }
 
 function itemStat(item: ReturnType<typeof getEquippedItems>[number], stat: DebugStatInspectionId) {
@@ -73,14 +76,14 @@ export function buildStatBreakdown(input: GameState | StatInspectionContext, sta
   const context = inspectionContext(input);
   const resolvedMode = mode ?? (context.combatPhase === "active" || context.combatPhase === "recovery" ? "effective" : "build");
   const canonicalContributions: CombatStatContribution[] = [];
-  const buildStats = calculateHunterCombatStats(context.equipment, context.progression, context.stance, context.techniques, itemById, { record: (contribution) => canonicalContributions.push(contribution) });
+  const buildStats = calculateHunterCombatStats(context.equipment, context.inventory, context.progression, context.stance, context.techniques, itemById, { record: (contribution) => canonicalContributions.push(contribution) });
   const effectiveStats = calculateEffectiveCombatStats(buildStats, context.playerEffects, effectById);
   const finalValue = Number(resolvedMode === "effective" ? readEffectiveValue(effectiveStats, stat) : readValue(buildStats, stat));
   const contributions: StatContribution[] = [];
   let current = baseStatValue(stat);
   pushContribution(contributions, stat, "base", "combat-balance", "Combat base", "flat", 0, current);
-  for (const [slot, itemId] of Object.entries(context.equipment.slots)) {
-    const item = itemId ? itemById[itemId] : undefined;
+  for (const [slot, instanceId] of Object.entries(context.equipment.slots)) {
+    const item = instanceId ? resolveItemInstance(context.inventory, instanceId)?.definition : undefined;
     const value = item ? itemStat(item, stat) : 0;
     if (!item || !value) continue;
     const before = current;

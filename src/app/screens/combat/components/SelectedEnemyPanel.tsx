@@ -35,6 +35,7 @@ export function SelectedEnemyPanel({
     : undefined;
   const hunterStats = calculateHunterCombatStats(
     game.equipment,
+    game.inventory,
     game.progression,
     combat.stance,
     combat.techniques,

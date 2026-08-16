@@ -22,8 +22,8 @@ import { proficiencyPerkDefinitions } from '../../../game/data/proficiencyPerks'
 export function HomeScreen() {
   const game = useGameStore((state) => state.game)
   const setScreen = useGameStore((state) => state.setScreen)
-  const stats = calculateHunterCombatStats(game.equipment, game.progression, game.combat.stance, game.combat.techniques)
-  const active = getActiveWeaponProficiency(game.progression, game.equipment)
+  const stats = calculateHunterCombatStats(game.equipment, game.inventory, game.progression, game.combat.stance, game.combat.techniques)
+  const active = getActiveWeaponProficiency(game.progression, game.equipment, game.inventory)
   const activeDefinition = active ? proficiencyById[active.proficiencyId] : undefined
   const activeProgress = active ? getProficiencyProgress(game.progression, active.proficiencyId) : undefined
   const xp = activeProgress?.totalXp ?? 0

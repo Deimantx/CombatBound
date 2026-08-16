@@ -24,7 +24,7 @@ interface HunterCombatPanelProps {
 
 export function HunterCombatPanel({ game, stats, onSetStance, onToggleTechnique }: HunterCombatPanelProps) {
   const combat = game.combat
-  const activeProficiency = getActiveWeaponProficiency(game.progression, game.equipment)
+  const activeProficiency = getActiveWeaponProficiency(game.progression, game.equipment, game.inventory)
   const drain = techniqueStaminaDrain(combat)
   return <Panel title="Hunter" subtitle="Preparation and derived stats" icon={Shield} panelId="playerCombat" screen="combat" className="player-combat-panel">
     <div className="combat-identity"><PlaceholderArt icon="shield" label="Vanguard" size="medium" variant="blue" /><div><h3>Vanguard</h3><p>{activeProficiency ? `${proficiencyById[activeProficiency.proficiencyId]?.name} · Lv ${activeProficiency.level}` : 'No weapon proficiency'}</p><span className="identity-level">Use the equipped weapon to improve it.</span></div></div>

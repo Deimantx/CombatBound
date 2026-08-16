@@ -1,20 +1,21 @@
 import type { CollectionState } from "../collection/collectionTypes";
-import type { EquipmentState } from "../equipment/equipmentTypes";
 import type { InventoryState } from "../inventory/inventoryTypes";
+import { itemById, itemDefinitions } from "../data/items";
+import { grantItem } from "../items/itemOwnership";
+import { canEquipItemToSlot } from "../equipment/equipmentRules";
 import { proficiencyById } from "../data/proficiencies";
 import { perkById } from "../data/proficiencyPerks";
 import type {
   CombatProficiencyId,
   ProgressionState,
 } from "../progression/progressionTypes";
-import type { GameSaveV3, GameSaveV4, GameSaveV5, GameSaveV6, GameSaveV7, GameSaveV8, GameSaveV9, GameSaveV10 } from "./saveTypes";
+import type { GameSaveV3, GameSaveV4, GameSaveV5, GameSaveV6, GameSaveV7, GameSaveV8, GameSaveV9, GameSaveV10, GameSaveV11, LegacyEquipmentStateV10, LegacyInventoryStateV10 } from "./saveTypes";
 import { createInitialCombatAutomation } from "../automation/automationTypes";
 import { normalizeSpellbook } from "../spellbook/spellbookLogic";
 import { spellDefinitions } from "../data/spells";
 import { normalizeCombatAutomation } from "../automation/automationLogic";
 import { createInitialCombatAbilityLoadout, normalizeCombatAbilityLoadout } from "../combatAbilities/combatAbilityLogic";
 import { createInitialCombatAutomationPresets, normalizeCombatAutomationPresets } from "../automation/automationPresets";
-import { normalizeEquipmentState } from "../equipment/equipmentRules";
 import { EQUIPMENT_SLOT_IDS } from "../equipment/equipmentTypes";
 
 interface LegacySkillProgress {
@@ -27,8 +28,8 @@ interface LegacySaveV1 {
     trainingFocus?: string;
     hunterRank?: number;
   };
-  inventory: InventoryState;
-  equipment: EquipmentState;
+  inventory: LegacyInventoryStateV10;
+  equipment: LegacyEquipmentStateV10;
   collection: CollectionState;
   gold: number;
   settings: { reducedMotion: boolean; showInspectorButton: boolean };
@@ -41,8 +42,8 @@ interface LegacySaveV2 {
     masteryXp?: number;
     purchasedPerks?: Record<string, number>;
   };
-  inventory: InventoryState;
-  equipment: EquipmentState;
+  inventory: LegacyInventoryStateV10;
+  equipment: LegacyEquipmentStateV10;
   collection: CollectionState;
   gold: number;
   settings: { reducedMotion: boolean; showInspectorButton: boolean };
@@ -66,7 +67,7 @@ function sharedSaveShape(value: Record<string, unknown>) {
   );
 }
 
-export function migrateEquipment(value: unknown, quantities?: Record<string, number>): EquipmentState {
+export function migrateEquipment(value: unknown, quantities?: Record<string, number>): LegacyEquipmentStateV10 {
   const rawSlots = isRecord(value) && isRecord(value.slots) ? value.slots : {};
   const slots: Record<string, unknown> = {};
   for (const slot of EQUIPMENT_SLOT_IDS) {
@@ -78,7 +79,19 @@ export function migrateEquipment(value: unknown, quantities?: Record<string, num
   }
   if (typeof slots.gloves !== "string" && typeof rawSlots.hands === "string") slots.gloves = rawSlots.hands;
   if (typeof slots.boots !== "string" && typeof rawSlots.feet === "string") slots.boots = rawSlots.feet;
-  return normalizeEquipmentState({ slots }, quantities);
+  const normalized: Partial<Record<typeof EQUIPMENT_SLOT_IDS[number], string>> = {};
+  const usedCopies: Record<string, number> = {};
+  for (const slot of EQUIPMENT_SLOT_IDS) {
+    const definitionId = slots[slot];
+    if (typeof definitionId !== "string") continue;
+    const item = itemById[definitionId];
+    if (!item || !item.equipmentSlotKind || !canEquipItemToSlot(item, slot)) continue;
+    const maxCopies = quantities ? Math.max(0, Math.floor(quantities[definitionId] ?? 0)) : Number.POSITIVE_INFINITY;
+    if ((usedCopies[definitionId] ?? 0) >= maxCopies) continue;
+    normalized[slot] = definitionId;
+    usedCopies[definitionId] = (usedCopies[definitionId] ?? 0) + 1;
+  }
+  return { slots: normalized };
 }
 
 function migrateProgression(
@@ -325,6 +338,42 @@ export function migrateV9Save(value: unknown): GameSaveV10 | null {
     combatAutomation: normalizeCombatAutomation(old.combatAutomation),
     combatAutomationPresets: normalizeCombatAutomationPresets(old.combatAutomationPresets),
     combatAbilities: normalizeCombatAbilityLoadout(old.combatAbilities),
+  };
+}
+
+/** Explicit V10 definition-ID ownership conversion. Modern runtime never accepts this legacy shape. */
+export function migrateV10Save(value: unknown): GameSaveV11 | null {
+  if (!isRecord(value) || value.version !== 10 || !sharedSaveShape(value)) return null;
+  const old = value as unknown as GameSaveV10;
+  let inventory: InventoryState = { stackables: {}, instances: {}, nextInstanceSequence: 1 };
+  const migratedByDefinition: Record<string, string[]> = {};
+  for (const definition of itemDefinitions) {
+    const quantity = typeof old.inventory.quantities[definition.id] === "number" && Number.isFinite(old.inventory.quantities[definition.id])
+      ? Math.max(0, Math.floor(old.inventory.quantities[definition.id]))
+      : 0;
+    if (quantity <= 0) continue;
+    const grant = grantItem(inventory, definition.id, quantity);
+    inventory = grant.inventory;
+    if (grant.createdInstanceIds.length) migratedByDefinition[definition.id] = grant.createdInstanceIds;
+    if (definition.inventoryMode === "stackable" && grant.stackableQuantityAdded <= 0) continue;
+  }
+  const slots: Partial<Record<typeof EQUIPMENT_SLOT_IDS[number], string>> = {};
+  const usedInstances = new Set<string>();
+  const legacySlots = isRecord(old.equipment) && isRecord(old.equipment.slots) ? old.equipment.slots : {};
+  for (const slot of EQUIPMENT_SLOT_IDS) {
+    const definitionId = legacySlots[slot];
+    if (typeof definitionId !== "string") continue;
+    const item = itemById[definitionId];
+    const candidate = (migratedByDefinition[definitionId] ?? []).find((instanceId) => !usedInstances.has(instanceId));
+    if (!item || !candidate || !canEquipItemToSlot(item, slot)) continue;
+    slots[slot] = candidate;
+    usedInstances.add(candidate);
+  }
+  return {
+    ...old,
+    version: 11,
+    inventory,
+    equipment: { slots },
   };
 }
 

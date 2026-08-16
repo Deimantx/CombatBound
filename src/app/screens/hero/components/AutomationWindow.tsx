@@ -44,7 +44,7 @@ const conditionOptions: Array<{ value: AutomationCondition["type"]; label: strin
 
 export function AutomationWindow({ game, initialActionId, createRule = false }: { game: GameState; initialActionId?: string; createRule?: boolean }) {
   const context = useMemo(() => createCombatPreviewContext(), []);
-  const stats = useMemo(() => calculateHunterCombatStats(game.equipment, game.progression, game.combat.stance, game.combat.techniques), [game.equipment, game.progression, game.combat.stance, game.combat.techniques]);
+  const stats = useMemo(() => calculateHunterCombatStats(game.equipment, game.inventory, game.progression, game.combat.stance, game.combat.techniques), [game.equipment, game.inventory, game.progression, game.combat.stance, game.combat.techniques]);
   const actions = useMemo(() => getPlayerActionDefinitions(game, context).filter((action) => action.kind !== "basic-attack" && (action.kind !== "spell" || game.spellbook.knownSpellIds.includes(action.id))), [context, game.spellbook.knownSpellIds]);
   const actionCatalogue = useMemo(() => buildPlayerActionCatalogue(actions, {
     getItemState: (action) => getActionCatalogueItemState(game, action),
@@ -221,7 +221,7 @@ function getActionCatalogueItemState(game: GameState, action: PlayerActionDefini
   }
 
   if (action.kind === "consumable" && action.sourceItemId) {
-    const quantity = game.inventory.quantities[action.sourceItemId] ?? 0;
+    const quantity = game.inventory.stackables[action.sourceItemId] ?? 0;
     return {
       equipped: false,
       available: quantity > 0,

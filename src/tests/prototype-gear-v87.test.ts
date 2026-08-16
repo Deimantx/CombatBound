@@ -3,14 +3,14 @@ import { createCombatContext, startHunt } from "../game/combat/combatEngine";
 import { effectById } from "../game/data/effects";
 import { enemyDefinitions } from "../game/data/enemies";
 import {
-  itemById,
   itemDefinitions,
   prototypeEquipmentDefinitions,
 } from "../game/data/items";
 import { createInitialGameState } from "../game/gameState";
 import { calculateHunterCombatStats } from "../game/equipment/derivedStats";
 import {
-  getAvailableItemCopies,
+  equipItemInstance,
+  getCompatibleItemInstances,
   validateEquipmentChange,
 } from "../game/equipment/equipmentRules";
 import { getDefensiveEquipmentContext } from "../game/equipment/defensiveEquipment";
@@ -24,16 +24,29 @@ import {
   debugKillSelectedEnemy,
   debugResetPlayerCooldowns,
   debugRevivePlayer,
-  debugSetItemQuantity,
+  debugSetOwnedItemCount,
   debugSetMasteryLevel,
   debugSetProficiencyLevel,
   debugSetResourcePercent,
 } from "../game/debug/debugActions";
+import { grantItem } from "../game/items/itemOwnership";
 import { masteryLevelForXp } from "../game/progression/masteryProgression";
 import { proficiencyXpForLevel } from "../game/progression/proficiencyProgression";
 import { CURRENT_SAVE_VERSION } from "../game/persistence/saveGame";
 
 const context = createCombatContext({ next: () => 0.5 });
+
+function ownedEquipment(game: ReturnType<typeof createInitialGameState>, requested: Array<[string, string]>) {
+  let inventory = game.inventory;
+  const slots: Record<string, string> = {};
+  for (const [slot, definitionId] of requested) {
+    const before = new Set(Object.keys(inventory.instances));
+    inventory = grantItem(inventory, definitionId, 1).inventory;
+    const instance = Object.values(inventory.instances).find((entry) => !before.has(entry.id) && entry.definitionId === definitionId)!;
+    slots[slot] = instance.id;
+  }
+  return { inventory, equipment: { slots } };
+}
 
 describe("CombatBound V8.7 prototype gear", () => {
   it("defines exactly three tiers for each of the eleven shared equipment kinds", () => {
@@ -70,57 +83,48 @@ describe("CombatBound V8.7 prototype gear", () => {
     );
   });
 
-  it("enforces mastery requirements without changing shared slot-copy rules", () => {
+  it("enforces mastery requirements while preserving exact owned instances", () => {
     const game = createInitialGameState();
-    const inventory = { quantities: { "item.vanguard-sword": 1, "item.ring-of-precision": 2 } };
+    let inventory = game.inventory;
+    inventory = grantItem(inventory, "item.vanguard-sword", 1).inventory;
+    inventory = grantItem(inventory, "item.ring-of-precision", 2).inventory;
+    const sword = Object.values(inventory.instances).find((instance) => instance.definitionId === "item.vanguard-sword")!;
+    const rings = Object.values(inventory.instances).filter((instance) => instance.definitionId === "item.ring-of-precision");
     const equipment = game.equipment;
 
     expect(validateEquipmentChange({
-      item: itemById["item.vanguard-sword"],
+      instanceId: sword.id,
       slotId: "weapon",
       inventory,
       equipment,
       masteryLevel: 1,
     })).toEqual({ valid: false, reason: "mastery-level" });
     expect(validateEquipmentChange({
-      item: itemById["item.vanguard-sword"],
+      instanceId: sword.id,
       slotId: "weapon",
       inventory,
       equipment,
       masteryLevel: 10,
     })).toEqual({ valid: true });
 
-    const oneRingEquipped = { slots: { ring1: "item.ring-of-precision" } };
-    expect(getAvailableItemCopies(inventory, oneRingEquipped, "item.ring-of-precision", "ring2")).toBe(1);
+    const oneRingEquipped = { slots: { ring1: rings[0].id } };
+    expect(getCompatibleItemInstances(inventory, "ring2")).toHaveLength(2);
     expect(validateEquipmentChange({
-      item: itemById["item.ring-of-precision"],
+      instanceId: rings[1].id,
       slotId: "ring2",
       inventory,
       equipment: oneRingEquipped,
       masteryLevel: 10,
     })).toEqual({ valid: true });
-    expect(validateEquipmentChange({
-      item: itemById["item.ring-of-precision"],
-      slotId: "ring2",
-      inventory: { quantities: { "item.ring-of-precision": 1 } },
-      equipment: oneRingEquipped,
-      masteryLevel: 10,
-    })).toEqual({ valid: false, reason: "no-spare-copy" });
+    expect(equipItemInstance({ inventory, equipment: oneRingEquipped, instanceId: rings[0].id, slotId: "ring2", masteryLevel: 10 }).equipment.slots).toEqual({ ring2: rings[0].id });
     expect(getEquipmentSlotDefinition("ring1").kind).toBe("ring");
   });
 
   it("applies representative accessory, armor, resource and precision stats", () => {
     const game = createInitialGameState();
-    const empty = calculateHunterCombatStats({ slots: {} }, game.progression, "mid", game.combat.techniques);
-    const equipped = {
-      slots: {
-        belt: "item.war-belt",
-        necklace: "item.arcane-necklace",
-        armor: "item.vanguard-plate",
-        ring1: "item.duelist-ring",
-      },
-    };
-    const stats = calculateHunterCombatStats(equipped, game.progression, "mid", game.combat.techniques);
+    const empty = calculateHunterCombatStats({ slots: {} }, { stackables: {}, instances: {}, nextInstanceSequence: 1 }, game.progression, "mid", game.combat.techniques);
+    const build = ownedEquipment(game, [["belt", "item.war-belt"], ["necklace", "item.arcane-necklace"], ["armor", "item.vanguard-plate"], ["ring1", "item.duelist-ring"]]);
+    const stats = calculateHunterCombatStats(build.equipment, build.inventory, game.progression, "mid", game.combat.techniques);
 
     expect((stats.maxLife ?? 0) - (empty.maxLife ?? 0)).toBe(85);
     expect((stats.armour ?? 0) - (empty.armour ?? 0)).toBe(24);
@@ -135,15 +139,9 @@ describe("CombatBound V8.7 prototype gear", () => {
   });
 
   it("keeps tier identities aligned with Light, Medium and Heavy armor training", () => {
-    const equipment = {
-      slots: {
-        head: "item.training-hood",
-        armor: "item.hunter-armor",
-        gloves: "item.vanguard-gauntlets",
-        boots: "item.training-boots",
-      },
-    };
-    expect(getDefensiveEquipmentContext(equipment)).toMatchObject({
+    const game = createInitialGameState();
+    const build = ownedEquipment(game, [["head", "item.training-hood"], ["armor", "item.hunter-armor"], ["gloves", "item.vanguard-gauntlets"], ["boots", "item.training-boots"]]);
+    expect(getDefensiveEquipmentContext(build.equipment, build.inventory)).toMatchObject({
       lightArmorPieces: 2,
       mediumArmorPieces: 1,
       heavyArmorPieces: 1,
@@ -153,15 +151,13 @@ describe("CombatBound V8.7 prototype gear", () => {
   it("grants and normalizes shared gear through the debug domain", () => {
     const initial = createInitialGameState();
     const granted = debugGrantItem(initial, "item.ring-of-precision", 2);
-    expect(granted.inventory.quantities["item.ring-of-precision"]).toBe(2);
+    expect(Object.values(granted.inventory.instances).filter((instance) => instance.definitionId === "item.ring-of-precision")).toHaveLength(2);
     expect(granted.collection.discoveredItems).toContain("item.ring-of-precision");
 
-    const equipped = {
-      ...granted,
-      equipment: { slots: { ring1: "item.ring-of-precision", ring2: "item.ring-of-precision" } },
-    };
-    const reduced = debugSetItemQuantity(equipped, "item.ring-of-precision", 1);
-    expect(reduced.equipment.slots).toEqual({ ring1: "item.ring-of-precision" });
+    const rings = Object.values(granted.inventory.instances).filter((instance) => instance.definitionId === "item.ring-of-precision");
+    const equipped = { ...granted, equipment: { slots: { ring1: rings[0].id } } };
+    const reduced = debugSetOwnedItemCount(equipped, "item.ring-of-precision", 1);
+    expect(reduced.equipment.slots).toEqual({ ring1: rings[0].id });
   });
 
   it("keeps debug mastery, proficiency, collection and resource changes on canonical state", () => {
@@ -188,7 +184,7 @@ describe("CombatBound V8.7 prototype gear", () => {
 
   it("uses canonical effects, defeat rewards, cooldown reset and revive paths", () => {
     const initial = createInitialGameState();
-    const stats = calculateHunterCombatStats(initial.equipment, initial.progression, "mid", initial.combat.techniques);
+    const stats = calculateHunterCombatStats(initial.equipment, initial.inventory, initial.progression, "mid", initial.combat.techniques);
     const active = startHunt(initial, "location.wolf-den", stats, context);
     const withIgnite = debugApplyEffect(active, "effect.ignite", "selected-enemy");
     const selected = withIgnite.combat.enemies.find((enemy) => enemy.instanceId === withIgnite.combat.selectedEnemyInstanceId);
@@ -213,8 +209,8 @@ describe("CombatBound V8.7 prototype gear", () => {
     expect(debugRevivePlayer(defeatedPlayer).combat.phase).toBe("stopped");
   });
 
-  it("uses the V10 persistent save schema", () => {
-    expect(CURRENT_SAVE_VERSION).toBe(10);
+  it("uses the V11 persistent instance-ownership schema", () => {
+    expect(CURRENT_SAVE_VERSION).toBe(11);
     expect(itemDefinitions.every((item) => item.requiredMasteryLevel === undefined || item.requiredMasteryLevel > 0)).toBe(true);
     expect(enemyDefinitions.length).toBeGreaterThan(0);
   });

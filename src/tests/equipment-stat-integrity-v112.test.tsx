@@ -17,12 +17,28 @@ import {
 } from "../game/presentation/statFormatting";
 import { useGameStore } from "../state/gameStore";
 
-const emptyEquipment = { slots: {} };
+type TestEquipment = { slots: Partial<Record<string, string>> };
+const emptyEquipment: TestEquipment = { slots: {} };
 const initial = createInitialGameState();
 const neutralTechniques = initial.combat.techniques;
 
-function statsFor(equipment: typeof emptyEquipment) {
-  return calculateHunterCombatStats(equipment, initial.progression, "mid", neutralTechniques);
+function instanceBuild(equipment: TestEquipment) {
+  const instances: Record<string, { id: string; definitionId: string; version: 1 }> = {};
+  const slots: Record<string, string> = {};
+  let sequence = 1;
+  for (const [slot, definitionId] of Object.entries(equipment.slots)) {
+    if (!definitionId) continue;
+    const id = `item-instance-${String(sequence).padStart(8, "0")}`;
+    instances[id] = { id, definitionId, version: 1 };
+    slots[slot] = id;
+    sequence += 1;
+  }
+  return { equipment: { slots }, inventory: { stackables: {}, instances, nextInstanceSequence: sequence } };
+}
+
+function statsFor(equipment: TestEquipment) {
+  const build = instanceBuild(equipment);
+  return calculateHunterCombatStats(build.equipment, build.inventory, initial.progression, "mid", neutralTechniques);
 }
 
 function canonicalValue(stats: ReturnType<typeof statsFor>, key: string) {
@@ -186,19 +202,20 @@ describe("Equipment stat integrity V11.2", () => {
   });
 
   it("previews and equips Vanguard Helm without losing Ailment Duration Reduction in Hero", () => {
-    useGameStore.getState().debug.setItemQuantity("item.vanguard-helm", 1);
+    useGameStore.getState().debug.setOwnedItemCount("item.vanguard-helm", 1);
     useGameStore.getState().debug.setMasteryLevel(10);
     render(<App />);
     fireEvent.click(screen.getByRole("button", { name: "Hero" }));
     fireEvent.click(document.querySelector('[data-debug-kind="equipment-slot"][data-debug-slot-id="head"]') as HTMLElement);
     const candidate = document.querySelector('[data-debug-kind="equipment-candidate"][data-debug-item-id="item.vanguard-helm"]') as HTMLButtonElement;
     fireEvent.click(candidate);
+    const candidateInstanceId = candidate.getAttribute("data-debug-instance-id");
 
     expect(document.querySelector('[data-debug-stat="statusResistance"]')).not.toBeInTheDocument();
     expect(statsFor({ slots: { head: "item.vanguard-helm" } }).ailmentDurationReduction ?? 0).toBeCloseTo(0.03);
 
     fireEvent.click(screen.getByRole("button", { name: "EQUIP" }));
-    expect(useGameStore.getState().game.equipment.slots.head).toBe("item.vanguard-helm");
+    expect(useGameStore.getState().game.equipment.slots.head).toBe(candidateInstanceId);
     expect(document.querySelector('[data-debug-kind="hero-combat-stats"]')).not.toHaveAttribute("data-debug-preview-item-id");
     expect(statsFor({ slots: { head: "item.vanguard-helm" } }).ailmentDurationReduction ?? 0).toBeCloseTo(0.03);
   });

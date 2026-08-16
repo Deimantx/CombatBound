@@ -437,6 +437,7 @@ export interface CombatSession {
   masteryXpGained: number;
   itemsGained: number;
   lootGained: Record<string, number>;
+  itemInstanceIdsGained: import("../items/itemTypes").ItemInstanceId[];
   goldGained: number;
   highestHit: number;
 }

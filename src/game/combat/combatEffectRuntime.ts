@@ -34,7 +34,7 @@ export function applyEffectToGame(game: GameState, effectId: string, source: Com
 
 /** Applies player-owned Block hooks once for one qualifying incoming event. */
 export function applyPlayerSuccessfulBlockHooks(game: GameState, playerStats: CombatStats, context: CombatContext) {
-  const proficiencyId = getEquippedWeaponProficiency(game.equipment);
+  const proficiencyId = getEquippedWeaponProficiency(game.equipment, game.inventory);
   if (!proficiencyId) return game;
   let next = game;
   for (const hook of getWeaponBlockEffectHooks(next.progression, proficiencyId, perkById)) {

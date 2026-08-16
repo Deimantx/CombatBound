@@ -14,6 +14,7 @@ const categoryDefaults: Record<DebugStatCategory, boolean> = { offense: true, de
 
 export function DebugStatsTab(_props: DebugTabProps) {
   const equipment = useGameStore((state) => state.game.equipment);
+  const inventory = useGameStore((state) => state.game.inventory);
   const progression = useGameStore((state) => state.game.progression);
   const stance = useGameStore((state) => state.game.combat.stance);
   const techniques = useGameStore((state) => state.game.combat.techniques);
@@ -23,7 +24,7 @@ export function DebugStatsTab(_props: DebugTabProps) {
   const [search, setSearch] = useState("");
   const [openCategories, setOpenCategories] = useState<Record<DebugStatCategory, boolean>>(categoryDefaults);
   const [openStats, setOpenStats] = useState<Set<DebugStatInspectionId>>(new Set());
-  const inspectionContext = useMemo<StatInspectionContext>(() => ({ equipment, progression, stance, techniques, playerEffects, combatPhase }), [equipment, progression, stance, techniques, playerEffects, combatPhase]);
+  const inspectionContext = useMemo<StatInspectionContext>(() => ({ equipment, inventory, progression, stance, techniques, playerEffects, combatPhase }), [equipment, inventory, progression, stance, techniques, playerEffects, combatPhase]);
   const breakdowns = useMemo(() => buildAllStatBreakdowns(inspectionContext, mode), [inspectionContext, mode]);
   const tooltips = useMemo(() => Object.fromEntries(DEBUG_STAT_DEFINITIONS.map((definition) => [definition.id, buildStatBreakdownTooltip(definition, breakdowns[definition.id])])), [breakdowns]);
   const query = search.trim().toLowerCase();

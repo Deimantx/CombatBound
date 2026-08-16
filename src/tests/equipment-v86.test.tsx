@@ -8,7 +8,7 @@ import {
 } from "../game/equipment/derivedStats";
 import {
   canEquipItemToSlot,
-  getAvailableItemCopies,
+  getCompatibleItemInstances,
   normalizeEquipmentState,
 } from "../game/equipment/equipmentRules";
 import {
@@ -47,6 +47,15 @@ const testItems = {
   ].map((item) => [item.id, item])),
 } as Record<string, ItemDefinition>;
 
+function inventoryFor(definitionIds: string[]) {
+  const instances: Record<string, { id: string; definitionId: string; version: 1 }> = {};
+  definitionIds.forEach((definitionId, index) => {
+    const id = `item-instance-${String(index + 1).padStart(8, "0")}`;
+    instances[id] = { id, definitionId, version: 1 };
+  });
+  return { stackables: {}, instances, nextInstanceSequence: definitionIds.length + 1 };
+}
+
 describe("Equipment V8.6 domain", () => {
   it("uses exactly the thirteen canonical concrete slots and only four armor-training slots", () => {
     expect(EQUIPMENT_SLOT_IDS).toEqual([
@@ -60,25 +69,27 @@ describe("Equipment V8.6 domain", () => {
   });
 
   it("enforces shared ring and earring kinds while respecting owned copy counts", () => {
-    const oneCopy = { quantities: { "test.ring": 1 } };
-    const twoCopies = { quantities: { "test.ring": 2 } };
+    const oneCopy = inventoryFor(["test.ring"]);
+    const twoCopies = inventoryFor(["test.ring", "test.ring"]);
+    const oneId = Object.keys(oneCopy.instances)[0];
+    const [firstId, secondId] = Object.keys(twoCopies.instances);
     const duplicated = normalizeEquipmentState(
-      { slots: { ring1: "test.ring", ring2: "test.ring" } },
-      oneCopy.quantities,
+      { slots: { ring1: oneId, ring2: firstId } },
+      oneCopy,
       testItems,
     );
     const doubled = normalizeEquipmentState(
-      { slots: { ring1: "test.ring", ring2: "test.ring" } },
-      twoCopies.quantities,
+      { slots: { ring1: firstId, ring2: secondId } },
+      twoCopies,
       testItems,
     );
 
     expect(canEquipItemToSlot(testItems["test.ring"], "ring1")).toBe(true);
     expect(canEquipItemToSlot(testItems["test.ring"], "earring1")).toBe(false);
-    expect(duplicated.slots).toEqual({ ring1: "test.ring" });
-    expect(doubled.slots).toEqual({ ring1: "test.ring", ring2: "test.ring" });
-    expect(getAvailableItemCopies(oneCopy, duplicated, "test.ring", "ring1")).toBe(1);
-    expect(getAvailableItemCopies(oneCopy, duplicated, "test.ring", "ring2")).toBe(0);
+    expect(duplicated.slots).toEqual({ ring1: oneId });
+    expect(doubled.slots).toEqual({ ring1: firstId, ring2: secondId });
+    expect(getCompatibleItemInstances(oneCopy, "ring1", testItems)).toHaveLength(1);
+    expect(getCompatibleItemInstances(twoCopies, "ring2", testItems)).toHaveLength(2);
   });
 
   it("treats equipping the item already in the target slot as a no-op", () => {
@@ -94,29 +105,32 @@ describe("Equipment V8.6 domain", () => {
     const initial = createInitialGameState();
     const emptyStats = calculateHunterCombatStats(
       { slots: {} },
+      { stackables: {}, instances: {}, nextInstanceSequence: 1 },
       initial.progression,
       "mid",
       { "careful-positioning": false, "heightened-reflexes": false },
       testItems,
     );
-    const allAccessories = calculateHunterCombatStats(
-      {
-        slots: {
-          belt: "test.belt",
-          cape: "test.cape",
-          necklace: "test.necklace",
-          ring1: "test.ring",
-          ring2: "test.ring",
-          earring1: "test.earring",
-          earring2: "test.earring",
-        },
+    const allAccessoriesEquipment = {
+      slots: {
+        belt: "item-instance-00000001",
+        cape: "item-instance-00000002",
+        necklace: "item-instance-00000003",
+        ring1: "item-instance-00000004",
+        ring2: "item-instance-00000005",
+        earring1: "item-instance-00000006",
+        earring2: "item-instance-00000007",
       },
+    };
+    const allAccessories = calculateHunterCombatStats(
+      allAccessoriesEquipment,
+      inventoryFor(["test.belt", "test.cape", "test.necklace", "test.ring", "test.ring", "test.earring", "test.earring"]),
       initial.progression,
       "mid",
       { "careful-positioning": false, "heightened-reflexes": false },
       testItems,
     );
-    const context = getDefensiveEquipmentContext({ slots: { belt: "test.belt", cape: "test.cape" } }, testItems);
+    const context = getDefensiveEquipmentContext({ slots: { belt: "item-instance-00000001", cape: "item-instance-00000002" } }, inventoryFor(["test.belt", "test.cape"]), testItems);
 
     expect((allAccessories.armour ?? 0) - (emptyStats.armour ?? 0)).toBe(7);
     expect(context.lightArmorPieces).toBe(0);

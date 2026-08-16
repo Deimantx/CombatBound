@@ -14,6 +14,20 @@ const items = { ...itemById, ...Object.fromEntries([
   piece('test.medium-armor', 'armor', 'medium-armor'), piece('test.heavy-gloves', 'gloves', 'heavy-armor'), piece('test.heavy-boots', 'boots', 'heavy-armor'), piece('test.shield', 'offhand', 'shield', { armour: 4, attackBlockChance: .1, baseAttackTime: .5 }),
 ].map((item) => [item.id, item])) } as Record<string, ItemDefinition>
 
+function inventoryFor(equipment: { slots: Record<string, string | undefined> }) {
+  const instances: Record<string, { id: string; definitionId: string; version: 1 }> = {}
+  const slots: Record<string, string> = {}
+  let sequence = 1
+  for (const [slot, definitionId] of Object.entries(equipment.slots)) {
+    if (!definitionId) continue
+    const id = `item-instance-${String(sequence).padStart(8, '0')}`
+    instances[id] = { id, definitionId, version: 1 }
+    slots[slot] = id
+    sequence += 1
+  }
+  return { equipment: { slots }, inventory: { stackables: {}, instances, nextInstanceSequence: sequence } }
+}
+
 describe('Defensive Proficiencies V6', () => {
   it('splits armor XP exactly and adds Shield independently', () => {
     expect(calculateDefensiveTrainingAwards({ lightArmorPieces: 4, mediumArmorPieces: 0, heavyArmorPieces: 0, shieldEquipped: false })).toMatchObject({ 'light-armor': 1, 'medium-armor': 0, 'heavy-armor': 0, shield: 0 })
@@ -24,14 +38,15 @@ describe('Defensive Proficiencies V6', () => {
   it('awards one event through normal proficiency and Mastery progression', () => {
     const game = createInitialGameState()
     const equipped = { slots: { head: 'test.light-head', armor: 'test.medium-armor', gloves: 'test.heavy-gloves', boots: 'test.heavy-boots', offhand: 'test.shield' } }
-    const next = resolveDefensiveTrainingForEnemyAction({ ...game, equipment: equipped }, { source: 'enemy-direct-action', resolved: true }, items)
+    const build = inventoryFor(equipped)
+    const next = resolveDefensiveTrainingForEnemyAction({ ...game, equipment: build.equipment, inventory: build.inventory }, { source: 'enemy-direct-action', resolved: true }, items)
     expect(next.progression.proficiencies['light-armor']?.totalXp).toBe(.25)
     expect(next.progression.proficiencies['medium-armor']?.totalXp).toBe(.25)
     expect(next.progression.proficiencies['heavy-armor']?.totalXp).toBe(.5)
     expect(next.progression.proficiencies.shield?.totalXp).toBe(1)
     expect(next.progression.masteryXp).toBe(2)
     expect(next.combat.session.masteryXpGained).toBe(2)
-    expect(resolveDefensiveTrainingForEnemyAction({ ...game, equipment: equipped }, { source: 'enemy-direct-action', resolved: false }, items).progression.masteryXp).toBe(0)
+    expect(resolveDefensiveTrainingForEnemyAction({ ...game, equipment: build.equipment, inventory: build.inventory }, { source: 'enemy-direct-action', resolved: false }, items).progression.masteryXp).toBe(0)
   })
 
   it('scales defensive perk effects by matching pieces and respects thresholds', () => {
@@ -44,7 +59,8 @@ describe('Defensive Proficiencies V6', () => {
 
   it('aggregates all defensive gear while keeping attack interval weapon-controlled', () => {
     const equipment = { slots: { weapon: 'item.training-sword', head: 'test.light-head', armor: 'test.medium-armor', gloves: 'test.heavy-gloves', boots: 'test.heavy-boots', offhand: 'test.shield' } }
-    const stats = calculateHunterCombatStats(equipment, createInitialGameState().progression, 'mid', { 'careful-positioning': false, 'heightened-reflexes': false }, items)
+    const build = inventoryFor(equipment)
+    const stats = calculateHunterCombatStats(build.equipment, build.inventory, createInitialGameState().progression, 'mid', { 'careful-positioning': false, 'heightened-reflexes': false }, items)
     expect(stats.armour).toBe(35 + 4)
     expect(stats.attackBlockChance).toBeCloseTo(.1)
     expect(stats.attackInterval).toBeCloseTo(2.4)
@@ -52,7 +68,8 @@ describe('Defensive Proficiencies V6', () => {
 
   it('keeps active-combat Health Regen capped and frame-independent', () => {
     const equipment = { slots: { weapon: 'item.training-sword', armor: 'test.heavy-gloves' } }
-    const stats = calculateHunterCombatStats(equipment, createInitialGameState().progression, 'mid', { 'careful-positioning': false, 'heightened-reflexes': false }, { ...items, 'test.heavy-gloves': piece('test.heavy-gloves', 'armor', 'heavy-armor', { lifeRegenFlat: 2 }) })
+    const build = inventoryFor(equipment)
+    const stats = calculateHunterCombatStats(build.equipment, build.inventory, createInitialGameState().progression, 'mid', { 'careful-positioning': false, 'heightened-reflexes': false }, { ...items, 'test.heavy-gloves': piece('test.heavy-gloves', 'armor', 'heavy-armor', { lifeRegenFlat: 2 }) })
     const base = createInitialGameState()
     const active = { ...base, equipment, combat: { ...base.combat, phase: 'active' as const, playerHp: (stats.maxLife ?? 0) - 1, maxPlayerHp: stats.maxLife ?? 0, enemies: [] } } as ReturnType<typeof createInitialGameState>
     const one = advanceCombat(active, 1, createInitialGameContext(), stats)

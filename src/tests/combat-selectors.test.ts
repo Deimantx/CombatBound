@@ -34,7 +34,7 @@ describe('combat presentation selectors', () => {
 
   it('uses effective runtime stats and the canonical hit chance for the selected target', () => {
     const game = createInitialGameState()
-    const stats = calculateHunterCombatStats(game.equipment, game.progression, game.combat.stance, game.combat.techniques)
+    const stats = calculateHunterCombatStats(game.equipment, game.inventory, game.progression, game.combat.stance, game.combat.techniques)
     const enemies = instantiateEnemies(['enemy.grey-wolf', 'enemy.alpha-wolf'], 1)
     const combat = { ...game.combat, enemies, selectedEnemyInstanceId: enemies[0].instanceId }
     const first = getSelectedTargetMatchup(combat, stats, game.progression, enemies[0])

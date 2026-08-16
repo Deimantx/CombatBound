@@ -1,5 +1,5 @@
 import { loadLegacySingleGameSaveForProfileMigration, parseGameSaveJson } from "../persistence/saveGame";
-import type { GameSaveV10 } from "../persistence/saveTypes";
+import type { GameSaveV11 } from "../persistence/saveTypes";
 import {
   PROFILE_SLOT_COUNT,
   isDifficulty,
@@ -68,7 +68,7 @@ export function getProfileSaveKey(profileId: ProfileId): string {
   return `combatbound-${profileId}-save`;
 }
 
-export function loadProfileGameSave(profileId: ProfileId): GameSaveV10 | null {
+export function loadProfileGameSave(profileId: ProfileId): GameSaveV11 | null {
   if (typeof localStorage === "undefined") return null;
   try {
     const raw = localStorage.getItem(getProfileSaveKey(profileId));
@@ -78,7 +78,7 @@ export function loadProfileGameSave(profileId: ProfileId): GameSaveV10 | null {
   }
 }
 
-export function saveProfileGameSave(profileId: ProfileId, save: GameSaveV10): void {
+export function saveProfileGameSave(profileId: ProfileId, save: GameSaveV11): void {
   if (typeof localStorage !== "undefined") localStorage.setItem(getProfileSaveKey(profileId), JSON.stringify(save));
 }
 

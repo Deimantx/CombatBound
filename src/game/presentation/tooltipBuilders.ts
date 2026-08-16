@@ -6,6 +6,7 @@ import type {
   PlayerActionDefinition,
 } from "../combat/combatTypes";
 import type { ItemDefinition } from "../data/items";
+import type { ResolvedItemInstance } from "../items/itemTypes";
 import { combatStatReferenceById } from "../data/combatGlossary";
 import { effectById } from "../data/effects";
 import type { SpellDefinition } from "../data/spells";
@@ -166,6 +167,22 @@ export function buildItemTooltip(
       options.equipped ? "Currently equipped" : "",
     ].filter(Boolean),
   };
+}
+
+/** Owned-item tooltip entry point. Phase 1 resolves base stats unchanged. */
+export function buildItemInstanceTooltip(
+  resolved: ResolvedItemInstance,
+  options: {
+    equipped?: boolean;
+    defensiveContext?: DefensiveEquipmentContext;
+    masteryLevel?: number;
+  } = {},
+): TooltipModel {
+  const tooltip = buildItemTooltip(
+    { ...resolved.definition, stats: resolved.effectiveStats },
+    options,
+  );
+  return { ...tooltip, id: `item-instance.${resolved.instance.id}` };
 }
 
 export function buildStatTooltip(

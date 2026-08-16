@@ -8,6 +8,7 @@ import { useGameStore } from "../../../../state/gameStore";
 import { DisclosureChevron } from "../../../components/DisclosureChevron";
 import { StatLine } from "../../../components/StatLine";
 import type { HeroEquipmentPreview } from "./HeroEquipmentWorkspace";
+import { getItemDefinitionForInstance } from "../../../../game/items/itemResolver";
 
 const HERO_STATS_STORAGE_KEY = "combatbound-hero-stats-v1";
 const DEFAULT_PREFERENCES: HeroStatsPreferences = {
@@ -46,20 +47,21 @@ function persistPreferences(preferences: HeroStatsPreferences) {
 
 export function HeroCombatStatsPanel({ preview, hoveredPreview }: { preview: HeroEquipmentPreview | null; hoveredPreview: HeroEquipmentPreview | null }) {
   const equipment = useGameStore((state) => state.game.equipment);
+  const inventory = useGameStore((state) => state.game.inventory);
   const progression = useGameStore((state) => state.game.progression);
   const stance = useGameStore((state) => state.game.combat.stance);
   const techniques = useGameStore((state) => state.game.combat.techniques);
   const selectedEquipmentSlot = useGameStore((state) => state.selectedEquipmentSlot);
   const [preferences, setPreferences] = useState(readPreferences);
   const instanceId = useId().replace(/:/g, "");
-  const stats = useMemo(() => calculateHunterCombatStats(equipment, progression, stance, techniques), [equipment, progression, stance, techniques]);
+  const stats = useMemo(() => calculateHunterCombatStats(equipment, inventory, progression, stance, techniques), [equipment, inventory, progression, stance, techniques]);
   const requestedPreview = hoveredPreview ?? preview;
   const activePreview = requestedPreview?.slotId === selectedEquipmentSlot ? requestedPreview : null;
   const previewStats = useMemo(() => {
     if (!activePreview) return null;
-    const previewEquipment = { ...equipment, slots: { ...equipment.slots, [activePreview.slotId]: activePreview.itemId } };
-    return calculateHunterCombatStats(previewEquipment, progression, stance, techniques);
-  }, [activePreview, equipment, progression, stance, techniques]);
+    const previewEquipment = { ...equipment, slots: { ...equipment.slots, [activePreview.slotId]: activePreview.instanceId } };
+    return calculateHunterCombatStats(previewEquipment, inventory, progression, stance, techniques);
+  }, [activePreview, equipment, inventory, progression, stance, techniques]);
   const rangeFor = (source = stats) => ({ min: source.attackDamageMin ?? source.attackDamage, max: source.attackDamageMax ?? source.attackDamage });
   const panelContentId = `hero-combat-stats-content-${instanceId}`;
   const valueFor = (key: string, source = stats) => {
@@ -78,7 +80,7 @@ export function HeroCombatStatsPanel({ preview, hoveredPreview }: { preview: Her
   };
 
   return (
-    <aside className={`hero-combat-stats ${preferences.panel ? "is-open" : "is-collapsed"}`} data-debug-kind="hero-combat-stats" data-debug-expanded={preferences.panel ? "true" : "false"} data-debug-preview-item-id={activePreview?.itemId} data-debug-preview-slot-id={activePreview?.slotId}>
+    <aside className={`hero-combat-stats ${preferences.panel ? "is-open" : "is-collapsed"}`} data-debug-kind="hero-combat-stats" data-debug-expanded={preferences.panel ? "true" : "false"} data-debug-preview-instance-id={activePreview?.instanceId} data-debug-preview-item-id={activePreview ? getItemDefinitionForInstance(inventory, activePreview.instanceId)?.id : undefined} data-debug-preview-slot-id={activePreview?.slotId}>
       <button type="button" className="hero-stats-parent-toggle" onClick={() => toggle("panel")} aria-expanded={preferences.panel} aria-controls={panelContentId}>
         <span className="hero-stats-title"><span className="panel-icon"><Swords size={16} /></span><span><strong>COMBAT STATS</strong><small>Live values used by combat</small></span></span>
         <DisclosureChevron open={preferences.panel} />

@@ -9,7 +9,7 @@ import { calculateHunterCombatStats } from '../game/equipment/derivedStats'
 import { awardProficiencyXp, proficiencyLevelForXp, proficiencyXpForLevel } from '../game/progression/proficiencyProgression'
 
 const fixedContext = createCombatContext({ next: () => 0.5 })
-const statsFor = (game: ReturnType<typeof createInitialGameState>) => calculateHunterCombatStats(game.equipment, game.progression, game.combat.stance, game.combat.techniques)
+const statsFor = (game: ReturnType<typeof createInitialGameState>) => calculateHunterCombatStats(game.equipment, game.inventory, game.progression, game.combat.stance, game.combat.techniques)
 const sequenceContext = (values: number[]) => { let index = 0; return createCombatContext({ next: () => values[index++ % values.length] }) }
 
 describe('gameplay domain', () => {
@@ -271,9 +271,9 @@ describe('gameplay domain', () => {
     const started = startHunt({ ...game, combat: { ...game.combat, playerHp: 100 } }, 'location.wolf-den', stats, fixedContext)
     const healed = useHealingPotion(started, stats)
     expect(healed.combat.playerHp).toBe(170)
-    expect(healed.inventory.quantities['item.healing-potion']).toBe(9)
+    expect(healed.inventory.stackables['item.healing-potion']).toBe(9)
     const full = useHealingPotion({ ...started, combat: { ...started.combat, playerHp: stats.maxLife ?? 0 } }, stats)
-    expect(full.inventory.quantities['item.healing-potion']).toBe(10)
+    expect(full.inventory.stackables['item.healing-potion']).toBe(10)
   })
 
   it('keeps repeatable hunting stable across a simulated hour', () => {

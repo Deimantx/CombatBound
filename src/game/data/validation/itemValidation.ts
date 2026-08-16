@@ -17,6 +17,15 @@ export function validateItemDefinition(item: ItemDefinition): ItemValidationResu
   const warnings: string[] = [];
   const stats = item.stats ?? {};
 
+  if (item.inventoryMode !== "instance" && item.inventoryMode !== "stackable")
+    errors.push(`${item.id}: inventoryMode must be explicitly stackable or instance`);
+  if (item.equipmentSlotKind && item.inventoryMode !== "instance")
+    errors.push(`${item.id}: equipable items must use instance inventoryMode`);
+  if (!item.equipmentSlotKind && item.inventoryMode === "stackable") {
+    // Stackables are intentionally non-equipable. Instance-owned non-equipment
+    // definitions remain valid for future quest/relic content.
+  }
+
   if (item.equipmentSlotKind && !EQUIPMENT_SLOT_DEFINITIONS.some((slot) => slot.kind === item.equipmentSlotKind))
     errors.push(`${item.id}: invalid equipment slot kind ${item.equipmentSlotKind}`);
   if (item.equipmentSlotKind && item.requiredMasteryLevel !== undefined && (!Number.isInteger(item.requiredMasteryLevel) || item.requiredMasteryLevel < 1))

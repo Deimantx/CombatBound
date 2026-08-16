@@ -71,6 +71,7 @@ export function createCombatState(): CombatState {
       masteryXpGained: 0,
       itemsGained: 0,
       lootGained: {},
+      itemInstanceIdsGained: [],
       goldGained: 0,
       highestHit: 0,
     },

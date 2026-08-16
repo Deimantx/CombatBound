@@ -9,7 +9,6 @@ import {
   Swords,
 } from "lucide-react";
 import { useId, useState } from "react";
-import { itemById, itemDefinitions, type ItemDefinition } from "../../../game/data/items";
 import { proficiencyById } from "../../../game/data/proficiencies";
 import { getEquippedWeaponProficiency } from "../../../game/progression/progressionSelectors";
 import { getProficiencyLevel } from "../../../game/progression/proficiencyProgression";
@@ -23,7 +22,9 @@ import {
   getEquipmentSlotsByGroup,
   type EquipmentSlotId,
 } from "../../../game/equipment/equipmentTypes";
-import { canEquipItemToSlot, getAvailableItemCopies, validateEquipmentChange } from "../../../game/equipment/equipmentRules";
+import { getCompatibleItemInstances, validateEquipmentChange } from "../../../game/equipment/equipmentRules";
+import { resolveItemInstance } from "../../../game/items/itemResolver";
+import type { ResolvedItemInstance } from "../../../game/items/itemTypes";
 import {
   formatCombatStatValue,
   formatDamageRange,
@@ -32,7 +33,7 @@ import {
 } from "../../../game/presentation/statFormatting";
 import { combatStatGroups } from "../../../game/presentation/combatStatGroups";
 import { equipmentGroups } from "../../../game/presentation/equipmentGroups";
-import { buildItemTooltip } from "../../../game/presentation/tooltipBuilders";
+import { buildItemInstanceTooltip } from "../../../game/presentation/tooltipBuilders";
 import { useGameStore } from "../../../state/gameStore";
 import { CollapsiblePanel } from "../../components/CollapsiblePanel";
 import { GameTooltip } from "../../components/tooltip/GameTooltip";
@@ -76,7 +77,7 @@ export function EquipmentScreen({ embedded = false }: { embedded?: boolean } = {
   const game = useGameStore((state) => state.game);
   const selectedSlot = useGameStore((state) => state.selectedEquipmentSlot);
   const selectSlot = useGameStore((state) => state.selectEquipmentSlot);
-  const equipItem = useGameStore((state) => state.equipItem);
+  const equipItemInstance = useGameStore((state) => state.equipItemInstance);
   const selected = (EQUIPMENT_SLOT_DEFINITIONS.some((slot) => slot.id === selectedSlot)
     ? selectedSlot
     : "weapon") as EquipmentSlotId;
@@ -84,20 +85,17 @@ export function EquipmentScreen({ embedded = false }: { embedded?: boolean } = {
   const combatLocked =
     game.combat.phase === "active" || game.combat.phase === "recovery";
   const equippedId = game.equipment.slots[selected];
-  const equipped = equippedId ? itemById[equippedId] : undefined;
-  const candidates = itemDefinitions.filter(
-    (item) =>
-      canEquipItemToSlot(item, selected) &&
-      (game.inventory.quantities[item.id] ?? 0) > 0,
-  );
+  const equipped = equippedId ? resolveItemInstance(game.inventory, equippedId) : undefined;
+  const candidates = getCompatibleItemInstances(game.inventory, selected);
   const stats = calculateHunterCombatStats(
     game.equipment,
+    game.inventory,
     game.progression,
     game.combat.stance,
     game.combat.techniques,
   );
   const attackDamageRange = formatDamageRange(stats.attackDamageMin ?? stats.attackDamage, stats.attackDamageMax ?? stats.attackDamage);
-  const equippedProficiency = getEquippedWeaponProficiency(game.equipment);
+  const equippedProficiency = getEquippedWeaponProficiency(game.equipment, game.inventory);
   const equippedProficiencyName = equippedProficiency
     ? proficiencyById[equippedProficiency]?.name
     : undefined;
@@ -112,7 +110,7 @@ export function EquipmentScreen({ embedded = false }: { embedded?: boolean } = {
       : key.endsWith("Resistance")
         ? resistance(key)
         : (stats[key as keyof typeof stats] as number);
-  const defensiveContext = getDefensiveEquipmentContext(game.equipment);
+  const defensiveContext = getDefensiveEquipmentContext(game.equipment, game.inventory);
   const masteryLevel = masteryLevelForXp(game.progression.masteryXp);
   const detailFor = (key: string) =>
     key === "attackInterval"
@@ -163,8 +161,8 @@ export function EquipmentScreen({ embedded = false }: { embedded?: boolean } = {
                 <h3 className="equipment-slot-group-title">{group.label}</h3>
                 <div className="equipment-slots">
                   {getEquipmentSlotsByGroup(group.id).map((slot) => {
-                    const item = slot.id in game.equipment.slots
-                      ? itemById[game.equipment.slots[slot.id] as string]
+                    const item = game.equipment.slots[slot.id]
+                      ? resolveItemInstance(game.inventory, game.equipment.slots[slot.id]!)
                       : undefined;
                     const active = selected === slot.id;
                     return (
@@ -172,11 +170,7 @@ export function EquipmentScreen({ embedded = false }: { embedded?: boolean } = {
                         key={slot.id}
                         content={
                           item
-                            ? buildItemTooltip(item, {
-                                equipped: true,
-                                quantity: game.inventory.quantities[item.id] ?? 0,
-                                defensiveContext,
-                              })
+                            ? buildItemInstanceTooltip(item, { equipped: true, defensiveContext })
                             : {
                                 id: `equipment-slot.${slot.id}`,
                                 title: `${slot.label} slot`,
@@ -192,17 +186,18 @@ export function EquipmentScreen({ embedded = false }: { embedded?: boolean } = {
                           data-debug-slot-id={slot.id}
                           data-debug-slot-kind={slot.kind}
                           data-debug-slot-group={slot.group}
-                          data-debug-item-id={item?.id}
+                          data-debug-item-id={item?.definition.id}
+                          data-debug-instance-id={item?.instance.id}
                           data-debug-label={slot.label}
                         >
                           <span className="slot-label">{slot.label}</span>
                           <PlaceholderArt
-                            icon={item?.icon ?? slot.icon}
+                            icon={item?.definition.icon ?? slot.icon}
                             size="medium"
                             variant={active ? "gold" : "muted"}
                           />
-                          <strong>{item?.name ?? "Empty"}</strong>
-                          <small>{active ? "Selected" : (item?.rarity ?? "Empty")}</small>
+                          <strong>{item?.definition.name ?? "Empty"}</strong>
+                          <small>{active ? "Selected" : (item?.definition.rarity ?? "Empty")}</small>
                           {active && (
                             <span className="selected-check">
                               <Check size={12} />
@@ -310,16 +305,14 @@ export function EquipmentScreen({ embedded = false }: { embedded?: boolean } = {
           <div className="candidate-list">
             {candidates.map((item) => (
               <CandidateItem
-                key={item.id}
+                key={item.instance.id}
                 item={item}
                 slotId={selected}
-                equipped={item.id === equippedId}
-                canEquip={validateEquipmentChange({ item, slotId: selected, inventory: game.inventory, equipment: game.equipment, masteryLevel }).valid}
-                availableCopies={getAvailableItemCopies(game.inventory, game.equipment, item.id, selected)}
+                equipped={item.instance.id === equippedId}
+                canEquip={validateEquipmentChange({ instanceId: item.instance.id, slotId: selected, inventory: game.inventory, equipment: game.equipment, masteryLevel }).valid}
                 locked={combatLocked}
-                masteryLocked={validateEquipmentChange({ item, slotId: selected, inventory: game.inventory, equipment: game.equipment, masteryLevel }).reason === "mastery-level"}
-                onEquip={() => equipItem(item.id, selected)}
-                quantity={game.inventory.quantities[item.id] ?? 0}
+                masteryLocked={validateEquipmentChange({ instanceId: item.instance.id, slotId: selected, inventory: game.inventory, equipment: game.equipment, masteryLevel }).reason === "mastery-level"}
+                onEquip={() => equipItemInstance(item.instance.id, selected)}
                 masteryLevel={masteryLevel}
               />
             ))}
@@ -328,10 +321,10 @@ export function EquipmentScreen({ embedded = false }: { embedded?: boolean } = {
             <span className="tiny-label">COMPARISON</span>
             <div>
               <span>Equipped</span>
-              <strong>{equipped?.name ?? "Empty"}</strong>
+              <strong>{equipped?.definition.name ?? "Empty"}</strong>
               <em>
                 {equipped
-                  ? formatItemStats(equipped.stats ?? {})
+                  ? formatItemStats(equipped.effectiveStats)
                       .map((stat) => `${stat.label} ${stat.value}`)
                       .join(" · ") || "No combat stats"
                   : "No item equipped in this slot."}
@@ -449,54 +442,52 @@ function CandidateItem({
   slotId,
   equipped,
   canEquip,
-  availableCopies,
   locked,
   masteryLocked,
   onEquip,
-  quantity,
   masteryLevel,
 }: {
-  item: ItemDefinition;
+  item: ResolvedItemInstance;
   slotId: EquipmentSlotId;
   equipped: boolean;
   canEquip: boolean;
-  availableCopies: number;
   locked: boolean;
   masteryLocked: boolean;
   onEquip: () => void;
-  quantity: number;
   masteryLevel: number;
 }) {
+  const definition = item.definition;
+  const instance = item.instance;
   const button = (
     <button
       className={`candidate-item ${equipped ? "is-equipped" : ""}`}
       onClick={onEquip}
       disabled={locked || !canEquip}
       data-debug-kind="equipment-candidate"
-      data-debug-target-id={item.id}
-      data-debug-item-id={item.id}
+      data-debug-target-id={instance.id}
+      data-debug-item-id={definition.id}
+      data-debug-instance-id={instance.id}
       data-debug-slot-id={slotId}
       data-debug-can-equip={canEquip && !locked ? "true" : "false"}
-      data-debug-available-copies={availableCopies}
-      data-debug-label={item.name}
+      data-debug-label={definition.name}
     >
       <PlaceholderArt
-        icon={item.icon}
+        icon={definition.icon}
         size="small"
         variant={
-          item.rarity === "rare"
+          definition.rarity === "rare"
             ? "gold"
-            : item.rarity === "uncommon"
+            : definition.rarity === "uncommon"
               ? "blue"
               : "muted"
         }
       />
       <span>
-        <strong>{item.name}</strong>
+        <strong>{definition.name}</strong>
         <small>
-          {formatItemStats(item.stats ?? {})
+          {formatItemStats(item.effectiveStats)
             .map((stat) => `${stat.label} ${stat.value}`)
-            .join(" · ") || item.description}
+            .join(" · ") || definition.description}
         </small>
       </span>
       {equipped ? (
@@ -504,20 +495,20 @@ function CandidateItem({
           <Check size={13} /> Equipped
         </span>
       ) : masteryLocked ? (
-        <span className="equipped-label is-unavailable">REQUIRES MASTERY LV {item.requiredMasteryLevel}</span>
+        <span className="equipped-label is-unavailable">REQUIRES MASTERY LV {definition.requiredMasteryLevel}</span>
       ) : !canEquip ? (
-        <span className="equipped-label is-unavailable">No spare copy</span>
+        <span className="equipped-label is-unavailable">Unavailable</span>
       ) : (
         <ArrowRight size={15} />
       )}
     </button>
   );
   return locked ? (
-    <GameTooltip content={buildItemTooltip(item, { quantity, equipped, masteryLevel })}>
+    <GameTooltip content={buildItemInstanceTooltip(item, { equipped, masteryLevel })}>
       <span className="candidate-tooltip-host">{button}</span>
     </GameTooltip>
   ) : (
-    <GameTooltip content={buildItemTooltip(item, { quantity, equipped, masteryLevel })}>
+    <GameTooltip content={buildItemInstanceTooltip(item, { equipped, masteryLevel })}>
       {button}
     </GameTooltip>
   );

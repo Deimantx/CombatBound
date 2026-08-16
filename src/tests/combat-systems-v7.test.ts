@@ -20,6 +20,7 @@ const context = createCombatContext({ next: () => 0.5 });
 const statsFor = (game: ReturnType<typeof createInitialGameState>) =>
   calculateHunterCombatStats(
     game.equipment,
+    game.inventory,
     game.progression,
     game.combat.stance,
     game.combat.techniques,

@@ -1,6 +1,7 @@
 import { deepFreeze } from './freeze'
 import type { DefensiveProficiencyId, WeaponProficiencyId } from '../progression/progressionTypes'
 import type { EquipmentSlotKind } from '../equipment/equipmentTypes'
+import type { ItemInventoryMode } from '../items/itemTypes'
 
 export type ItemCategory = 'weapon' | 'armor' | 'accessory' | 'material' | 'consumable' | 'currency'
 export type ItemRarity = 'common' | 'uncommon' | 'rare'
@@ -12,6 +13,7 @@ export interface ItemDefinition {
   rarity: ItemRarity
   description: string
   icon: string
+  inventoryMode?: ItemInventoryMode
   requiredMasteryLevel?: number
   weaponProficiencyId?: WeaponProficiencyId
   equipmentSlotKind?: EquipmentSlotKind
@@ -57,7 +59,9 @@ export interface ItemDefinition {
   }
 }
 
-const authoredItemDefinitions: ItemDefinition[] = [
+type AuthoredItemDefinition = Omit<ItemDefinition, 'inventoryMode'> & { inventoryMode?: ItemInventoryMode }
+
+const authoredItemDefinitions: AuthoredItemDefinition[] = [
   // Prototype gear is intentionally debug/acquisition content for V8.7. [TUNING]
   { id: 'item.training-sword', name: 'Training Sword', category: 'weapon', rarity: 'common', description: 'A dependable starter weapon.', icon: 'sword', requiredMasteryLevel: 1, equipmentSlotKind: 'weapon', weaponProficiencyId: 'one-handed-sword', stats: { baseDamageMin: 24, baseDamageMax: 32, accuracyRating: 5, baseAttackTime: 2.4 } }, // [TUNING]
   { id: 'item.hunter-sword', name: 'Hunter Sword', category: 'weapon', rarity: 'uncommon', description: 'A sharper sword recovered from repeated hunts.', icon: 'sword', requiredMasteryLevel: 5, equipmentSlotKind: 'weapon', weaponProficiencyId: 'one-handed-sword', stats: { baseDamageMin: 29, baseDamageMax: 39, accuracyRating: 8, baseAttackTime: 2.2 } }, // [TUNING]
@@ -99,7 +103,27 @@ const authoredItemDefinitions: ItemDefinition[] = [
   { id: 'item.coin-pouch', name: 'Coin Pouch', category: 'currency', rarity: 'uncommon', description: 'A small purse of prototype gold.', icon: 'coin' },
 ]
 
-export const itemDefinitions = deepFreeze<ItemDefinition[]>(authoredItemDefinitions)
+const authoredInventoryModeById: Record<string, ItemInventoryMode> = {
+  'item.training-sword': 'instance', 'item.hunter-sword': 'instance', 'item.vanguard-sword': 'instance',
+  'item.training-shield': 'instance', 'item.hunter-shield': 'instance', 'item.vanguard-shield': 'instance',
+  'item.training-hood': 'instance', 'item.hunter-cap': 'instance', 'item.vanguard-helm': 'instance',
+  'item.training-armor': 'instance', 'item.hunter-armor': 'instance', 'item.vanguard-plate': 'instance',
+  'item.training-gloves': 'instance', 'item.hunter-gloves': 'instance', 'item.vanguard-gauntlets': 'instance',
+  'item.training-boots': 'instance', 'item.hunter-boots': 'instance', 'item.vanguard-boots': 'instance',
+  'item.traveler-belt': 'instance', 'item.hunter-belt': 'instance', 'item.war-belt': 'instance',
+  'item.traveler-cape': 'instance', 'item.warden-cape': 'instance', 'item.vanguard-cape': 'instance',
+  'item.apprentice-pendant': 'instance', 'item.elemental-pendant': 'instance', 'item.arcane-necklace': 'instance',
+  'item.copper-signet': 'instance', 'item.duelist-ring': 'instance', 'item.ring-of-precision': 'instance',
+  'item.mana-stud': 'instance', 'item.wind-earring': 'instance', 'item.star-earring': 'instance',
+  'item.healing-potion': 'stackable', 'item.wolf-fang': 'stackable', 'item.wolf-pelt': 'stackable',
+  'item.bandit-scrap': 'stackable', 'item.coin-pouch': 'stackable',
+}
+
+// Materialize the explicit ownership mode on the immutable definition catalogue.
+export const itemDefinitions = deepFreeze<ItemDefinition[]>(authoredItemDefinitions.map((item) => ({
+  ...item,
+  inventoryMode: item.inventoryMode ?? authoredInventoryModeById[item.id],
+})))
 
 export const itemById = Object.fromEntries(itemDefinitions.map((item) => [item.id, item])) as Record<string, ItemDefinition>
 export const prototypeEquipmentDefinitions = itemDefinitions.filter((item) => Boolean(item.equipmentSlotKind))

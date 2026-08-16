@@ -1,7 +1,6 @@
-import type { GameSaveV10 } from "./saveTypes";
+import type { GameSaveV11 } from "./saveTypes";
 import {
   migrateCurrentSave,
-  migrateEquipment,
   migrateLegacySave,
   migrateV3Save,
   migrateV4Save,
@@ -10,6 +9,7 @@ import {
   migrateV7Save,
   migrateV8Save,
   migrateV9Save,
+  migrateV10Save,
 } from "./saveMigration";
 import { isGameSave } from "./saveValidation";
 import { normalizeSpellbook } from "../spellbook/spellbookLogic";
@@ -17,8 +17,9 @@ import { normalizeCombatAutomation } from "../automation/automationLogic";
 import { normalizeCombatAbilityLoadout } from "../combatAbilities/combatAbilityLogic";
 import { normalizeCombatAutomationPresets } from "../automation/automationPresets";
 
-export const CURRENT_SAVE_VERSION = 10;
-export const GAME_SAVE_KEY = "combatbound-idle-save-v10";
+export const CURRENT_SAVE_VERSION = 11;
+export const GAME_SAVE_KEY = "combatbound-idle-save-v11";
+export const LEGACY_V10_GAME_SAVE_KEY = "combatbound-idle-save-v10";
 export const LEGACY_V9_GAME_SAVE_KEY = "combatbound-idle-save-v9";
 export const LEGACY_V8_GAME_SAVE_KEY = "combatbound-idle-save-v8";
 export const LEGACY_V7_GAME_SAVE_KEY = "combatbound-idle-save-v7";
@@ -29,16 +30,23 @@ export const LEGACY_V3_GAME_SAVE_KEY = "combatbound-idle-save-v3";
 export const LEGACY_CURRENT_GAME_SAVE_KEY = "combatbound-idle-save-v2";
 export const LEGACY_GAME_SAVE_KEY = "combatbound-idle-save-v1";
 
-function migrateV8ToCurrent(value: unknown): GameSaveV10 | null {
+function migrateV8ToCurrent(value: unknown): GameSaveV11 | null {
   const v9 = migrateV8Save(value);
-  return v9 ? migrateV9Save(v9) : null;
+  const v10 = v9 ? migrateV9Save(v9) : null;
+  return v10 ? migrateV10Save(v10) : null;
 }
 
-export function parseGameSaveJson(raw: string): GameSaveV10 | null {
+function migrateV9ToCurrent(value: unknown): GameSaveV11 | null {
+  const v10 = migrateV9Save(value);
+  return v10 ? migrateV10Save(v10) : null;
+}
+
+export function parseGameSaveJson(raw: string): GameSaveV11 | null {
   try {
     const value = JSON.parse(raw) as unknown;
     if (isGameSave(value)) return value;
-    if (value && typeof value === "object" && (value as { version?: unknown }).version === 9) return migrateV9Save(value);
+    if (value && typeof value === "object" && (value as { version?: unknown }).version === 10) return migrateV10Save(value);
+    if (value && typeof value === "object" && (value as { version?: unknown }).version === 9) return migrateV9ToCurrent(value);
     if (value && typeof value === "object" && (value as { version?: unknown }).version === 8) return migrateV8ToCurrent(value);
     return null;
   } catch {
@@ -47,7 +55,7 @@ export function parseGameSaveJson(raw: string): GameSaveV10 | null {
 }
 
 /** Reads the pre-profile global save chain for the one-time Profile 1 migration only. */
-export function loadLegacySingleGameSaveForProfileMigration(): GameSaveV10 | null {
+export function loadLegacySingleGameSaveForProfileMigration(): GameSaveV11 | null {
   if (typeof localStorage === "undefined") return null;
   try {
     const currentRaw = localStorage.getItem(GAME_SAVE_KEY);
@@ -55,33 +63,30 @@ export function loadLegacySingleGameSaveForProfileMigration(): GameSaveV10 | nul
       const current = JSON.parse(currentRaw) as unknown;
       const currentSave = isGameSave(current)
         ? current
-        : current && typeof current === "object" && (current as { version?: unknown }).version === 9
-          ? migrateV9Save(current)
+        : current && typeof current === "object" && (current as { version?: unknown }).version === 10
+          ? migrateV10Save(current)
           : null;
       if (currentSave) {
-        const current = currentSave;
-        const equipment = migrateEquipment(current.equipment, current.inventory.quantities);
         const migrated = {
-          ...current,
-          equipment,
-          spellbook: normalizeSpellbook(current.spellbook),
-          combatAutomation: normalizeCombatAutomation(current.combatAutomation),
-          combatAutomationPresets: normalizeCombatAutomationPresets(current.combatAutomationPresets),
-          combatAbilities: normalizeCombatAbilityLoadout(current.combatAbilities),
+          ...currentSave,
+          spellbook: normalizeSpellbook(currentSave.spellbook),
+          combatAutomation: normalizeCombatAutomation(currentSave.combatAutomation),
+          combatAutomationPresets: normalizeCombatAutomationPresets(currentSave.combatAutomationPresets),
+          combatAbilities: normalizeCombatAbilityLoadout(currentSave.combatAbilities),
         };
         if (
-          JSON.stringify(equipment) !== JSON.stringify(current.equipment) ||
-          JSON.stringify(migrated.spellbook) !== JSON.stringify(current.spellbook) ||
-          JSON.stringify(migrated.combatAutomation) !== JSON.stringify(current.combatAutomation) ||
-          JSON.stringify(migrated.combatAutomationPresets) !== JSON.stringify(current.combatAutomationPresets) ||
-          JSON.stringify(migrated.combatAbilities) !== JSON.stringify(current.combatAbilities)
+          JSON.stringify(migrated.spellbook) !== JSON.stringify(currentSave.spellbook) ||
+          JSON.stringify(migrated.combatAutomation) !== JSON.stringify(currentSave.combatAutomation) ||
+          JSON.stringify(migrated.combatAutomationPresets) !== JSON.stringify(currentSave.combatAutomationPresets) ||
+          JSON.stringify(migrated.combatAbilities) !== JSON.stringify(currentSave.combatAbilities)
         ) {
           saveLegacySingleGameSave(migrated);
           return migrated;
         }
-        return current;
+        return currentSave;
       }
     }
+    const v10Raw = localStorage.getItem(LEGACY_V10_GAME_SAVE_KEY);
     const v9Raw = localStorage.getItem(LEGACY_V9_GAME_SAVE_KEY);
     const v8Raw = localStorage.getItem(LEGACY_V8_GAME_SAVE_KEY);
     const v7Raw = localStorage.getItem(LEGACY_V7_GAME_SAVE_KEY);
@@ -91,10 +96,13 @@ export function loadLegacySingleGameSaveForProfileMigration(): GameSaveV10 | nul
     const v3Raw = localStorage.getItem(LEGACY_V3_GAME_SAVE_KEY);
     const currentLegacyRaw = localStorage.getItem(LEGACY_CURRENT_GAME_SAVE_KEY);
     const legacyRaw = localStorage.getItem(LEGACY_GAME_SAVE_KEY);
-    const migratedV9 = v9Raw
-      ? migrateV9Save(JSON.parse(v9Raw) as unknown)
+    const migratedV10 = v10Raw
+      ? migrateV10Save(JSON.parse(v10Raw) as unknown)
       : null;
-    const migratedV8 = !migratedV9 && v8Raw
+    const migratedV9 = !migratedV10 && v9Raw
+      ? migrateV9ToCurrent(JSON.parse(v9Raw) as unknown)
+      : null;
+    const migratedV8 = !migratedV10 && !migratedV9 && v8Raw
       ? migrateV8ToCurrent(JSON.parse(v8Raw) as unknown)
       : null;
     const migratedV7 = !migratedV8 && v7Raw
@@ -120,7 +128,8 @@ export function loadLegacySingleGameSaveForProfileMigration(): GameSaveV10 | nul
       !migratedV7 && !migratedV6 && !migratedV5 && !migratedV4 && !migratedV3 && !migratedV2 && legacyRaw
         ? migrateLegacySave(JSON.parse(legacyRaw) as unknown)
         : null;
-    const migrated = migratedV9
+    const migrated = migratedV10
+      ?? migratedV9
       ?? migratedV8
       ?? (migratedV7 ? migrateV8ToCurrent(migratedV7) : null)
       ?? (migratedV6 ? migrateV8ToCurrent(migrateV7Save(migratedV6)) : null)
@@ -136,13 +145,14 @@ export function loadLegacySingleGameSaveForProfileMigration(): GameSaveV10 | nul
   }
 }
 
-export function saveLegacySingleGameSave(save: GameSaveV10) {
+export function saveLegacySingleGameSave(save: GameSaveV11) {
   if (typeof localStorage !== "undefined")
     localStorage.setItem(GAME_SAVE_KEY, JSON.stringify(save));
 }
 export function clearLegacySingleGameSave() {
   if (typeof localStorage !== "undefined") {
     localStorage.removeItem(GAME_SAVE_KEY);
+    localStorage.removeItem(LEGACY_V10_GAME_SAVE_KEY);
     localStorage.removeItem(LEGACY_V9_GAME_SAVE_KEY);
     localStorage.removeItem(LEGACY_V8_GAME_SAVE_KEY);
     localStorage.removeItem(LEGACY_V7_GAME_SAVE_KEY);

@@ -1,17 +1,20 @@
-import type { GameSaveV10 } from "./saveTypes";
+import type { GameSaveV11 } from "./saveTypes";
 import { proficiencyById } from "../data/proficiencies";
 import { perkById } from "../data/proficiencyPerks";
 import { COMBAT_SPELL_SLOT_COUNT } from "../spellbook/spellbookTypes";
 import { isEquipmentSlotId } from "../equipment/equipmentTypes";
+import { itemById } from "../data/items";
+import { isItemInstanceId, itemInstanceSequence } from "../items/itemTypes";
+import { canEquipItemToSlot } from "../equipment/equipmentRules";
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return Boolean(value) && typeof value === "object" && !Array.isArray(value);
 }
 
-export function isGameSave(value: unknown): value is GameSaveV10 {
+export function isGameSave(value: unknown): value is GameSaveV11 {
   if (
     !isRecord(value) ||
-    value.version !== 10 ||
+    value.version !== 11 ||
     typeof value.gold !== "number" ||
     !isRecord(value.progression) ||
     !isRecord(value.inventory) ||
@@ -58,8 +61,8 @@ export function isGameSave(value: unknown): value is GameSaveV10 {
     })
   )
     return false;
-  const inventory = value.inventory;
-  const equipment = value.equipment;
+  const inventory = value.inventory as unknown as GameSaveV11["inventory"];
+  const equipment = value.equipment as unknown as GameSaveV11["equipment"];
   const collection = value.collection;
   const settings = value.settings;
   const spellbook = value.spellbook;
@@ -67,18 +70,37 @@ export function isGameSave(value: unknown): value is GameSaveV10 {
   const automationPresets = value.combatAutomationPresets;
   const combatAbilities = value.combatAbilities;
   if (
-    !isRecord(inventory.quantities) ||
+    !isRecord(inventory.stackables) ||
+    !isRecord(inventory.instances) ||
+    typeof inventory.nextInstanceSequence !== "number" ||
+    !Number.isInteger(inventory.nextInstanceSequence) ||
+    inventory.nextInstanceSequence < 1 ||
     !isRecord(equipment.slots) ||
     !Array.isArray(collection.discoveredItems) ||
     !isRecord(collection.targets)
   )
     return false;
-  if (
-    Object.entries(equipment.slots).some(([slot, itemId]) =>
-      !isEquipmentSlotId(slot) || typeof itemId !== "string",
-    )
-  )
-    return false;
+  const instanceIds = new Set<string>();
+  let highestInstanceSequence = 0;
+  for (const [definitionId, quantity] of Object.entries(inventory.stackables)) {
+    const definition = itemById[definitionId];
+    if (!definition || definition.inventoryMode !== "stackable" || typeof quantity !== "number" || !Number.isInteger(quantity) || quantity < 0) return false;
+  }
+  for (const [key, rawInstance] of Object.entries(inventory.instances)) {
+    if (!isRecord(rawInstance) || rawInstance.id !== key || !isItemInstanceId(rawInstance.id) || rawInstance.version !== 1 || typeof rawInstance.definitionId !== "string") return false;
+    const definition = itemById[rawInstance.definitionId];
+    if (!definition || definition.inventoryMode !== "instance") return false;
+    instanceIds.add(key);
+    highestInstanceSequence = Math.max(highestInstanceSequence, itemInstanceSequence(key));
+  }
+  if (inventory.nextInstanceSequence <= highestInstanceSequence) return false;
+  for (const [slot, instanceId] of Object.entries(equipment.slots)) {
+    if (!isEquipmentSlotId(slot) || typeof instanceId !== "string" || !instanceIds.has(instanceId)) return false;
+    const instance = inventory.instances[instanceId];
+    const definition = instance && typeof instance.definitionId === "string" ? itemById[instance.definitionId] : undefined;
+    if (!definition || !canEquipItemToSlot(definition, slot)) return false;
+    if (Object.entries(equipment.slots).filter(([, value]) => value === instanceId).length > 1) return false;
+  }
   if (
     !Array.isArray(spellbook.knownSpellIds) ||
     !Array.isArray(spellbook.equippedSpellSlots) ||

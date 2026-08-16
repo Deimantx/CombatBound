@@ -52,7 +52,7 @@ export function SpellbookWindow({ game, onOpenAutomation }: { game: GameState; o
     return new Set(defaultSchoolId ? [defaultSchoolId] : knownSchoolIds.slice(0, 1));
   });
   const context = useMemo(() => createCombatPreviewContext(), []);
-  const stats = calculateHunterCombatStats(game.equipment, game.progression, game.combat.stance, game.combat.techniques);
+  const stats = calculateHunterCombatStats(game.equipment, game.inventory, game.progression, game.combat.stance, game.combat.techniques);
   const normalizedQuery = query.trim().toLowerCase();
   const visibleSpells = knownSpells
     .filter((spell) => filter === "all" || spell.magicProficiencyId === filter)

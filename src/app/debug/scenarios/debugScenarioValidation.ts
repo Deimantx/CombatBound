@@ -25,7 +25,8 @@ export function validateDebugScenario(value: unknown): ScenarioValidationResult 
   const world = value.world;
   if (typeof world.combatLocationId !== "string" || !combatLocationById[world.combatLocationId]) errors.push(`Missing location: ${String(world.combatLocationId)}`);
   if (!isRecord(game.inventory) || !isRecord(game.equipment) || !isRecord(game.progression) || !isRecord(game.combat)) errors.push("Missing game setup data.");
-  if (isRecord(game.inventory) && isRecord(game.inventory.quantities)) for (const id of Object.keys(game.inventory.quantities)) if (!itemById[id]) errors.push(`Missing item: ${id}`);
+  if (isRecord(game.inventory) && isRecord(game.inventory.stackables)) for (const id of Object.keys(game.inventory.stackables)) if (!itemById[id]) errors.push(`Missing item: ${id}`);
+  if (isRecord(game.inventory) && isRecord(game.inventory.instances)) for (const [instanceId, instance] of Object.entries(game.inventory.instances)) if (!isRecord(instance) || !itemById[String(instance.definitionId)] || instanceId !== instance.id) errors.push(`Invalid item instance: ${instanceId}`);
   if (isRecord(game.combat) && Array.isArray(game.combat.enemies)) for (const enemy of game.combat.enemies) if (isRecord(enemy) && (typeof enemy.enemyId !== "string" || !enemyById[enemy.enemyId])) errors.push(`Missing enemy: ${String(isRecord(enemy) ? enemy.enemyId : enemy)}`);
   return { valid: errors.length === 0, errors };
 }

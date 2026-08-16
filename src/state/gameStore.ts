@@ -15,8 +15,11 @@ import {
   useHealingPotion,
 } from "../game/combat/combatEngine";
 import { calculateHunterCombatStats } from "../game/equipment/derivedStats";
-import { itemById } from "../game/data/items";
-import { validateEquipmentChange } from "../game/equipment/equipmentRules";
+import { equipItemInstance as equipOwnedItemInstance } from "../game/equipment/equipmentRules";
+import { getItemDefinitionForInstance } from "../game/items/itemResolver";
+import { normalizeInventoryState } from "../game/items/itemOwnership";
+import { getInstancesByDefinitionId } from "../game/items/itemOwnership";
+import { normalizeEquipmentState } from "../game/equipment/equipmentRules";
 import { combatLocationById } from "../game/data/world/combatLocations";
 import { continentById } from "../game/data/world/continents";
 import { createInitialGameState, type GameState } from "../game/gameState";
@@ -37,6 +40,7 @@ import {
 } from "../game/profiles/profileStorage";
 import { CURRENT_SAVE_VERSION, parseGameSaveJson } from "../game/persistence/saveGame";
 import type { ProfileId } from "../game/profiles/profileTypes";
+import type { InventoryEntryRef } from "../game/items/itemTypes";
 import type { StanceId, TechniqueId } from "../game/combat/combatTypes";
 import {
   equipSpellToSlot as equipSpellToSlotState,
@@ -119,7 +123,7 @@ import {
   debugSetAllProficiencyLevels,
   debugSetAllTargetDefeatsToOne,
   debugSetGold,
-  debugSetItemQuantity,
+  debugSetOwnedItemCount,
   debugSetMasteryLevel,
   debugSetBonusPerkPoints,
   debugSetPlayerResource,
@@ -154,7 +158,7 @@ interface GameStoreState {
   kills: number;
   combatLog: GameState["combat"]["log"];
   inventoryFilter: string;
-  selectedInventoryItemId: string;
+  selectedInventoryEntry: InventoryEntryRef | null;
   selectedEquipmentSlot: EquipmentSlotId;
   selectedCollectionEntryId: string;
   collectionTab: "Items" | "Targets";
@@ -213,9 +217,11 @@ interface GameStoreState {
   unequipSpell: (slot: number) => void;
   usePotion: () => void;
   purchaseProficiencyPerk: (perkId: string) => void;
-  equipItem: (itemId: string, slot: EquipmentSlotId) => void;
+  equipItemInstance: (instanceId: string, slot: EquipmentSlotId) => void;
+  /** @deprecated Definition-level compatibility for older test/debug callers. */
+  equipItem: (definitionId: string, slot: EquipmentSlotId) => void;
   setInventoryFilter: (filter: string) => void;
-  selectInventoryItem: (itemId: string) => void;
+  selectInventoryEntry: (entry: InventoryEntryRef | null) => void;
   selectEquipmentSlot: (slotId: EquipmentSlotId) => void;
   selectCollectionEntry: (entryId: string) => void;
   setCollectionTab: (tab: "Items" | "Targets") => void;
@@ -234,7 +240,7 @@ interface GameStoreState {
 
 export interface DebugStoreApi {
   grantItem: (itemId: string, quantity: number) => void;
-  setItemQuantity: (itemId: string, quantity: number) => void;
+  setOwnedItemCount: (itemId: string, quantity: number) => void;
   grantAllEquipment: (quantity?: number) => void;
   grantEquipmentTier: (masteryLevel: number) => void;
   setMasteryLevel: (level: number) => void;
@@ -296,6 +302,7 @@ if (import.meta.env.DEV) context.debugHooks = {
 const initial = createInitialGameState();
 const defaultSelection = getDefaultWorldSelection();
 function gameFromSave(saved: NonNullable<ReturnType<typeof loadProfileGameSave>>): GameState {
+  const inventory = normalizeInventoryState(saved.inventory);
   return syncCombatStats({
       combat: {
         ...initial.combat,
@@ -303,8 +310,8 @@ function gameFromSave(saved: NonNullable<ReturnType<typeof loadProfileGameSave>>
         playerHp: initial.combat.maxPlayerHp,
       },
       progression: saved.progression,
-      inventory: saved.inventory,
-       equipment: saved.equipment,
+      inventory,
+      equipment: normalizeEquipmentState(saved.equipment, inventory),
       collection: saved.collection,
       gold: saved.gold,
       spellbook: normalizeSpellbook(saved.spellbook),
@@ -329,7 +336,7 @@ type UiState = Pick<
   | "selectedAreaId"
   | "selectedCombatLocationId"
   | "inventoryFilter"
-  | "selectedInventoryItemId"
+  | "selectedInventoryEntry"
   | "selectedEquipmentSlot"
   | "selectedCollectionEntryId"
   | "collectionTab"
@@ -362,7 +369,7 @@ function flatState(
   | "kills"
   | "combatLog"
   | "inventoryFilter"
-  | "selectedInventoryItemId"
+  | "selectedInventoryEntry"
   | "selectedEquipmentSlot"
   | "selectedCollectionEntryId"
   | "collectionTab"
@@ -411,7 +418,7 @@ function savePermanent(
   const profileId = activeProfileIdForPersistence();
   if (!profileId) return;
   saveProfileGameSave(profileId, {
-    version: CURRENT_SAVE_VERSION,
+    version: CURRENT_SAVE_VERSION as 11,
     progression: game.progression,
     inventory: game.inventory,
     equipment: game.equipment,
@@ -442,7 +449,7 @@ function selectionUi(
     selectedAreaId: selection.areaId,
     selectedCombatLocationId: selection.combatLocationId,
     inventoryFilter: state.inventoryFilter,
-    selectedInventoryItemId: state.selectedInventoryItemId,
+    selectedInventoryEntry: state.selectedInventoryEntry,
     selectedEquipmentSlot: state.selectedEquipmentSlot,
     selectedCollectionEntryId: state.selectedCollectionEntryId,
     collectionTab: state.collectionTab,
@@ -462,7 +469,7 @@ function freshUi(state: GameStoreState): UiState {
     selectedAreaId: defaultSelection.areaId,
     selectedCombatLocationId: defaultSelection.combatLocationId,
     inventoryFilter: "All",
-    selectedInventoryItemId: "item.training-sword",
+    selectedInventoryEntry: { kind: "instance", instanceId: Object.values(initial.inventory.instances)[0]?.id ?? "" },
     selectedEquipmentSlot: "weapon",
     selectedCollectionEntryId: "enemy.grey-wolf",
     collectionTab: "Items",
@@ -481,7 +488,7 @@ export const useGameStore = create<GameStoreState>((set, get) => {
     selectedAreaId: defaultSelection.areaId,
     selectedCombatLocationId: defaultSelection.combatLocationId,
     inventoryFilter: "All",
-    selectedInventoryItemId: "item.training-sword",
+    selectedInventoryEntry: { kind: "instance", instanceId: Object.values(initial.inventory.instances)[0]?.id ?? "" },
     selectedEquipmentSlot: "weapon",
     selectedCollectionEntryId: "enemy.grey-wolf",
     collectionTab: "Items",
@@ -517,6 +524,7 @@ export const useGameStore = create<GameStoreState>((set, get) => {
         return state;
       const stats = calculateHunterCombatStats(
         state.game.equipment,
+        state.game.inventory,
         state.game.progression,
         state.game.combat.stance,
         state.game.combat.techniques,
@@ -553,7 +561,7 @@ export const useGameStore = create<GameStoreState>((set, get) => {
     });
   const debug: DebugStoreApi = {
     grantItem: (itemId, quantity) => commitDebug((game) => debugGrantItem(game, itemId, quantity), true),
-    setItemQuantity: (itemId, quantity) => commitDebug((game) => debugSetItemQuantity(game, itemId, quantity), true),
+    setOwnedItemCount: (itemId, quantity) => commitDebug((game) => debugSetOwnedItemCount(game, itemId, quantity), true),
     grantAllEquipment: (quantity = 1) => commitDebug((game) => debugGrantAllEquipment(game, quantity), true),
     grantEquipmentTier: (level) => commitDebug((game) => debugGrantEquipmentTier(game, level), true),
     setMasteryLevel: (level) => commitDebug((game) => debugSetMasteryLevel(game, level), true),
@@ -610,7 +618,7 @@ export const useGameStore = create<GameStoreState>((set, get) => {
     startEncounter: (locationId, enemyIds) => commitDebug((game) => {
       useDevToolsRuntimeStore.getState().clearEnemyImmortality();
       useDevToolsRuntimeStore.getState().resetSimulationAccumulator();
-      const stats = calculateHunterCombatStats(game.equipment, game.progression, game.combat.stance, game.combat.techniques);
+      const stats = calculateHunterCombatStats(game.equipment, game.inventory, game.progression, game.combat.stance, game.combat.techniques);
       return engineStartDebugEncounter(game, locationId, enemyIds, stats, context);
     }),
     importSave: (raw) => {
@@ -681,6 +689,7 @@ export const useGameStore = create<GameStoreState>((set, get) => {
       set((state) => {
         const stats = calculateHunterCombatStats(
           state.game.equipment,
+          state.game.inventory,
           state.game.progression,
           state.game.combat.stance,
           state.game.combat.techniques,
@@ -714,6 +723,7 @@ export const useGameStore = create<GameStoreState>((set, get) => {
       set((state) => {
         const nextStats = calculateHunterCombatStats(
           state.game.equipment,
+          state.game.inventory,
           state.game.progression,
           stance,
           state.game.combat.techniques,
@@ -726,7 +736,7 @@ export const useGameStore = create<GameStoreState>((set, get) => {
               stance,
               nextStats,
               state.game.progression,
-              getEquippedWeaponProficiency(state.game.equipment),
+              getEquippedWeaponProficiency(state.game.equipment, state.game.inventory),
             ),
           },
           state,
@@ -743,6 +753,7 @@ export const useGameStore = create<GameStoreState>((set, get) => {
       set((state) => {
         const stats = calculateHunterCombatStats(
           state.game.equipment,
+          state.game.inventory,
           state.game.progression,
           state.game.combat.stance,
           state.game.combat.techniques,
@@ -764,6 +775,7 @@ export const useGameStore = create<GameStoreState>((set, get) => {
       set((state) => {
         const stats = calculateHunterCombatStats(
           state.game.equipment,
+          state.game.inventory,
           state.game.progression,
           state.game.combat.stance,
           state.game.combat.techniques,
@@ -1085,6 +1097,7 @@ export const useGameStore = create<GameStoreState>((set, get) => {
       set((state) => {
         const stats = calculateHunterCombatStats(
           state.game.equipment,
+          state.game.inventory,
           state.game.progression,
           state.game.combat.stance,
           state.game.combat.techniques,
@@ -1105,26 +1118,24 @@ export const useGameStore = create<GameStoreState>((set, get) => {
         });
         return flatState(game, state);
       }),
-    equipItem: (itemId, slot) =>
+    equipItemInstance: (instanceId, slot) =>
       set((state) => {
         if (
           state.game.combat.phase === "active" ||
           state.game.combat.phase === "recovery" ||
-          !isEquipmentSlotId(slot) ||
-          !itemById[itemId]
+          !isEquipmentSlotId(slot)
         )
           return state;
-        const item = itemById[itemId];
-        if (state.game.equipment.slots[slot] === itemId) return state;
-        const validation = validateEquipmentChange({
-          item,
+        const result = equipOwnedItemInstance({
+          instanceId,
           slotId: slot,
           inventory: state.game.inventory,
           equipment: state.game.equipment,
           masteryLevel: masteryLevelForXp(state.game.progression.masteryXp),
         });
-        if (!validation.valid) return state;
-        const progression = item.weaponProficiencyId
+        if (!result.validation.valid) return state;
+        const item = getItemDefinitionForInstance(state.game.inventory, instanceId);
+        const progression = item?.weaponProficiencyId
           ? discoverProficiency(
               state.game.progression,
               item.weaponProficiencyId,
@@ -1133,10 +1144,7 @@ export const useGameStore = create<GameStoreState>((set, get) => {
         const game = syncCombatStats({
           ...state.game,
           progression,
-          equipment: {
-            ...state.game.equipment,
-            slots: { ...state.game.equipment.slots, [slot]: itemId },
-          },
+          equipment: result.equipment,
         });
         savePermanent(game, {
           reducedMotion: state.reducedMotion,
@@ -1144,9 +1152,16 @@ export const useGameStore = create<GameStoreState>((set, get) => {
         });
         return flatState(game, state);
       }),
+    equipItem: (definitionId, slot) => {
+      const state = get();
+      const current = state.game.equipment.slots[slot];
+      if (current && getItemDefinitionForInstance(state.game.inventory, current)?.id === definitionId) return;
+      const instance = getInstancesByDefinitionId(state.game.inventory, definitionId)[0];
+      if (instance) state.equipItemInstance(instance.id, slot);
+    },
     setInventoryFilter: (inventoryFilter) => set({ inventoryFilter }),
-    selectInventoryItem: (selectedInventoryItemId) =>
-      set({ selectedInventoryItemId }),
+    selectInventoryEntry: (selectedInventoryEntry) =>
+      set({ selectedInventoryEntry }),
     selectEquipmentSlot: (selectedEquipmentSlot) =>
       set((state) => ({ selectedEquipmentSlot: isEquipmentSlotId(selectedEquipmentSlot) ? selectedEquipmentSlot : state.selectedEquipmentSlot })),
     selectCollectionEntry: (selectedCollectionEntryId) =>

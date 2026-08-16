@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { Award, Check, Lock, MousePointer2, Sparkles, Swords } from 'lucide-react'
 import { proficiencyDefinitions, proficiencyById } from '../../../game/data/proficiencies'
 import { perkById } from '../../../game/data/proficiencyPerks'
-import { itemById } from '../../../game/data/items'
+import { resolveItemInstance } from '../../../game/items/itemResolver'
 import { getEquippedWeaponProficiency } from '../../../game/progression/progressionSelectors'
 import { calculateEarnedPerkPoints, calculateAvailablePerkPoints, calculateSpentPerkPoints, masteryLevelForXp, masteryXpForLevel, masteryXpToNextLevel } from '../../../game/progression/masteryProgression'
 import { getPerkPurchaseState } from '../../../game/progression/perkProgression'
@@ -57,8 +57,8 @@ function graphPoint(perk: ProficiencyPerkDefinition) {
 export function ProficienciesScreen() {
   const game = useGameStore((state) => state.game)
   const purchasePerk = useGameStore((state) => state.purchaseProficiencyPerk)
-  const equippedProficiency = getEquippedWeaponProficiency(game.equipment)
-  const defensiveContext = getDefensiveEquipmentContext(game.equipment)
+  const equippedProficiency = getEquippedWeaponProficiency(game.equipment, game.inventory)
+  const defensiveContext = getDefensiveEquipmentContext(game.equipment, game.inventory)
   const [selectedId, setSelectedId] = useState<CombatProficiencyId>(equippedProficiency ?? 'one-handed-sword')
   const [selectedPerkId, setSelectedPerkId] = useState('')
   const [treePanByProficiency, setTreePanByProficiency] = useState<Partial<Record<CombatProficiencyId, TreePan>>>({})
@@ -71,7 +71,7 @@ export function ProficienciesScreen() {
   const masteryCurrent = masteryXpForLevel(masteryLevel)
   const masteryNext = masteryLevel >= 100 ? masteryCurrent : masteryXpForLevel(masteryLevel + 1)
   const masteryPercent = masteryNext === masteryCurrent ? 100 : ((game.progression.masteryXp - masteryCurrent) / (masteryNext - masteryCurrent)) * 100
-  const activeWeapon = game.equipment.slots.weapon ? itemById[game.equipment.slots.weapon]?.name : undefined
+  const activeWeapon = game.equipment.slots.weapon ? resolveItemInstance(game.inventory, game.equipment.slots.weapon)?.definition.name : undefined
   const selectedPerks = selected.perkIds.map((perkId) => perkById[perkId]).filter((perk): perk is ProficiencyPerkDefinition => Boolean(perk))
   const selectedPerk = selectedPerks.find((perk) => perk.id === selectedPerkId) ?? selectedPerks[0]
 

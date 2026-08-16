@@ -9,6 +9,7 @@ import { perkById } from "../data/proficiencyPerks";
 import { getDefensiveEquipmentContext, getEquippedItems } from "./defensiveEquipment";
 import type { CombatStats, StanceId, TechniqueId, StatModifier, CombatStatContributionCollector, CombatStatKey } from "../combat/combatTypes";
 import type { EquipmentState } from "./equipmentTypes";
+import type { InventoryState } from "../inventory/inventoryTypes";
 import type { ItemDefinition } from "../data/items";
 import type { ProgressionState, WeaponProficiencyId } from "../progression/progressionTypes";
 
@@ -18,16 +19,18 @@ export interface HunterCombatStats extends CombatStats {
 
 export function calculateHunterCombatStats(
   equipment: EquipmentState,
+  inventory: InventoryState,
   progression: ProgressionState,
   stance: StanceId,
   techniques: Record<TechniqueId, boolean>,
-  items: Record<string, ItemDefinition> = itemById,
+  items?: Record<string, ItemDefinition>,
   collector?: CombatStatContributionCollector,
 ): HunterCombatStats {
+  const resolvedItems = items ?? itemById;
   const stanceData = stanceDefinitions[stance];
-  const weapon = items[equipment.slots.weapon ?? ""];
+  const equippedItems = getEquippedItems(equipment, inventory, resolvedItems);
+  const weapon = equippedItems.find((item) => item.equipmentSlotKind === "weapon");
   const weaponStats = weapon?.stats ?? {};
-  const equippedItems = getEquippedItems(equipment, items);
   const equipmentStats = equippedItems.map((item) => item.stats ?? {});
   const total = (key: keyof NonNullable<ItemDefinition["stats"]>) => equipmentStats.reduce((sum, stats) => sum + (stats[key] ?? 0), 0);
   const weaponDamageMin = weaponStats.baseDamageMin ?? combatBalance.baseAttackDamage;
@@ -84,8 +87,8 @@ export function calculateHunterCombatStats(
     evasionRating: (base.evasionRating ?? 0) + stanceData.evasionRating,
   });
   const activeTechniqueCount = Object.values(techniques).filter(Boolean).length;
-  const weaponProficiencyId = getEquippedWeaponProficiency(equipment);
-  const defensivePerks = getActiveDefensiveEquipmentModifiers(progression, getDefensiveEquipmentContext(equipment, items), perkById);
+  const weaponProficiencyId = getEquippedWeaponProficiency(equipment, inventory);
+  const defensivePerks = getActiveDefensiveEquipmentModifiers(progression, getDefensiveEquipmentContext(equipment, inventory, resolvedItems), perkById);
   const weaponScopedStats: StatModifier[] = [];
   for (const modifier of defensivePerks.weaponModifiers) {
     if (modifier.modifier === "accuracy") weaponScopedStats.push({ stat: "accuracyRating", operation: "flat", value: modifier.value });

@@ -72,8 +72,10 @@ describe('weapon proficiency progression', () => {
     expect(applyProficiencyStatModifiers(baseStats, active).accuracyRating).toBe(56)
     expect(active).toHaveLength(1)
     expect(active[0].value).toBe(6)
-    expect(getEquippedWeaponProficiency(createInitialGameState().equipment)).toBe('one-handed-sword')
-    expect(getEquippedWeaponProficiency({ slots: { weapon: 'item.training-armor', armor: 'item.training-armor' } })).toBeNull()
+    const game = createInitialGameState()
+    expect(getEquippedWeaponProficiency(game.equipment, game.inventory)).toBe('one-handed-sword')
+    const armor = Object.values(game.inventory.instances).find((instance) => instance.definitionId === 'item.training-armor')!
+    expect(getEquippedWeaponProficiency({ slots: { weapon: armor.id, armor: armor.id } }, game.inventory)).toBeNull()
     expect(itemById['item.training-sword'].weaponProficiencyId).toBe('one-handed-sword')
   })
 
