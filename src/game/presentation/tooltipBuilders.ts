@@ -17,7 +17,7 @@ import type { ProgressionState } from "../progression/progressionTypes";
 import { calculateEffectiveSpell, type SpellCalculationContext } from "../progression/spellProgression";
 import { techniqueDefinitions } from "../data/techniques";
 import { proficiencyById } from "../data/proficiencies";
-import { ARMOR_TRAINING_SLOT_IDS, equipmentSlotKindLabel } from "../equipment/equipmentTypes";
+import { equipmentSlotKindLabel } from "../equipment/equipmentTypes";
 import { weaponSkillById } from "../data/weaponSkills";
 import {
   formatCombatStatValue,
@@ -66,6 +66,13 @@ const rarityLabels: Record<ItemDefinition["rarity"], string> = {
 const toneForValue = (value: number): TooltipTone =>
   value > 0 ? "green" : value < 0 ? "red" : "default";
 
+function itemTypeLabel(item: ItemDefinition) {
+  const proficiencyId = item.weaponProficiencyId ?? item.defensiveProficiencyId;
+  if (proficiencyId) return proficiencyById[proficiencyId]?.name ?? proficiencyId;
+  if (item.equipmentSlotKind) return equipmentSlotKindLabel(item.equipmentSlotKind);
+  return categoryLabels[item.category];
+}
+
 export function buildItemTooltip(
   item: ItemDefinition,
   options: {
@@ -75,87 +82,33 @@ export function buildItemTooltip(
     masteryLevel?: number;
   } = {},
 ): TooltipModel {
-  const rows = formatItemStats(item.stats ?? {}).map((row) => ({
+  const statRows = formatItemStats(item.stats ?? {}).map((row) => ({
     label: row.label,
     value: row.value,
     tone: row.tone,
   }));
-  if (item.weaponProficiencyId)
-    rows.unshift({
-      label: "Proficiency",
-      value:
-        proficiencyById[item.weaponProficiencyId]?.name ??
-        item.weaponProficiencyId,
-      tone: "blue" as TooltipTone,
-    });
-  if (item.equipmentSlotKind)
-    rows.unshift({
-      label: "Equipment Type",
-      value: equipmentSlotKindLabel(item.equipmentSlotKind),
-      tone: "default" as TooltipTone,
-    });
+  const rows = statRows.slice(0, 6);
+  if (statRows.length > 6) rows.push({ label: "More stats", value: `+${statRows.length - 6} more stats`, tone: "default" as TooltipTone });
   if (item.requiredMasteryLevel !== undefined) {
     rows.unshift({
-      label: "Required Mastery",
+      label: "Mastery",
       value: `Lv ${item.requiredMasteryLevel}`,
       tone: "gold" as TooltipTone,
     });
-    if (options.masteryLevel !== undefined)
+    if (options.masteryLevel !== undefined && options.masteryLevel < item.requiredMasteryLevel)
       rows.unshift({
-        label: "Requirement",
-        value: options.masteryLevel >= item.requiredMasteryLevel ? "Met" : "Locked",
-        tone: options.masteryLevel >= item.requiredMasteryLevel ? "green" : "red",
+        label: "Availability",
+        value: `Requires Mastery ${item.requiredMasteryLevel} · Current Mastery ${options.masteryLevel}`,
+        tone: "red",
       });
   }
-  if (item.defensiveProficiencyId) {
-    rows.unshift({
-      label: "Training",
-      value:
-        item.defensiveProficiencyId === "shield"
-          ? "1.00× Shield XP per defensive event"
-          : `${(1 / ARMOR_TRAINING_SLOT_IDS.length).toFixed(2)}× per matching armor piece`,
-      tone: "green" as TooltipTone,
-    });
-    rows.unshift({
-      label: "Proficiency",
-      value:
-        proficiencyById[item.defensiveProficiencyId]?.name ??
-        item.defensiveProficiencyId,
-      tone: "blue" as TooltipTone,
-    });
-    if (item.equipmentSlotKind)
-      rows.unshift({
-        label: "Slot",
-        value: equipmentSlotKindLabel(item.equipmentSlotKind),
-        tone: "default" as TooltipTone,
-      });
-    if (options.defensiveContext) {
-      const context = options.defensiveContext;
-      const pieces =
-        item.defensiveProficiencyId === "light-armor"
-          ? context.lightArmorPieces
-          : item.defensiveProficiencyId === "medium-armor"
-            ? context.mediumArmorPieces
-            : item.defensiveProficiencyId === "heavy-armor"
-              ? context.heavyArmorPieces
-              : context.shieldEquipped
-                ? 1
-                : 0;
-      rows.unshift({
-        label: "Current training",
-        value:
-          item.defensiveProficiencyId === "shield"
-            ? `${pieces > 0 ? "1.00" : "0.00"}×`
-            : `${(pieces / ARMOR_TRAINING_SLOT_IDS.length).toFixed(2)}×`,
-        tone: "gold" as TooltipTone,
-      });
-    }
-  }
+  if (options.quantity !== undefined)
+    rows.unshift({ label: "Quantity", value: options.quantity.toLocaleString(), tone: "default" as TooltipTone });
   return {
     id: item.id,
     icon: item.icon,
     title: item.name,
-    subtitle: `${categoryLabels[item.category]} · ${rarityLabels[item.rarity]}`,
+    subtitle: `${itemTypeLabel(item)} · ${rarityLabels[item.rarity]}`,
     tone:
       item.rarity === "rare"
         ? "gold"
@@ -164,10 +117,7 @@ export function buildItemTooltip(
           : "default",
     description: item.description,
     rows,
-    notes: [
-      options.quantity !== undefined ? `Owned: ${options.quantity}` : "",
-      options.equipped ? "Currently equipped" : "",
-    ].filter(Boolean),
+    notes: [],
   };
 }
 
@@ -222,9 +172,9 @@ export function buildPlayerItemInstanceTooltip(
   }));
   return {
     ...tooltip,
-    id: `item.${resolved.definition.id}`,
+    id: "item-player-tooltip",
     rows: [...modifierRows, ...(tooltip.rows ?? [])],
-    notes: [...(tooltip.notes ?? []), options.equipped ? "Currently equipped" : "Owned item"],
+    notes: tooltip.notes,
   };
 }
 

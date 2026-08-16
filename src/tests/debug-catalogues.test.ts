@@ -64,7 +64,7 @@ describe("debug catalogue presentation", () => {
     const itemTooltip = buildItemTooltip(item, { quantity: 2, masteryLevel: 10, equipped: true });
     expect(itemTooltip.title).toBe("Vanguard Plate");
     expect(itemTooltip.description).toContain("heavy torso");
-    expect(itemTooltip.rows?.map((row) => row.label)).toEqual(expect.arrayContaining(["Required Mastery", "Equipment Type", "Max Life", "Life Regen", "Armour", "Ailment Duration Reduction"]));
+    expect(itemTooltip.rows?.map((row) => row.label)).toEqual(expect.arrayContaining(["Quantity", "Mastery", "Max Life", "Life Regen", "Armour", "Ailment Duration Reduction"]));
     const enemyTooltip = buildEnemyDefinitionTooltip(enemyById["enemy.grey-wolf"], { defeats: 3, sourceLocations: ["Wolf Den"] });
     expect(enemyTooltip.title).toBe("Grey Wolf");
     expect(enemyTooltip.rows?.map((row) => row.label)).toEqual(expect.arrayContaining(["Family", "Max Life", "Attack Damage", "Accuracy Rating", "Armour", "Evasion Rating"]));

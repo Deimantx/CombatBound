@@ -94,7 +94,7 @@ describe("Phase 4 inventory and debug UI", () => {
     const sort = screen.getByRole("combobox", { name: "Sort inventory" }) as HTMLSelectElement;
     expect(Array.from(sort.options).map((option) => option.text)).not.toContain("Quantity");
     fireEvent.click(screen.getByRole("tab", { name: "Materials" }));
-    expect(Array.from(sort.options).map((option) => option.text)).toEqual(["Sort by...", "Name", "Rarity", "Recently Acquired", "Quantity"]);
+    expect(Array.from(sort.options).map((option) => option.text)).toEqual(["Name", "Rarity", "Quantity"]);
     fireEvent.change(screen.getByRole("textbox", { name: "Search inventory" }), { target: { value: "Training" } });
     expect(screen.getByText(/results/)).toBeInTheDocument();
   });
@@ -143,6 +143,21 @@ describe("Phase 4 inventory and debug UI", () => {
     expect(screen.getByRole("button", { name: "Filters" })).toBeVisible();
     fireEvent.click(screen.getByRole("tab", { name: "Equipment" }));
     expect((screen.getByLabelText("Equipment state") as HTMLSelectElement).value).toBe("equipped");
+  });
+
+  it("shows removable active filter chips without clearing unrelated filters", () => {
+    render(<TooltipProvider><InventoryScreen /></TooltipProvider>);
+    fireEvent.click(screen.getByRole("tab", { name: "Equipment" }));
+    fireEvent.click(screen.getByRole("button", { name: "Filters" }));
+    fireEvent.change(screen.getByLabelText("Rarity"), { target: { value: "rare" } });
+    fireEvent.change(screen.getByLabelText("Availability"), { target: { value: "usable" } });
+    expect(screen.getByRole("button", { name: "Remove Rare filter" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Remove Can Equip Now filter" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Clear All" })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Remove Rare filter" }));
+    expect((screen.getByLabelText("Rarity") as HTMLSelectElement).value).toBe("all");
+    expect((screen.getByLabelText("Availability") as HTMLSelectElement).value).toBe("usable");
+    expect(screen.getByRole("button", { name: "Remove Can Equip Now filter" })).toBeInTheDocument();
   });
 
   it("remembers sort independently for Equipment and Materials", () => {

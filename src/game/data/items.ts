@@ -21,6 +21,8 @@ export interface ItemDefinition {
   stats?: ItemStats
 }
 
+// FUTURE: Add a progression stage only when deterministic item evolution/transformation design is locked.
+
 const authoredItemDefinitions: ItemDefinition[] = [
   // Prototype gear is intentionally debug/acquisition content for V8.7. [TUNING]
   { id: 'item.training-sword', name: 'Training Sword', category: 'weapon', rarity: 'common', description: 'A dependable starter weapon.', icon: 'sword', inventoryMode: 'instance', requiredMasteryLevel: 1, equipmentSlotKind: 'weapon', weaponProficiencyId: 'one-handed-sword', stats: { baseDamageMin: 24, baseDamageMax: 32, accuracyRating: 5, baseAttackTime: 2.4 } }, // [TUNING]

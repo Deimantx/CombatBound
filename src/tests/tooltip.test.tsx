@@ -59,7 +59,7 @@ describe('tooltip presentation models', () => {
   it('formats Training Sword stats as player-facing values', () => {
     const tooltip = buildItemTooltip(itemById['item.training-sword'])
     expect(tooltip.title).toBe('Training Sword')
-    expect(tooltip.subtitle).toContain('Weapon')
+    expect(tooltip.subtitle).toContain('One-Handed Sword')
     expect(tooltip.subtitle).toContain('Common')
     expect(tooltip.description).toBe('A dependable starter weapon.')
     expect(tooltip.rows?.map((row) => `${row.label} ${row.value}`).join(' ')).toContain('Weapon Base Attack Time 2.4s')
