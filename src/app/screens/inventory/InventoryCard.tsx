@@ -27,10 +27,12 @@ export function InventoryCard({ entry, selected, onSelect }: InventoryCardProps)
   const instance = entry.resolved?.instance;
   const equippedSlot = entry.equippedSlot as EquipmentSlotId | undefined;
   return <GameTooltip content={tooltip}><button type="button" className={`inventory-card rarity-${entry.definition.rarity} ${selected ? "is-selected" : ""}`} onClick={onSelect} data-debug-kind="inventory-item" data-debug-target-id={entry.instanceId ?? entry.definition.id} data-debug-item-id={entry.definition.id} data-debug-instance-id={entry.instanceId} data-debug-label={entry.definition.name} aria-label={`Select ${entry.definition.name}${entry.equipped ? ", equipped" : ""}`}>
-    {!entry.instanceId && <span className="item-quantity">×{formatCompactQuantity(entry.quantity)}</span>}
-    <PlaceholderArt icon={entry.definition.icon} size="small" variant={entry.definition.rarity === "rare" ? "gold" : entry.definition.rarity === "uncommon" ? "blue" : "muted"} />
-    <strong title={presentation.name}>{presentation.name}</strong>
-    {entry.equipped && <span className="item-equipped-marker" title={`Equipped${equippedSlot ? ` · ${getEquipmentSlotDefinition(equippedSlot).label}` : ""}`} aria-label="Equipped">✓</span>}
-    {instance && itemInstanceIsModified(instance) && <span className="item-modifier-badges" data-debug-kind="item-modifier-badges" data-debug-instance-id={instance.id}>{instance.quality > 0 && <em>Q{instance.quality}</em>}{instance.upgradeLevel > 0 && <em>+{instance.upgradeLevel}</em>}{instance.affixes.length > 0 && <em>{instance.affixes.length} Mods</em>}</span>}
+    <div className="inventory-card-art">
+      <PlaceholderArt icon={entry.definition.icon} size="medium" variant={entry.definition.rarity === "rare" ? "gold" : entry.definition.rarity === "uncommon" ? "blue" : "muted"} />
+      {!entry.instanceId && <span className="item-quantity">×{formatCompactQuantity(entry.quantity)}</span>}
+      {entry.equipped && <span className="item-equipped-marker" title={`Equipped${equippedSlot ? ` · ${getEquipmentSlotDefinition(equippedSlot).label}` : ""}`} aria-label="Equipped">✓</span>}
+      {instance && itemInstanceIsModified(instance) && <span className="item-modifier-overlays" data-debug-kind="item-modifier-badges" data-debug-instance-id={instance.id}>{instance.quality > 0 && <em className="item-quality-marker">Q{instance.quality}</em>}{instance.upgradeLevel > 0 && <em className="item-upgrade-marker">+{instance.upgradeLevel}</em>}{instance.affixes.length > 0 && <em className="item-affix-marker">{instance.affixes.length} Mods</em>}</span>}
+    </div>
+    <div className="inventory-card-footer"><strong title={presentation.name}>{presentation.name}</strong></div>
   </button></GameTooltip>;
 }

@@ -48,6 +48,9 @@ describe("Phase 4 inventory and debug UI", () => {
     const card = document.querySelector('[data-debug-kind="inventory-item"]') as HTMLElement;
     expect(card).toBeInTheDocument();
     expect(card.querySelector("small")).toBeNull();
+    expect(card.querySelector(".inventory-card-art")).toBeInTheDocument();
+    expect(card.querySelector(".inventory-card-footer")).toBeInTheDocument();
+    expect(card.querySelector(".item-quantity")).toHaveClass("item-quantity");
     expect(card).not.toHaveTextContent(/Q0|\+0|0 Mods|common|uncommon|rare/);
   });
 
@@ -58,26 +61,28 @@ describe("Phase 4 inventory and debug UI", () => {
     expect(formatCompactQuantity(1_100_000)).toBe("1.1M");
   });
 
-  it("drills through owned equipment taxonomy in an in-flow browse drawer", () => {
+  it("renders a persistent contextual equipment navigator without a drawer", () => {
     render(<TooltipProvider><InventoryScreen /></TooltipProvider>);
     fireEvent.click(screen.getByRole("tab", { name: "Equipment" }));
-    fireEvent.click(screen.getByRole("button", { name: "Browse" }));
-    let drawer = document.querySelector('[data-debug-kind="inventory-browse-drawer"]') as HTMLElement;
-    expect(drawer).toBeInTheDocument();
-    expect(within(drawer).getByRole("button", { name: /Weapons/ })).toBeVisible();
-    expect(within(drawer).queryByRole("button", { name: /Accessories/ })).toBeNull();
-
-    fireEvent.click(within(drawer).getByRole("button", { name: /Weapons/ }));
-    drawer = document.querySelector('[data-debug-kind="inventory-browse-drawer"]') as HTMLElement;
-    expect(within(drawer).getByRole("button", { name: /One-Handed/ })).toBeVisible();
-    expect(within(drawer).queryByRole("button", { name: /Ranged/ })).toBeNull();
-    fireEvent.click(within(drawer).getByRole("button", { name: /One-Handed/ }));
-    drawer = document.querySelector('[data-debug-kind="inventory-browse-drawer"]') as HTMLElement;
-    expect(within(drawer).getByRole("button", { name: /One-Handed Swords/ })).toBeVisible();
-    fireEvent.click(within(drawer).getByRole("button", { name: /One-Handed Swords/ }));
-
+    const navigator = document.querySelector('[data-debug-kind="inventory-category-navigator"]') as HTMLElement;
+    expect(navigator).toBeInTheDocument();
+    expect(within(navigator).getByRole("button", { name: "All Gear" })).toBeVisible();
+    expect(within(navigator).getByRole("button", { name: /Weapons/ })).toBeVisible();
+    expect(within(navigator).queryByRole("button", { name: /Accessories/ })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Browse" })).toBeNull();
     expect(document.querySelector('[data-debug-kind="inventory-browse-drawer"]')).toBeNull();
-    expect(screen.getByRole("button", { name: "One-Handed Swords" })).toBeVisible();
+
+    fireEvent.click(within(navigator).getByRole("button", { name: /Weapons/ }));
+    expect(within(navigator).getByRole("button", { name: "All Weapons" })).toBeVisible();
+    expect(within(navigator).getByRole("button", { name: /One-Handed/ })).toBeVisible();
+    expect(within(navigator).getByRole("button", { name: /Equipment/ })).toBeVisible();
+    fireEvent.click(within(navigator).getByRole("button", { name: /One-Handed/ }));
+    expect(within(navigator).getByRole("button", { name: "All One-Handed" })).toBeVisible();
+    expect(within(navigator).getByRole("button", { name: /Swords/ })).toBeVisible();
+    fireEvent.click(within(navigator).getByRole("button", { name: /Swords/ }));
+    const categoryButtons = within(navigator.querySelector(".inventory-category-buttons") as HTMLElement);
+    expect(categoryButtons.getByRole("button", { name: /^Swords/ })).toHaveClass("is-active");
+    expect(within(navigator).getByRole("button", { name: "Equipment" })).toBeVisible();
     expect(document.querySelectorAll('[data-ui-panel="inventoryBank"] [data-debug-item-id="item.training-sword"]').length).toBe(1);
   });
 
@@ -94,25 +99,61 @@ describe("Phase 4 inventory and debug UI", () => {
     expect(screen.getByText(/results/)).toBeInTheDocument();
   });
 
-  it("updates owned browse counts when exact copies are granted or deleted", () => {
+  it("remembers the equipment path when switching primary categories", () => {
+    render(<TooltipProvider><InventoryScreen /></TooltipProvider>);
+    fireEvent.click(screen.getByRole("tab", { name: "Equipment" }));
+    const navigator = document.querySelector('[data-debug-kind="inventory-category-navigator"]') as HTMLElement;
+    fireEvent.click(within(navigator).getByRole("button", { name: /Weapons/ }));
+    fireEvent.click(within(navigator).getByRole("button", { name: /One-Handed/ }));
+    fireEvent.click(within(navigator).getByRole("button", { name: /^Swords/ }));
+    fireEvent.click(screen.getByRole("tab", { name: "Materials" }));
+    fireEvent.click(screen.getByRole("tab", { name: "Equipment" }));
+    expect(document.querySelector('[data-debug-kind="inventory-category-navigator"]')).toHaveTextContent("Equipment");
+    const categoryButtons = within((document.querySelector('[data-debug-kind="inventory-category-navigator"]') as HTMLElement).querySelector(".inventory-category-buttons") as HTMLElement);
+    expect(categoryButtons.getByRole("button", { name: /^Swords/ })).toHaveClass("is-active");
+    fireEvent.click(screen.getByRole("tab", { name: "Equipment" }));
+    expect(categoryButtons.getByRole("button", { name: /^Swords/ })).toHaveClass("is-active");
+  });
+
+  it("updates owned navigator counts when exact copies are granted or deleted", () => {
     const debug = useGameStore.getState().debug;
     render(<TooltipProvider><InventoryScreen /></TooltipProvider>);
     fireEvent.click(screen.getByRole("tab", { name: "Equipment" }));
-    fireEvent.click(screen.getByRole("button", { name: "Browse" }));
-    let drawer = document.querySelector('[data-debug-kind="inventory-browse-drawer"]') as HTMLElement;
-    fireEvent.click(within(drawer).getByRole("button", { name: /Weapons/ }));
-    drawer = document.querySelector('[data-debug-kind="inventory-browse-drawer"]') as HTMLElement;
-    fireEvent.click(within(drawer).getByRole("button", { name: /One-Handed/ }));
-    drawer = document.querySelector('[data-debug-kind="inventory-browse-drawer"]') as HTMLElement;
-    expect(within(drawer).getByRole("button", { name: /One-Handed Swords/ })).toHaveTextContent("1");
+    const navigator = document.querySelector('[data-debug-kind="inventory-category-navigator"]') as HTMLElement;
+    fireEvent.click(within(navigator).getByRole("button", { name: /Weapons/ }));
+    fireEvent.click(within(navigator).getByRole("button", { name: /One-Handed/ }));
+    expect(within(navigator).getByRole("button", { name: /^Swords/ })).toHaveTextContent("1");
 
     act(() => debug.setOwnedItemCount("item.hunter-sword", 2));
-    drawer = document.querySelector('[data-debug-kind="inventory-browse-drawer"]') as HTMLElement;
-    expect(within(drawer).getByRole("button", { name: /One-Handed Swords/ })).toHaveTextContent("3");
+    expect(within(navigator).getByRole("button", { name: /^Swords/ })).toHaveTextContent("3");
     const copies = Object.values(useGameStore.getState().game.inventory.instances).filter((instance) => instance.definitionId === "item.hunter-sword");
     act(() => debug.deleteItemInstance(copies[0].id));
-    drawer = document.querySelector('[data-debug-kind="inventory-browse-drawer"]') as HTMLElement;
-    expect(within(drawer).getByRole("button", { name: /One-Handed Swords/ })).toHaveTextContent("2");
+    expect(within(navigator).getByRole("button", { name: /^Swords/ })).toHaveTextContent("2");
+  });
+
+  it("ignores remembered equipment filters for stackable categories", () => {
+    const debug = useGameStore.getState().debug;
+    debug.setOwnedItemCount("item.wolf-fang", 84);
+    render(<TooltipProvider><InventoryScreen /></TooltipProvider>);
+    fireEvent.click(screen.getByRole("tab", { name: "Equipment" }));
+    fireEvent.click(screen.getByRole("button", { name: "Filters" }));
+    fireEvent.change(screen.getByLabelText("Equipment state"), { target: { value: "equipped" } });
+    fireEvent.click(screen.getByRole("tab", { name: "Materials" }));
+    expect(document.querySelector('[data-debug-item-id="item.wolf-fang"]')).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Filters" })).toBeVisible();
+    fireEvent.click(screen.getByRole("tab", { name: "Equipment" }));
+    expect((screen.getByLabelText("Equipment state") as HTMLSelectElement).value).toBe("equipped");
+  });
+
+  it("remembers sort independently for Equipment and Materials", () => {
+    render(<TooltipProvider><InventoryScreen /></TooltipProvider>);
+    fireEvent.click(screen.getByRole("tab", { name: "Equipment" }));
+    const sort = screen.getByRole("combobox", { name: "Sort inventory" }) as HTMLSelectElement;
+    fireEvent.change(sort, { target: { value: "upgrade" } });
+    fireEvent.click(screen.getByRole("tab", { name: "Materials" }));
+    fireEvent.change(sort, { target: { value: "quantity" } });
+    fireEvent.click(screen.getByRole("tab", { name: "Equipment" }));
+    expect((screen.getByRole("combobox", { name: "Sort inventory" }) as HTMLSelectElement).value).toBe("upgrade");
   });
 
   it("uses concrete equipment type metadata and exposes alternate-slot movement", () => {

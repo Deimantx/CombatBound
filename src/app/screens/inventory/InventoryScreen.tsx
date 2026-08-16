@@ -16,7 +16,7 @@ import { PlaceholderArt } from "../../components/PlaceholderArt";
 import { SearchField } from "../../components/SearchField";
 import { SegmentedTabs } from "../../components/SegmentedTabs";
 import { ScreenHeading } from "../../shell/ScreenHeading";
-import { InventoryBrowseControl } from "./InventoryBrowseControl";
+import { InventoryCategoryNavigator } from "./InventoryCategoryNavigator";
 import { InventoryCard } from "./InventoryCard";
 
 const INVENTORY_PAGE_SIZE = 120;
@@ -28,35 +28,41 @@ const allSortOptions: Array<{ value: InventorySort; label: string }> = [
 ];
 const equipmentSortOptions = allSortOptions.filter((option) => option.value !== "quantity");
 const stackableSortOptions = allSortOptions.filter((option) => !["mastery", "quality", "upgrade"].includes(option.value));
+const initialSortByCategory: Record<InventoryPrimaryCategory, InventorySort> = { all: "name", equipment: "name", consumables: "name", materials: "name", currency: "name" };
+
+function effectiveFiltersForCategory(category: InventoryPrimaryCategory, storedFilters: InventoryFilters): InventoryFilters {
+  if (category === "consumables" || category === "materials" || category === "currency") {
+    return { ...storedFilters, equipmentState: "all", modification: "all" };
+  }
+  return storedFilters;
+}
 
 export function InventoryScreen() {
   const game = useGameStore((state) => state.game);
   const selectedRef = useGameStore((state) => state.selectedInventoryEntry);
   const selectEntry = useGameStore((state) => state.selectInventoryEntry);
   const [category, setCategory] = useState<InventoryPrimaryCategory>("all");
-  const [browseNodeId, setBrowseNodeId] = useState("items.equipment");
+  const [equipmentNodeId, setEquipmentNodeId] = useState("items.equipment");
   const [query, setQuery] = useState("");
-  const [sort, setSort] = useState<InventorySort>("name");
+  const [sortByCategory, setSortByCategory] = useState(initialSortByCategory);
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [filters, setFilters] = useState<InventoryFilters>(defaultInventoryFilters);
   const [visibleLimit, setVisibleLimit] = useState(INVENTORY_PAGE_SIZE);
   const deferredQuery = useDeferredValue(query);
+  const sort = sortByCategory[category];
   const sortOptions = category === "equipment" ? equipmentSortOptions : category === "consumables" || category === "materials" || category === "currency" ? stackableSortOptions : allSortOptions;
-  const effectiveFilters = useMemo(() => ({ ...filters, category, nodeId: category === "equipment" ? browseNodeId : undefined }), [browseNodeId, category, filters]);
+  const effectiveFilters = useMemo(() => ({ ...effectiveFiltersForCategory(category, filters), category, nodeId: category === "equipment" ? equipmentNodeId : undefined }), [category, equipmentNodeId, filters]);
   const entries = useMemo(() => selectInventoryEntries(game.inventory, game.equipment, effectiveFilters, deferredQuery, sort), [deferredQuery, effectiveFilters, game.equipment, game.inventory, sort]);
   const ownedCounts = useMemo(() => buildOwnedItemTaxonomyCounts(game.inventory, inventoryItemTaxonomy), [game.inventory]);
   const visibleEntries = paginateInventoryEntries(entries, visibleLimit);
   const selected = entries.find((entry) => inventoryRefsEqual(entry.ref, selectedRef)) ?? entries[0];
-  const activeFilterCount = [filters.rarity !== "all", filters.equipmentState !== "all", filters.modification !== "all"].filter(Boolean).length;
+  const equipmentFiltersApply = category === "all" || category === "equipment";
+  const activeFilterCount = [filters.rarity !== "all", equipmentFiltersApply && filters.equipmentState !== "all", equipmentFiltersApply && filters.modification !== "all"].filter(Boolean).length;
   const hasResultContext = Boolean(query.trim() || activeFilterCount);
 
   useEffect(() => {
     setVisibleLimit(INVENTORY_PAGE_SIZE);
-  }, [browseNodeId, category, filters.equipmentState, filters.modification, filters.rarity, query, sort]);
-
-  useEffect(() => {
-    if (!sortOptions.some((option) => option.value === sort)) setSort("name");
-  }, [sort, sortOptions]);
+  }, [equipmentNodeId, category, filters.equipmentState, filters.modification, filters.rarity, query, sort]);
 
   useEffect(() => {
     if (!selected || inventoryRefsEqual(selected.ref, selectedRef)) return;
@@ -64,17 +70,14 @@ export function InventoryScreen() {
   }, [selected, selectedRef, selectEntry]);
 
   const clearAdvancedFilters = () => setFilters(defaultInventoryFilters);
-  const changeCategory = (next: InventoryPrimaryCategory) => {
-    setCategory(next);
-    if (next === "equipment") setBrowseNodeId("items.equipment");
-  };
+  const changeCategory = (next: InventoryPrimaryCategory) => setCategory(next);
 
   return <div className="screen inventory-screen" data-debug-screen="inventory">
     <ScreenHeading screen="inventory" />
     <Panel title="Browse Items" icon={Backpack} panelId="inventoryToolbar" screen="inventory" className="inventory-toolbar">
-      <div className="inventory-toolbar-row"><SearchField value={query} onChange={setQuery} placeholder="Search names, types, rarity, proficiency, or affixes" label="Search inventory" /><div className="inventory-toolbar-actions"><select className="inventory-sort-select" value={sort} onChange={(event) => setSort(event.target.value as InventorySort)} aria-label="Sort inventory"><option value="">Sort by...</option>{sortOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}</select><button type="button" className="button button-ghost button-small" onClick={() => setFiltersOpen((value) => !value)} aria-expanded={filtersOpen} aria-controls="inventory-filters"><Filter size={14} />Filters{activeFilterCount > 0 && <span className="inventory-active-filter-count">{activeFilterCount}</span>}</button>{query && <button type="button" className="button button-ghost button-small" onClick={() => setQuery("")} aria-label="Clear inventory search"><X size={13} />Clear Search</button>}{activeFilterCount > 0 && <button type="button" className="button button-ghost button-small" onClick={clearAdvancedFilters}><X size={13} />Clear Filters</button>}</div></div>
+      <div className="inventory-toolbar-row"><SearchField value={query} onChange={setQuery} placeholder="Search names, types, rarity, proficiency, or affixes" label="Search inventory" /><div className="inventory-toolbar-actions"><select className="inventory-sort-select" value={sort} onChange={(event) => setSortByCategory((current) => ({ ...current, [category]: event.target.value as InventorySort }))} aria-label="Sort inventory"><option value="">Sort by...</option>{sortOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}</select><button type="button" className="button button-ghost button-small" onClick={() => setFiltersOpen((value) => !value)} aria-expanded={filtersOpen} aria-controls="inventory-filters"><Filter size={14} />Filters{activeFilterCount > 0 && <span className="inventory-active-filter-count">{activeFilterCount}</span>}</button>{query && <button type="button" className="button button-ghost button-small" onClick={() => setQuery("")} aria-label="Clear inventory search"><X size={13} />Clear Search</button>}{activeFilterCount > 0 && <button type="button" className="button button-ghost button-small" onClick={clearAdvancedFilters}><X size={13} />Clear Filters</button>}</div></div>
       <SegmentedTabs items={primaryCategories.map((value) => primaryLabels[value])} active={primaryLabels[category]} onChange={(value) => changeCategory(primaryCategories.find((candidate) => primaryLabels[candidate] === value) ?? "all")} label="Inventory categories" />
-      {category === "equipment" && <InventoryBrowseControl nodeId={browseNodeId} inventory={game.inventory} ownedCounts={ownedCounts} onChange={setBrowseNodeId} />}
+      {category === "equipment" && <InventoryCategoryNavigator nodeId={equipmentNodeId} ownedCounts={ownedCounts} onChange={setEquipmentNodeId} />}
       {filtersOpen && <InventoryFiltersPopover id="inventory-filters" category={category} filters={filters} setFilters={setFilters} />}
     </Panel>
     <div className="inventory-layout">
