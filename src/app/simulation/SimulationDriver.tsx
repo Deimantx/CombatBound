@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useGameStore } from "../../state/gameStore";
 import { useDevToolsRuntimeStore } from "../debug/devtools/devToolsRuntimeStore";
 
@@ -16,11 +16,25 @@ export function SimulationDriver() {
   const accumulator = useRef(0);
   const resetVersion = useDevToolsRuntimeStore((state) => state.simulationResetVersion);
   const seenResetVersion = useRef(resetVersion);
+  const [visible, setVisible] = useState(() => typeof document === "undefined" || document.visibilityState === "visible");
 
   useEffect(() => {
-    if ((!combatActive && !recoveryActive) || paused) return;
+    const handleVisibility = () => {
+      if (document.visibilityState !== "visible") accumulator.current = 0;
+      setVisible(document.visibilityState === "visible");
+    };
+    document.addEventListener("visibilitychange", handleVisibility);
+    return () => document.removeEventListener("visibilitychange", handleVisibility);
+  }, []);
+
+  useEffect(() => {
+    if ((!combatActive && !recoveryActive) || paused || !visible) return;
     if (seenResetVersion.current !== resetVersion) { accumulator.current = 0; seenResetVersion.current = resetVersion; }
     const interval = window.setInterval(() => {
+      if (document.visibilityState !== "visible") {
+        accumulator.current = 0;
+        return;
+      }
       accumulator.current += 0.1 * timeScale;
       while (accumulator.current >= 0.1) {
         tickCombat(0.1);
@@ -28,12 +42,13 @@ export function SimulationDriver() {
       }
     }, 100);
     return () => window.clearInterval(interval);
-  }, [combatActive, recoveryActive, paused, resetVersion, timeScale, tickCombat]);
+  }, [combatActive, recoveryActive, paused, resetVersion, timeScale, tickCombat, visible]);
 
   return null;
 }
 
 export function stepSimulation(seconds: number) {
+  // Developer/manual deterministic simulation helper only. Never consume Offline Time Bank time.
   if (!Number.isFinite(seconds) || seconds <= 0) return;
   useDevToolsRuntimeStore.getState().resetSimulationAccumulator();
   const tickCombat = useGameStore.getState().tickCombat;

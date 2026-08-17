@@ -13,6 +13,7 @@ export interface ProfileMetadata {
   createdAt: number;
   lastPlayedAt: number;
   lastActiveAt: number;
+  // Offline Time Bank is profile metadata; raw GameSave imports do not transfer it.
   offlineBankSeconds: number;
 }
 
@@ -21,15 +22,22 @@ export interface ProfileIndexV1 {
   slots: [ProfileMetadata | null, ProfileMetadata | null, ProfileMetadata | null];
 }
 
-export interface OfflineTimeReport {
-  profileId: ProfileId;
+export type {
+  OfflineTimeAnomaly,
+  OfflineTimeDiscardReason,
+  OfflineTimeSource,
+} from "../offline/offlineTimeTypes";
+import type {
+  OfflineTimeCreditResult,
+} from "../offline/offlineTimeTypes";
+
+export interface OfflineTimeReport extends OfflineTimeCreditResult {
+  /** Compatibility alias for older UI/test consumers; rawAwaySeconds is canonical. */
   awaySeconds: number;
-  bankBeforeSeconds: number;
-  bankAfterSeconds: number;
 }
 
-export const PROFILE_HEARTBEAT_MS = 30_000;
-export const OFFLINE_REPORT_MIN_SECONDS = 60;
+export { OFFLINE_REPORT_MIN_SECONDS, PROFILE_HEARTBEAT_MS } from "../offline/offlineTimePolicy";
+export type { OfflineTimeCreditResult } from "../offline/offlineTimeTypes";
 
 export function profileIdForSlot(slot: ProfileSlot): ProfileId {
   return `profile-${slot}` as ProfileId;

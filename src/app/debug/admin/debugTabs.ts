@@ -1,8 +1,9 @@
 import type { LucideIcon } from "lucide-react";
-import { Bug, Crosshair, Heart, Package, Shield, Sparkles, Swords, WandSparkles } from "lucide-react";
+import { Bug, Clock3, Crosshair, Heart, Package, Shield, Sparkles, Swords, WandSparkles } from "lucide-react";
 
 export const DEFAULT_DEBUG_TAB_ORDER = [
   "overview",
+  "offline-time",
   "player",
   "progression",
   "items",
@@ -27,6 +28,7 @@ export interface DebugTabDefinition {
 
 export const DEBUG_TAB_DEFINITIONS: DebugTabDefinition[] = [
   { id: "overview", label: "Overview", icon: Bug },
+  { id: "offline-time", label: "Offline Time", icon: Clock3 },
   { id: "player", label: "Player", icon: Heart },
   { id: "progression", label: "Progression", icon: Sparkles },
   { id: "items", label: "Items", icon: Package },

@@ -4,6 +4,7 @@ import { DebugCombatTab } from "./tabs/DebugCombatTab";
 import { DebugEncounterTab } from "./tabs/DebugEncounterTab";
 import { DebugItemsTab } from "./tabs/DebugItemsTab";
 import { DebugOverviewTab } from "./tabs/DebugOverviewTab";
+import { DebugOfflineTimeTab } from "./tabs/DebugOfflineTimeTab";
 import { DebugPlayerTab } from "./tabs/DebugPlayerTab";
 import { DebugProgressionTab } from "./tabs/DebugProgressionTab";
 import { DebugSaveToolsTab } from "./tabs/DebugSaveToolsTab";
@@ -17,6 +18,7 @@ import type { DebugRun, DebugTab } from "./debugTypes";
 export function DebugTabContent({ tab, run, setTab, setConfirmCollection }: { tab: DebugTab; run: DebugRun; setTab: (tab: DebugTab) => void; setConfirmCollection: (open: boolean) => void }) {
   const debug = useGameStore((state) => state.debug);
   if (tab === "overview") return <DebugOverviewTab debug={debug} run={run} selectedEnemy={undefined} setTab={setTab} />;
+  if (tab === "offline-time") return <DebugOfflineTimeTab debug={debug} run={run} />;
   if (tab === "player") return <DebugPlayerTab debug={debug} run={run} />;
   if (tab === "progression") return <DebugProgressionTab debug={debug} run={run} />;
   if (tab === "items") return <DebugItemsTab debug={debug} run={run} />;

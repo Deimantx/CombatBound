@@ -1,5 +1,7 @@
 import { loadLegacySingleGameSaveForProfileMigration, parseGameSaveJson } from "../persistence/saveGame";
 import type { GameSaveV12 } from "../persistence/saveTypes";
+import { normalizeBankSeconds, normalizeTimestampMs } from "../offline/offlineTimeBank";
+import { offlineTimePolicy } from "../offline/offlineTimePolicy";
 import {
   PROFILE_SLOT_COUNT,
   isDifficulty,
@@ -27,10 +29,9 @@ function normalizeMetadata(value: unknown, expectedSlot: ProfileSlot): ProfileMe
   if (candidate.gameType !== "regular" || !isDifficulty(candidate.difficulty)) return null;
   const timestamps = [candidate.createdAt, candidate.lastPlayedAt, candidate.lastActiveAt];
   if (!timestamps.every((entry) => typeof entry === "number" && Number.isFinite(entry) && entry >= 0)) return null;
-  if (typeof candidate.offlineBankSeconds !== "number" || !Number.isFinite(candidate.offlineBankSeconds) || candidate.offlineBankSeconds < 0) return null;
-  const createdAt = candidate.createdAt;
-  const lastPlayedAt = candidate.lastPlayedAt;
-  const lastActiveAt = candidate.lastActiveAt;
+  const createdAt = normalizeTimestampMs(candidate.createdAt ?? 0);
+  const lastPlayedAt = normalizeTimestampMs(candidate.lastPlayedAt ?? 0);
+  const lastActiveAt = normalizeTimestampMs(candidate.lastActiveAt ?? 0);
   if (typeof createdAt !== "number" || typeof lastPlayedAt !== "number" || typeof lastActiveAt !== "number") return null;
   return {
     id: candidate.id,
@@ -40,7 +41,8 @@ function normalizeMetadata(value: unknown, expectedSlot: ProfileSlot): ProfileMe
     createdAt,
     lastPlayedAt,
     lastActiveAt,
-    offlineBankSeconds: Math.floor(candidate.offlineBankSeconds),
+    // A malformed compatible bank field must not discard an otherwise valid profile.
+    offlineBankSeconds: normalizeBankSeconds(candidate.offlineBankSeconds ?? 0, offlineTimePolicy),
   };
 }
 

@@ -4,6 +4,7 @@ import App from "../../App";
 import { createAndEnterProfile, loadAndEnterProfile, returnToProfileSelect } from "../app/profile/profileSessionController";
 import { GAME_SAVE_KEY } from "../game/persistence/saveGame";
 import { PROFILE_INDEX_KEY, PROFILE_MIGRATION_KEY, loadProfileGameSave, migrateLegacySingleSaveIfNeeded, writeProfileIndex } from "../game/profiles/profileStorage";
+import { profileSessionLeaseKey } from "../game/profiles/profileSessionLease";
 import { useProfileStore } from "../state/profileStore";
 import { useGameStore } from "../state/gameStore";
 
@@ -83,6 +84,48 @@ describe("profile gate and offline foundation", () => {
     expect(result.report?.awaySeconds).toBeGreaterThanOrEqual(120);
     expect(useProfileStore.getState().pendingOfflineReport?.bankAfterSeconds).toBeGreaterThanOrEqual(120);
     expect(useProfileStore.getState().index.slots[0]?.offlineBankSeconds).toBeGreaterThanOrEqual(120);
+  });
+
+  it("credits short absences without opening the report modal", () => {
+    expect(createAndEnterProfile(1, "regular", "normal")).toBe(true);
+    returnToProfileSelect();
+    const metadata = useProfileStore.getState().index.slots[0]!;
+    writeProfileIndex({ version: 1, slots: [{ ...metadata, lastActiveAt: metadata.lastActiveAt - 30_000 }, null, null] });
+    useProfileStore.getState().refreshProfiles();
+    const result = loadAndEnterProfile("profile-1");
+    expect(result.report?.rawAwaySeconds).toBe(30);
+    expect(useProfileStore.getState().pendingOfflineReport).toBeNull();
+    expect(useProfileStore.getState().index.slots[0]?.offlineBankSeconds).toBe(30);
+  });
+
+  it("rejects a foreign active lease before hydration or credit", () => {
+    expect(createAndEnterProfile(1, "regular", "normal")).toBe(true);
+    returnToProfileSelect();
+    const before = useProfileStore.getState().index.slots[0]!;
+    localStorage.setItem(profileSessionLeaseKey("profile-1"), JSON.stringify({ version: 1, profileId: "profile-1", ownerId: "other-tab", acquiredAt: Date.now(), heartbeatAt: Date.now(), expiresAt: Date.now() + 60_000 }));
+    const result = loadAndEnterProfile("profile-1");
+    expect(result.ok).toBe(false);
+    expect(useGameStore.getState().activeProfileId).toBeNull();
+    expect(useProfileStore.getState().index.slots[0]?.offlineBankSeconds).toBe(before.offlineBankSeconds);
+  });
+
+  it("normalizes malformed bank metadata without discarding the profile", () => {
+    expect(createAndEnterProfile(1, "regular", "normal")).toBe(true);
+    returnToProfileSelect();
+    const metadata = useProfileStore.getState().index.slots[0]!;
+    localStorage.setItem(PROFILE_INDEX_KEY, JSON.stringify({ version: 1, slots: [{ ...metadata, offlineBankSeconds: "not-a-number" }, null, null] }));
+    useProfileStore.getState().refreshProfiles();
+    expect(useProfileStore.getState().index.slots[0]?.id).toBe("profile-1");
+    expect(useProfileStore.getState().index.slots[0]?.offlineBankSeconds).toBe(0);
+  });
+
+  it("clears profile lease and metadata when deleting a profile", () => {
+    expect(createAndEnterProfile(1, "regular", "normal")).toBe(true);
+    expect(localStorage.getItem(profileSessionLeaseKey("profile-1"))).not.toBeNull();
+    useProfileStore.getState().deleteProfile("profile-1");
+    expect(localStorage.getItem(profileSessionLeaseKey("profile-1"))).toBeNull();
+    expect(useProfileStore.getState().index.slots[0]).toBeNull();
+    expect(loadProfileGameSave("profile-1")).toBeNull();
   });
 
   it("migrates the legacy global save to Profile 1 once and preserves the old key", () => {

@@ -37,6 +37,7 @@ import {
   saveProfileGameSave,
   loadProfileGameSave,
 } from "../game/profiles/profileStorage";
+import { getProfileSessionOwnerId, isProfileSessionOwner } from "../game/profiles/profileSessionLease";
 import { CURRENT_SAVE_VERSION, parseGameSaveJson } from "../game/persistence/saveGame";
 import type { ProfileId } from "../game/profiles/profileTypes";
 import type { InventoryEntryRef } from "../game/items/itemTypes";
@@ -236,7 +237,7 @@ interface GameStoreState {
   setShowInspectorButton: (value: boolean) => void;
   hydrateProfile: (profileId: ProfileId, save: NonNullable<ReturnType<typeof loadProfileGameSave>>) => void;
   startFreshProfile: (profileId: ProfileId) => void;
-  saveActiveProfileNow: () => void;
+  saveActiveProfileNow: () => boolean;
   unloadProfile: () => void;
   resetGameplay: () => void;
   resetPrototype: () => void;
@@ -424,9 +425,10 @@ let activeProfileIdForPersistence: () => ProfileId | null = () => null;
 function savePermanent(
   game: GameState,
   settings: { reducedMotion: boolean; showInspectorButton: boolean },
-) {
+): boolean {
   const profileId = activeProfileIdForPersistence();
-  if (!profileId) return;
+  // A lease check here protects every gameplay save path, including debug and combat mutations.
+  if (!profileId || !isProfileSessionOwner(profileId, getProfileSessionOwnerId())) return false;
   saveProfileGameSave(profileId, {
     version: CURRENT_SAVE_VERSION as 12,
     progression: game.progression,
@@ -440,6 +442,7 @@ function savePermanent(
     combatAutomationPresets: game.combatAutomationPresets,
     combatAbilities: game.combatAbilities,
   });
+  return true;
 }
 
 function captureDebugCombatEvents(previous: GameState, next: GameState) {
@@ -664,7 +667,7 @@ export const useGameStore = create<GameStoreState>((set, get) => {
       })),
     saveActiveProfileNow: () => {
       const state = get();
-      savePermanent(state.game, {
+      return savePermanent(state.game, {
         reducedMotion: state.reducedMotion,
         showInspectorButton: state.showInspectorButton,
       });
