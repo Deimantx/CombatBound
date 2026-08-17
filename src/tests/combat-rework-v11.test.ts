@@ -32,7 +32,7 @@ describe("Combat Systems 2.0 runtime contracts", () => {
   it("applies Shock and Withered as incoming damage modifiers", () => {
     const combat = createCombatState();
     const player = { kind: "player" as const };
-    const shocked = applyEffect(combat, effectById["effect.shocked"], { kind: "enemy", instanceId: "enemy" }, player, { targetStats: stats(), rng: fixedRng(.5) });
+    const shocked = applyEffect(combat, effectById["effect.shocked"], { kind: "enemy", instanceId: "enemy" }, player, { rng: fixedRng(.5) });
     expect(shocked.instance).not.toBeNull();
     expect(effectById["effect.shocked"].incomingDamageModifiers).toHaveLength(1);
     expect(effectById["effect.withered"].incomingDamageModifiers?.[0].damageType).toBe("chaos");

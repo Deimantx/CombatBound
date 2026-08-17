@@ -24,6 +24,9 @@ export interface SpellCalculationContext {
   targetEffects?: ActiveEffectInstance[]
   manaFraction?: number
   equipmentContext?: DefensiveEquipmentContext
+  /** Global player crit values supplied by the canonical combat stat build. */
+  globalCriticalStrikeChance?: number
+  globalCriticalStrikeMultiplier?: number
 }
 
 export function calculateEffectiveSpell(spell: SpellDefinition, progression: ProgressionState, context: SpellCalculationContext = {}): EffectiveSpellDefinition {
@@ -43,5 +46,12 @@ export function calculateEffectiveSpell(spell: SpellDefinition, progression: Pro
   const effectPeriodicPowerModifiers = Object.fromEntries(Object.entries(modifiers.effectPeriodicPowerPercent).map(([effectId, value]) => [effectId, 1 + value]))
   const effectMaxStacksModifiers = Object.fromEntries(Object.entries(modifiers.effectMaxStacksBonus).map(([effectId, value]) => [effectId, value]))
   const healing = spell.healing === undefined ? undefined : { flatAmount: Math.max(0, spell.healing.flatAmount * (1 + modifiers.healingPercent)) }
-  return { ...spell, manaCost, cooldownSeconds, baseDamageMin, baseDamageMax, healing, barrierAmount: spell.barrierAmount === undefined ? undefined : Math.max(0, spell.barrierAmount * (1 + modifiers.barrierAmountPercent) + modifiers.barrierAmountFlat), canCrit: Boolean(baseDamageMin > 0 && modifiers.canCrit), criticalStrikeChance: (spell.criticalStrikeChance ?? 0) + modifiers.spellCriticalChance + getConditionalMagicCritChance(progression, spell.magicProficiencyId, context.targetHpFraction ?? 1), criticalStrikeMultiplier: 1 + modifiers.spellCriticalDamagePercent, effectDurationModifiers, effectPeriodicPowerModifiers, effectMaxStacksModifiers }
+  const canCrit = Boolean(baseDamageMin > 0 && modifiers.canCrit)
+  const criticalStrikeChance = canCrit
+    ? Math.max(0, (context.globalCriticalStrikeChance ?? 0) + (spell.criticalStrikeChance ?? 0) + modifiers.spellCriticalChance + getConditionalMagicCritChance(progression, spell.magicProficiencyId, context.targetHpFraction ?? 1))
+    : 0
+  const criticalStrikeMultiplier = canCrit
+    ? Math.max(1, (context.globalCriticalStrikeMultiplier ?? 1) + modifiers.spellCriticalDamagePercent)
+    : 1
+  return { ...spell, manaCost, cooldownSeconds, baseDamageMin, baseDamageMax, healing, barrierAmount: spell.barrierAmount === undefined ? undefined : Math.max(0, spell.barrierAmount * (1 + modifiers.barrierAmountPercent) + modifiers.barrierAmountFlat), canCrit, criticalStrikeChance, criticalStrikeMultiplier, effectDurationModifiers, effectPeriodicPowerModifiers, effectMaxStacksModifiers }
 }

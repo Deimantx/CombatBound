@@ -45,7 +45,7 @@ export function InfoScreen() {
               <p>
                 Each resolved enemy direct attack awards 0.25 XP for every
                 equipped matching armour piece. Miss, Evasion, Block, and
-                Hit all count; interrupted actions, damage-over-time ticks, and
+                Hit all count; action resolutions, damage-over-time ticks, and
                 passive time do not.
               </p>
               <small>
@@ -140,11 +140,12 @@ export function InfoScreen() {
           <div className="resolution-flow">
             {[
               "Accuracy vs Evasion",
-              "Attack / Spell Block",
-              "Spell Suppression",
-              "Damage / Crit",
+              "Damage Roll",
+              "Critical Strike",
+              "Impact Guard",
               "Armor",
               "Resistance",
+              "Incoming Effect Modifiers",
               "Barrier",
               "Health",
             ].map((step, index) => (
@@ -156,7 +157,7 @@ export function InfoScreen() {
           </div>
           <p className="info-callout">
             A failed Accuracy check Evades before Block, Armour, or Resistance.
-            Spells bypass Accuracy; Suppression and Barriers apply afterward.
+            Spells bypass Accuracy; incoming effect modifiers and Barriers apply afterward.
           </p>
         </Panel>
         <Panel
@@ -318,7 +319,7 @@ export function InfoScreen() {
               <p>
                 Fire, Water, Air, Earth, Light, and Darkness Magic gain XP from
                 meaningful outcomes: effective damage, credited periodic damage,
-                successful interrupts, effective healing, and meaningful Barrier
+                successful action effects, effective healing, and meaningful Barrier
                 or cleanse results.
               </p>
               <small>

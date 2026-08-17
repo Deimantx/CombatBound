@@ -3,6 +3,8 @@ import { calculateEffectiveResistance } from "./combatStats";
 import { clamp, combatBalance } from "./combatBalance";
 import type { CombatRng, CombatStats, CombatantRef, DamageComponent, DamageProgressionSource, DefensiveEligibility } from "./combatTypes";
 import { nextCombatRandom } from "./combatRng";
+import { calculateIncomingEffectDamageMultiplier, calculateOutgoingEffectDamageMultiplier } from "./combatEffects";
+import type { EffectDefinition } from "./combatEffectTypes";
 
 export interface DamagePacket extends DamageComponent {
   source: CombatantRef;
@@ -79,10 +81,11 @@ export function resolveDamage(packet: DamagePacket, attacker: CombatStats, defen
   const rolledDamage = rollDamage(packet, attacker, rng);
   const criticalChance = clamp(packet.criticalStrikeChance ?? attacker.criticalStrikeChance ?? 0, 0, combatBalance.maximumCriticalStrikeChance);
   const critical = Boolean(packet.canCrit && deliveryKind === "hit" && nextCombatRandom(rng, "crit") < criticalChance);
-  const critMultiplier = Math.max(1, (attacker.criticalStrikeMultiplier ?? 1) * (packet.criticalStrikeMultiplier ?? 1));
+  const critMultiplier = Math.max(1, packet.criticalStrikeMultiplier ?? attacker.criticalStrikeMultiplier ?? 1);
   const rawDamage = Math.max(0, rolledDamage * (critical ? critMultiplier : 1));
-  const blocked = rollBlock(defender, eligibility, rng, deliveryKind);
-  const blockedDamage = blocked ? calculateBlockedDamage(rawDamage, defender.blockEffect ?? 0) : 0;
+  const blockedRoll = rollBlock(defender, eligibility, rng, deliveryKind);
+  const blockedDamage = blockedRoll ? calculateBlockedDamage(rawDamage, defender.blockEffect ?? 0) : 0;
+  const blocked = blockedRoll && blockedDamage > 0;
   const postBlockDamage = Math.max(0, rawDamage - blockedDamage);
   const effectiveArmor = damageType === "physical" ? calculateEffectiveArmor(defender.armour ?? 0, packet.armorPenetrationPercent, packet.armorPenetrationFlat) : 0;
   const armorMitigation = packet.ignoresArmour || packet.unmitigated || deliveryKind === "damage-over-time" || damageType !== "physical" ? 0 : calculateArmorMitigation(effectiveArmor);
@@ -121,4 +124,27 @@ function emptyDamageResolution(outcome: DefensiveOutcome, barrierEligible: boole
 
 export function componentFromAttack(damageType: DamageComponent["damageType"], multiplier = 1, canCrit = true): DamageComponent {
   return { sourceKind: "attack", deliveryKind: "hit", damageType, scaling: { sourceStat: "attackDamage", multiplier }, canCrit };
+}
+
+/**
+ * Resolves every damage source through the same effect-modifier pipeline.
+ * Outgoing modifiers are applied before the roll; incoming modifiers are
+ * applied after armour/resistance and before barriers, for both hits and DoTs.
+ */
+export function resolveDamageWithEffectModifiers(
+  packet: DamagePacket,
+  attacker: CombatStats,
+  defender: CombatStats,
+  rng: CombatRng,
+  sourceEffects: Parameters<typeof calculateOutgoingEffectDamageMultiplier>[0],
+  targetEffects: Parameters<typeof calculateIncomingEffectDamageMultiplier>[0],
+  definitions: Record<string, EffectDefinition>,
+) {
+  const outgoingMultiplier = calculateOutgoingEffectDamageMultiplier(sourceEffects, definitions, packet);
+  const incomingMultiplier = calculateIncomingEffectDamageMultiplier(targetEffects, definitions, packet);
+  return resolveDamage({
+    ...packet,
+    damageMultiplier: (packet.damageMultiplier ?? 1) * outgoingMultiplier,
+    incomingDamageMultiplier: (packet.incomingDamageMultiplier ?? 1) * incomingMultiplier,
+  }, attacker, defender, rng);
 }

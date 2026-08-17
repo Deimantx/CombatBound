@@ -152,6 +152,7 @@ export interface EffectiveActionCost {
 export function buildEffectiveSpellContext(
   game: GameState,
   _spell: NonNullable<CombatContext["spells"][string]>,
+  stats?: Pick<HunterCombatStats, "criticalStrikeChance" | "criticalStrikeMultiplier">,
 ): Parameters<typeof calculateEffectiveSpell>[2] {
   const target = _spell.targetMode === "selectedEnemy"
     ? game.combat.enemies.find(
@@ -168,6 +169,8 @@ export function buildEffectiveSpellContext(
     manaFraction:
       game.combat.maxMana > 0 ? game.combat.mana / game.combat.maxMana : 1,
     equipmentContext: getDefensiveEquipmentContext(game.equipment, game.inventory),
+    globalCriticalStrikeChance: stats?.criticalStrikeChance,
+    globalCriticalStrikeMultiplier: stats?.criticalStrikeMultiplier,
   };
 }
 
@@ -191,7 +194,7 @@ export function getEffectivePlayerActionCost(
   const effectiveSpell = calculateEffectiveSpell(
     spell,
     game.progression,
-    buildEffectiveSpellContext(game, spell),
+    buildEffectiveSpellContext(game, spell, _stats),
   );
   return { mana: effectiveSpell.manaCost, stamina: 0 };
 }
@@ -308,7 +311,7 @@ export function getSpellActionView(
     ? calculateEffectiveSpell(
         spell,
         game.progression,
-        buildEffectiveSpellContext(game, spell),
+        buildEffectiveSpellContext(game, spell, stats),
       )
     : undefined;
   return {

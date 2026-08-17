@@ -11,7 +11,7 @@ const profile: WeaponTreeProfile = {
   ],
   crossNodes: [
     { name: 'Siege Engine', links: [[1, 6], [0, 6]], effects: [{ type: 'weaponArmorPenetrationModifier', mode: 'flat', valuePerRank: 10 }, damage(.15)] },
-    { name: 'Total Suppression', links: [[2, 6], [4, 6]], effects: [{ type: 'weaponDamageModifier', valuePerRank: .1 }, { type: 'weaponConditionalDamageModifier', operation: 'increased', valuePerRank: .15, condition: { type: 'targetHasEffect', effectId: 'effect.concussed' } }] },
+    { name: 'Total Crush', links: [[2, 6], [4, 6]], effects: [{ type: 'weaponDamageModifier', valuePerRank: .1 }, { type: 'weaponConditionalDamageModifier', operation: 'increased', valuePerRank: .15, condition: { type: 'targetHasEffect', effectId: 'effect.concussed' } }] },
     { name: 'Ruinous Impact', links: [[3, 6], [1, 6]], effects: [{ type: 'weaponDamageModifier', valuePerRank: .15 }, conditional(.2, { type: 'targetHasEffect', effectId: 'effect.crushed' })] },
   ],
   apexEffects: [damage(.2), { type: 'statModifier', stat: 'criticalStrikeMultiplier', operation: 'flat', valuePerRank: .2 }, { type: 'weaponArmorPenetrationModifier', mode: 'percent', valuePerRank: .15 }, { type: 'weaponDamageModifier', valuePerRank: .1 }],

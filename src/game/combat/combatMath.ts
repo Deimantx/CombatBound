@@ -56,10 +56,11 @@ export function resolveDefensiveOutcome(
   return "hit";
 }
 
-export function rollBlock(defender: Pick<CombatStats, "blockChance">, eligibility: DefensiveEligibility, rng: CombatRng, deliveryKind: "hit" | "damage-over-time" = "hit") {
+export function rollBlock(defender: Pick<CombatStats, "blockChance" | "blockEffect">, eligibility: DefensiveEligibility, rng: CombatRng, deliveryKind: "hit" | "damage-over-time" = "hit") {
   if (deliveryKind === "damage-over-time" || eligibility.blockable === false) return false;
   const chance = clamp(Number.isFinite(defender.blockChance ?? 0) ? defender.blockChance ?? 0 : 0, 0, combatBalance.maximumBlockChance);
-  return chance > 0 && nextCombatRandom(rng, "block") < chance;
+  const effect = clamp(Number.isFinite(defender.blockEffect ?? 0) ? defender.blockEffect ?? 0 : 0, 0, combatBalance.maximumBlockEffect);
+  return chance > 0 && effect > 0 && nextCombatRandom(rng, "block") < chance;
 }
 
 export function calculateBlockedDamage(damage: number, blockEffect: number) {

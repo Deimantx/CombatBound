@@ -1,9 +1,8 @@
-import type { CombatRng, CombatStats, CombatState, CombatantRef, DamageComponent } from './combatTypes'
+import type { CombatRng, CombatState, CombatantRef, DamageComponent } from './combatTypes'
 import type { ActiveEffectInstance, EffectDefinition, EffectTick, EffectTimerResult } from './combatEffectTypes'
 import type { ProgressionCredit } from '../progression/progressionTypes'
 
 export interface EffectApplyOptions {
-  targetStats?: CombatStats
   power?: number
   absorbAmount?: number
   progressionCredit?: ProgressionCredit
@@ -19,7 +18,7 @@ export interface EffectApplyOptions {
 export interface EffectApplicationResult {
   combat: CombatState
   instance: ActiveEffectInstance | null
-  outcome: 'applied' | 'refreshed' | 'stacked' | 'extended' | 'replaced' | 'rejected' | 'avoided' | 'missing-target'
+  outcome: 'applied' | 'refreshed' | 'stacked' | 'extended' | 'replaced' | 'rejected' | 'missing-target'
 }
 
 const aliveRef = (combat: CombatState, target: CombatantRef) => target.kind === 'player'
@@ -70,7 +69,7 @@ export function updateActiveEffects(combat: CombatState, target: CombatantRef, e
   return { ...combat, enemies: combat.enemies.map((enemy) => enemy.instanceId === target.instanceId ? { ...enemy, effects } : enemy) }
 }
 
-export function calculateEffectDuration(definition: EffectDefinition, _targetStats?: CombatStats, durationBonusSeconds = 0, durationMultiplier = 1) {
+export function calculateEffectDuration(definition: EffectDefinition, durationBonusSeconds = 0, durationMultiplier = 1) {
   if (definition.durationSeconds === null) return null
   const duration = Math.max(0, definition.durationSeconds)
   return Math.max(0, (duration + durationBonusSeconds) * durationMultiplier)
@@ -79,7 +78,7 @@ export function calculateEffectDuration(definition: EffectDefinition, _targetSta
 export function applyEffect(combat: CombatState, definition: EffectDefinition, source: CombatantRef, target: CombatantRef, options: EffectApplyOptions = {}): EffectApplicationResult {
   if (!aliveRef(combat, target)) return { combat, instance: null, outcome: 'missing-target' }
   const effects = getActiveEffects(combat, target)
-  const duration = calculateEffectDuration(definition, options.targetStats, options.durationBonusSeconds, options.durationMultiplier)
+  const duration = calculateEffectDuration(definition, options.durationBonusSeconds, options.durationMultiplier)
   const interval = definition.periodic && definition.periodic.intervalSeconds > 0 ? definition.periodic.intervalSeconds : null
   const nextSequence = combat.effectSequence + 1
   const maxStacks = Math.max(1, Math.floor((definition.stacking.maxStacks || 1) + (options.maxStacksBonus ?? 0)))

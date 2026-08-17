@@ -32,7 +32,7 @@ export function CombatActionWorkspace({ game, stats, selectedEnemy, selectedDefi
         const effectiveSpell = spellView.effectiveSpell!;
         const state = getSpellUiState(spell, runtime, combat, selectedAction, effectiveSpell);
         const button = <CombatActionButton icon={<PlaceholderArt icon={spell.icon} size="small" variant={state.enabled ? "gold" : "muted"} />} title={spell.name} detail={`${effectiveSpell.manaCost} MANA · ${state.status}`} disabled={!state.enabled} className={`is-${state.tone}`} onClick={() => onCastSpell(spell.id)} debugKind="spell" debugId={spell.id} debugLabel={spell.name} cooldown={runtime} cooldownTotal={spell.cooldownSeconds} />;
-        return <GameTooltip key={spell.id} content={buildSpellTooltip(spell, game.progression, buildEffectiveSpellContext(game, spell))}>{state.enabled ? button : <span className="spell-tooltip-host">{button}</span>}</GameTooltip>;
+        return <GameTooltip key={spell.id} content={buildSpellTooltip(spell, game.progression, buildEffectiveSpellContext(game, spell, stats))}>{state.enabled ? button : <span className="spell-tooltip-host">{button}</span>}</GameTooltip>;
       })}</div></section>
       <section className="combat-action-section"><div className="section-title"><span className="tiny-label">COMBAT ABILITIES</span><small>Stamina actions · {COMBAT_ABILITY_SLOT_COUNT} loadout slots</small></div><div className="spell-grid">{Array.from({ length: COMBAT_ABILITY_SLOT_COUNT }, (_, slot) => {
         const actionId = game.combatAbilities.activeSlots[slot];

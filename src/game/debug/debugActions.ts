@@ -11,12 +11,10 @@ import { perkById } from "../data/proficiencyPerks";
 import { techniqueDefinitions } from "../data/techniques";
 import { weaponSkillDefinitions } from "../data/weaponSkills";
 import { applyEffectById } from "../combat/combatEffects";
-import { getEnemyEffectiveCombatStats, getPlayerEffectiveCombatStats } from "../combat/combatSelectors";
 import { createCombatContext, forceDefeatEnemiesForDebug, forceDefeatPlayerForDebug, syncCombatStats } from "../combat/combatEngine";
 import { normalizeCombatAbilityLoadout, equipCombatAbility, equipTechnique } from "../combatAbilities/combatAbilityLogic";
 import { COMBAT_ABILITY_SLOT_COUNT } from "../combatAbilities/combatAbilityTypes";
 import { createInitialSpellbook, normalizeSpellbook } from "../spellbook/spellbookLogic";
-import { calculateHunterCombatStats } from "../equipment/derivedStats";
 import { COMBAT_SPELL_SLOT_COUNT } from "../spellbook/spellbookTypes";
 import { allProficiencyDefinitions, discoverProficiency, proficiencyXpForLevel } from "../progression/proficiencyProgression";
 import { MAX_MASTERY_LEVEL, MAX_PROFICIENCY_LEVEL } from "../progression/progressionBalance";
@@ -326,25 +324,20 @@ export function debugClearAllEnemyEffects(game: GameState): GameState {
 export function debugApplyEffect(game: GameState, effectId: string, target: DebugEffectTarget): GameState {
   const definition = effectById[effectId];
   if (!definition) return game;
-  const stats = calculateHunterCombatStats(game.equipment, game.inventory, game.progression, game.combat.techniques);
-  const playerStats = getPlayerEffectiveCombatStats(game.combat, stats, game.progression, effectById);
   const source: CombatantRef = { kind: "player" };
   if (target === "player") {
-    const result = applyEffectById(game.combat, effectId, effectById, source, source, { targetStats: playerStats });
+    const result = applyEffectById(game.combat, effectId, effectById, source, source);
     return { ...game, combat: result.combat };
   }
   const selected = game.combat.enemies.find((enemy) => enemy.instanceId === game.combat.selectedEnemyInstanceId && !enemy.defeated);
   if (!selected) return game;
   const targetRef: CombatantRef = { kind: "enemy", instanceId: selected.instanceId };
-  const targetStats = getEnemyEffectiveCombatStats(selected, effectById, debugContext.enemies);
-  const result = applyEffectById(game.combat, effectId, effectById, source, targetRef, { targetStats });
+  const result = applyEffectById(game.combat, effectId, effectById, source, targetRef);
   return { ...game, combat: result.combat };
 }
 
 export function debugApplyPlayerMaxHpBarrier(game: GameState): GameState {
-  const stats = calculateHunterCombatStats(game.equipment, game.inventory, game.progression, game.combat.techniques);
-  const playerStats = getPlayerEffectiveCombatStats(game.combat, stats, game.progression, effectById);
-  const result = applyEffectById(game.combat, "effect.earth-barrier", effectById, { kind: "player" }, { kind: "player" }, { targetStats: playerStats, absorbAmount: game.combat.maxPlayerHp });
+  const result = applyEffectById(game.combat, "effect.earth-barrier", effectById, { kind: "player" }, { kind: "player" }, { absorbAmount: game.combat.maxPlayerHp });
   return { ...game, combat: result.combat };
 }
 

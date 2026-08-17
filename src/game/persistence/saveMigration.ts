@@ -67,6 +67,7 @@ const legacyPerkIdAliases: Record<string, string> = {
   "one-handed-sword.low-form": "one-handed-sword.mobile-technique",
   "one-handed-sword.flowing-stance": "one-handed-sword.flowing-tempo",
   "fire-magic.scorching-exposure": "fire-magic.scorching-off-balance",
+  "perk.two-handed-hammer.total-suppression": "perk.two-handed-hammer.total-crush",
 };
 
 export function normalizePurchasedPerks(value: unknown): Record<string, number> {

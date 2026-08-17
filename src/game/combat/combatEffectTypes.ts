@@ -49,7 +49,7 @@ export interface EffectDefinition {
   persistence: EffectPersistence
   /** Barrier definitions use this as the initial absorb pool. */
   barrierAmount?: number
-  /** Beneficial effects are not shortened by ailment-duration reduction. */
+  /** Marks a positive effect for presentation and targeting classification. */
   beneficial?: boolean
 }
 

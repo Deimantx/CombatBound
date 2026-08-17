@@ -42,7 +42,7 @@ export function calculateHunterCombatStats(
     armour: combatBalance.baseArmour + total("armour"),
     evasionRating: combatBalance.baseEvasion + total("evasionRating") + carefulEvasion,
     baseAttackTime: weaponStats.baseAttackTime ?? combatBalance.baseAttackInterval,
-    criticalStrikeChance: combatBalance.baseCriticalStrikeChance + total("criticalStrikeChance") + (weaponStats.criticalStrikeChance ?? 0),
+    criticalStrikeChance: combatBalance.baseCriticalStrikeChance + total("criticalStrikeChance"),
     criticalStrikeMultiplier: combatBalance.baseCriticalStrikeMultiplier + total("criticalStrikeMultiplier"),
     blockChance: combatBalance.baseBlockChance + total("blockChance"),
     blockEffect: combatBalance.baseBlockEffect + total("blockEffect"),

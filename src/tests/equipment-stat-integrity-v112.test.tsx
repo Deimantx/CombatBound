@@ -174,8 +174,8 @@ describe("Equipment stat integrity V11.2", () => {
   });
 
   it("does not shorten effect duration from removed generic defenses", () => {
-    expect(calculateEffectDuration(harmfulTenSecondEffect, statsFor(emptyEquipment))).toBe(10);
-    expect(calculateEffectDuration(ailmentTenSecondEffect, statsFor(emptyEquipment))).toBe(10);
+    expect(calculateEffectDuration(harmfulTenSecondEffect)).toBe(10);
+    expect(calculateEffectDuration(ailmentTenSecondEffect)).toBe(10);
 
     const game = createInitialGameState();
     const result = applyEffect(
@@ -183,7 +183,7 @@ describe("Equipment stat integrity V11.2", () => {
       ailmentTenSecondEffect,
       { kind: "enemy", instanceId: "enemy.test" },
       { kind: "player" },
-      { targetStats: statsFor(emptyEquipment) },
+      {},
     );
     expect(result.instance?.remainingSeconds).toBeCloseTo(10, 10);
   });
@@ -197,7 +197,7 @@ describe("Equipment stat integrity V11.2", () => {
     expect(preview.staminaRegen - before.staminaRegen).toBeCloseTo(0.2, 10);
   });
 
-  it("previews and equips Vanguard Helm without losing Ailment Duration Reduction in Hero", () => {
+  it("previews and equips Vanguard Helm without losing canonical status values in Hero", () => {
     useGameStore.getState().debug.setOwnedItemCount("item.vanguard-helm", 1);
     useGameStore.getState().debug.setMasteryLevel(10);
     render(<App />);
