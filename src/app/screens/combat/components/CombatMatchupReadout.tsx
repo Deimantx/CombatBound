@@ -1,5 +1,5 @@
 import type { GameState } from '../../../../game/gameState'
-import { getSelectedTargetMatchup, type CombatMatchupView } from '../../../../game/combat/combatSelectors'
+import { getSelectedTargetMatchup } from '../../../../game/combat/combatSelectors'
 import type { HunterCombatStats } from '../../../../game/equipment/derivedStats'
 import type { EnemyCombatInstance } from '../../../../game/combat/combatTypes'
 import { formatPercent } from './combatUi'
@@ -20,10 +20,6 @@ export function CombatMatchupReadout({ game, stats, selectedEnemy }: { game: Gam
       <MatchupMetric label="Crit Chance" value={formatPercent(matchup.playerCritChance)} />
     </> : <div className="combat-matchup-empty"><strong>No active target</strong><small>Select an enemy to view matchup.</small></div>}
   </div>
-}
-
-export function MatchupSummary({ matchup }: { matchup: CombatMatchupView }) {
-  return <div className="target-matchup-strip" data-debug-kind="combat-matchup-summary"><span>YOUR HIT <strong>{formatPercent(matchup.playerHitChance)}</strong></span><span>THEIR HIT <strong>{formatPercent(matchup.enemyHitChance)}</strong></span></div>
 }
 
 function MatchupMetric({ label, value, tone = 'default', tooltip }: { label: string; value: string; tone?: 'default' | 'gold' | 'red'; tooltip?: Parameters<typeof GameTooltip>[0]['content'] }) {

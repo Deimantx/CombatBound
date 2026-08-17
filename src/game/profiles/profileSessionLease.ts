@@ -37,11 +37,26 @@ export function readProfileSessionLease(profileId: ProfileId): ProfileSessionLea
   }
 }
 
-function writeLease(profileId: ProfileId, lease: ProfileSessionLease | null): void {
-  if (typeof localStorage === "undefined") return;
-  const key = profileSessionLeaseKey(profileId);
-  if (lease) localStorage.setItem(key, JSON.stringify(lease));
-  else localStorage.removeItem(key);
+function writeLease(profileId: ProfileId, lease: ProfileSessionLease | null): boolean {
+  if (typeof localStorage === "undefined") return false;
+  try {
+    const key = profileSessionLeaseKey(profileId);
+    if (lease) localStorage.setItem(key, JSON.stringify(lease));
+    else localStorage.removeItem(key);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function writeLeaseAndConfirm(profileId: ProfileId, result: ProfileSessionLeaseResult): ProfileSessionLeaseResult {
+  if (!result.ok || !result.lease) return result;
+  if (!writeLease(profileId, result.lease)) return { ok: false, status: "rejected", lease: readProfileSessionLease(profileId) };
+  const persisted = readProfileSessionLease(profileId);
+  if (!persisted || persisted.profileId !== result.lease.profileId || persisted.ownerId !== result.lease.ownerId || persisted.acquiredAt !== result.lease.acquiredAt || persisted.heartbeatAt !== result.lease.heartbeatAt || persisted.expiresAt !== result.lease.expiresAt) {
+    return { ok: false, status: "rejected", lease: persisted };
+  }
+  return { ...result, lease: persisted };
 }
 
 export function acquireProfileSessionLease(
@@ -50,8 +65,12 @@ export function acquireProfileSessionLease(
   now: number,
 ): ProfileSessionLeaseResult {
   const result = calculateLease(readProfileSessionLease(profileId), profileId, ownerId, now, offlineTimePolicy);
-  if (result.ok && result.lease) writeLease(profileId, result.lease);
-  return result;
+  return writeLeaseAndConfirm(profileId, result);
+}
+
+/** Lifecycle-only ownership boundary. This may acquire or reclaim; save paths must not call it. */
+export function ensureProfileSessionLease(profileId: ProfileId, ownerId: string, now: number): ProfileSessionLeaseResult {
+  return acquireProfileSessionLease(profileId, ownerId, now);
 }
 
 export function renewProfileSessionLease(profileId: ProfileId, ownerId: string, now: number): boolean {
@@ -63,8 +82,7 @@ export function releaseOwnedProfileSessionLease(profileId: ProfileId, ownerId: s
   const existing = readProfileSessionLease(profileId);
   const next = calculateRelease(existing, ownerId);
   if (next === existing) return false;
-  writeLease(profileId, next);
-  return true;
+  return writeLease(profileId, next);
 }
 
 /** Explicit profile deletion cleanup; ownership is no longer meaningful once metadata is gone. */
@@ -74,8 +92,14 @@ export function clearProfileSessionLease(profileId: ProfileId): void {
 
 export function isProfileSessionOwner(profileId: ProfileId, ownerId: string, now = Date.now()): boolean {
   const lease = readProfileSessionLease(profileId);
-  return !lease || (lease.ownerId === ownerId && lease.expiresAt > now);
+  return Boolean(lease && lease.ownerId === ownerId && lease.expiresAt > now);
 }
+
+export function hasValidOwnedProfileSessionLease(profileId: ProfileId, ownerId: string, now = Date.now()): boolean {
+  return isProfileSessionOwner(profileId, ownerId, now);
+}
+
+export const hasValidOwnedLease = hasValidOwnedProfileSessionLease;
 
 let documentOwnerId: string | null = null;
 let fallbackOwnerSequence = 0;

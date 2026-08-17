@@ -1,6 +1,6 @@
-import { Backpack, CircleDot, Coins, Footprints, Gem, Hand, HardHat, HeartPulse, Shield, Sparkles, Sword, Target, Wrench } from 'lucide-react'
+import { Backpack, CircleDot, Coins, Footprints, Gem, Hand, HardHat, HeartPulse, Shield, Sparkles, Sword, Target, Timer, Wind, Wrench } from 'lucide-react'
 
-const icons = { sword: Sword, shield: Shield, ring: CircleDot, cube: Backpack, gem: Gem, necklace: Gem, cross: HeartPulse, coin: Coins, spark: Sparkles, target: Target, helm: HardHat, helmet: HardHat, hand: Hand, gloves: Hand, footprints: Footprints, belt: Wrench, cape: Shield, earring: Sparkles, bug: Target, wrench: Wrench, heart: HeartPulse }
+const icons = { sword: Sword, shield: Shield, ring: CircleDot, cube: Backpack, gem: Gem, necklace: Gem, cross: HeartPulse, coin: Coins, spark: Sparkles, target: Target, helm: HardHat, helmet: HardHat, hand: Hand, gloves: Hand, footprints: Footprints, belt: Wrench, cape: Shield, earring: Sparkles, bug: Target, wrench: Wrench, heart: HeartPulse, timer: Timer, wind: Wind }
 
 interface PlaceholderArtProps {
   icon?: string

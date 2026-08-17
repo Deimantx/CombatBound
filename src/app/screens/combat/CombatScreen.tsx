@@ -31,7 +31,7 @@ export function CombatScreen() {
     ) ?? combat.enemies.find((enemy) => !enemy.defeated);
   const selectedDefinition = selectedEnemy
     ? enemyById[selectedEnemy.enemyId]
-    : enemyById["enemy.grey-wolf"];
+    : undefined;
   const stats = calculateHunterCombatStats(
     game.equipment,
     game.inventory,
@@ -64,7 +64,7 @@ export function CombatScreen() {
           onStartHunt={startHunt}
           onStopHunt={stopHunt}
         />
-        <SelectedEnemyPanel game={game} selectedEnemy={selectedEnemy} />
+        <SelectedEnemyPanel game={game} stats={stats} selectedEnemy={selectedEnemy} />
       </div>
       <HuntSessionOverview
         game={game}

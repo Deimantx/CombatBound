@@ -1,8 +1,8 @@
 import { useEffect } from "react";
 import { offlineTimePolicy } from "../../game/offline/offlineTimePolicy";
 import {
+  ensureProfileSessionLease,
   getProfileSessionOwnerId,
-  isProfileSessionOwner,
   profileSessionLeaseKey,
   readProfileSessionLease,
   releaseOwnedProfileSessionLease,
@@ -12,10 +12,6 @@ import type { ProfileId } from "../../game/profiles/profileTypes";
 import { useGameStore } from "../../state/gameStore";
 import { useProfileStore } from "../../state/profileStore";
 import { disconnectForSessionConflict } from "./profileSessionController";
-
-function owns(profileId: ProfileId): boolean {
-  return isProfileSessionOwner(profileId, getProfileSessionOwnerId());
-}
 
 function handleConflict(profileId: ProfileId): void {
   if (useGameStore.getState().activeProfileId === profileId) disconnectForSessionConflict();
@@ -27,13 +23,14 @@ export function ProfileSessionCoordinator({ profileId }: { profileId: ProfileId 
     const ownerId = getProfileSessionOwnerId();
     let closed = false;
 
-    const verify = () => {
-      if (!owns(profileId)) handleConflict(profileId);
-      return owns(profileId);
+    const ensure = () => {
+      const result = ensureProfileSessionLease(profileId, ownerId, Date.now());
+      if (!result.ok) handleConflict(profileId);
+      return result.ok;
     };
 
     const suspend = () => {
-      if (closed || document.visibilityState !== "hidden" || !verify()) return;
+      if (closed || document.visibilityState !== "hidden" || !ensure()) return;
       // Save gameplay before moving the accounting boundary. Hidden time is banked,
       // never simulated by the live combat runtime.
       const saved = useGameStore.getState().saveActiveProfileNow();
@@ -43,18 +40,18 @@ export function ProfileSessionCoordinator({ profileId }: { profileId: ProfileId 
     };
 
     const resume = () => {
-      if (closed || document.visibilityState !== "visible" || !verify()) return;
-      const result = useProfileStore.getState().settleOfflineTime(profileId, "visibility-resume", Date.now());
+      if (closed || document.visibilityState !== "visible" || !ensure()) return;
+      useProfileStore.getState().settleOfflineTime(profileId, "visibility-resume", Date.now());
       const renewed = renewProfileSessionLease(profileId, ownerId, Date.now());
-      if ((!result && !owns(profileId)) || !renewed) handleConflict(profileId);
+      if (!renewed) handleConflict(profileId);
     };
 
     const heartbeat = () => {
-      if (closed || !verify()) return;
+      if (closed || !ensure()) return;
       const now = Date.now();
       if (document.visibilityState === "hidden") {
         // Lease heartbeat and time-bank anchor are intentionally independent.
-        renewProfileSessionLease(profileId, ownerId, now);
+        if (!renewProfileSessionLease(profileId, ownerId, now)) handleConflict(profileId);
         return;
       }
       const saved = useGameStore.getState().saveActiveProfileNow();
@@ -64,7 +61,7 @@ export function ProfileSessionCoordinator({ profileId }: { profileId: ProfileId 
     };
 
     const close = () => {
-      if (closed || !owns(profileId)) return;
+      if (closed || !ensure()) return;
       closed = true;
       if (document.visibilityState === "visible") {
         useGameStore.getState().saveActiveProfileNow();
@@ -80,6 +77,19 @@ export function ProfileSessionCoordinator({ profileId }: { profileId: ProfileId 
       if (document.visibilityState === "hidden") suspend();
       else resume();
     };
+    const handlePageHide = (event: PageTransitionEvent) => {
+      if (event.persisted) {
+        if (closed || !ensure()) return;
+        const saved = useGameStore.getState().saveActiveProfileNow();
+        const touched = useProfileStore.getState().touchActiveProfile(profileId, Date.now());
+        if (!saved || !touched) handleConflict(profileId);
+        return;
+      }
+      close();
+    };
+    const handlePageShow = () => {
+      if (!closed) resume();
+    };
     const handleStorage = (event: StorageEvent) => {
       if (event.key === profileSessionLeaseKey(profileId)) {
         const lease = readProfileSessionLease(profileId);
@@ -89,14 +99,16 @@ export function ProfileSessionCoordinator({ profileId }: { profileId: ProfileId 
 
     const interval = window.setInterval(heartbeat, offlineTimePolicy.heartbeatMs);
     document.addEventListener("visibilitychange", handleVisibility);
-    window.addEventListener("pagehide", close);
+    window.addEventListener("pagehide", handlePageHide);
+    window.addEventListener("pageshow", handlePageShow);
     window.addEventListener("beforeunload", close);
     window.addEventListener("storage", handleStorage);
     return () => {
       closed = true;
       window.clearInterval(interval);
       document.removeEventListener("visibilitychange", handleVisibility);
-      window.removeEventListener("pagehide", close);
+      window.removeEventListener("pagehide", handlePageHide);
+      window.removeEventListener("pageshow", handlePageShow);
       window.removeEventListener("beforeunload", close);
       window.removeEventListener("storage", handleStorage);
     };

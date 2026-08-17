@@ -80,6 +80,13 @@
 .confirm-dialog p { color: var(--muted); margin-top: 8px; }
 .dialog-actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 20px; }
 
+/* Shared dark scrollbar treatment for long CombatBound surfaces. */
+.combatbound-scroll, .combatbound-scroll-area { scrollbar-color: var(--line) var(--panel-2); scrollbar-width: thin; }
+.combatbound-scroll::-webkit-scrollbar, .combatbound-scroll-area::-webkit-scrollbar { height: 8px; width: 8px; }
+.combatbound-scroll::-webkit-scrollbar-track, .combatbound-scroll-area::-webkit-scrollbar-track { background: var(--panel-2); border-radius: 999px; }
+.combatbound-scroll::-webkit-scrollbar-thumb, .combatbound-scroll-area::-webkit-scrollbar-thumb { background: var(--line); border: 2px solid var(--panel-2); border-radius: 999px; }
+.combatbound-scroll::-webkit-scrollbar-thumb:hover, .combatbound-scroll-area::-webkit-scrollbar-thumb:hover { background: var(--bronze); }
+
 /* CombatBound informational tooltips */
 .game-tooltip-layer { pointer-events: none; position: fixed; z-index: 90; }
 .game-tooltip { background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius-sm); box-shadow: var(--shadow); color: var(--text); min-width: 220px; max-width: min(380px, calc(100vw - 20px)); max-height: min(78vh, 720px); overflow-x: hidden; overflow-y: auto; pointer-events: auto; width: 320px; animation: tooltip-enter .1s ease-out both; user-select: text; }

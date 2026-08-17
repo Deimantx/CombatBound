@@ -1,12 +1,11 @@
-import { Sparkles, Target } from "lucide-react";
+import { Target } from "lucide-react";
 import { enemyById } from "../../../../game/data/enemies";
 import { itemById } from "../../../../game/data/items";
 import type { EnemyCombatInstance } from "../../../../game/combat/combatTypes";
 import type { GameState } from "../../../../game/gameState";
 import { Panel } from "../../../components/Panel";
 import { PlaceholderArt } from "../../../components/PlaceholderArt";
-import { ProgressBar } from "../../../components/ProgressBar";
-import { formatPercent, combatProgress } from "./combatUi";
+import { formatPercent } from "./combatUi";
 import { EffectChips } from "./EffectChips";
 import { buildStatTooltip } from "../../../../game/presentation/tooltipBuilders";
 import {
@@ -14,38 +13,24 @@ import {
   formatDamageRange,
   labelForStatKey,
 } from "../../../../game/presentation/statFormatting";
-import { calculateHunterCombatStats } from "../../../../game/equipment/derivedStats";
-import {
-  getEnemyEffectiveCombatStats,
-  getSelectedTargetMatchup,
-} from "../../../../game/combat/combatSelectors";
+import type { HunterCombatStats } from "../../../../game/equipment/derivedStats";
+import { getEnemyEffectiveCombatStats } from "../../../../game/combat/combatSelectors";
 import { GameTooltip } from "../../../components/tooltip/GameTooltip";
-import { MatchupSummary } from "./CombatMatchupReadout";
 
 export function SelectedEnemyPanel({
   game,
+  stats,
   selectedEnemy,
 }: {
   game: GameState;
+  stats: HunterCombatStats;
   selectedEnemy?: EnemyCombatInstance;
 }) {
+  void stats;
   const combat = game.combat;
   const definition = selectedEnemy
     ? enemyById[selectedEnemy.enemyId]
     : undefined;
-  const hunterStats = calculateHunterCombatStats(
-    game.equipment,
-    game.inventory,
-    game.progression,
-    combat.stance,
-    combat.techniques,
-  );
-  const matchup = getSelectedTargetMatchup(
-    combat,
-    hunterStats,
-    game.progression,
-    selectedEnemy,
-  );
   const enemyStats = selectedEnemy
     ? getEnemyEffectiveCombatStats(selectedEnemy)
     : undefined;
@@ -75,46 +60,15 @@ export function SelectedEnemyPanel({
             <div>
               <h3>{selectedEnemy.displayName}</h3>
               <p>
-                {definition.family} · Group {combat.groupNumber}
+                {definition.family} Â· Group {combat.groupNumber}
               </p>
               <span className="level-badge">
                 {selectedEnemy.defeated
                   ? "DEFEATED"
-                  : `INSTANCE ${selectedEnemy.instanceId.split("#")[1]}`}
+                  : "TARGETED"}
               </span>
             </div>
           </div>
-          <GameTooltip
-            content={{
-              ...buildStatTooltip("currentHealth", selectedEnemy.currentHealth),
-              rows: [
-                {
-                  label: "Current",
-                  value: `${Math.floor(selectedEnemy.currentHealth)} / ${selectedEnemy.maxHealth}`,
-                  tone: "red",
-                },
-              ],
-            }}
-          >
-            <div className="target-health" data-debug-stat-key="currentHealth">
-              <div className="target-health-heading">
-                <span>HEALTH</span>
-                <strong>
-                  {Math.floor(selectedEnemy.currentHealth)} /{" "}
-                  {selectedEnemy.maxHealth}
-                </strong>
-              </div>
-              <ProgressBar
-                value={
-                  (selectedEnemy.currentHealth / selectedEnemy.maxHealth) * 100
-                }
-                variant="health"
-                className="target-health-bar"
-                ariaLabel={`Selected target ${selectedEnemy.displayName} health`}
-              />
-            </div>
-          </GameTooltip>
-          {matchup && <MatchupSummary matchup={matchup} />}
           <div className="target-stat-grid">
             <TargetStat
               label="Attack Damage"
@@ -190,25 +144,16 @@ export function SelectedEnemyPanel({
                     key={action.id}
                   >
                     <strong>
-                      {current ? "CASTING · " : ""}
+                      {current ? "CASTING Â· " : ""}
                       {action.name}
                     </strong>
                     <small>
-                      {action.danger.toUpperCase()} DANGER ·{" "}
+                      {action.danger.toUpperCase()} DANGER Â·{" "}
                       {action.interruptible
                         ? "INTERRUPTIBLE"
                         : "UNINTERRUPTIBLE"}
                     </small>
-                    {current && (
-                      <ProgressBar
-                        value={combatProgress(
-                          selectedEnemy.currentAction!.remainingSeconds,
-                          selectedEnemy.currentAction!.totalSeconds,
-                        )}
-                        variant="attack"
-                        ariaLabel={`${action.name} progress`}
-                      />
-                    )}
+                    {current && <small className="casting-now-label">CASTING NOW Â· INTERRUPT IN LIVE HUNT</small>}
                   </div>
                 );
               })}
@@ -227,18 +172,7 @@ export function SelectedEnemyPanel({
           <div className="reward-preview">
             <span className="tiny-label">KNOWN DROPS</span>
             <div className="drop-list">
-              {definition.loot.map((drop) => (
-                <span key={drop.itemId}>
-                  <Sparkles size={11} />{" "}
-                  <strong>{itemById[drop.itemId]?.name ?? drop.itemId}</strong>
-                  <small>
-                    {Math.round(drop.chance * 100)}%
-                    {drop.maxQuantity > 1
-                      ? ` · ×${drop.minQuantity}-${drop.maxQuantity}`
-                      : ""}
-                  </small>
-                </span>
-              ))}
+              {definition.loot.map((drop) => { const item = itemById[drop.itemId]; if (!item) return null; return <GameTooltip key={drop.itemId} content={{ id: item.id, icon: item.icon, title: item.name, subtitle: item.category, description: item.description, rows: [{ label: "Drop chance", value: `${Math.round(drop.chance * 100)}%`, tone: "gold" }] }}><span><PlaceholderArt icon={item.icon} size="small" variant="gold" /><strong>{item.name}</strong><small>{Math.round(drop.chance * 100)}%{drop.maxQuantity > 1 ? ` · x${drop.minQuantity}-${drop.maxQuantity}` : ""}</small></span></GameTooltip>; })}
             </div>
           </div>
         </>

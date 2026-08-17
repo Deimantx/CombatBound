@@ -7,6 +7,11 @@
 .debug-tools-error-dock { bottom: 18px; right: 18px; }
 .debug-tools-error-console { left: 50%; top: 50%; transform: translate(-50%, -50%); }
 .debug-admin-panel { background: #12181b; border: 1px solid rgba(213,170,98,.35); border-radius: 12px; box-shadow: 0 24px 80px rgba(0,0,0,.55); display: flex; flex-direction: column; height: min(90vh, 980px); max-width: 1500px; overflow: hidden; width: 94vw; }
+.debug-admin-panel, .debug-admin-panel * { scrollbar-color: var(--line) #101517; scrollbar-width: thin; }
+.debug-admin-panel *::-webkit-scrollbar { height: 8px; width: 8px; }
+.debug-admin-panel *::-webkit-scrollbar-track { background: #101517; }
+.debug-admin-panel *::-webkit-scrollbar-thumb { background: var(--line); border: 2px solid #101517; border-radius: 999px; }
+.debug-admin-panel *::-webkit-scrollbar-thumb:hover { background: var(--bronze); }
 .debug-admin-header { align-items: center; background: #171e21; border-bottom: 1px solid var(--line-soft); display: flex; justify-content: space-between; padding: 18px 22px; }
 .debug-admin-title { align-items: center; display: flex; gap: 12px; }
 .debug-admin-title h2 { font-size: 18px; letter-spacing: -.02em; margin-top: 2px; }

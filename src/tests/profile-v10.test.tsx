@@ -4,7 +4,7 @@ import App from "../../App";
 import { createAndEnterProfile, loadAndEnterProfile, returnToProfileSelect } from "../app/profile/profileSessionController";
 import { GAME_SAVE_KEY } from "../game/persistence/saveGame";
 import { PROFILE_INDEX_KEY, PROFILE_MIGRATION_KEY, loadProfileGameSave, migrateLegacySingleSaveIfNeeded, writeProfileIndex } from "../game/profiles/profileStorage";
-import { profileSessionLeaseKey } from "../game/profiles/profileSessionLease";
+import { clearProfileSessionLease, profileSessionLeaseKey } from "../game/profiles/profileSessionLease";
 import { useProfileStore } from "../state/profileStore";
 import { useGameStore } from "../state/gameStore";
 
@@ -68,6 +68,17 @@ describe("profile gate and offline foundation", () => {
     useGameStore.getState().saveActiveProfileNow();
     expect(loadProfileGameSave("profile-1")?.gold).toBe(321);
     expect(loadProfileGameSave("profile-2")?.gold).toBe(0);
+  });
+
+  it("does not auto-acquire a missing lease when saving", () => {
+    expect(createAndEnterProfile(1, "regular", "normal")).toBe(true);
+    useGameStore.getState().debug.setGold(321);
+    expect(loadProfileGameSave("profile-1")?.gold).toBe(321);
+    clearProfileSessionLease("profile-1");
+    useGameStore.getState().debug.setGold(999);
+    expect(useGameStore.getState().saveActiveProfileNow()).toBe(false);
+    expect(loadProfileGameSave("profile-1")?.gold).toBe(321);
+    expect(localStorage.getItem(profileSessionLeaseKey("profile-1"))).toBeNull();
   });
 
   it("banks elapsed offline time once and reports it on load", () => {
