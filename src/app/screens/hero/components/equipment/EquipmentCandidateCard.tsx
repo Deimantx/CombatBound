@@ -1,14 +1,17 @@
+import { Check, LockKeyhole } from "lucide-react";
 import { PlaceholderArt } from "../../../../components/PlaceholderArt";
 import { GameTooltip } from "../../../../components/tooltip/GameTooltip";
 import { buildPlayerItemInstanceTooltip } from "../../../../../game/presentation/tooltipBuilders";
-import type { EquipmentSlotId } from "../../../../../game/equipment/equipmentTypes";
+import { getEquipmentSlotDefinition, type EquipmentSlotId } from "../../../../../game/equipment/equipmentTypes";
 import type { EquipmentChangeValidation } from "../../../../../game/equipment/equipmentRules";
 import type { ResolvedItemInstance } from "../../../../../game/items/itemTypes";
+import { itemRarityArtVariant, itemRarityClass } from "../../../../../game/presentation/itemRarity";
 
 export interface EquipmentCandidateModel {
   entry: ResolvedItemInstance;
   validation: EquipmentChangeValidation;
   equipped: boolean;
+  equippedSlot?: EquipmentSlotId;
   masteryLocked: boolean;
   canEquip: boolean;
   combatLocked: boolean;
@@ -24,25 +27,19 @@ export function EquipmentCandidateCard({ model, slotId, selected, hovered, maste
   onHover: () => void;
   onLeave: () => void;
 }) {
-  const { entry, validation, equipped, masteryLocked, combatLocked } = model;
-  const status = equipped
-    ? "CURRENT"
-    : masteryLocked
-      ? `MASTERY ${entry.definition.requiredMasteryLevel} REQUIRED`
-      : combatLocked
-        ? "LOCKED DURING COMBAT"
-        : "PREVIEW";
+  const { entry, validation, equipped, equippedSlot, masteryLocked, combatLocked } = model;
+  const equippedSlotLabel = equippedSlot ? getEquipmentSlotDefinition(equippedSlot).label : undefined;
   const tooltip = buildPlayerItemInstanceTooltip(entry, { equipped, masteryLevel });
   const canEquip = validation.valid && !combatLocked && !equipped;
   return (
     <GameTooltip content={tooltip}>
       <button
         type="button"
-        className={`hero-equipment-candidate ${selected ? "is-selected" : ""} ${hovered ? "is-hovered" : ""} ${masteryLocked ? "is-mastery-locked" : ""}`}
+        className={`hero-equipment-candidate ${itemRarityClass(entry.definition.rarity)} ${selected ? "is-selected" : ""} ${hovered ? "is-hovered" : ""} ${masteryLocked ? "is-mastery-locked" : ""}`}
         onClick={onSelect}
         onMouseEnter={onHover}
         onMouseLeave={onLeave}
-        title={masteryLocked ? `Requires Mastery ${entry.definition.requiredMasteryLevel}` : combatLocked ? "Equipment changes are locked during combat. Preview remains available." : undefined}
+        title={masteryLocked ? `Requires Mastery ${entry.definition.requiredMasteryLevel}` : equippedSlotLabel && !equipped ? `Equipped · ${equippedSlotLabel}` : combatLocked ? "Equipment changes are locked during combat. Preview remains available." : undefined}
         data-debug-kind="equipment-candidate"
         data-debug-target-id={entry.instance.id}
         data-debug-item-id={entry.definition.id}
@@ -53,13 +50,13 @@ export function EquipmentCandidateCard({ model, slotId, selected, hovered, maste
         data-debug-can-equip={canEquip ? "true" : "false"}
         data-debug-label={entry.definition.name}
       >
-        <PlaceholderArt icon={entry.definition.icon} size="small" variant={entry.definition.rarity === "rare" ? "gold" : entry.definition.rarity === "uncommon" ? "blue" : "muted"} />
+        <PlaceholderArt icon={entry.definition.icon} size="small" variant={itemRarityArtVariant(entry.definition.rarity)} />
         <span>
           <strong>{entry.definition.name}</strong>
-          <small>{entry.definition.rarity.toUpperCase()} · {entry.definition.category.toUpperCase()}</small>
-          <small>MASTERY {entry.definition.requiredMasteryLevel ?? 1}</small>
+          {entry.definition.requiredMasteryLevel !== undefined && <small>Mastery {entry.definition.requiredMasteryLevel}</small>}
         </span>
-        <em>{status}</em>
+        {masteryLocked && <span className="equipment-candidate-state is-locked"><LockKeyhole size={13} aria-hidden="true" /><span className="sr-only">MASTERY {entry.definition.requiredMasteryLevel} REQUIRED</span></span>}
+        {equippedSlotLabel && !equipped && <span className="equipment-candidate-state is-equipped" title={`Equipped · ${equippedSlotLabel}`} aria-label={`Equipped · ${equippedSlotLabel}`}><Check size={13} aria-hidden="true" /></span>}
       </button>
     </GameTooltip>
   );

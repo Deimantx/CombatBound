@@ -65,7 +65,7 @@ describe("Equipment 2.0 Hero workspace", () => {
     expect(document.querySelectorAll('[data-debug-kind="equipment-candidate"]')).toHaveLength(2);
     fireEvent.click(document.querySelector('[data-debug-kind="equipment-candidate"][data-debug-item-id="item.hunter-sword"]') as HTMLElement);
     expect(useGameStore.getState().game.equipment.slots.weapon).toBe(before);
-    expect(document.querySelector('[data-debug-kind="hero-equipment-replacement-context"]')).toBeInTheDocument();
+    expect(document.querySelector('[data-debug-kind="equipment-item-comparison"]')).toHaveTextContent("ITEM DIFFERENCES");
   });
 
   it("preserves a hovered preview after hover leaves when the candidate is pinned", () => {

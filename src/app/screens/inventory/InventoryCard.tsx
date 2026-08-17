@@ -1,6 +1,7 @@
-import { GripVertical, Lock, Sparkles } from "lucide-react";
+import { Lock, Sparkles } from "lucide-react";
 import type { DragEvent } from "react";
 import { getEquipmentSlotDefinition } from "../../../game/equipment/equipmentTypes";
+import { itemRarityArtVariant, itemRarityClass } from "../../../game/presentation/itemRarity";
 import { buildItemPresentation, buildStackableItemPresentation } from "../../../game/presentation/itemPresentation";
 import { buildItemTooltip, buildPlayerItemInstanceTooltip } from "../../../game/presentation/tooltipBuilders";
 import type { InventoryViewEntry } from "../../../game/inventory/inventorySelectors";
@@ -41,10 +42,9 @@ export function InventoryCard({ entry, masteryLevel, selected, onSelect, manualM
   const masteryLocked = Boolean(entry.definition.equipmentSlotKind && (entry.definition.requiredMasteryLevel ?? 0) > masteryLevel && !entry.equipped);
   const lockLabel = masteryLocked ? `Requires Mastery ${entry.definition.requiredMasteryLevel}; Current Mastery ${masteryLevel}` : undefined;
   const affixLabel = instance && instance.affixes.length > 0 ? presentation.modifiers.filter((modifier) => modifier.source === "affix").map((modifier) => `${modifier.label} ${modifier.value}`).join("; ") : undefined;
-  return <GameTooltip content={tooltip}><button type="button" className={`inventory-card rarity-${entry.definition.rarity} ${selected ? "is-selected" : ""} ${manualMode ? "is-manual" : ""} ${dragging ? "is-dragging" : ""} ${dragTarget ? `drag-target-${dragTarget}` : ""}`} draggable={manualMode} onClick={onSelect} onDragStart={(event) => onDragStart?.(event)} onDragOver={onDragOver} onDrop={onDrop} onDragEnd={onDragEnd} data-debug-kind="inventory-item" data-debug-target-id={entry.instanceId ?? entry.definition.id} data-debug-item-id={entry.definition.id} data-debug-instance-id={entry.instanceId} data-debug-label={entry.definition.name} aria-label={`Select ${entry.definition.name}${entry.equipped ? ", equipped" : ""}`}>
+  return <GameTooltip content={tooltip}><button type="button" className={`inventory-card ${itemRarityClass(entry.definition.rarity)} ${selected ? "is-selected" : ""} ${manualMode ? "is-manual" : ""} ${dragging ? "is-dragging" : ""} ${dragTarget ? `drag-target-${dragTarget}` : ""}`} draggable={manualMode} onClick={onSelect} onDragStart={(event) => onDragStart?.(event)} onDragOver={onDragOver} onDrop={onDrop} onDragEnd={onDragEnd} data-debug-kind="inventory-item" data-debug-target-id={entry.instanceId ?? entry.definition.id} data-debug-item-id={entry.definition.id} data-debug-instance-id={entry.instanceId} data-debug-label={entry.definition.name} aria-label={`Select ${entry.definition.name}${entry.equipped ? ", equipped" : ""}`}>
     <div className="inventory-card-art">
-      <PlaceholderArt icon={entry.definition.icon} size="medium" variant={entry.definition.rarity === "rare" ? "gold" : entry.definition.rarity === "uncommon" ? "blue" : "muted"} />
-      {manualMode && <span className="item-drag-grip" aria-hidden="true"><GripVertical size={12} /></span>}
+      <PlaceholderArt icon={entry.definition.icon} size="medium" variant={itemRarityArtVariant(entry.definition.rarity)} />
       {!entry.instanceId && <span className="item-quantity">×{formatCompactQuantity(entry.quantity)}</span>}
       {entry.equipped && <span className="item-equipped-marker" title={`Equipped${equippedSlot ? ` · ${getEquipmentSlotDefinition(equippedSlot).label}` : ""}`} aria-label={`Equipped${equippedSlot ? ` · ${getEquipmentSlotDefinition(equippedSlot).label}` : ""}`}>✓</span>}
       {masteryLocked && <span className="item-mastery-lock" title={lockLabel} aria-label={lockLabel}><Lock size={11} aria-hidden="true" /></span>}

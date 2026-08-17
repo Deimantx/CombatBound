@@ -54,7 +54,6 @@
 .inventory-empty-state strong { color: var(--text); display: block; margin-bottom: 5px; }
 .inventory-list-footer { align-items: center; border-top: 1px solid var(--line-soft); color: var(--muted); display: flex; font-size: 9px; justify-content: space-between; margin-top: 10px; padding-top: 10px; }
 .inventory-details-pane { align-self: start; border-left: 1px solid var(--line); min-height: 430px; min-width: 0; padding: 14px; position: sticky; top: 16px; }
-.inventory-manual-drag-hint { color: var(--muted); display: block; font-size: 9px; min-height: 13px; padding-top: 9px; }
 .detail-item-head { align-items: center; border-bottom: 1px solid var(--line-soft); display: flex; gap: 13px; padding-bottom: 14px; }
 .detail-item-head h3 { margin: 3px 0; }
 .detail-item-head p { color: var(--muted); font-size: 10px; margin: 0; }

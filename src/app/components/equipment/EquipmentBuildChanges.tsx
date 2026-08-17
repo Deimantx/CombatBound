@@ -10,16 +10,17 @@ export interface EquipmentBuildChangesProps {
   slotLabel?: string;
   debugKind?: string;
   showSummary?: boolean;
+  title?: string;
 }
 
-export function EquipmentBuildChanges({ rows, replacementName, slotLabel, debugKind = "equipment-build-changes", showSummary = true }: EquipmentBuildChangesProps) {
+export function EquipmentBuildChanges({ rows, replacementName, slotLabel, debugKind = "equipment-build-changes", showSummary = true, title = "BUILD CHANGES" }: EquipmentBuildChangesProps) {
   const [showAll, setShowAll] = useState(false);
   if (!rows.length) return null;
   const visibleRows = showAll ? rows : rows.slice(0, 8);
   const gains = rows.filter((row) => row.tone === "is-positive").length;
   const losses = rows.filter((row) => row.tone === "is-negative").length;
   return <div className="inventory-comparison equipment-build-changes" data-debug-kind={debugKind}>
-    <header>BUILD CHANGES{slotLabel ? ` · ${slotLabel}` : ""}</header>
+    <header>{title}{slotLabel ? ` · ${slotLabel}` : ""}</header>
     {replacementName && <p className="inventory-comparison-context">Replacing {replacementName}</p>}
     {showSummary && (gains > 0 || losses > 0) && <p className="equipment-build-changes-summary">{gains ? `${gains} gain${gains === 1 ? "" : "s"}` : ""}{gains && losses ? " · " : ""}{losses ? `${losses} loss${losses === 1 ? "" : "es"}` : ""}</p>}
     <div className="inventory-comparison-list">{visibleRows.map((row) => <div key={row.key} className={`inventory-comparison-row ${row.tone}`}>

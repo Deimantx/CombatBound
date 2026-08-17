@@ -22,7 +22,6 @@ interface InventoryGridProps {
 export function InventoryGrid({ entries, visibleEntries, visibleLimit, query, activeFilterCount, showSummary, masteryLevel, manualMode, selectedRef, onSelect, onReorder, onShowMore, onClearFilters }: InventoryGridProps) {
   const [draggedKey, setDraggedKey] = useState<string | null>(null);
   const [target, setTarget] = useState<{ key: string; placement: ManualOrderPlacement } | null>(null);
-  const visibleKeys = visibleEntries.map((entry) => serializeInventoryEntryRef(entry.ref));
   const clearDrag = () => { setDraggedKey(null); setTarget(null); };
   const empty = entries.length === 0;
   return <div className="inventory-grid-pane" data-debug-kind="inventory-grid-pane">
@@ -30,10 +29,10 @@ export function InventoryGrid({ entries, visibleEntries, visibleLimit, query, ac
     {empty ? <InventoryEmptyState query={query} activeFilterCount={activeFilterCount} onClear={onClearFilters} /> : <>
       <div className={`inventory-grid ${manualMode ? "is-manual" : ""}`} data-debug-kind="inventory-grid">{visibleEntries.map((entry) => {
         const key = serializeInventoryEntryRef(entry.ref);
-        return <InventoryCard key={key} entry={entry} masteryLevel={masteryLevel} selected={Boolean(selectedRef && inventoryRefsEqual(selectedRef, entry.ref))} manualMode={manualMode} dragging={draggedKey === key} dragTarget={target?.key === key ? target.placement : undefined} onSelect={() => onSelect(entry)} onDragStart={(event) => { event.dataTransfer.effectAllowed = "move"; event.dataTransfer.setData("text/plain", key); setDraggedKey(key); setTarget(null); }} onDragOver={(event) => { event.preventDefault(); event.dataTransfer.dropEffect = "move"; if (!draggedKey || draggedKey === key) return; const rect = event.currentTarget.getBoundingClientRect(); setTarget({ key, placement: event.clientX < rect.left + rect.width / 2 ? "before" : "after" }); }} onDrop={(event) => { event.preventDefault(); if (draggedKey && target && target.key === key) onReorder(draggedKey, key, target.placement); clearDrag(); }} onDragEnd={clearDrag} />;
+        const targetPlacement = target?.key === key ? target.placement : undefined;
+        return <InventoryCard key={key} entry={entry} masteryLevel={masteryLevel} selected={Boolean(selectedRef && inventoryRefsEqual(selectedRef, entry.ref))} manualMode={manualMode} dragging={draggedKey === key} dragTarget={targetPlacement} onSelect={() => onSelect(entry)} onDragStart={(event) => { event.dataTransfer.effectAllowed = "move"; event.dataTransfer.setData("text/plain", key); setDraggedKey(key); setTarget(null); }} onDragOver={(event) => { event.preventDefault(); event.dataTransfer.dropEffect = "move"; if (!draggedKey || draggedKey === key) return; const rect = event.currentTarget.getBoundingClientRect(); setTarget({ key, placement: event.clientX < rect.left + rect.width / 2 ? "before" : "after" }); }} onDrop={(event) => { event.preventDefault(); if (draggedKey && target && target.key === key) onReorder(draggedKey, key, target.placement); clearDrag(); }} onDragEnd={clearDrag} />;
       })}</div>
       {visibleLimit < entries.length && <div className="inventory-list-footer"><span>Showing {visibleEntries.length} of {entries.length}</span><button type="button" className="button button-ghost button-small" onClick={onShowMore}>Show More</button></div>}
-      <span className="inventory-manual-drag-hint" aria-live="polite">{manualMode ? `${visibleKeys.length} visible items can be dragged into a custom order.` : ""}</span>
     </>}
   </div>;
 }

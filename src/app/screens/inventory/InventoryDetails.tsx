@@ -5,6 +5,7 @@ import { getEquipmentSlotDefinition, type EquipmentSlotId } from "../../../game/
 import { masteryLevelForXp } from "../../../game/progression/masteryProgression";
 import { buildItemPresentation, buildStackableItemPresentation } from "../../../game/presentation/itemPresentation";
 import { formatItemStatsWithKeys } from "../../../game/presentation/statFormatting";
+import { itemRarityArtVariant } from "../../../game/presentation/itemRarity";
 import { buildItemTooltip, buildPlayerItemInstanceTooltip, buildStatTooltip } from "../../../game/presentation/tooltipBuilders";
 import { chooseEquipmentTargetSlot, type InventoryViewEntry } from "../../../game/inventory/inventorySelectors";
 import { useGameStore } from "../../../state/gameStore";
@@ -41,7 +42,7 @@ export function InventoryDetails({ entry, game }: { entry?: InventoryViewEntry; 
   const baseStatRows = resolved ? formatItemStatsWithKeys(resolved.baseStats) : [];
 
   return <aside className="inventory-details-pane" data-ui-panel="inventoryDetails" data-debug-kind="inventory-details-pane">
-    <GameTooltip content={tooltip}><div className="detail-item-head" data-debug-kind="tooltip-trigger" data-debug-item-id={entry.definition.id} data-debug-instance-id={entry.instanceId}><PlaceholderArt icon={entry.definition.icon} label={entry.definition.name} size="large" variant={entry.definition.rarity === "rare" ? "gold" : entry.definition.rarity === "uncommon" ? "blue" : "muted"} /><div><span className="tiny-label">{(presentation.slotLabel ?? presentation.typeLabel).toUpperCase()}</span><h2>{presentation.name}</h2><p>{presentation.rarity}</p></div></div></GameTooltip>
+    <GameTooltip content={tooltip}><div className="detail-item-head" data-debug-kind="tooltip-trigger" data-debug-item-id={entry.definition.id} data-debug-instance-id={entry.instanceId}><PlaceholderArt icon={entry.definition.icon} label={entry.definition.name} size="large" variant={itemRarityArtVariant(entry.definition.rarity)} /><div><span className="tiny-label">{(presentation.slotLabel ?? presentation.typeLabel).toUpperCase()}</span><h2>{presentation.name}</h2><p>{presentation.rarity}</p></div></div></GameTooltip>
     <div className="detail-badge-row">{entry.equipped && <span className="detail-badge is-equipped">Equipped · {currentSlot ? getEquipmentSlotDefinition(currentSlot).label : ""}</span>}{presentation.masteryRequirement !== undefined && <span className={`detail-badge ${masteryLevel >= presentation.masteryRequirement ? "is-equipped" : ""}`}>Mastery {presentation.masteryRequirement}</span>}</div>
     <p className="detail-description">{entry.definition.description}</p>
     {resolved ? <>

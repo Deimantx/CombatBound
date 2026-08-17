@@ -7,6 +7,7 @@ import { PlaceholderArt } from "../../../../components/PlaceholderArt";
 import type { DefensiveEquipmentContext } from "../../../../../game/equipment/defensiveEquipment";
 import type { EquipmentState } from "../../../../../game/equipment/equipmentTypes";
 import type { InventoryState } from "../../../../../game/inventory/inventoryTypes";
+import { itemRarityArtVariant, itemRarityClass } from "../../../../../game/presentation/itemRarity";
 
 export function EquipmentSlotCard({ slotId, equipment, inventory, defensiveContext, selected, onSelect }: {
   slotId: EquipmentSlotId;
@@ -26,7 +27,7 @@ export function EquipmentSlotCard({ slotId, equipment, inventory, defensiveConte
     <GameTooltip content={tooltip}>
       <button
         type="button"
-        className={`hero-equipment-slot ${selected ? "is-selected" : ""} ${item ? "has-item" : "is-empty"}`}
+        className={`hero-equipment-slot ${item ? itemRarityClass(item.definition.rarity) : ""} ${selected ? "is-selected" : ""} ${item ? "has-item" : "is-empty"}`}
         onClick={onSelect}
         data-debug-kind="equipment-slot"
         data-debug-slot-id={slotId}
@@ -37,9 +38,9 @@ export function EquipmentSlotCard({ slotId, equipment, inventory, defensiveConte
         data-debug-label={definition.label}
       >
         <span className="slot-label">{"shortLabel" in definition ? definition.shortLabel : definition.label}</span>
-        <PlaceholderArt icon={item?.definition.icon ?? definition.icon} size="medium" variant={selected ? "gold" : item ? "blue" : "muted"} />
+        <PlaceholderArt icon={item?.definition.icon ?? definition.icon} size="medium" variant={item ? itemRarityArtVariant(item.definition.rarity) : "muted"} />
         <strong>{item?.definition.name ?? "Empty"}</strong>
-        <small>{marker ?? (item ? item.definition.rarity.toUpperCase() : "EMPTY SLOT")}</small>
+        <small>{marker ?? (item ? "EQUIPPED" : "EMPTY SLOT")}</small>
         {item && item.instance.affixes.length > 0 && <span className="equipment-slot-sparkle" aria-label="Modified item">✦</span>}
         {selected && <span className="selected-check"><Check size={12} /></span>}
       </button>

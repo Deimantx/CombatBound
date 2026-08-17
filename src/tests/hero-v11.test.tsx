@@ -52,10 +52,8 @@ describe("Hero Build Workspace V11", () => {
     fireEvent.click(screen.getByRole("button", { name: "Hero" }));
 
     const candidateButtons = Array.from(document.querySelectorAll('[data-debug-kind="equipment-candidate"]')) as HTMLButtonElement[];
-    expect(candidateButtons.length).toBeGreaterThan(0);
-    expect(candidateButtons.every((button) => !button.disabled)).toBe(true);
-    fireEvent.click(candidateButtons[0]);
-    expect(screen.getByRole("button", { name: "EQUIP" })).toBeDisabled();
+    expect(candidateButtons).toHaveLength(0);
+    expect(screen.getByRole("button", { name: "UNEQUIP" })).toBeDisabled();
     expect(screen.getByText("LOCKED DURING COMBAT")).toBeInTheDocument();
   });
 

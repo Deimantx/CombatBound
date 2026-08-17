@@ -20,7 +20,7 @@ export function EquipmentBuildSnapshot({ current, preview }: { current: Snapshot
   ];
   return (
     <section className="hero-build-snapshot" data-debug-kind="hero-build-snapshot" data-debug-preview-active={preview ? "true" : "false"}>
-      <header className="hero-build-snapshot-heading"><div><span className="tiny-label">BUILD SNAPSHOT</span><strong>Effective values used by Combat</strong></div>{preview && <span className="hero-build-snapshot-preview">PREVIEW ACTIVE</span>}</header>
+      <header className="hero-build-snapshot-heading"><div><span className="tiny-label">BUILD SNAPSHOT</span><strong>Effective values used by Combat</strong></div>{preview && <span className="hero-build-snapshot-preview">COMPARING</span>}</header>
       <div className="hero-build-snapshot-grid">{rows.map((row) => <SnapshotRowView key={row.key} row={row} />)}</div>
     </section>
   );

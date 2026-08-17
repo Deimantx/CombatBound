@@ -2,7 +2,7 @@ import { useMemo } from "react";
 import { masteryLevelForXp } from "../../../../game/progression/masteryProgression";
 import { getDefensiveEquipmentContext } from "../../../../game/equipment/defensiveEquipment";
 import type { EquipmentPreviewState } from "../../../../game/equipment/equipmentPreview";
-import { getCompatibleItemInstances, validateEquipmentChange } from "../../../../game/equipment/equipmentRules";
+import { equippedSlotForInstance, getCompatibleItemInstances, validateEquipmentChange } from "../../../../game/equipment/equipmentRules";
 import { EQUIPMENT_SLOT_DEFINITIONS, type EquipmentSlotId } from "../../../../game/equipment/equipmentTypes";
 import { useGameStore } from "../../../../state/gameStore";
 import { EquipmentSlotInspector } from "./equipment/EquipmentSlotInspector";
@@ -35,7 +35,6 @@ export function HeroEquipmentWorkspace({ preview, hoveredPreview, previewState, 
   const inventory = game.inventory;
   const progression = game.progression;
   const combatPhase = game.combat.phase;
-  const activeProfileId = useGameStore((state) => state.activeProfileId);
   const equipItemInstanceAction = useGameStore((state) => state.equipItemInstance);
   const unequipEquipmentSlotAction = useGameStore((state) => state.unequipEquipmentSlot);
   const selected = (EQUIPMENT_SLOT_DEFINITIONS.some((slot) => slot.id === selectedEquipmentSlot) ? selectedEquipmentSlot : "weapon") as EquipmentSlotId;
@@ -48,7 +47,7 @@ export function HeroEquipmentWorkspace({ preview, hoveredPreview, previewState, 
   const candidateModels = useMemo<EquipmentCandidateModel[]>(() => candidates.map((entry) => {
     const validation = validateEquipmentChange({ instanceId: entry.instance.id, slotId: selected, inventory, equipment, masteryLevel });
     const equipped = entry.instance.id === equipment.slots[selected];
-    return { entry, validation, equipped, masteryLocked: validation.reason === "mastery-level", canEquip: validation.valid && !combatLocked && !equipped, combatLocked };
+    return { entry, validation, equipped, equippedSlot: equippedSlotForInstance(equipment, entry.instance.id), masteryLocked: validation.reason === "mastery-level", canEquip: validation.valid && !combatLocked && !equipped, combatLocked };
   }), [candidates, combatLocked, equipment, inventory, masteryLevel, selected]);
 
   const selectCandidate = (instanceId: string) => onPreviewChange({ slotId: selected, instanceId });
@@ -68,11 +67,11 @@ export function HeroEquipmentWorkspace({ preview, hoveredPreview, previewState, 
   return (
     <section className="hero-equipment-workspace hero-slot-workspace" data-debug-kind="hero-equipment" data-debug-zone="slot-workspace">
       <div className="hero-equipment-heading">
-        <div><span className="tiny-label">SLOT WORKSPACE</span><h2>{selectedDefinition.label.toUpperCase()}</h2><p>{candidates.length} compatible owned item{candidates.length === 1 ? "" : "s"}</p></div>
+        <div><span className="tiny-label">COMPATIBLE ITEMS</span><h2>{selectedDefinition.label.toUpperCase()}</h2><p>{candidates.length} item{candidates.length === 1 ? "" : "s"}</p></div>
         <div className={`hero-equipment-meta ${combatLocked ? "is-locked" : ""}`}>{combatLocked ? "LOCKED DURING COMBAT" : "READY TO EQUIP"}</div>
       </div>
       <div className="hero-equipment-workspace-body" data-debug-kind="hero-equipment-two-pane">
-        <EquipmentSlotInspector slotId={selected} equipment={equipment} inventory={inventory} progression={progression} defensiveContext={defensiveContext} combatLocked={combatLocked} activeProfileId={activeProfileId} models={candidateModels} previewState={effectivePreviewState} pinned={preview} hovered={hoveredPreview} onSelectCandidate={selectCandidate} onHoverCandidate={hoverCandidate} onLeaveCandidate={() => onHoverPreview(null)} onEquip={equipCandidate} onUnequip={unequip} />
+        <EquipmentSlotInspector slotId={selected} equipment={equipment} inventory={inventory} progression={progression} defensiveContext={defensiveContext} combatLocked={combatLocked} models={candidateModels} previewState={effectivePreviewState} pinned={preview} hovered={hoveredPreview} onSelectCandidate={selectCandidate} onHoverCandidate={hoverCandidate} onLeaveCandidate={() => onHoverPreview(null)} onClearPreview={() => onPreviewChange(null)} onEquip={equipCandidate} onUnequip={unequip} />
       </div>
     </section>
   );
