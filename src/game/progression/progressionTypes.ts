@@ -18,12 +18,11 @@ export type MagicProficiencyId = 'fire-magic' | 'water-magic' | 'air-magic' | 'e
 export type DefensiveProficiencyId = 'light-armor' | 'medium-armor' | 'heavy-armor' | 'shield'
 export type CombatProficiencyId = WeaponProficiencyId | MagicProficiencyId | DefensiveProficiencyId
 export type ProficiencyCategory = 'melee' | 'ranged' | 'magic' | 'defense'
-export type ProgressionCreditMode = 'hp-damage' | 'barrier-absorb' | 'successful-interrupt' | 'effective-healing' | 'successful-cleanse'
+export type ProgressionCreditMode = 'hp-damage' | 'barrier-absorb' | 'effective-healing' | 'successful-cleanse'
 
 export type ProficiencyXpReason =
   | { type: 'effective-hp-damage'; amount: number }
   | { type: 'barrier-absorption'; amount: number }
-  | { type: 'successful-interrupt'; danger: 'low' | 'medium' | 'high' | 'critical' }
   | { type: 'effective-healing'; amount: number }
   | { type: 'successful-cleanse'; weight: number }
 
@@ -138,23 +137,10 @@ export type ProficiencyPerkEffect =
       valuePerRank: number
     }
   | {
-      type: 'onSuccessfulInterruptRestoreMana'
-      amountPerRank: number
-    }
-  | {
       type: 'onBarrierAbsorbRestoreMana'
       amountPerRank: number
     }
-  | {
-      type: 'onSuccessfulInterruptApplyEffect'
-      effectId: string
-      durationMultiplier?: number
-    }
-  | {
-      type: 'interruptCooldownModifier' | 'proficiencyXpModifier'
-      valuePerRank: number
-      reasonType?: 'successful-interrupt'
-    }
+  | { type: 'proficiencyXpModifier'; valuePerRank: number; reasonType?: ProficiencyXpReason['type'] }
   | {
       type: 'spellCanCrit'
     }
@@ -184,14 +170,7 @@ export type ProficiencyPerkEffect =
   | { type: 'appliedEffectPeriodicDamageModifier'; effectId: string; valuePerRank: number }
   | { type: 'appliedEffectMaxStacksModifier'; effectId: string; valuePerRank: number }
   | { type: 'barrierAbsorbResourceRestore'; resource: 'stamina' | 'mana'; amountPerRank: number }
-  | { type: 'onStanceSwitchApplyEffect'; effectId: string; durationSeconds?: number }
-  | { type: 'stanceSpecificStatModifier'; stance: 'high' | 'mid' | 'low'; stat: ModifiableCombatStatKey; operation: StatModifier['operation']; valuePerRank: number }
-  | { type: 'onSuccessfulInterruptRestoreStamina'; amountPerRank: number }
-  | { type: 'interruptedActionCooldownModifier'; valuePerRank: number }
-  | { type: 'interruptedEnemyAttackDelay'; valuePerRank: number }
   | { type: 'techniqueStaminaDrainModifier'; valuePerRank: number }
-  | { type: 'stanceSwitchCooldownModifier'; valuePerRank: number }
-  | { type: 'stanceSpecificDamageModifier'; stance: 'high' | 'mid' | 'low'; valuePerRank: number }
   | { type: 'weaponOnHitAdvanceAttack'; chancePerRank: number; fraction: number }
   | { type: 'activeTechniqueStatModifier'; stat: ModifiableCombatStatKey; operation: StatModifier['operation']; valuePerRank: number }
   | { type: 'appliedEffectRefreshOnMaxStacks'; effectId: string; fraction: number }
@@ -200,11 +179,6 @@ export type ProficiencyPerkEffect =
   | { type: 'onBarrierBreakApplyEffect'; effectId: string; durationSeconds?: number }
   | { type: 'onBarrierExpireRestoreResource'; resource: 'mana' | 'stamina'; fraction: number }
   | { type: 'onBarrierAbsorbApplyEffect'; effectId: string; durationSeconds?: number }
-  | { type: 'onSuccessfulInterruptApplyBarrier'; amountPerRank: number; durationSeconds: number }
-  | { type: 'onSuccessfulInterruptApplyStatEffect'; effectId: string; durationSeconds: number }
-  | { type: 'onSuccessfulInterruptReduceCooldown'; fraction: number }
-  | { type: 'onSuccessfulInterruptReduceCooldownSeconds'; amountSeconds: number }
-  | { type: 'onSuccessfulInterruptRefundManaCost'; fraction: number; minimumDanger?: 'medium' | 'high' | 'critical' }
 
 export interface ProficiencyPerkDefinition {
   id: string

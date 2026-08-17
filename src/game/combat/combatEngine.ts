@@ -3,7 +3,6 @@ import {
   calculateHunterCombatStats,
   type HunterCombatStats,
 } from "../equipment/derivedStats";
-import { stanceDefinitions } from "../data/stances";
 import { techniqueDefinitions } from "../data/techniques";
 import { spellById } from "../data/spells";
 import { weaponSkillById } from "../data/weaponSkills";
@@ -19,9 +18,9 @@ import {
   type DamagePacket,
 } from "./combatDamage";
 import {
-  applyEffectById,
   absorbDamage,
   advanceEffectTimers,
+  calculateIncomingEffectDamageMultiplier,
   calculateOutgoingEffectDamageMultiplier,
   cleanseEffects,
   updateActiveEffects,
@@ -36,7 +35,7 @@ import {
   playerBaseStats,
   recoverOutOfCombatResources,
 } from "./combatRuntime";
-import { interruptAction, selectNextEnemyAction } from "./combatActions";
+import { selectNextEnemyAction } from "./combatActions";
 import { nextCombatRandom } from "./combatRng";
 import { enemyActionTargets } from "./combatEnemyTargets";
 import { applyEnemyHealthDamage, applyPlayerHealthDamage, type EnemyDamageApplication, type PlayerDamageApplication } from "./combatHealth";
@@ -64,14 +63,10 @@ import {
   getEffectiveMagicModifiers,
   getMagicCleanseEffectHooks,
   getMagicCleanseHooks,
-  getProficiencyXpMultiplier,
   getSpellCastEffectHooks,
   getSpellHitEffectHooks,
   getSpellHpDamageResourceHooks,
   getSpellLifeDrainFraction,
-  getStanceSwitchCooldownMultiplier,
-  getStanceSwitchEffectHooks,
-  getSuccessfulInterruptHooks,
   getTechniqueStaminaDrainMultiplier,
   getWeaponAttackModifiers,
   getWeaponDamageMultiplier,
@@ -110,7 +105,6 @@ import type {
   CombatStats,
   CombatantRef,
   EnemyCombatInstance,
-  StanceId,
   TechniqueId,
 } from "./combatTypes";
 import type {
@@ -373,67 +367,6 @@ export function selectEnemy(combat: CombatState, instanceId: string) {
     : combat;
 }
 
-export function setStance(
-  combat: CombatState,
-  stance: StanceId,
-  newStats: HunterCombatStats,
-  progression?: ProgressionState,
-  weaponProficiencyId: WeaponProficiencyId | null = null,
-) {
-  if (
-    combat.stance === stance ||
-    (combat.phase === "active" && combat.stanceCooldownRemaining > 0)
-  )
-    return combat;
-  const progress =
-    combat.playerAttackInterval > 0
-      ? 1 - combat.playerAttackTimer / combat.playerAttackInterval
-      : 0;
-  const active = combat.phase === "active";
-  const canonical = playerBaseStats(newStats);
-  let next = {
-    ...combat,
-    stance,
-    stanceCooldownRemaining: active
-      ? combatBalance.stanceSwitchCooldown *
-        (progression
-          ? getStanceSwitchCooldownMultiplier(
-              progression,
-              weaponProficiencyId,
-              perkById,
-            )
-          : 1)
-      : 0,
-    playerAttackInterval: canonical.attackInterval,
-    playerAttackTimer: active
-      ? Math.max(0, canonical.attackInterval * (1 - progress))
-      : canonical.attackInterval,
-    maxPlayerHp: canonical.maxLife ?? 0,
-    playerHp: Math.min(combat.playerHp, canonical.maxLife ?? 0),
-    maxStamina: canonical.maxStamina,
-    stamina: Math.min(combat.stamina, canonical.maxStamina),
-    maxMana: canonical.maxMana,
-    mana: Math.min(combat.mana, canonical.maxMana),
-  };
-  if (progression && active)
-    for (const hook of getStanceSwitchEffectHooks(
-      progression,
-      weaponProficiencyId,
-      perkById,
-    )) {
-      const result = applyEffectById(
-        next,
-        hook.effectId,
-        effectById,
-        { kind: "player" },
-        { kind: "player" },
-        { targetStats: playerBaseStats(newStats) },
-      );
-      if (result.instance) next = result.combat;
-    }
-  return next;
-}
-
 export function toggleTechnique(game: GameState, technique: TechniqueId) {
   if (!canToggleTechnique(game, technique)) return game;
   return {
@@ -658,17 +591,6 @@ export function castSpell(
   const targetRef: CombatantRef = target
     ? { kind: "enemy", instanceId: target.instanceId }
     : { kind: "player" };
-  const interruptActionDefinition =
-    spell.interruptsAction && target?.currentAction
-      ? context.enemies[target.enemyId]?.actions.find(
-          (candidate) => candidate.id === target.currentAction?.actionId,
-        )
-      : undefined;
-  const interruptResult = spell.interruptsAction
-    ? interruptAction(target?.currentAction ?? null, interruptActionDefinition)
-    : null;
-  if (spell.interruptsAction && !interruptResult?.interrupted) return game;
-
   let next: GameState = {
     ...game,
     combat: {
@@ -714,9 +636,8 @@ export function castSpell(
       sourceActionId: spell.id,
       minDamage: effectiveSpell.baseDamageMin,
       maxDamage: effectiveSpell.baseDamageMax,
-      criticalDamageMultiplier: effectiveSpell.criticalDamageMultiplier,
-      criticalBaseChance: effectiveSpell.criticalBaseChance,
-      criticalChanceBonus: effectiveSpell.criticalChanceBonus,
+      criticalStrikeMultiplier: effectiveSpell.criticalStrikeMultiplier,
+      criticalStrikeChance: effectiveSpell.criticalStrikeChance,
       attackerAccuracy: getPlayerStats(next.combat, stats, context, next.progression).accuracyRating,
       minMultiplier: 1,
       maxMultiplier: 1,
@@ -948,143 +869,6 @@ export function castSpell(
     );
     next = discoverCombatProficiency(next, spell.magicProficiencyId);
   }
-  if (spell.interruptsAction && target) {
-    const action = interruptActionDefinition;
-    const hooks = getSuccessfulInterruptHooks(
-      next.progression,
-      perkById,
-      spell.magicProficiencyId,
-    );
-    const danger = action?.danger ?? "low";
-    const baseXp = calculateProficiencyXpAward({
-      type: "successful-interrupt",
-      danger,
-    });
-    const xp =
-      baseXp *
-      getProficiencyXpMultiplier(
-        next.progression,
-        spell.magicProficiencyId,
-        "successful-interrupt",
-        perkById,
-      );
-    const awarded = awardCombatXp(next, spell.magicProficiencyId, xp);
-    next = awarded.game;
-    next.combat = {
-      ...next.combat,
-      enemies: next.combat.enemies.map((enemy) =>
-        enemy.instanceId === target.instanceId
-          ? {
-              ...enemy,
-              currentAction: null,
-              actionCooldowns: {
-                ...enemy.actionCooldowns,
-                [action?.id ?? ""]:
-                  (interruptResult?.cooldownSeconds ?? 0) *
-                  hooks.cooldownMultiplier,
-              },
-            }
-          : enemy,
-      ),
-    };
-    next.combat = event(next.combat, {
-      text: `${spell.name} interrupts ${target.displayName}'s ${action?.name ?? "action"}.`,
-      type: "player",
-      eventType: "actionInterrupted",
-      source,
-      target: targetRef,
-      data: { proficiencyXp: awarded.result?.proficiencyXpGained ?? 0 },
-    });
-    if (hooks.restoreMana > 0)
-      next.combat = {
-        ...next.combat,
-        mana: Math.min(
-          next.combat.maxMana,
-          next.combat.mana + hooks.restoreMana,
-        ),
-      };
-    if (hooks.restoreStamina > 0)
-      next.combat = {
-        ...next.combat,
-        stamina: Math.min(
-          next.combat.maxStamina,
-          next.combat.stamina + hooks.restoreStamina,
-        ),
-      };
-    if (hooks.refundManaFraction > 0)
-      next.combat = {
-        ...next.combat,
-        mana: Math.min(
-          next.combat.maxMana,
-          next.combat.mana + effectiveSpell.manaCost * hooks.refundManaFraction,
-        ),
-      };
-    if (hooks.barrierAmount > 0)
-      next = applyEffectToGame(
-        next,
-        "effect.disruptive-shield",
-        source,
-        source,
-        getPlayerStats(next.combat, stats, context, next.progression),
-        context,
-        {
-          absorbAmount: hooks.barrierAmount,
-          power: hooks.barrierAmount,
-          sourceProficiencyId: spell.magicProficiencyId,
-          durationBonusSeconds: 0,
-          durationMultiplier: 1,
-        },
-      );
-    for (const hook of hooks.statEffects)
-      next = applyEffectToGame(
-        next,
-        hook.effectId,
-        source,
-        source,
-        getPlayerStats(next.combat, stats, context, next.progression),
-        context,
-        {
-          sourceProficiencyId: spell.magicProficiencyId,
-          durationBonusSeconds: hook.durationSeconds,
-        },
-      );
-    if (
-      hooks.reduceSpellCooldownFraction > 0 ||
-      hooks.reduceSpellCooldownSeconds > 0
-    )
-      next.combat = {
-        ...next.combat,
-        actionCooldowns: {
-          ...next.combat.actionCooldowns,
-          [spellId]: Math.max(
-            0,
-            (next.combat.actionCooldowns[spellId] ?? 0) *
-              (1 - hooks.reduceSpellCooldownFraction) -
-              hooks.reduceSpellCooldownSeconds,
-          ),
-        },
-      };
-    for (const hook of hooks.effects) {
-      const hookTarget =
-        hook.effectId === "effect.disruptive-shield" ? source : targetRef;
-      const hookStats =
-        hookTarget.kind === "player"
-          ? getPlayerStats(next.combat, stats, context, next.progression)
-          : getEnemyStats(next.combat, target, context);
-      next = applyEffectToGame(
-        next,
-        hook.effectId,
-        source,
-        hookTarget,
-        hookStats,
-        context,
-        {
-          sourceProficiencyId: spell.magicProficiencyId,
-          durationMultiplier: hook.durationMultiplier,
-        },
-      );
-    }
-  }
   return next;
 }
 
@@ -1213,7 +997,6 @@ function damageEnemy(
           current.currentHealth / current.maxHealth,
           current.effects.map((effect) => effect.effectId),
           perkById,
-          game.combat.stance,
           equipmentContext,
         )
       : 1;
@@ -1247,6 +1030,11 @@ function damageEnemy(
   const outgoingEffectMultiplier = packet.source.kind === "player"
     ? calculateOutgoingEffectDamageMultiplier(game.combat.playerEffects, context.effects, packet)
     : 1;
+  const incomingEffectMultiplier = calculateIncomingEffectDamageMultiplier(
+    current.effects,
+    context.effects,
+    packet,
+  );
   let resolution = resolveDamage(
     {
       ...packet,
@@ -1254,6 +1042,7 @@ function damageEnemy(
         (packet.damageMultiplier ?? 1) *
         conditionalMultiplier *
         outgoingEffectMultiplier *
+        incomingEffectMultiplier *
         (isSecondary ? secondaryFraction : 1),
       armorPenetrationPercent,
       armorPenetrationFlat,
@@ -1356,17 +1145,24 @@ function damageEnemy(
       absorption.amount,
     );
   }
-  const message =
-    resolution.outcome === "hit" || resolution.outcome === "block"
-      ? `${prefix} for ${resolution.healthDamage} damage${resolution.critical ? " critical" : ""}${resolution.barrierAbsorbed > 0 ? ` (${resolution.barrierAbsorbed} absorbed)` : ""}.`
-      : `${prefix} ${resolution.outcome}s against ${current.displayName}.`;
+  if (resolution.blocked) {
+    next.combat = event(next.combat, {
+      text: `${current.displayName} blocks ${resolution.blockedDamage} damage.`,
+      type: "player",
+      eventType: "attackBlocked",
+      source: packet.source,
+      target: packet.target,
+      data: { blockedDamage: resolution.blockedDamage },
+    });
+  }
+  const message = resolution.outcome === "hit"
+    ? `${prefix} for ${resolution.healthDamage} damage${resolution.critical ? " critical" : ""}${resolution.barrierAbsorbed > 0 ? ` (${resolution.barrierAbsorbed} absorbed)` : ""}.`
+    : `${prefix} ${resolution.outcome}s against ${current.displayName}.`;
   const eventType = resolution.outcome === "evaded"
     ? "attackEvaded"
-    : resolution.outcome === "block"
-      ? "attackBlocked"
-      : resolution.critical
-        ? "criticalHit"
-        : "damageDealt";
+    : resolution.critical
+      ? "criticalHit"
+      : "damageDealt";
   next.combat = event(next.combat, {
     text: message,
     type: "player",
@@ -1375,6 +1171,7 @@ function damageEnemy(
     target: packet.target,
     data: {
       damage: resolution.healthDamage,
+      blockedDamage: resolution.blockedDamage,
       critical: resolution.critical,
       absorbed: resolution.barrierAbsorbed,
       requestedDamage: damageApplication.requestedDamage,
@@ -1382,7 +1179,7 @@ function damageEnemy(
       immortalPrevented: damageApplication.preventedLethalDamage,
     },
   });
-  if (resolution.outcome === "hit" || resolution.outcome === "block") {
+  if (resolution.outcome === "hit") {
     for (const applied of effectsToApply)
       if (
         !(applied.options?.secondaryOnly && !isSecondary) &&
@@ -1469,7 +1266,7 @@ function damageEnemy(
     !packet.weaponSkillId &&
     (weaponProficiencyId || magicAttack) &&
     secondaryCount > 0 &&
-    (resolution.outcome === "hit" || resolution.outcome === "block")
+    resolution.outcome === "hit"
   ) {
     const secondaryTargets = next.combat.enemies
       .filter(
@@ -1497,7 +1294,7 @@ function damageEnemy(
     allowSecondary &&
     packet.cleave &&
     effectiveHealthDamage > 0 &&
-    (resolution.outcome === "hit" || resolution.outcome === "block")
+    resolution.outcome === "hit"
   ) {
     const secondaryTargets = next.combat.enemies
       .filter(
@@ -1663,7 +1460,6 @@ function advanceStep(
       ...combat.session,
       elapsedSeconds: combat.session.elapsedSeconds + step,
     },
-    stanceCooldownRemaining: Math.max(0, combat.stanceCooldownRemaining - step),
     potionCooldownRemaining: Math.max(0, combat.potionCooldownRemaining - step),
     globalCooldownRemaining: Math.max(0, combat.globalCooldownRemaining - step),
     playerAttackTimer: combat.playerAttackTimer - step,
@@ -1875,7 +1671,19 @@ function advanceStep(
       };
       const enemyStats = getEnemyStats(combat, current, context);
       const result = resolveDamage(
-        packet,
+        {
+          ...packet,
+          damageMultiplier: calculateOutgoingEffectDamageMultiplier(
+            current.effects,
+            context.effects,
+            packet,
+          ),
+          incomingDamageMultiplier: calculateIncomingEffectDamageMultiplier(
+            combat.playerEffects,
+            context.effects,
+            packet,
+          ),
+        },
         enemyStats,
         playerStats,
         context.rng,
@@ -1917,7 +1725,7 @@ function advanceStep(
             : candidate,
       ),
       };
-      if (resolved.outcome === "block") {
+      if (resolved.blocked) {
         game = applyPlayerSuccessfulBlockHooks({ ...game, combat }, playerStats, context);
         combat = game.combat;
       }
@@ -1927,15 +1735,21 @@ function advanceStep(
         context.items,
       );
       combat = game.combat;
-      const message =
-        resolved.outcome === "hit" || resolved.outcome === "block"
-          ? `${current.displayName} hits you for ${resolved.healthDamage}${resolved.barrierAbsorbed > 0 ? ` (${resolved.barrierAbsorbed} absorbed)` : ""}.`
-          : `${current.displayName} ${resolved.outcome}s your attack.`;
+      if (resolved.blocked)
+        combat = event(combat, {
+          text: `You block ${resolved.blockedDamage} damage from ${current.displayName}.`,
+          type: "player",
+          eventType: "attackBlocked",
+          source: packet.source,
+          target: packet.target,
+          data: { blockedDamage: resolved.blockedDamage },
+        });
+      const message = resolved.outcome === "hit"
+        ? `${current.displayName} hits you for ${resolved.healthDamage}${resolved.barrierAbsorbed > 0 ? ` (${resolved.barrierAbsorbed} absorbed)` : ""}.`
+        : `${current.displayName} ${resolved.outcome}s your attack.`;
       const type = resolved.outcome === "evaded"
         ? "attackEvaded"
-        : resolved.outcome === "block"
-          ? "attackBlocked"
-          : "damageDealt";
+        : "damageDealt";
       combat = event(combat, {
         text: message,
         type: "enemy",
@@ -1944,6 +1758,7 @@ function advanceStep(
         target: packet.target,
         data: {
           damage: resolved.healthDamage,
+          blockedDamage: resolved.blockedDamage,
           absorbed: resolved.barrierAbsorbed,
           requestedDamage: playerDamage.requestedDamage,
           appliedDamage: playerDamage.appliedDamage,
@@ -1975,7 +1790,6 @@ function staminaDelta(
   progression: ProgressionState,
   weaponProficiencyId: WeaponProficiencyId | null,
 ) {
-  const stance = stanceDefinitions[combat.stance];
   const drain =
     Object.entries(combat.techniques).reduce(
       (sum, [id, active]) =>
@@ -1984,7 +1798,7 @@ function staminaDelta(
           ? techniqueDefinitions[id as TechniqueId].staminaDrainPerSecond
           : 0),
       0,
-    ) * stance.staminaDrainMultiplier;
+    );
   return (
     getPlayerStats(combat, stats, context, progression).staminaRegen -
     drain *
@@ -2341,6 +2155,7 @@ function advanceEnemySpecials(
         let requestedDamage = 0;
         let lastOutcome: string = "hit";
         let playerBlockedAction = false;
+        let playerHitAction = false;
         for (const component of components) {
           const packet: DamagePacket = {
             ...component,
@@ -2353,7 +2168,19 @@ function advanceEnemySpecials(
             },
           };
           const result = resolveDamage(
-            packet,
+            {
+              ...packet,
+              damageMultiplier: calculateOutgoingEffectDamageMultiplier(
+                current.effects,
+                context.effects,
+                packet,
+              ),
+              incomingDamageMultiplier: calculateIncomingEffectDamageMultiplier(
+                combat.playerEffects,
+                context.effects,
+                packet,
+              ),
+            },
             enemyStats,
             playerStats,
             context.rng,
@@ -2382,11 +2209,21 @@ function advanceEnemySpecials(
           totalDamage += appliedResolved.healthDamage;
           totalAbsorbed += appliedResolved.barrierAbsorbed;
           lastOutcome = result.outcome;
-          playerBlockedAction = playerBlockedAction || result.outcome === "block";
+          playerHitAction = playerHitAction || result.outcome === "hit";
+          playerBlockedAction = playerBlockedAction || result.blocked;
           combat = {
             ...playerDamage.combat,
             lastDamageSource: definition.name,
           };
+          if (result.blocked)
+            combat = event(combat, {
+              text: `You block ${result.blockedDamage} damage from ${current.displayName}.`,
+              type: "player",
+              eventType: "attackBlocked",
+              source,
+              target: { kind: "player" },
+              data: { blockedDamage: result.blockedDamage },
+            });
         }
         current = {
           ...current,
@@ -2431,7 +2268,7 @@ function advanceEnemySpecials(
         });
         game = { ...game, combat };
         if (
-          (lastOutcome === "hit" || lastOutcome === "block") &&
+          playerHitAction &&
           actionDefinition.applyEffects
         )
           for (const applied of actionDefinition.applyEffects)
@@ -2852,7 +2689,6 @@ export function syncCombatStats(game: GameState): GameState {
     game.equipment,
     game.inventory,
     game.progression,
-    game.combat.stance,
     game.combat.techniques,
   );
   const canonical = playerBaseStats(stats);

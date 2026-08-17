@@ -16,7 +16,6 @@ import type {
 import { createInitialCombatAutomation } from "./automationTypes";
 
 const targetCriteria: TargetPriorityCriterion[] = [
-  "interruptible-casting",
   "highest-danger-casting",
   "elite",
   "lowest-health-percent",
@@ -63,7 +62,7 @@ function normalizeCondition(value: unknown): AutomationCondition | null {
   if (type === "barrier-below")
     return { type, fraction: clampFraction(raw.fraction ?? raw.value) };
   if (type === "barrier-missing") return { type };
-  if (type === "target-casting" || type === "target-interruptible")
+  if (type === "target-casting")
     return { type };
   if (type === "target-danger-at-least") {
     const danger = raw.danger ?? raw.value;
@@ -87,11 +86,13 @@ function normalizeRule(value: unknown, index: number, usedIds: Set<string>) {
   let id = typeof raw.id === "string" && raw.id.trim() ? raw.id : `automation-rule.imported-${index + 1}`;
   while (usedIds.has(id)) id = `${id}-${index + 1}`;
   usedIds.add(id);
-  const conditions = Array.isArray(raw.conditions)
-    ? raw.conditions.map(normalizeCondition).filter((condition): condition is AutomationCondition => Boolean(condition))
-    : [];
+  const rawConditions = Array.isArray(raw.conditions) ? raw.conditions : [];
+  const removedInterruptCondition = rawConditions.some((condition) => condition && typeof condition === "object" && (condition as Record<string, unknown>).type === "target-interruptible");
+  const conditions = rawConditions.map(normalizeCondition).filter((condition): condition is AutomationCondition => Boolean(condition));
   const priority = Number(raw.priority);
-  const actionId = typeof raw.actionId === "string" ? raw.actionId : "";
+  let actionId = typeof raw.actionId === "string" ? raw.actionId : "";
+  if (removedInterruptCondition) return null;
+  if (actionId === "spell.disrupting-pulse") actionId = "spell.lightning-pulse";
   if (actionId === "spell.protective-sign" || actionId.includes("light-magic")) return null;
   return {
     id,
@@ -220,15 +221,6 @@ function conditionMatches(
       return !hasEffect(targetEffects, condition.effectId);
     case "target-casting":
       return Boolean(target?.currentAction);
-    case "target-interruptible": {
-      const definition = target ? context.enemies[target.enemyId] : undefined;
-      return Boolean(
-        target?.currentAction &&
-        definition?.actions.find(
-          (action) => action.id === target.currentAction?.actionId,
-        )?.interruptible,
-      );
-    }
     case "target-danger-at-least": {
       const levels = { low: 0, medium: 1, high: 2, critical: 3 };
       const definition = target ? context.enemies[target.enemyId] : undefined;
@@ -261,8 +253,6 @@ function criterionScore(
         (candidate) => candidate.id === enemy.currentAction?.actionId,
       )
     : undefined;
-  if (criterion === "interruptible-casting")
-    return action?.interruptible ? 100 : 0;
   if (criterion === "highest-danger-casting")
     return action
       ? ({ low: 1, medium: 2, high: 3, critical: 4 }[action.danger] ?? 0)

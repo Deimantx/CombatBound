@@ -28,7 +28,7 @@ function applyLocalContributions(stats: ItemStats, contributions: ItemStatContri
     } else if (target === "attackSpeed") {
       if (stats.baseAttackTime !== undefined) stats.baseAttackTime = (stats.baseAttackTime + flats) / multiplier;
     } else if (target === "criticalChance") {
-      if (stats.baseCritChance !== undefined) stats.baseCritChance = (stats.baseCritChance + flats) * multiplier;
+      if (stats.criticalStrikeChance !== undefined) stats.criticalStrikeChance = (stats.criticalStrikeChance + flats) * multiplier;
     } else if (target === "armour") {
       if (stats.armour !== undefined) stats.armour = (stats.armour + flats) * multiplier;
     } else if (stats.evasionRating !== undefined) {

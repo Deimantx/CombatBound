@@ -24,7 +24,7 @@ const attacker = (overrides: Record<string, unknown> = {}) => normalizeCombatSta
   staminaRegen: 1,
   maxMana: 100,
   manaRegenFlat: 1,
-  baseCritChance: 0,
+  criticalStrikeChance: 0,
   criticalStrikeMultiplier: 1.5,
   ...overrides,
 });
@@ -57,7 +57,7 @@ describe("Combat Rework 1.1 explicit damage ranges", () => {
       damageType: "physical" as const,
       scaling: { sourceStat: "attackDamage" as const, multiplier: 1 },
       canCrit: true,
-      criticalBaseChance: 1,
+      criticalStrikeChance: 1,
       source: { kind: "player" as const },
       target: { kind: "enemy" as const, instanceId: "target" },
       guaranteedHit: true,
@@ -80,7 +80,7 @@ describe("Combat Rework 1.1 explicit damage ranges", () => {
     expect(spellById["spell.ice-shard"]).toMatchObject({ baseDamageMin: 24, baseDamageMax: 32 });
     expect(spellById["spell.stone-spike"]).toMatchObject({ baseDamageMin: 27, baseDamageMax: 37 });
     expect(spellById["spell.shadow-bolt"]).toMatchObject({ baseDamageMin: 25, baseDamageMax: 35 });
-    expect(spellById["spell.disrupting-pulse"]).toMatchObject({ baseDamageMin: 0, baseDamageMax: 0 });
+    expect(spellById["spell.lightning-pulse"]).toMatchObject({ baseDamageMin: 25, baseDamageMax: 34 });
   });
 });
 
@@ -95,7 +95,7 @@ describe("Combat Rework 1.1 range presentation and cleanup", () => {
   it("uses damage type and range in spell and enemy tooltips", () => {
     const spell = buildSpellTooltip(spellById["spell.flame-blast"]);
     expect(spell.rows).toEqual(expect.arrayContaining([{ label: "Fire Damage", value: "30–40", tone: "red" }]));
-    expect(buildSpellTooltip(spellById["spell.disrupting-pulse"]).rows?.some((row) => row.label.endsWith("Damage"))).toBe(false);
+    expect(buildSpellTooltip(spellById["spell.lightning-pulse"]).rows?.some((row) => row.label.endsWith("Damage"))).toBe(true);
     const enemy = buildEnemyDefinitionTooltip(enemyById["enemy.grey-wolf"]);
     expect(enemy.rows?.find((row) => row.label === "Attack Damage")?.value).toBe(formatDamageRange(enemyById["enemy.grey-wolf"].baseAttackDamageMin, enemyById["enemy.grey-wolf"].baseAttackDamageMax));
   });

@@ -7,7 +7,6 @@ export type CombatStopReason =
   | "consumablesDepleted"
   | "victoryLimit"
   | "completed";
-export type StanceId = "high" | "mid" | "low";
 export type TechniqueId = "careful-positioning" | "heightened-reflexes";
 export type SpellTargetMode = "self" | "selectedEnemy" | "allEnemies";
 export type DamageType =
@@ -31,12 +30,8 @@ export type CombatantRef =
 export type CombatStatKey =
   | "maxLife"
   | "lifeRegenFlat"
-  | "lifeRegenPercent"
-  | "lifeRecoveryRate"
   | "maxMana"
   | "manaRegenFlat"
-  | "manaRegenPercent"
-  | "manaRecoveryRate"
   | "maxStamina"
   | "staminaRegen"
   | "accuracyRating"
@@ -47,7 +42,6 @@ export type CombatStatKey =
   | "baseCastTime"
   | "increasedCastSpeed"
   | "moreCastSpeed"
-  | "actionSpeed"
   | "attackInterval"
   | "attacksPerSecond"
   | "castTime"
@@ -55,38 +49,20 @@ export type CombatStatKey =
   | "attackDamage"
   | "attackDamageMin"
   | "attackDamageMax"
-  | "baseCritChance"
-  | "additionalBaseCritChance"
-  | "increasedCritChance"
-  | "moreCritChance"
+  | "criticalStrikeChance"
   | "criticalStrikeMultiplier"
-  | "reducedExtraDamageTakenFromCriticalStrikes"
   | "armour"
-  | "additionalPhysicalDamageReduction"
-  | "maxPhysicalDamageReduction"
-  | "attackBlockChance"
-  | "spellBlockChance"
-  | "maxAttackBlockChance"
-  | "maxSpellBlockChance"
-  | "spellSuppressionChance"
-  | "suppressedSpellDamagePrevented"
+  | "physicalDamageReduction"
+  | "blockChance"
+  | "blockEffect"
   | "fireResistance"
   | "coldResistance"
   | "lightningResistance"
-  | "chaosResistance"
-  | "maxFireResistance"
-  | "maxColdResistance"
-  | "maxLightningResistance"
-  | "maxChaosResistance"
-  | "elementalAilmentAvoidance"
-  | "physicalAilmentAvoidance"
-  | "ailmentDurationReduction"
-  | "nonDamagingAilmentEffectReduction"
-  | "increasedDamageTaken";
+  | "chaosResistance";
 
 export type ModifiableCombatStatKey = Exclude<
   CombatStatKey,
-  "attackInterval" | "attacksPerSecond" | "castTime" | "castsPerSecond"
+  "attackInterval" | "attacksPerSecond" | "castTime" | "castsPerSecond" | "physicalDamageReduction"
 >;
 
 export interface CombatStats {
@@ -95,11 +71,7 @@ export interface CombatStats {
   attackDamageMin?: number;
   attackDamageMax?: number;
   lifeRegenFlat?: number;
-  lifeRegenPercent?: number;
-  lifeRecoveryRate?: number;
   manaRegenFlat?: number;
-  manaRegenPercent?: number;
-  manaRecoveryRate?: number;
   accuracyRating?: number;
   evasionRating?: number;
   baseAttackTime?: number;
@@ -108,35 +80,16 @@ export interface CombatStats {
   baseCastTime?: number;
   increasedCastSpeed?: number;
   moreCastSpeed?: number;
-  actionSpeed?: number;
-  baseCritChance?: number;
-  additionalBaseCritChance?: number;
-  increasedCritChance?: number;
-  moreCritChance?: number;
+  criticalStrikeChance?: number;
   criticalStrikeMultiplier?: number;
-  reducedExtraDamageTakenFromCriticalStrikes?: number;
   armour?: number;
-  additionalPhysicalDamageReduction?: number;
-  maxPhysicalDamageReduction?: number;
-  attackBlockChance?: number;
-  spellBlockChance?: number;
-  maxAttackBlockChance?: number;
-  maxSpellBlockChance?: number;
-  spellSuppressionChance?: number;
-  suppressedSpellDamagePrevented?: number;
+  physicalDamageReduction?: number;
+  blockChance?: number;
+  blockEffect?: number;
   fireResistance?: number;
   coldResistance?: number;
   lightningResistance?: number;
   chaosResistance?: number;
-  maxFireResistance?: number;
-  maxColdResistance?: number;
-  maxLightningResistance?: number;
-  maxChaosResistance?: number;
-  elementalAilmentAvoidance?: number;
-  physicalAilmentAvoidance?: number;
-  ailmentDurationReduction?: number;
-  nonDamagingAilmentEffectReduction?: number;
-  increasedDamageTaken?: number;
   // Derived values kept explicit for combat and presentation consumers.
   attackInterval: number;
   castTime?: number;
@@ -165,7 +118,7 @@ export type ModifierOperation =
 
 export interface CombatStatContribution {
   stat: CombatStatKey | `resistance:${DamageType}`;
-  sourceType: "base" | "equipment" | "perk" | "stance" | "technique" | "effect" | "other";
+  sourceType: "base" | "equipment" | "perk" | "technique" | "effect" | "other";
   sourceId: string;
   sourceLabel: string;
   operation: ModifierOperation;
@@ -235,7 +188,6 @@ export type ActionValidationReason =
   | "weapon-requirement"
   | "proficiency-level-requirement"
   | "equipment-requirement"
-  | "no-interruptible-action"
   | "full-health"
   | "consumable-missing";
 
@@ -261,7 +213,6 @@ export interface CombatActionDefinition {
   targetMode: "self" | "selectedEnemy" | "player";
   preparationSeconds: number;
   cooldownSeconds: number;
-  interruptible: boolean;
   danger?: "low" | "medium" | "high" | "critical";
   weight?: number;
   accuracyModifier?: number;
@@ -279,7 +230,6 @@ export interface EnemyActionDefinition extends DefensiveEligibility {
   cooldownSeconds: number;
   damageMultiplier: number;
   danger: "low" | "medium" | "high" | "critical";
-  interruptible: boolean;
   weight?: number;
   damage?: DamageComponent[];
   applyEffects?: Array<{ effectId: string; chance: number }>;
@@ -346,11 +296,8 @@ export interface EnemyDefinition {
   evasionRating: number;
   armour: number;
   baseAttackTime: number;
-  attackBlockChance?: number;
-  spellBlockChance?: number;
-  spellSuppressionChance?: number;
-  additionalPhysicalDamageReduction?: number;
-  maxResistances?: Partial<Record<ResistanceDamageType, number>>;
+  blockChance?: number;
+  blockEffect?: number;
   resistances: Partial<Record<ResistanceDamageType, number>>;
   traits: EnemyTraitDefinition[];
   actions: EnemyActionDefinition[];
@@ -385,7 +332,6 @@ export interface EnemyCombatInstance {
 
 export type CombatEventType =
   | "actionStarted"
-  | "actionInterrupted"
   | "actionResolved"
   | "attackMissed"
   | "attackEvaded"
@@ -457,8 +403,6 @@ export interface CombatState {
   maxStamina: number;
   mana: number;
   maxMana: number;
-  stance: StanceId;
-  stanceCooldownRemaining: number;
   techniques: Record<TechniqueId, boolean>;
   actionCooldowns: Record<string, number>;
   globalCooldownRemaining: number;

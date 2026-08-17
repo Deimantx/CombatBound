@@ -74,24 +74,24 @@ describe("Phase 4.4 inventory architecture", () => {
         maxStamina: 4,
         staminaRegen: 0.3,
         fireResistance: 0.05,
-        attackBlockChance: 0.1,
+        blockChance: 0.1,
       },
     };
     const tooltip = buildItemTooltip(item);
     expect(tooltip.rows?.map((row) => row.label)).toEqual([
-      "Mastery", "Max Life", "Armour", "Max Mana", "Mana Regeneration", "Max Stamina", "Stamina Regeneration", "Fire Resistance", "Attack Block Chance",
+      "Mastery", "Max Life", "Armour", "Max Mana", "Mana Regeneration", "Max Stamina", "Stamina Regeneration", "Fire Resistance", "Block Chance",
     ]);
     expect(JSON.stringify(tooltip)).not.toContain("More stats");
   });
 
   it("uses canonical comparison coverage, composite damage, epsilon, and direction-aware tone", () => {
     const rows = buildEquipmentComparisonRows(
-      { attackDamageMin: 24, attackDamageMax: 32, attackInterval: 2, attackBlockChance: 0.1, spellSuppressionChance: 0.2, fireResistance: 0.1 },
-      { attackDamageMin: 30, attackDamageMax: 38, attackInterval: 1.8, attackBlockChance: 0.15, spellSuppressionChance: 0.25, fireResistance: 0.15, armour: 12 },
+      { attackDamageMin: 24, attackDamageMax: 32, attackInterval: 2, blockChance: 0.1, blockEffect: 0.2, fireResistance: 0.1 },
+      { attackDamageMin: 30, attackDamageMax: 38, attackInterval: 1.8, blockChance: 0.15, blockEffect: 0.25, fireResistance: 0.15, armour: 12 },
     );
     expect(rows.filter((row) => row.key === "physicalDamageRange")).toHaveLength(1);
     expect(rows.map((row) => row.key)).not.toEqual(expect.arrayContaining(["attackDamage", "attackDamageMin", "attackDamageMax", "attacksPerSecond"]));
-    expect(rows.map((row) => row.key)).toEqual(expect.arrayContaining(["attackInterval", "attackBlockChance", "spellSuppressionChance", "fireResistance", "armour"]));
+    expect(rows.map((row) => row.key)).toEqual(expect.arrayContaining(["attackInterval", "blockChance", "blockEffect", "fireResistance", "armour"]));
     expect(rows.find((row) => row.key === "attackInterval")?.tone).toBe("is-positive");
     expect(buildEquipmentComparisonRows({ armour: 10 }, { armour: 10 + 1e-10 })).toEqual([]);
   });

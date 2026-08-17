@@ -122,9 +122,9 @@ describe("CombatBound V8.7 prototype gear", () => {
 
   it("applies representative accessory, armor, resource and precision stats", () => {
     const game = createInitialGameState();
-    const empty = calculateHunterCombatStats({ slots: {} }, { stackables: {}, instances: {}, nextInstanceSequence: 1 }, game.progression, "mid", game.combat.techniques);
+    const empty = calculateHunterCombatStats({ slots: {} }, { stackables: {}, instances: {}, nextInstanceSequence: 1 }, game.progression, game.combat.techniques);
     const build = ownedEquipment(game, [["belt", "item.war-belt"], ["necklace", "item.arcane-necklace"], ["armor", "item.vanguard-plate"], ["ring1", "item.duelist-ring"]]);
-    const stats = calculateHunterCombatStats(build.equipment, build.inventory, game.progression, "mid", game.combat.techniques);
+    const stats = calculateHunterCombatStats(build.equipment, build.inventory, game.progression, game.combat.techniques);
 
     expect((stats.maxLife ?? 0) - (empty.maxLife ?? 0)).toBe(85);
     expect((stats.armour ?? 0) - (empty.armour ?? 0)).toBe(24);
@@ -135,7 +135,7 @@ describe("CombatBound V8.7 prototype gear", () => {
     expect((stats.manaRegenFlat ?? 0) - (empty.manaRegenFlat ?? 0)).toBeCloseTo(0.6);
     expect((stats.accuracyRating ?? 0) - (empty.accuracyRating ?? 0)).toBe(5);
     expect((stats.evasionRating ?? 0) - (empty.evasionRating ?? 0)).toBe(2);
-    expect((stats.additionalBaseCritChance ?? 0) - (empty.additionalBaseCritChance ?? 0)).toBeCloseTo(0.02);
+    expect((stats.criticalStrikeChance ?? 0) - (empty.criticalStrikeChance ?? 0)).toBeCloseTo(0.02);
   });
 
   it("keeps tier identities aligned with Light, Medium and Heavy armor training", () => {
@@ -184,7 +184,7 @@ describe("CombatBound V8.7 prototype gear", () => {
 
   it("uses canonical effects, defeat rewards, cooldown reset and revive paths", () => {
     const initial = createInitialGameState();
-    const stats = calculateHunterCombatStats(initial.equipment, initial.inventory, initial.progression, "mid", initial.combat.techniques);
+    const stats = calculateHunterCombatStats(initial.equipment, initial.inventory, initial.progression, initial.combat.techniques);
     const active = startHunt(initial, "location.wolf-den", stats, context);
     const withIgnite = debugApplyEffect(active, "effect.ignite", "selected-enemy");
     const selected = withIgnite.combat.enemies.find((enemy) => enemy.instanceId === withIgnite.combat.selectedEnemyInstanceId);

@@ -23,7 +23,6 @@ function statsFor(game: ReturnType<typeof createInitialGameState>) {
     game.equipment,
     game.inventory,
     game.progression,
-    game.combat.stance,
     game.combat.techniques,
   );
 }
@@ -103,9 +102,9 @@ describe("One-Handed Sword Weapon Skills V8.3", () => {
       target: { kind: "enemy", instanceId: "enemy" },
       defensiveEligibility: { canMiss: true, blockable: false },
     }, normalizeCombatStats({
-      maxLife: 100, attackDamage: 100, accuracyRating: 70, baseAttackTime: 1, armour: 0, evasionRating: 0, baseCritChance: 0, criticalStrikeMultiplier: 1.5, maxStamina: 0, staminaRegen: 0, maxMana: 0, manaRegenFlat: 0, resistances: {},
+      maxLife: 100, attackDamage: 100, accuracyRating: 70, baseAttackTime: 1, armour: 0, evasionRating: 0, criticalStrikeChance: 0, criticalStrikeMultiplier: 1.5, maxStamina: 0, staminaRegen: 0, maxMana: 0, manaRegenFlat: 0, resistances: {},
     }), normalizeCombatStats({
-      maxLife: 100, attackDamage: 0, accuracyRating: 0, baseAttackTime: 1, armour: 0, evasionRating: 0, baseCritChance: 0, criticalStrikeMultiplier: 1.5, maxStamina: 0, staminaRegen: 0, maxMana: 0, manaRegenFlat: 0, resistances: {},
+      maxLife: 100, attackDamage: 0, accuracyRating: 0, baseAttackTime: 1, armour: 0, evasionRating: 0, criticalStrikeChance: 0, criticalStrikeMultiplier: 1.5, maxStamina: 0, staminaRegen: 0, maxMana: 0, manaRegenFlat: 0, resistances: {},
     }), context.rng);
     expect(resolution.outcome).toBe("hit");
     expect(resolution.healthDamage).toBeGreaterThan(0);

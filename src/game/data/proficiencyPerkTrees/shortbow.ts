@@ -14,7 +14,7 @@ const profile: WeaponTreeProfile = {
     { name: 'Mobile Marksman', links: [[3, 6], [1, 6]], effects: [{ type: 'statModifier', stat: 'evasionRating', operation: 'flat', valuePerRank: 10 }, { type: 'statModifier', stat: 'accuracyRating', operation: 'flat', valuePerRank: 8 }] },
     { name: 'Storm Hunter', links: [[4, 6], [2, 6]], effects: [{ type: 'weaponSecondaryTargetDamage', fractionPerRank: .2, maxAdditionalTargets: 3 }, conditional(.15, { type: 'targetHasEffect', effectId: 'effect.bleed' })] },
   ],
-  apexEffects: [damage(.2), interval(-.08), { type: 'statModifier', stat: 'additionalBaseCritChance', operation: 'flat', valuePerRank: .08 }, { type: 'weaponSecondaryTargetDamage', fractionPerRank: .25, maxAdditionalTargets: 3 }, { type: 'statModifier', stat: 'evasionRating', operation: 'flat', valuePerRank: 10 }],
+  apexEffects: [damage(.2), interval(-.08), { type: 'statModifier', stat: 'criticalStrikeChance', operation: 'flat', valuePerRank: .08 }, { type: 'weaponSecondaryTargetDamage', fractionPerRank: .25, maxAdditionalTargets: 3 }, { type: 'statModifier', stat: 'evasionRating', operation: 'flat', valuePerRank: 10 }],
 }
 
 export const shortbowPerks = createWeaponTree(profile)

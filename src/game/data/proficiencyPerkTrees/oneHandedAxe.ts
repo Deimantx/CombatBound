@@ -11,7 +11,7 @@ const profile: WeaponTreeProfile = {
   ],
   crossNodes: [
     { name: "Butcher's Rhythm", links: [[1, 6], [3, 6]], effects: [{ type: 'weaponConditionalDamageModifier', operation: 'increased', valuePerRank: .1, condition: { type: 'targetHasEffect', effectId: 'effect.bleed' } }, { type: 'weaponOnHitResourceRestore', resource: 'stamina', amountPerRank: 1 }] },
-    { name: 'Split Guard', links: [[2, 6], [0, 5]], effects: [{ type: 'weaponArmorPenetrationModifier', mode: 'flat', valuePerRank: 10 }, { type: 'weaponConditionalDamageModifier', operation: 'increased', valuePerRank: .1, condition: { type: 'targetHasEffect', effectId: 'effect.armor-broken' } }] },
+    { name: 'Split Guard', links: [[2, 6], [0, 5]], effects: [{ type: 'weaponArmorPenetrationModifier', mode: 'flat', valuePerRank: 10 }, { type: 'weaponConditionalDamageModifier', operation: 'increased', valuePerRank: .1, condition: { type: 'targetHasEffect', effectId: 'effect.crushed' } }] },
     { name: "Predator's Momentum", links: [[4, 5], [3, 6]], effects: [interval(-.06), { type: 'weaponConditionalDamageModifier', operation: 'increased', valuePerRank: .1, condition: { type: 'targetHpBelow', fraction: .35 } }] },
   ],
   apexEffects: [damage(.15), { type: 'statModifier', stat: 'accuracyRating', operation: 'flat', valuePerRank: 8 }, { type: 'statModifier', stat: 'criticalStrikeMultiplier', operation: 'flat', valuePerRank: .1 }, { type: 'weaponArmorPenetrationModifier', mode: 'flat', valuePerRank: 10 }, interval(-.05)],

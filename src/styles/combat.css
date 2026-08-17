@@ -149,12 +149,8 @@ html[data-reduced-motion="true"] .danger-high.has-special { animation: none; tra
 .training-row .tiny-label { grid-row: span 2; }
 .training-row strong { color: var(--gold); font-size: 11px; text-transform: capitalize; }
 .training-row small { color: var(--muted); font-size: 9px; }
-.stance-section { border-top: 1px solid var(--line-soft); margin-top: 15px; padding-top: 13px; }
 .section-title { align-items: center; display: flex; justify-content: space-between; }
 .section-title small { font-size: 9px; }
-.stance-buttons { display: grid; gap: 5px; grid-template-columns: repeat(3, 1fr); margin-top: 8px; }
-.stance-button { background: var(--panel-2); border: 1px solid var(--line); border-radius: 5px; color: var(--muted); cursor: pointer; font-size: 10px; padding: 7px 3px; }
-.stance-button:hover, .stance-button.is-active { background: var(--gold-soft); border-color: var(--gold); color: var(--gold); }
 .micro-copy { color: var(--muted); font-size: 10px; line-height: 1.35; margin-top: 7px; }
 .technique-list { border-top: 1px solid var(--line-soft); display: flex; flex-direction: column; gap: 5px; margin-top: 13px; padding-top: 10px; }
 .technique-heading { align-items: center; display: flex; justify-content: space-between; margin-bottom: 1px; }
@@ -244,16 +240,12 @@ html[data-reduced-motion="true"] .danger-high.has-special { animation: none; tra
 .spell-grid { display: grid; gap: 6px; grid-template-columns: repeat(4, 1fr); margin-top: 8px; }
 .spell-button { align-items: center; background: var(--panel-2); border: 1px solid var(--line-soft); border-radius: 7px; cursor: pointer; display: flex; gap: 6px; padding: 6px; text-align: left; }
 .spell-button.is-ready { background: rgba(213,170,98,.075); border-color: rgba(213,170,98,.52); }
-.spell-button.is-interrupt-ready { background: rgba(201,111,104,.1); border-color: rgba(201,111,104,.55); box-shadow: inset 2px 0 var(--red); }
 .spell-button.is-invalid { opacity: .72; }
 .spell-button.is-ready small { color: var(--green); }
 .spell-button.is-invalid small { color: var(--gold); }
 .spell-button.is-cooldown small { color: var(--muted); }
 .spell-button small { line-height: 1.2; }
 .potion-button.is-ready { background: rgba(123,177,139,.08); border-color: rgba(123,177,139,.42); }
-.interrupt-window { align-items: center; background: var(--red-soft); border: 1px solid rgba(201,111,104,.36); border-radius: 6px; color: var(--red); display: flex; gap: 6px; margin: 8px 0 7px; padding: 6px 7px; }
-.interrupt-window strong { font-size: 8px; letter-spacing: .07em; }
-.interrupt-window span { color: var(--text-dim); font-size: 8px; margin-left: auto; }
 .spell-button > span:last-child { display: flex; flex-direction: column; min-width: 0; }
 .spell-button strong { font-size: 9px; white-space: nowrap; }
 .spell-button small { font-size: 9px; }

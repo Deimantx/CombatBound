@@ -57,6 +57,34 @@ function xp(value: unknown) {
     ? Math.max(0, value)
     : 0;
 }
+
+// V12 boundary compatibility for renamed technique perk IDs. Runtime content
+// uses the canonical Technique names while old saves retain their purchased ranks.
+const legacyPerkIdAliases: Record<string, string> = {
+  "one-handed-sword.adaptive-stance": "one-handed-sword.adaptive-technique",
+  "one-handed-sword.high-form": "one-handed-sword.focused-technique",
+  "one-handed-sword.mid-form": "one-handed-sword.measured-technique",
+  "one-handed-sword.low-form": "one-handed-sword.mobile-technique",
+  "one-handed-sword.flowing-stance": "one-handed-sword.flowing-tempo",
+  "fire-magic.scorching-exposure": "fire-magic.scorching-off-balance",
+};
+
+export function normalizePurchasedPerks(value: unknown): Record<string, number> {
+  const normalized: Record<string, number> = {};
+  if (!isRecord(value)) return normalized;
+  for (const [rawId, rawRank] of Object.entries(value)) {
+    const perkId = legacyPerkIdAliases[rawId] ?? rawId;
+    const perk = perkById[perkId];
+    const rank = typeof rawRank === "number" && Number.isInteger(rawRank) ? rawRank : -1;
+    if (!perk || rank < 0 || rank > perk.maxRank) continue;
+    normalized[perkId] = Math.min(perk.maxRank, (normalized[perkId] ?? 0) + rank);
+  }
+  return normalized;
+}
+
+export function normalizeProgressionPerkIds(progression: ProgressionState): ProgressionState {
+  return { ...progression, purchasedPerks: normalizePurchasedPerks(progression.purchasedPerks) };
+}
 function sharedSaveShape(value: Record<string, unknown>) {
   return (
     typeof value.gold === "number" &&
@@ -109,18 +137,7 @@ function migrateProgression(
       totalXp: current + xp(value.totalXp),
     };
   }
-  const purchasedPerks: Record<string, number> = {};
-  for (const [perkId, rank] of Object.entries(raw.purchasedPerks ?? {})) {
-    const perk = perkById[perkId];
-    if (
-      !perk ||
-      perkId.includes("warding-magic") ||
-      perkId.includes("disruption-magic")
-    )
-      continue;
-    if (Number.isInteger(rank) && rank > 0 && rank <= perk.maxRank)
-      purchasedPerks[perkId] = rank;
-  }
+  const purchasedPerks = normalizePurchasedPerks(raw.purchasedPerks);
   return { proficiencies, masteryXp: xp(raw.masteryXp), bonusPerkPoints: 0, purchasedPerks };
 }
 
@@ -315,12 +332,7 @@ export function migrateV9Save(value: unknown): GameSaveV10 | null {
       totalXp: xp(progress.totalXp),
     };
   }
-  const purchasedPerks = Object.fromEntries(
-    Object.entries(old.progression.purchasedPerks ?? {}).filter(([perkId, rank]) => {
-      const perk = perkById[perkId];
-      return Boolean(perk) && !perkId.includes("light-magic") && !perkId.includes("warding-magic") && Number.isInteger(rank) && Number(rank) >= 0 && Number(rank) <= perk.maxRank;
-    }),
-  );
+  const purchasedPerks = normalizePurchasedPerks(old.progression.purchasedPerks);
 
   return {
     ...old,
@@ -440,7 +452,7 @@ export function migrateV11Save(value: unknown): GameSaveV12 | null {
     slots[slot] = instanceId;
     used.add(instanceId);
   }
-  const migrated: GameSaveV12 = { ...old, version: 12, inventory: { stackables, instances, nextInstanceSequence }, equipment: { slots } };
+  const migrated: GameSaveV12 = { ...old, version: 12, progression: normalizeProgressionPerkIds(old.progression), inventory: { stackables, instances, nextInstanceSequence }, equipment: { slots } };
   if (Object.values(migrated.inventory.instances).some((instance) => !validateItemInstance(instance).valid)) return null;
   return migrated;
 }

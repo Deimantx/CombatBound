@@ -6,7 +6,6 @@ import {
   executePlayerAction as engineExecutePlayerAction,
   forceDefeatPlayerForDebug,
   selectEnemy as engineSelectEnemy,
-  setStance as engineSetStance,
   startHunt as engineStartHunt,
   startDebugEncounter as engineStartDebugEncounter,
   stopHunt as engineStopHunt,
@@ -25,7 +24,6 @@ import { createInitialGameState, type GameState } from "../game/gameState";
 import { masteryLevelForXp } from "../game/progression/masteryProgression";
 import { discoverProficiency } from "../game/progression/proficiencyProgression";
 import { purchasePerk } from "../game/progression/perkProgression";
-import { getEquippedWeaponProficiency } from "../game/progression/progressionSelectors";
 import { perkById } from "../game/data/proficiencyPerks";
 import {
   cascadeSelection,
@@ -41,7 +39,7 @@ import { getProfileSessionOwnerId, isProfileSessionOwner } from "../game/profile
 import { CURRENT_SAVE_VERSION, parseGameSaveJson } from "../game/persistence/saveGame";
 import type { ProfileId } from "../game/profiles/profileTypes";
 import type { InventoryEntryRef } from "../game/items/itemTypes";
-import type { StanceId, TechniqueId } from "../game/combat/combatTypes";
+import type { TechniqueId } from "../game/combat/combatTypes";
 import {
   equipSpellToSlot as equipSpellToSlotState,
   moveEquippedSpell as moveEquippedSpellState,
@@ -186,7 +184,6 @@ interface GameStoreState {
   stopCombat: () => void;
   tickCombat: (delta: number) => void;
   selectTarget: (instanceId: string) => void;
-  setStance: (stance: StanceId) => void;
   toggleTechnique: (technique: TechniqueId) => void;
   castSpell: (spellId: string) => void;
   executeAction: (actionId: string) => void;
@@ -539,7 +536,6 @@ export const useGameStore = create<GameStoreState>((set, get) => {
         state.game.equipment,
         state.game.inventory,
         state.game.progression,
-        state.game.combat.stance,
         state.game.combat.techniques,
       );
       const prepared = {
@@ -637,7 +633,7 @@ export const useGameStore = create<GameStoreState>((set, get) => {
     startEncounter: (locationId, enemyIds) => commitDebug((game) => {
       useDevToolsRuntimeStore.getState().clearEnemyImmortality();
       useDevToolsRuntimeStore.getState().resetSimulationAccumulator();
-      const stats = calculateHunterCombatStats(game.equipment, game.inventory, game.progression, game.combat.stance, game.combat.techniques);
+      const stats = calculateHunterCombatStats(game.equipment, game.inventory, game.progression, game.combat.techniques);
       return engineStartDebugEncounter(game, locationId, enemyIds, stats, context);
     }),
     importSave: (raw) => {
@@ -710,7 +706,6 @@ export const useGameStore = create<GameStoreState>((set, get) => {
           state.game.equipment,
           state.game.inventory,
           state.game.progression,
-          state.game.combat.stance,
           state.game.combat.techniques,
         );
         const game = advanceCombat(state.game, delta, context, stats);
@@ -738,29 +733,6 @@ export const useGameStore = create<GameStoreState>((set, get) => {
           state,
         ),
       ),
-    setStance: (stance) =>
-      set((state) => {
-        const nextStats = calculateHunterCombatStats(
-          state.game.equipment,
-          state.game.inventory,
-          state.game.progression,
-          stance,
-          state.game.combat.techniques,
-        );
-        return flatState(
-          {
-            ...state.game,
-            combat: engineSetStance(
-              state.game.combat,
-              stance,
-              nextStats,
-              state.game.progression,
-              getEquippedWeaponProficiency(state.game.equipment, state.game.inventory),
-            ),
-          },
-          state,
-        );
-      }),
     toggleTechnique: (technique) =>
       set((state) =>
         flatState(
@@ -774,7 +746,6 @@ export const useGameStore = create<GameStoreState>((set, get) => {
           state.game.equipment,
           state.game.inventory,
           state.game.progression,
-          state.game.combat.stance,
           state.game.combat.techniques,
         );
         const game = engineCastSpell(state.game, spellId, stats, context);
@@ -796,7 +767,6 @@ export const useGameStore = create<GameStoreState>((set, get) => {
           state.game.equipment,
           state.game.inventory,
           state.game.progression,
-          state.game.combat.stance,
           state.game.combat.techniques,
         );
         const game = engineExecutePlayerAction(state.game, actionId, stats, context);
@@ -1118,7 +1088,6 @@ export const useGameStore = create<GameStoreState>((set, get) => {
           state.game.equipment,
           state.game.inventory,
           state.game.progression,
-          state.game.combat.stance,
           state.game.combat.techniques,
         );
         return flatState(useHealingPotion(state.game, stats), state);

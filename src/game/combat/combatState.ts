@@ -48,8 +48,6 @@ export function createCombatState(): CombatState {
     maxStamina: combatBalance.baseMaxStamina,
     mana: combatBalance.baseMaxMana,
     maxMana: combatBalance.baseMaxMana,
-    stance: "mid",
-    stanceCooldownRemaining: 0,
     techniques: { "careful-positioning": false, "heightened-reflexes": false },
     actionCooldowns: {},
     globalCooldownRemaining: 0,

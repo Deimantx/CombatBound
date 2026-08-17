@@ -1,5 +1,4 @@
 import { useEffect, useRef, useState } from "react";
-import { stanceDefinitions } from "../../../../game/data/stances";
 import { techniqueDefinitions } from "../../../../game/data/techniques";
 import type {
   CombatState,
@@ -85,7 +84,7 @@ export function techniqueStaminaDrain(combat: CombatState) {
               .staminaDrainPerSecond
           : 0),
       0,
-    ) * stanceDefinitions[combat.stance].staminaDrainMultiplier
+    )
   );
 }
 
@@ -99,7 +98,7 @@ export function getSpellUiState(
   spell: SpellDefinition,
   cooldownRemaining: number | { cooldownRemaining: number } | undefined,
   combat: CombatState,
-  selectedAction?: EnemyActionDefinition,
+  _selectedAction?: EnemyActionDefinition,
   effectiveSpell: EffectiveSpellDefinition = spell as EffectiveSpellDefinition,
 ): SpellUiState {
   if (combat.phase !== "active")
@@ -126,15 +125,9 @@ export function getSpellUiState(
       status: `NEED ${effectiveSpell.manaCost} MANA`,
       tone: "invalid",
     };
-  if (spell.id === "spell.disrupting-pulse" && !selectedAction?.interruptible)
-    return {
-      enabled: false,
-      status: "NO INTERRUPTIBLE TARGET",
-      tone: "invalid",
-    };
   return {
     enabled: true,
-    status: spell.id === "spell.disrupting-pulse" ? "INTERRUPT NOW" : "READY",
+    status: "READY",
     tone: "ready",
   };
 }

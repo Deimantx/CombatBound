@@ -1,10 +1,8 @@
-import { Crosshair } from "lucide-react";
 import { useMemo } from "react";
 import { enemyById } from "../../../../game/data/enemies";
 import { spellDefinitions } from "../../../../game/data/spells";
 import { buildCombatAbilityTooltip, buildSpellTooltip } from "../../../../game/presentation/tooltipBuilders";
-import { buildEffectiveSpellContext, getSpellActionView } from "../../../../game/combat/playerActions";
-import { getActionById, reasonLabel, validatePlayerAction } from "../../../../game/combat/playerActions";
+import { buildEffectiveSpellContext, getSpellActionView, getActionById, reasonLabel, validatePlayerAction } from "../../../../game/combat/playerActions";
 import { COMBAT_SPELL_SLOT_COUNT } from "../../../../game/spellbook/spellbookTypes";
 import { COMBAT_ABILITY_SLOT_COUNT } from "../../../../game/combatAbilities/combatAbilityTypes";
 import { getCombatAbilityAvailability, getKnownCombatAbilities } from "../../../../game/combatAbilities/combatAbilitySelectors";
@@ -18,13 +16,12 @@ import { getSpellUiState } from "./combatUi";
 
 export function CombatActionWorkspace({ game, stats, selectedEnemy, selectedDefinition, actionContext, onCastSpell, onUseAction, onUsePotion }: { game: GameState; stats: HunterCombatStats; selectedEnemy?: EnemyCombatInstance; selectedDefinition?: (typeof enemyById)[keyof typeof enemyById]; actionContext: CombatContext; onCastSpell: (spellId: string) => void; onUseAction: (actionId: string) => void; onUsePotion: () => void }) {
   const combat = game.combat;
-  const selectedAction = useMemo(() => selectedEnemy?.currentAction ? selectedDefinition?.actions.find((action) => action.id === selectedEnemy.currentAction?.actionId) ?? undefined : undefined, [selectedDefinition, selectedEnemy]);
+  const selectedAction = useMemo(() => selectedEnemy?.currentAction ? selectedDefinition?.actions.find((action) => action.id === selectedEnemy.currentAction?.actionId) : undefined, [selectedDefinition, selectedEnemy]);
   const potionQuantity = game.inventory.stackables["item.healing-potion"] ?? 0;
   const potionReady = combat.phase === "active" && combat.potionCooldownRemaining <= 0 && potionQuantity > 0 && combat.playerHp < (stats.maxLife ?? 0);
   const potionStatus = combat.potionCooldownRemaining > 0 ? `COOLDOWN ${combat.potionCooldownRemaining.toFixed(1)}s` : potionQuantity <= 0 ? "OUT OF STOCK" : combat.playerHp >= (stats.maxLife ?? 0) ? "FULL HEALTH" : "READY";
   return <div className="spell-controls" data-debug-kind="combat-action-workspace">
-    <div className="section-title"><span className="tiny-label">COMBAT ACTIONS</span><small>{selectedAction?.interruptible ? "INTERRUPT AVAILABLE" : combat.globalCooldownRemaining > 0 ? `GLOBAL COOLDOWN ${combat.globalCooldownRemaining.toFixed(1)}s` : "Spells, defenses and consumables"}</small></div>
-    {selectedAction?.interruptible && <div className="interrupt-window"><Crosshair size={13} /><strong>INTERRUPT WINDOW OPEN</strong><span>Disrupting Pulse can stop {selectedAction.name}.</span></div>}
+    <div className="section-title"><span className="tiny-label">COMBAT ACTIONS</span><small>{selectedAction ? `${selectedAction.name} TELEGRAPHED` : combat.globalCooldownRemaining > 0 ? `GLOBAL COOLDOWN ${combat.globalCooldownRemaining.toFixed(1)}s` : "Spells, defenses and consumables"}</small></div>
     <div className="combat-action-sections">
       <section className="combat-action-section"><div className="section-title"><span className="tiny-label">MAGIC</span><small>{COMBAT_SPELL_SLOT_COUNT} loadout slots</small></div><div className="spell-grid">{Array.from({ length: COMBAT_SPELL_SLOT_COUNT }, (_, slot) => {
         const spellId = game.spellbook.equippedSpellSlots[slot] ?? null;
@@ -34,7 +31,7 @@ export function CombatActionWorkspace({ game, stats, selectedEnemy, selectedDefi
         const spellView = getSpellActionView(game, spell.id, stats, actionContext);
         const effectiveSpell = spellView.effectiveSpell!;
         const state = getSpellUiState(spell, runtime, combat, selectedAction, effectiveSpell);
-        const button = <CombatActionButton icon={<PlaceholderArt icon={spell.icon} size="small" variant={state.enabled ? "gold" : "muted"} />} title={spell.name} detail={`${effectiveSpell.manaCost} MANA · ${state.status}`} disabled={!state.enabled} className={`is-${state.tone} ${spell.id === "spell.disrupting-pulse" && state.enabled ? "is-interrupt-ready" : ""}`} onClick={() => onCastSpell(spell.id)} debugKind="spell" debugId={spell.id} debugLabel={spell.name} cooldown={runtime} cooldownTotal={spell.cooldownSeconds} />;
+        const button = <CombatActionButton icon={<PlaceholderArt icon={spell.icon} size="small" variant={state.enabled ? "gold" : "muted"} />} title={spell.name} detail={`${effectiveSpell.manaCost} MANA · ${state.status}`} disabled={!state.enabled} className={`is-${state.tone}`} onClick={() => onCastSpell(spell.id)} debugKind="spell" debugId={spell.id} debugLabel={spell.name} cooldown={runtime} cooldownTotal={spell.cooldownSeconds} />;
         return <GameTooltip key={spell.id} content={buildSpellTooltip(spell, game.progression, buildEffectiveSpellContext(game, spell))}>{state.enabled ? button : <span className="spell-tooltip-host">{button}</span>}</GameTooltip>;
       })}</div></section>
       <section className="combat-action-section"><div className="section-title"><span className="tiny-label">COMBAT ABILITIES</span><small>Stamina actions · {COMBAT_ABILITY_SLOT_COUNT} loadout slots</small></div><div className="spell-grid">{Array.from({ length: COMBAT_ABILITY_SLOT_COUNT }, (_, slot) => {

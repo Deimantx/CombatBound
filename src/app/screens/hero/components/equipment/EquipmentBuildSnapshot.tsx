@@ -47,11 +47,11 @@ function SnapshotRowView({ row }: { row: SnapshotRow }) {
 }
 
 function optionalRows(current: SnapshotStats, preview?: SnapshotStats): SnapshotRow[] {
-  const candidates: Array<["attackBlockChance" | "spellBlockChance" | "spellSuppressionChance", string]> = [["attackBlockChance", "Attack Block"], ["spellBlockChance", "Spell Block"], ["spellSuppressionChance", "Spell Suppression"]];
+  const candidates: Array<["criticalStrikeChance" | "blockChance" | "blockEffect" | "physicalDamageReduction", string]> = [["criticalStrikeChance", "Critical Strike Chance"], ["blockChance", "Block Chance"], ["blockEffect", "Block Effect"], ["physicalDamageReduction", "Physical Damage Reduction"]];
   return candidates.filter(([key]) => (current[key] ?? 0) > 0 || (preview?.[key] ?? 0) > 0).map(([key, label]) => ({ key, label, value: formatCombatStatValue(key, current[key] ?? 0), previewValue: preview ? formatCombatStatValue(key, preview[key] ?? 0) : undefined, numeric: current[key] ?? 0, previewNumeric: preview ? preview[key] ?? 0 : undefined }));
 }
 
 function resistanceRows(current: SnapshotStats, preview?: SnapshotStats): SnapshotRow[] {
-  const resistances: Array<["fireResistance" | "coldResistance" | "lightningResistance" | "chaosResistance", "maxFireResistance" | "maxColdResistance" | "maxLightningResistance" | "maxChaosResistance", string]> = [["fireResistance", "maxFireResistance", "Fire Resistance"], ["coldResistance", "maxColdResistance", "Cold Resistance"], ["lightningResistance", "maxLightningResistance", "Lightning Resistance"], ["chaosResistance", "maxChaosResistance", "Chaos Resistance"]];
-  return resistances.map(([key, maxKey, label]) => ({ key, label, value: `${formatCombatStatValue(key, current[key] ?? 0)} / ${formatCombatStatValue(maxKey, current[maxKey] ?? 0)}`, previewValue: preview ? `${formatCombatStatValue(key, preview[key] ?? 0)} / ${formatCombatStatValue(maxKey, preview[maxKey] ?? 0)}` : undefined, numeric: current[key] ?? 0, previewNumeric: preview ? preview[key] ?? 0 : undefined }));
+  const resistances: Array<["fireResistance" | "coldResistance" | "lightningResistance" | "chaosResistance", string]> = [["fireResistance", "Fire Resistance"], ["coldResistance", "Cold Resistance"], ["lightningResistance", "Lightning Resistance"], ["chaosResistance", "Chaos Resistance"]];
+  return resistances.map(([key, label]) => ({ key, label, value: formatCombatStatValue(key, current[key] ?? 0), previewValue: preview ? formatCombatStatValue(key, preview[key] ?? 0) : undefined, numeric: current[key] ?? 0, previewNumeric: preview ? preview[key] ?? 0 : undefined }));
 }

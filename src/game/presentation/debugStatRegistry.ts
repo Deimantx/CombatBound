@@ -18,7 +18,7 @@ export const COMBAT_STAT_KEYS: CombatStatKey[] = COMBAT_STAT_REGISTRY.map((entry
 export const RESISTANCE_DAMAGE_TYPES: ResistanceDamageType[] = ["fire", "cold", "lightning", "chaos"];
 
 const registryDefinitions: DebugStatDefinition[] = COMBAT_STAT_REGISTRY.map((entry) => ({ id: entry.id, label: entry.label, category: entry.category, format: entry.format, description: entry.description }));
-const resistanceDefinitions: DebugStatDefinition[] = RESISTANCE_DAMAGE_TYPES.map((id) => ({ id: `resistance:${id}`, label: `${id[0].toUpperCase()}${id.slice(1)} Resistance (effective)`, category: "resistances", format: "percent", description: `Current effective ${id} damage resistance after maximum, Exposure, and penetration.` }));
+const resistanceDefinitions: DebugStatDefinition[] = RESISTANCE_DAMAGE_TYPES.map((id) => ({ id: `resistance:${id}`, label: `${id[0].toUpperCase()}${id.slice(1)} Resistance (effective)`, category: "resistances", format: "percent", description: `Current effective ${id} damage resistance after penetration.` }));
 
 export const DEBUG_STAT_DEFINITIONS: DebugStatDefinition[] = [...registryDefinitions, ...resistanceDefinitions];
 

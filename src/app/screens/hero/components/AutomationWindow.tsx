@@ -37,14 +37,13 @@ const conditionOptions: Array<{ value: AutomationCondition["type"]; label: strin
   { value: "barrier-missing", label: "Barrier missing" },
   { value: "barrier-below", label: "Barrier below %" },
   { value: "target-casting", label: "Target is casting" },
-  { value: "target-interruptible", label: "Action interruptible" },
   { value: "target-danger-at-least", label: "Danger at least" },
   { value: "alive-enemies-at-least", label: "Alive enemies at least" },
 ];
 
 export function AutomationWindow({ game, initialActionId, createRule = false }: { game: GameState; initialActionId?: string; createRule?: boolean }) {
   const context = useMemo(() => createCombatPreviewContext(), []);
-  const stats = useMemo(() => calculateHunterCombatStats(game.equipment, game.inventory, game.progression, game.combat.stance, game.combat.techniques), [game.equipment, game.inventory, game.progression, game.combat.stance, game.combat.techniques]);
+  const stats = useMemo(() => calculateHunterCombatStats(game.equipment, game.inventory, game.progression, game.combat.techniques), [game.equipment, game.inventory, game.progression, game.combat.techniques]);
   const actions = useMemo(() => getPlayerActionDefinitions(game, context).filter((action) => action.kind !== "basic-attack" && (action.kind !== "spell" || game.spellbook.knownSpellIds.includes(action.id))), [context, game.spellbook.knownSpellIds]);
   const actionCatalogue = useMemo(() => buildPlayerActionCatalogue(actions, {
     getItemState: (action) => getActionCatalogueItemState(game, action),
@@ -180,7 +179,7 @@ function ConditionEditor({ condition, onChange, onRemove }: { condition: Automat
 
 function defaultCondition(type: AutomationCondition["type"]): AutomationCondition {
   if (fractionTypes.has(type)) return { type: type as never, fraction: 0.5 };
-  if (type === "barrier-missing" || type === "target-casting" || type === "target-interruptible" || type === "always") return { type };
+  if (type === "barrier-missing" || type === "target-casting" || type === "always") return { type };
   if (type === "target-danger-at-least") return { type, danger: "high" };
   if (type === "alive-enemies-at-least") return { type, count: 1 };
   return { type: type as "player-has-effect", effectId: "effect.ignite" };

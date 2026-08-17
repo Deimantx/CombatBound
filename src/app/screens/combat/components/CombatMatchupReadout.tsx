@@ -13,9 +13,8 @@ export function CombatMatchupReadout({ game, stats, selectedEnemy }: { game: Gam
       <strong className="combat-matchup-target">{matchup.targetName}</strong>
       <MatchupMetric label="Hit Chance" value={formatPercent(matchup.playerHitChance)} tone="gold" tooltip={{ id: 'combat.matchup-hit-chance', title: 'Hit Chance', description: 'Your Accuracy Rating is compared against the target Evasion Rating. Blocks are resolved separately and spells bypass Accuracy.', rows: [{ label: 'Your Accuracy Rating', value: `${Math.round(matchup.playerAccuracy)}`, tone: 'blue' }, { label: 'Target Evasion Rating', value: `${Math.round(matchup.targetEvasion)}`, tone: 'blue' }, { label: 'Result', value: formatPercent(matchup.playerHitChance), tone: 'gold' }] }} />
       <MatchupMetric label="Target Evasion" value={`${Math.round(matchup.targetEvasion)}`} />
-      <MatchupMetric label="Attack Block" value={formatPercent(matchup.targetAttackBlockChance)} />
-      <MatchupMetric label="Spell Block" value={formatPercent(matchup.targetSpellBlockChance)} />
-      <MatchupMetric label="Spell Suppression" value={formatPercent(matchup.targetSpellSuppressionChance)} />
+      <MatchupMetric label="Block Chance" value={formatPercent(matchup.targetBlockChance)} />
+      <MatchupMetric label="Block Effect" value={formatPercent(matchup.targetBlockEffect)} />
       <MatchupMetric label="Enemy Hit Chance" value={formatPercent(matchup.enemyHitChance)} tone="red" tooltip={{ id: 'combat.matchup-enemy-hit-chance', title: 'Enemy Hit Chance', description: 'The selected enemy Accuracy compared against your effective Evasion.', rows: [{ label: 'Enemy Accuracy', value: `${Math.round(matchup.enemyAccuracy)}`, tone: 'red' }, { label: 'Your Evasion', value: `${Math.round(matchup.playerEvasion)}`, tone: 'blue' }, { label: 'Result', value: formatPercent(matchup.enemyHitChance), tone: 'red' }] }} />
       <MatchupMetric label="Crit Chance" value={formatPercent(matchup.playerCritChance)} />
     </> : <div className="combat-matchup-empty"><strong>No active target</strong><small>Select an enemy to view matchup.</small></div>}

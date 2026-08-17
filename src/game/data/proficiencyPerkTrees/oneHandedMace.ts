@@ -10,11 +10,11 @@ const profile: WeaponTreeProfile = {
     { name: 'Punisher / Off-Balance', kind: 'control', names: ['Read the Opening', 'Punishing Blow', 'Concussive Hit', 'Staggering Presence', 'Exploit Weakness', 'Relentless Punishment', 'Crushing Sentence'] },
   ],
   crossNodes: [
-    { name: "Breaker's Rhythm", links: [[1, 6], [3, 6]], effects: [interval(-.05), { type: 'weaponConditionalDamageModifier', operation: 'increased', valuePerRank: .08, condition: { type: 'targetHasEffect', effectId: 'effect.armor-broken' } }] },
+    { name: "Breaker's Rhythm", links: [[1, 6], [3, 6]], effects: [interval(-.05), { type: 'weaponConditionalDamageModifier', operation: 'increased', valuePerRank: .08, condition: { type: 'targetHasEffect', effectId: 'effect.crushed' } }] },
     { name: 'Iron Hand', links: [[2, 6], [0, 5]], effects: [{ type: 'statModifier', stat: 'armour', operation: 'flat', valuePerRank: 10 }, { type: 'weaponDamageModifier', valuePerRank: .1 }, damage(.1)] },
-    { name: 'Ruthless Impact', links: [[4, 5], [1, 6]], effects: [conditional(.15, { type: 'targetHasEffect', effectId: 'effect.concussed' }), conditional(.15, { type: 'targetHasEffect', effectId: 'effect.armor-broken' })] },
+    { name: 'Ruthless Impact', links: [[4, 5], [1, 6]], effects: [conditional(.15, { type: 'targetHasEffect', effectId: 'effect.concussed' }), conditional(.15, { type: 'targetHasEffect', effectId: 'effect.crushed' })] },
   ],
-  apexEffects: [damage(.15), { type: 'statModifier', stat: 'armour', operation: 'flat', valuePerRank: 10 }, { type: 'weaponArmorPenetrationModifier', mode: 'flat', valuePerRank: 10 }, { type: 'statModifier', stat: 'attackBlockChance', operation: 'flat', valuePerRank: .05 }, { type: 'statModifier', stat: 'criticalStrikeMultiplier', operation: 'flat', valuePerRank: .1 }],
+  apexEffects: [damage(.15), { type: 'statModifier', stat: 'armour', operation: 'flat', valuePerRank: 10 }, { type: 'weaponArmorPenetrationModifier', mode: 'flat', valuePerRank: 10 }, { type: 'statModifier', stat: 'blockChance', operation: 'flat', valuePerRank: .05 }, { type: 'statModifier', stat: 'criticalStrikeMultiplier', operation: 'flat', valuePerRank: .1 }],
 }
 
 export const oneHandedMacePerks = createWeaponTree(profile)

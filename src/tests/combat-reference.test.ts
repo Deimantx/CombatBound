@@ -10,7 +10,7 @@ describe('combat reference metadata', () => {
     expect(combatStatReferenceById.armour.fullDescription).toContain('Physical')
     expect(combatStatReferenceById.armour.fullDescription).not.toContain('Hit Chance')
     expect(combatStatReferenceById.evasionRating.shortDescription).not.toContain('Dodge')
-    expect(combatStatReferenceById.attackBlockChance.label).not.toBe(combatStatReferenceById.spellBlockChance.label)
+    expect(combatStatReferenceById.blockChance.label).not.toBe(combatStatReferenceById.blockEffect.label)
   })
 
   it('describes weapon proficiency progression without inventing global stat scaling', () => {

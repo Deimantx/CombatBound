@@ -277,7 +277,6 @@ export function debugResetPlayerCooldowns(game: GameState): GameState {
       actionCooldowns: {},
       globalCooldownRemaining: 0,
       potionCooldownRemaining: 0,
-      stanceCooldownRemaining: 0,
     },
   };
 }
@@ -327,7 +326,7 @@ export function debugClearAllEnemyEffects(game: GameState): GameState {
 export function debugApplyEffect(game: GameState, effectId: string, target: DebugEffectTarget): GameState {
   const definition = effectById[effectId];
   if (!definition) return game;
-  const stats = calculateHunterCombatStats(game.equipment, game.inventory, game.progression, game.combat.stance, game.combat.techniques);
+  const stats = calculateHunterCombatStats(game.equipment, game.inventory, game.progression, game.combat.techniques);
   const playerStats = getPlayerEffectiveCombatStats(game.combat, stats, game.progression, effectById);
   const source: CombatantRef = { kind: "player" };
   if (target === "player") {
@@ -343,7 +342,7 @@ export function debugApplyEffect(game: GameState, effectId: string, target: Debu
 }
 
 export function debugApplyPlayerMaxHpBarrier(game: GameState): GameState {
-  const stats = calculateHunterCombatStats(game.equipment, game.inventory, game.progression, game.combat.stance, game.combat.techniques);
+  const stats = calculateHunterCombatStats(game.equipment, game.inventory, game.progression, game.combat.techniques);
   const playerStats = getPlayerEffectiveCombatStats(game.combat, stats, game.progression, effectById);
   const result = applyEffectById(game.combat, "effect.earth-barrier", effectById, { kind: "player" }, { kind: "player" }, { targetStats: playerStats, absorbAmount: game.combat.maxPlayerHp });
   return { ...game, combat: result.combat };

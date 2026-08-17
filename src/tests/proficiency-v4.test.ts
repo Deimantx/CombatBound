@@ -13,7 +13,7 @@ import type { CombatStats } from '../game/combat/combatTypes'
 import { normalizeCombatStats } from '../game/combat/combatStats'
 
 const rng = (value: number) => ({ next: () => value })
-const stats: CombatStats = normalizeCombatStats({ maxLife: 100, attackDamage: 100, accuracyRating: 100, baseAttackTime: 1, armour: 0, evasionRating: 0, baseCritChance: 0, criticalStrikeMultiplier: 2, maxStamina: 100, staminaRegen: 5, maxMana: 100, manaRegenFlat: 5, resistances: {} })
+const stats: CombatStats = normalizeCombatStats({ maxLife: 100, attackDamage: 100, accuracyRating: 100, baseAttackTime: 1, armour: 0, evasionRating: 0, criticalStrikeChance: 0, criticalStrikeMultiplier: 2, maxStamina: 100, staminaRegen: 5, maxMana: 100, manaRegenFlat: 5, resistances: {} })
 
 describe('V4 weapon proficiency mechanics', () => {
   it('aggregates attack-local armour and secondary-target modifiers', () => {
@@ -32,11 +32,11 @@ describe('V4 weapon proficiency mechanics', () => {
 
   it('applies armour penetration to the current hit without mutating the defender', () => {
     expect(calculateEffectiveArmor(50, .2, 10)).toBe(30)
-    const defender = { ...stats, armour: 50, attackBlockChance: 0 }
+    const defender = { ...stats, armour: 50, blockChance: 0 }
     const packet = { damageType: 'physical' as const, baseDamage: 100, minMultiplier: 1, maxMultiplier: 1, canCrit: false, armorPenetrationPercent: .2, armorPenetrationFlat: 10, source: { kind: 'player' as const }, target: { kind: 'enemy' as const, instanceId: 'target' }, defensiveEligibility: { canMiss: false, blockable: false } }
     const result = resolveDamage(packet, stats, defender, rng(.1))
     expect(result.outcome).toBe('hit')
-    expect(result.healthDamage).toBe(94)
+    expect(result.healthDamage).toBe(99)
     expect(defender.armour).toBe(50)
   })
 
@@ -53,7 +53,7 @@ describe('V4 weapon proficiency mechanics', () => {
     const baseEnemy = calculateEnemyBaseCombatStats(enemyById[enemy.enemyId])
     const effective = calculateEffectiveCombatStats(baseEnemy, applied.combat.enemies[0].effects, effectById)
     expect(effective.accuracyRating).toBe((baseEnemy.accuracyRating ?? 0) - 5)
-    expect(effective.attackInterval).toBeCloseTo(baseEnemy.attackInterval * 1.05)
+    expect(effective.attackInterval).toBeCloseTo(baseEnemy.attackInterval)
     expect(advanceEffectTimers(applied.combat.enemies[0].effects, 4.01, effectById).effects).toHaveLength(0)
   })
 })

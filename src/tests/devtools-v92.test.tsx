@@ -54,7 +54,7 @@ describe("Developer Toolkit V9.2 hotfixes", () => {
     const definition = DEBUG_STAT_DEFINITIONS.find((entry) => entry.id === "accuracyRating")!;
     const tooltip = buildStatBreakdownTooltip(definition, { stat: definition.id, mode: "build", finalValue: 82, contributions: [
       { stat: definition.id, sourceType: "base", sourceId: "base", sourceLabel: "Combat Base", operation: "flat", before: 0, value: 20, after: 20, amount: 20, label: "Combat Base" },
-      { stat: definition.id, sourceType: "stance", sourceId: "stance.high", sourceLabel: "High Stance", operation: "more", before: 20, value: 4, after: 24, amount: 4, label: "High Stance" },
+      { stat: definition.id, sourceType: "perk", sourceId: "perk.test", sourceLabel: "Accuracy Perk", operation: "more", before: 20, value: 4, after: 24, amount: 4, label: "Accuracy Perk" },
     ] });
     expect(tooltip.rows?.map((row) => row.value)).toEqual(["82", "+20", "×1.20"]);
     expect(tooltip.notes).toContain("Click for full breakdown.");

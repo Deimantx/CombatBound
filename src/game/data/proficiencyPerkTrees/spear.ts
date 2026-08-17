@@ -10,11 +10,11 @@ const profile: WeaponTreeProfile = {
     { name: 'Tempo / Opening', kind: 'opening', names: ['Quick Recovery', 'Light Hands', 'First Thrust', 'Maintain Distance', 'Relentless Point', 'Veteran Pikeman', 'Opening Dominance'] },
   ],
   crossNodes: [
-    { name: "Duelist's Reach", links: [[0, 6], [3, 6]], effects: [{ type: 'statModifier', stat: 'accuracyRating', operation: 'flat', valuePerRank: 8 }, { type: 'statModifier', stat: 'attackBlockChance', operation: 'flat', valuePerRank: .03 }] },
+    { name: "Duelist's Reach", links: [[0, 6], [3, 6]], effects: [{ type: 'statModifier', stat: 'accuracyRating', operation: 'flat', valuePerRank: 8 }, { type: 'statModifier', stat: 'blockChance', operation: 'flat', valuePerRank: .03 }] },
     { name: 'Blood Point', links: [[1, 6], [2, 6]], effects: [{ type: 'onWeaponHitApplyEffect', effectId: 'effect.bleed', chancePerRank: .1 }, conditional(.15, { type: 'targetHasEffect', effectId: 'effect.bleed' })] },
     { name: 'First and Final', links: [[4, 6], [1, 6]], effects: [conditional(.2, { type: 'targetHpAbove', fraction: .75 }), conditional(.25, { type: 'targetHpBelow', fraction: .25 })] },
   ],
-  apexEffects: [damage(.15), { type: 'statModifier', stat: 'accuracyRating', operation: 'flat', valuePerRank: 12 }, { type: 'statModifier', stat: 'additionalBaseCritChance', operation: 'flat', valuePerRank: .05 }, { type: 'statModifier', stat: 'attackBlockChance', operation: 'flat', valuePerRank: .05 }, interval(-.05)],
+  apexEffects: [damage(.15), { type: 'statModifier', stat: 'accuracyRating', operation: 'flat', valuePerRank: 12 }, { type: 'statModifier', stat: 'criticalStrikeChance', operation: 'flat', valuePerRank: .05 }, { type: 'statModifier', stat: 'blockChance', operation: 'flat', valuePerRank: .05 }, interval(-.05)],
 }
 
 export const spearPerks = createWeaponTree(profile)

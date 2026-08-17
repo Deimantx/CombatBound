@@ -104,10 +104,10 @@ export function SelectedEnemyPanel({
               }
             />
             <TargetStat
-              label="Attack Block"
-              value={formatPercent(enemyStats?.attackBlockChance ?? definition.attackBlockChance ?? 0)}
-              statKey="attackBlockChance"
-              statValue={enemyStats?.attackBlockChance ?? definition.attackBlockChance ?? 0}
+              label="Block Chance"
+              value={formatPercent(enemyStats?.blockChance ?? definition.blockChance ?? 0)}
+              statKey="blockChance"
+              statValue={enemyStats?.blockChance ?? definition.blockChance ?? 0}
             />
           </div>
           <div className="combat-effects-inspector">
@@ -117,10 +117,9 @@ export function SelectedEnemyPanel({
             </div>
             <EffectChips effects={selectedEnemy.effects} debugId="enemy" />
           </div>
-          {(enemyStats?.spellBlockChance ?? definition.spellBlockChance ?? 0) > 0 || (enemyStats?.spellSuppressionChance ?? definition.spellSuppressionChance ?? 0) > 0 ? (
+          {(enemyStats?.blockEffect ?? definition.blockEffect ?? 0) > 0 ? (
             <div className="target-defenses">
-              <span>Spell Block {formatPercent(enemyStats?.spellBlockChance ?? definition.spellBlockChance ?? 0)}</span>
-              <span>Suppression {formatPercent(enemyStats?.spellSuppressionChance ?? definition.spellSuppressionChance ?? 0)}</span>
+              <span>Block Effect {formatPercent(enemyStats?.blockEffect ?? definition.blockEffect ?? 0)}</span>
             </div>
           ) : null}
           <div className="trait-section">
@@ -149,11 +148,9 @@ export function SelectedEnemyPanel({
                     </strong>
                     <small>
                       {action.danger.toUpperCase()} DANGER Â·{" "}
-                      {action.interruptible
-                        ? "INTERRUPTIBLE"
-                        : "UNINTERRUPTIBLE"}
+                      "TELEGRAPHED"
                     </small>
-                    {current && <small className="casting-now-label">CASTING NOW Â· INTERRUPT IN LIVE HUNT</small>}
+                    {current && <small className="casting-now-label">CASTING NOW Â· RESOLVES WHEN TIMER ENDS</small>}
                   </div>
                 );
               })}

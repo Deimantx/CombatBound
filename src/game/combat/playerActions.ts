@@ -19,7 +19,7 @@ export const defensiveActionDefinitions: PlayerActionDefinition[] = [
     id: "defense.guard",
     kind: "defensive",
     name: "Guard",
-    description: "Raise your shield to improve Attack Block chance.",
+    description: "Raise your shield to improve Block Chance and Block Effect.",
     icon: "shield",
     targetMode: "self",
     cooldown: 4,
@@ -45,7 +45,7 @@ export const defensiveActionDefinitions: PlayerActionDefinition[] = [
     kind: "defensive",
     name: "Brace",
     description:
-      "Brace behind your armour to improve Armour and ailment duration reduction.",
+      "Brace behind your armour to improve Armour.",
     icon: "shield-check",
     targetMode: "self",
     cooldown: 5,
@@ -259,20 +259,6 @@ export function validatePlayerAction(
       action,
       targetId: target.instanceId,
     };
-  if (action.id === "spell.disrupting-pulse") {
-    const interruptible = target?.currentAction
-      ? context.enemies[target.enemyId]?.actions.find(
-          (candidate) => candidate.id === target.currentAction?.actionId,
-        )?.interruptible
-      : false;
-    if (!interruptible)
-      return {
-        valid: false,
-        reason: "no-interruptible-action",
-        action,
-        targetId: target?.instanceId,
-      };
-  }
   if (action.id === potionAction.id) {
     if ((game.inventory.stackables[potionAction.sourceItemId!] ?? 0) <= 0)
       return { valid: false, reason: "consumable-missing", action };

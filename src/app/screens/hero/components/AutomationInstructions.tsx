@@ -41,7 +41,7 @@ export function AutomationInstructions({ onBack }: { onBack: () => void }) {
         <section id="automation-presets" data-debug-help-section="automation-presets">
           <h4>Automation Presets</h4>
           <p>Automation Presets save the current Rules, their priorities and enabled states, Conditions, Target Priority order and enabled states, and Auto Target Override. There are ten persistent slots, and each slot stores an independent snapshot.</p>
-          <p>Use <strong>SAVE CURRENT</strong> for an empty slot, <strong>OVERWRITE</strong> to replace an existing slot, <strong>RENAME</strong> to give it a clear name, and <strong>LOAD</strong> to apply it. Loading keeps the Master Automation switch, equipment, spellbook, combat abilities, stance, techniques, inventory, stats, resources, cooldowns, and live combat target unchanged.</p>
+          <p>Use <strong>SAVE CURRENT</strong> for an empty slot, <strong>OVERWRITE</strong> to replace an existing slot, <strong>RENAME</strong> to give it a clear name, and <strong>LOAD</strong> to apply it. Loading keeps the Master Automation switch, equipment, spellbook, combat abilities, techniques, inventory, stats, resources, cooldowns, and live combat target unchanged.</p>
           <div className="instruction-callout important"><strong>IMPORTANT</strong><span>Presets are configuration snapshots, not live links. Missing or unequipped actions remain saved in the preset and are shown as unavailable until the required loadout or equipment is restored.</span></div>
           <p>Presets can be saved, overwritten, renamed, or loaded while a Hunt is active. Loading changes future automation decisions without resetting combat runtime or action cooldowns.</p>
         </section>
@@ -72,7 +72,7 @@ export function AutomationInstructions({ onBack }: { onBack: () => void }) {
             <li>Target HP below/above a percentage.</li>
             <li>Player or Target has/misses a specific Effect.</li>
             <li>Barrier missing or Barrier below a percentage of Max HP.</li>
-            <li>Target casting, Target interruptible, or Target danger at least a level.</li>
+            <li>Target casting or Target danger at least a level.</li>
             <li>A minimum number of living enemies.</li>
           </ul>
           <p>Percentages are thresholds, not resource costs. For example, Mana above 40% means the Rule waits until your current Mana is more than 40% of Max Mana.</p>
@@ -81,20 +81,20 @@ export function AutomationInstructions({ onBack }: { onBack: () => void }) {
         <section id="when-rule-executes" data-debug-help-section="when-rule-executes">
           <h4>When a Rule Executes</h4>
           <p>A Rule executes only when its Conditions match and its Action passes normal validation. The action must also be available to the current Combat state.</p>
-          <div className="instruction-example"><strong>PRIORITY 10 · Disrupting Pulse</strong><span>Target interruptible AND Target danger at least High</span><small>The pulse is attempted only while the selected target is performing an interruptible dangerous action.</small></div>
+          <div className="instruction-example"><strong>PRIORITY 10 · Lightning Pulse</strong><span>Target casting AND Target danger at least High</span><small>The pulse is attempted while the selected target is performing a dangerous cast.</small></div>
         </section>
 
         <section id="skipped" data-debug-help-section="skipped">
           <h4>Why a Rule Can Be Skipped</h4>
           <p>A Rule can be skipped because a condition is false, the Master Automation switch is disabled, Combat is not active, or its Action is invalid right now.</p>
-          <p>Common invalid reasons include: the Spell is not equipped in the five-slot loadout, Mana or Stamina is too low, the Action is on cooldown, the Global Cooldown is active, there is no valid target, a target is not interruptible, a potion is unavailable, or required equipment is missing.</p>
+          <p>Common invalid reasons include: the Spell is not equipped in the five-slot loadout, Mana or Stamina is too low, the Action is on cooldown, the Global Cooldown is active, there is no valid target, a potion is unavailable, or required equipment is missing.</p>
           <p>When a higher-priority Rule is invalid, Automation continues checking lower-priority Rules. When a higher-priority Rule is valid and available, it gets the first attempt.</p>
         </section>
 
         <section id="targeting" data-debug-help-section="targeting">
           <h4>Target Priority</h4>
           <p>Target Priority is a ranked list of enemy-selection preferences. You can enable or disable preferences and move them up or down.</p>
-          <p>Available preferences include interruptible casting, highest danger casting, elite enemies, lowest health percentage, lowest health, lowest evasion, and first living enemy.</p>
+          <p>Available preferences include casting enemies, highest danger casting, elite enemies, lowest health percentage, lowest health, lowest evasion, and first living enemy.</p>
           <h4 className="subheading">Auto Target Override</h4>
           <p>With Auto Target Override off, Automation uses your manually selected living enemy. With it on, the enabled Target Priority list may select a better enemy for the next automated action.</p>
           <div className="instruction-callout why"><strong>WHY?</strong><span>Rule Priority answers “what should I do?” Target Priority answers “who should receive it?”</span></div>
@@ -133,16 +133,16 @@ export function AutomationInstructions({ onBack }: { onBack: () => void }) {
           <p>Effects are checked by their current Effect ID or supported tags. Automation does not invent a status that is not in the effect picker.</p>
         </section>
 
-        <section id="interrupts" data-debug-help-section="interrupts">
-          <h4>Interrupt Automation</h4>
-          <p>To automate an interrupt, create a Rule for Disrupting Pulse. Add Target interruptible so it is not wasted on a normal attack, and optionally add Target danger at least High to reserve the interrupt for dangerous casts.</p>
-          <div className="instruction-example"><strong>PRIORITY 10 · Disrupting Pulse</strong><span>IF Target interruptible AND Target danger at least High</span><small>Dangerous interruptible actions are handled before defense or damage filler.</small></div>
+        <section id="status-actions" data-debug-help-section="status-actions">
+          <h4>Status Actions</h4>
+          <p>Use effect conditions to maintain status strategies. For example, Lightning Pulse can be prioritized while a target is casting, while Flame Blast can be reserved for targets missing Ignite.</p>
+          <div className="instruction-example"><strong>PRIORITY 10 · Lightning Pulse</strong><span>IF Target casting AND Target danger at least High</span><small>High-danger casts come first, then defense, status maintenance, and damage.</small></div>
         </section>
 
         <section id="examples" data-debug-help-section="examples">
           <h4>Example Setups</h4>
           <div className="instruction-setup"><strong>Beginner Safe Setup</strong><p>10 Healing Potion · Player Life below 35%</p><p>20 Earthen Ward · Player Life below 70% AND Barrier missing</p><p>30 Flame Blast · Target missing Ignite AND Mana above 40%</p><p>40 Ice Shard · Mana above 60%</p><small>This flows from emergency healing to Barrier, then status maintenance and damage.</small></div>
-          <div className="instruction-setup"><strong>Interrupt-Oriented</strong><p>10 Disrupting Pulse · Target interruptible AND danger at least High AND Mana above 20%</p><p>20 Earthen Ward · Player Life below 65% AND Barrier missing</p><p>30 Flame Blast · Target missing Ignite AND Mana above 35%</p><p>40 Stone Spike · Mana above 55%</p><small>Dangerous casts come first, then defense, status maintenance, and damage.</small></div>
+          <div className="instruction-setup"><strong>Danger-and-Status Setup</strong><p>10 Lightning Pulse · Target casting AND danger at least High AND Mana above 20%</p><p>20 Earthen Ward · Player Life below 65% AND Barrier missing</p><p>30 Flame Blast · Target missing Ignite AND Mana above 35%</p><p>40 Stone Spike · Mana above 55%</p><small>Dangerous casts come first, then defense, status maintenance, and damage.</small></div>
           <div className="instruction-setup"><strong>Resource-Conservative</strong><p>10 Healing Potion · Player Life below 30%</p><p>20 Earthen Ward · Player Life below 55% AND Barrier missing AND Mana above 40%</p><p>30 Flame Blast · Target missing Ignite AND Mana above 70%</p><p>40 Ice Shard · Mana above 80%</p><small>This setup intentionally saves Mana and waits for high resource thresholds.</small></div>
         </section>
 
@@ -154,7 +154,7 @@ export function AutomationInstructions({ onBack }: { onBack: () => void }) {
             <li><strong>“My target keeps changing.”</strong> Check Auto Target Override and the enabled Target Priority order.</li>
             <li><strong>“Earthen Ward keeps being attempted.”</strong> Add Barrier missing or Barrier below a suitable percentage.</li>
             <li><strong>“I run out of Mana.”</strong> Add Mana above thresholds to offensive Spell Rules.</li>
-            <li><strong>“Interrupt never works.”</strong> Use Target interruptible and verify the enemy is casting an interruptible action.</li>
+            <li><strong>“Lightning Pulse never casts.”</strong> Check that the target is casting, the danger threshold matches, and the Spell is equipped with enough Mana.</li>
             <li><strong>“A Rule says inactive.”</strong> The Spell may not be equipped, or a defensive Action may lack its equipment requirement.</li>
           </ol>
         </section>
@@ -172,7 +172,7 @@ export function AutomationInstructions({ onBack }: { onBack: () => void }) {
             <dt>Global Cooldown</dt><dd>A short shared delay between many active actions.</dd>
             <dt>Mana</dt><dd>The resource used by Magic.</dd>
             <dt>Stamina</dt><dd>The resource used by physical and defensive actions.</dd>
-            <dt>Interruptible</dt><dd>An enemy action that can currently be stopped.</dd>
+            <dt>Telegraphed</dt><dd>An enemy action that is currently preparing and will resolve when its timer ends.</dd>
             <dt>Barrier</dt><dd>A temporary absorb pool that takes damage before HP.</dd>
           </dl>
         </section>

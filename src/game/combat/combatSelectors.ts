@@ -31,9 +31,8 @@ export interface CombatMatchupView {
   playerAccuracy: number;
   targetEvasion: number;
   playerHitChance: number;
-  targetAttackBlockChance: number;
-  targetSpellBlockChance: number;
-  targetSpellSuppressionChance: number;
+  targetBlockChance: number;
+  targetBlockEffect: number;
   enemyAccuracy: number;
   playerEvasion: number;
   enemyHitChance: number;
@@ -80,7 +79,6 @@ export function getPlayerEffectiveCombatStats(
     progression,
     weapon,
     {
-      stance: combat.stance,
       activeTechniqueCount,
       staminaFraction:
         combat.maxStamina > 0 ? combat.stamina / combat.maxStamina : 0,
@@ -136,16 +134,15 @@ export function getSelectedTargetMatchup(
       playerStats.accuracyRating ?? 0,
       enemyStats.evasionRating ?? 0,
     ),
-    targetAttackBlockChance: enemyStats.attackBlockChance ?? 0,
-    targetSpellBlockChance: enemyStats.spellBlockChance ?? 0,
-    targetSpellSuppressionChance: enemyStats.spellSuppressionChance ?? 0,
+    targetBlockChance: enemyStats.blockChance ?? 0,
+    targetBlockEffect: enemyStats.blockEffect ?? 0,
     enemyAccuracy: enemyStats.accuracyRating ?? 0,
     playerEvasion: playerStats.evasionRating ?? 0,
     enemyHitChance: calculateHitChance(
       enemyStats.accuracyRating ?? 0,
       playerStats.evasionRating ?? 0,
     ),
-    playerCritChance: playerStats.baseCritChance ?? 0,
+    playerCritChance: playerStats.criticalStrikeChance ?? 0,
     playerStats,
     enemyStats,
   };

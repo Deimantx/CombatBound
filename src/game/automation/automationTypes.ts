@@ -21,7 +21,6 @@ export type AutomationCondition =
   | { type: "barrier-below"; fraction: number }
   | { type: "barrier-missing" }
   | { type: "target-casting" }
-  | { type: "target-interruptible" }
   | {
       type: "target-danger-at-least";
       danger: "low" | "medium" | "high" | "critical";
@@ -37,7 +36,6 @@ export interface AutomationRule {
 }
 
 export type TargetPriorityCriterion =
-  | "interruptible-casting"
   | "highest-danger-casting"
   | "elite"
   | "lowest-health-percent"
@@ -89,7 +87,6 @@ export function createInitialCombatAutomation(): CombatAutomationState {
       },
     ],
     targetPriorityRules: ([
-      "interruptible-casting",
       "highest-danger-casting",
       "elite",
       "lowest-health-percent",

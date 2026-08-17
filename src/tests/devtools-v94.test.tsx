@@ -75,7 +75,7 @@ describe("Developer Toolkit V9.4", () => {
 
   it("routes periodic enemy damage through the same immortal floor", () => {
     const initial = createInitialGameState();
-    const stats = calculateHunterCombatStats(initial.equipment, initial.inventory, initial.progression, initial.combat.stance, initial.combat.techniques);
+    const stats = calculateHunterCombatStats(initial.equipment, initial.inventory, initial.progression, initial.combat.techniques);
     const context = createCombatContext({ next: () => 0.5 });
     const started = startHunt(initial, "location.wolf-den", stats, context);
     const target = started.combat.enemies[0];

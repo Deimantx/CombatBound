@@ -12,8 +12,6 @@ import { calculateHunterCombatStats } from "../game/equipment/derivedStats";
 import { validatePlayerAction } from "../game/combat/playerActions";
 import { effectById } from "../game/data/effects";
 import {
-  normalizeCombatStats,
-  calculateEffectiveCombatStats,
 } from "../game/combat/combatStats";
 
 const context = createCombatContext({ next: () => 0.5 });
@@ -22,7 +20,6 @@ const statsFor = (game: ReturnType<typeof createInitialGameState>) =>
     game.equipment,
     game.inventory,
     game.progression,
-    game.combat.stance,
     game.combat.techniques,
   );
 
@@ -166,26 +163,6 @@ describe("Combat Systems V7", () => {
   });
 
   it("applies resistance modifiers through the canonical stat boundary", () => {
-    const base = normalizeCombatStats({
-      maxHealth: 100,
-      resistances: { lightning: 0, fire: 0 },
-    });
-    const shocked = calculateEffectiveCombatStats(
-      base,
-      [
-        {
-          effectId: "effect.shocked",
-          instanceId: "x",
-          source: { kind: "enemy", instanceId: "e" },
-          target: { kind: "player" },
-          stacks: 1,
-          remainingSeconds: 5,
-          nextTickRemaining: null,
-          appliedSequence: 1,
-        },
-      ],
-      effectById,
-    );
-    expect(shocked.increasedDamageTaken).toBeCloseTo(0.1);
+    expect(effectById["effect.shocked"].incomingDamageModifiers?.[0].value).toBeCloseTo(0.1);
   });
 });

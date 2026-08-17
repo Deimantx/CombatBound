@@ -33,18 +33,6 @@ export function selectNextEnemyAction(
   return available[available.length - 1];
 }
 
-export function interruptAction(
-  currentAction: { actionId: string } | null,
-  definition: EnemyActionDefinition | undefined,
-) {
-  if (!currentAction || !definition?.interruptible)
-    return { interrupted: false, cooldownSeconds: 0 };
-  return {
-    interrupted: true,
-    cooldownSeconds: Math.max(0, definition.cooldownSeconds),
-  };
-}
-
 export function selectWeightedAction(
   definition: EnemyDefinition,
   cooldowns: number | Record<string, number>,

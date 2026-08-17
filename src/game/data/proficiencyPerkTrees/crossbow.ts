@@ -12,7 +12,7 @@ const profile: WeaponTreeProfile = {
   crossNodes: [
     { name: 'Siege Mechanism', links: [[1, 6], [0, 6]], effects: [damage(.15), { type: 'weaponArmorPenetrationModifier', mode: 'percent', valuePerRank: .1 }] },
     { name: 'Deadly Machine', links: [[2, 6], [3, 6]], effects: [{ type: 'statModifier', stat: 'criticalStrikeMultiplier', operation: 'flat', valuePerRank: .15 }, interval(-.06)] },
-    { name: 'Pinned Execution', links: [[4, 6], [1, 5]], effects: [conditional(.2, { type: 'targetHasEffect', effectId: 'effect.concussed' }), conditional(.2, { type: 'targetHasEffect', effectId: 'effect.armor-broken' })] },
+    { name: 'Pinned Execution', links: [[4, 6], [1, 5]], effects: [conditional(.2, { type: 'targetHasEffect', effectId: 'effect.concussed' }), conditional(.2, { type: 'targetHasEffect', effectId: 'effect.crushed' })] },
   ],
   apexEffects: [damage(.2), { type: 'statModifier', stat: 'criticalStrikeMultiplier', operation: 'flat', valuePerRank: .2 }, { type: 'weaponArmorPenetrationModifier', mode: 'percent', valuePerRank: .15 }, interval(-.08)],
 }

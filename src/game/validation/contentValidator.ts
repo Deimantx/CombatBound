@@ -98,7 +98,6 @@ export function validateContent(): ContentValidationIssue[] {
     }
     for (const modifier of effect.resistanceModifiers ?? []) {
       if (!canonicalDamageTypes.has(modifier.damageType)) addIssue(issues, "effect", effect.id, "NON_CANONICAL_DAMAGE_TYPE", `Unknown resistance damage type: ${modifier.damageType}`);
-      if (effect.tags.includes("exposure") && modifier.damageType === "physical") addIssue(issues, "effect", effect.id, "INVALID_EXPOSURE_TYPE", "Exposure cannot target Physical resistance.");
     }
     for (const modifier of effect.outgoingDamageModifiers ?? []) {
       if (modifier.damageType && !canonicalDamageTypes.has(modifier.damageType)) addIssue(issues, "effect", effect.id, "NON_CANONICAL_DAMAGE_TYPE", `Unknown outgoing damage type: ${modifier.damageType}`);
@@ -109,12 +108,10 @@ export function validateContent(): ContentValidationIssue[] {
     if (effect.tags.includes("elemental-ailment") && !effect.tags.includes("ailment")) addIssue(issues, "effect", effect.id, "INVALID_AILMENT_TAXONOMY", "Elemental Ailment effects must also be tagged ailment.");
     if (effect.tags.includes("physical-ailment") && !effect.tags.includes("ailment")) addIssue(issues, "effect", effect.id, "INVALID_AILMENT_TAXONOMY", "Physical Ailment effects must also be tagged ailment.");
     if ((effect.tags.includes("damaging-ailment") || effect.tags.includes("non-damaging-ailment")) && !effect.tags.includes("ailment")) addIssue(issues, "effect", effect.id, "INVALID_AILMENT_TAXONOMY", "Ailment subtype tags require the ailment tag.");
-    if (effect.tags.includes("exposure") && !(effect.resistanceModifiers ?? []).length) addIssue(issues, "effect", effect.id, "INVALID_EXPOSURE", "Exposure effects must reduce a resistance.");
     if (effect.id === "effect.shocked") {
-      if (!effect.statModifiers?.some((modifier) => modifier.stat === "increasedDamageTaken")) addIssue(issues, "effect", effect.id, "INVALID_SHOCK", "Shock must modify increasedDamageTaken.");
+      if (!effect.incomingDamageModifiers?.length) addIssue(issues, "effect", effect.id, "INVALID_SHOCK", "Shock must modify incoming damage.");
       if (effect.statModifiers?.some((modifier) => modifier.stat === "evasionRating") || (effect.resistanceModifiers ?? []).length) addIssue(issues, "effect", effect.id, "INVALID_SHOCK", "Shock must not modify Evasion or Resistance.");
     }
-    if (effect.id === "effect.off-balance" && effect.tags.includes("exposure")) addIssue(issues, "effect", effect.id, "INVALID_OFF_BALANCE", "Off-Balance cannot use the reserved Exposure taxonomy.");
   }
 
   for (const perk of proficiencyPerkDefinitions) {

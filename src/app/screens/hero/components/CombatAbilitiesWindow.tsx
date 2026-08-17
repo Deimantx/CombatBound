@@ -66,7 +66,6 @@ export function CombatAbilitiesWindow({
     game.equipment,
     game.inventory,
     game.progression,
-    game.combat.stance,
     game.combat.techniques,
   );
   const entries = getKnownCombatAbilities(game);

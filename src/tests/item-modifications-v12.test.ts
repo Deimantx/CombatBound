@@ -66,11 +66,11 @@ describe("ItemInstance V2 modification foundation", () => {
   it("feeds the exact modified instance into combat and leaves the sibling at base", () => {
     const { first, second, game } = twoSwords();
     const modifiedInventory = addItemAffix(setItemQuality(game.inventory, first.id, 20).inventory, first.id, "affix.sharpened", "affix.sharpened.t1", { next: () => 1 }).inventory;
-    const firstStats = calculateHunterCombatStats({ slots: { weapon: first.id } }, modifiedInventory, game.progression, "mid", game.combat.techniques);
-    const secondStats = calculateHunterCombatStats({ slots: { weapon: second.id } }, modifiedInventory, game.progression, "mid", game.combat.techniques);
+    const firstStats = calculateHunterCombatStats({ slots: { weapon: first.id } }, modifiedInventory, game.progression, game.combat.techniques);
+    const secondStats = calculateHunterCombatStats({ slots: { weapon: second.id } }, modifiedInventory, game.progression, game.combat.techniques);
     expect(firstStats.attackDamageMin).toBeCloseTo(29 * 1.38, 10);
     expect(secondStats.attackDamageMin).toBe(29);
-    const breakdown = buildStatBreakdown({ equipment: { slots: { weapon: first.id } }, inventory: modifiedInventory, progression: game.progression, stance: "mid", techniques: game.combat.techniques, playerEffects: [], combatPhase: "inactive" }, "attackDamage", "build");
+    const breakdown = buildStatBreakdown({ equipment: { slots: { weapon: first.id } }, inventory: modifiedInventory, progression: game.progression, techniques: game.combat.techniques, playerEffects: [], combatPhase: "inactive" }, "attackDamage", "build");
     expect(breakdown.finalValue).toBeCloseTo(firstStats.attackDamage, 10);
     expect(breakdown.contributions.some((entry) => entry.sourceId === first.id)).toBe(true);
   });
@@ -148,7 +148,7 @@ describe("ItemInstance V2 modification foundation", () => {
     const preview = previewEquipmentChange({ inventory: granted.inventory, equipment: bothEquip.equipment, instanceId: ids[0], slotId: "ring2", masteryLevel: 10 });
     expect(preview.equipment.slots.ring1).toBeUndefined();
     expect(preview.equipment.slots.ring2).toBe(ids[0]);
-    const stats = calculateHunterCombatStats(preview.equipment, granted.inventory, game.progression, "mid", game.combat.techniques);
+    const stats = calculateHunterCombatStats(preview.equipment, granted.inventory, game.progression, game.combat.techniques);
     expect(stats.accuracyRating).toBe(78);
   });
 

@@ -11,6 +11,6 @@ describe("Combat content validation V11", () => {
     expect(effectById["effect.ignite"].tags).toEqual(expect.arrayContaining(["ailment", "elemental-ailment", "damaging-ailment"]));
     expect(effectById["effect.bleed"].tags).toEqual(expect.arrayContaining(["ailment", "physical-ailment", "damaging-ailment"]));
     expect(effectById["effect.shocked"].tags).toEqual(expect.arrayContaining(["ailment", "elemental-ailment", "non-damaging-ailment"]));
-    expect(effectById["effect.shocked"].statModifiers).toContainEqual({ stat: "increasedDamageTaken", operation: "flat", value: 0.1 });
+    expect(effectById["effect.shocked"].incomingDamageModifiers).toContainEqual({ operation: "increased", value: 0.1 });
   });
 });

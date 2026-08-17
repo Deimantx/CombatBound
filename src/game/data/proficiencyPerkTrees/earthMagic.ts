@@ -5,7 +5,7 @@ const profile: MagicTreeProfile = {
   branches: [
     { name: 'Stone / Direct Damage', kind: 'stone', names: ['Stone Shard', 'Dense Projectile', 'Heavy Stone', 'Granite Impact', 'Mountain Force', 'Avalanche Force', "Mountain's Wrath"], icon: 'mountain' },
     { name: 'Armor Break / Penetration', kind: 'armor-penetration', names: ['Cracked Stone', 'Grinding Force', 'Fault Line', 'Fractured Defense', 'Deep Fracture', 'Shatter Plate', 'Worldbreaker'], icon: 'hammer' },
-    { name: 'Fortification / Armor', kind: 'fortification', names: ['Stone Skin', 'Dense Form', 'Rooted Stance', 'Granite Body', 'Immovable', 'Mountain Stance', 'Living Fortress'], icon: 'shield' },
+    { name: 'Fortification / Armor', kind: 'fortification', names: ['Stone Skin', 'Dense Form', 'Rooted Guard', 'Granite Body', 'Immovable', 'Mountain Guard', 'Living Fortress'], icon: 'shield' },
     { name: 'Barrier / Stone Ward', kind: 'barrier', names: ['Earthen Ward', 'Layered Stone', 'Long-Lasting Ward', 'Absorbing Rock', 'Reinforced Wall', 'Stone Bastion', 'Citadel'], icon: 'shield' },
     { name: 'Quake / Concussed', kind: 'quake', names: ['Tremor', 'Rattled Ground', 'Heavy Tremor', 'Slow Footing', 'Crushing Quake', 'Seismic Pressure', 'Earthquake'], icon: 'hammer' },
   ],

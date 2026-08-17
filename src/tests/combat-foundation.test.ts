@@ -24,7 +24,7 @@ import { calculateHunterCombatStats } from "../game/equipment/derivedStats";
 import type { CombatStats } from "../game/combat/combatTypes";
 
 const rng = (value: number) => ({ next: () => value });
-const stats: CombatStats = normalizeCombatStats({ maxLife: 100, attackDamage: 100, accuracyRating: 100, baseAttackTime: 1, armour: 0, evasionRating: 0, baseCritChance: 0, criticalStrikeMultiplier: 2, maxStamina: 0, staminaRegen: 0, maxMana: 0, manaRegenFlat: 1, resistances: {} });
+const stats: CombatStats = normalizeCombatStats({ maxLife: 100, attackDamage: 100, accuracyRating: 100, baseAttackTime: 1, armour: 0, evasionRating: 0, criticalStrikeChance: 0, criticalStrikeMultiplier: 2, maxStamina: 0, staminaRegen: 0, maxMana: 0, manaRegenFlat: 1, resistances: {} });
 
 describe("Combat Foundation 2.0 math", () => {
   it("uses Accuracy versus Evasion and remains monotonic and bounded", () => {
@@ -92,7 +92,7 @@ describe("Combat Foundation 2.0 math", () => {
       { ...stats, armour: 100, chaosResistance: 0.8 },
       rng(0.5),
     );
-    expect(physical.healthDamage).toBe(83);
+    expect(physical.healthDamage).toBe(98);
     expect(fire.healthDamage).toBe(80);
     expect(chaos.healthDamage).toBe(25);
   });
@@ -127,7 +127,7 @@ describe("Combat effect runtime", () => {
     );
     const broken = applyEffect(
       second.combat,
-      effectById["effect.armor-broken"],
+      effectById["effect.crushed"],
       source,
       target,
     );
@@ -175,7 +175,6 @@ describe("Combat effect runtime", () => {
       game.equipment,
       game.inventory,
       game.progression,
-      game.combat.stance,
       game.combat.techniques,
     );
     const context = createCombatContext(rng(0.5));

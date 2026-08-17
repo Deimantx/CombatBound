@@ -13,23 +13,12 @@ export interface ItemStats {
   accuracyRating?: number;
   evasionRating?: number;
   armour?: number;
-  attackBlockChance?: number;
-  maxAttackBlockChance?: number;
-  additionalPhysicalDamageReduction?: number;
-  spellBlockChance?: number;
-  maxSpellBlockChance?: number;
-  spellSuppressionChance?: number;
+  blockChance?: number;
+  blockEffect?: number;
   manaRegenFlat?: number;
-  ailmentDurationReduction?: number;
-  elementalAilmentAvoidance?: number;
-  physicalAilmentAvoidance?: number;
-  nonDamagingAilmentEffectReduction?: number;
-  increasedDamageTaken?: number;
-  actionSpeed?: number;
   increasedAttackSpeed?: number;
   increasedCastSpeed?: number;
-  baseCritChance?: number;
-  additionalBaseCritChance?: number;
+  criticalStrikeChance?: number;
   criticalStrikeMultiplier?: number;
   baseDamageMin?: number;
   baseDamageMax?: number;
@@ -41,10 +30,6 @@ export interface ItemStats {
   coldResistance?: number;
   lightningResistance?: number;
   chaosResistance?: number;
-  maxFireResistance?: number;
-  maxColdResistance?: number;
-  maxLightningResistance?: number;
-  maxChaosResistance?: number;
 }
 
 export interface ItemInstance {

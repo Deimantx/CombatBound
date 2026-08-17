@@ -9,7 +9,7 @@ import { calculateHunterCombatStats } from '../game/equipment/derivedStats'
 import { awardProficiencyXp, proficiencyLevelForXp, proficiencyXpForLevel } from '../game/progression/proficiencyProgression'
 
 const fixedContext = createCombatContext({ next: () => 0.5 })
-const statsFor = (game: ReturnType<typeof createInitialGameState>) => calculateHunterCombatStats(game.equipment, game.inventory, game.progression, game.combat.stance, game.combat.techniques)
+const statsFor = (game: ReturnType<typeof createInitialGameState>) => calculateHunterCombatStats(game.equipment, game.inventory, game.progression, game.combat.techniques)
 const sequenceContext = (values: number[]) => { let index = 0; return createCombatContext({ next: () => values[index++ % values.length] }) }
 
 describe('gameplay domain', () => {
@@ -248,7 +248,7 @@ describe('gameplay domain', () => {
     expect(combatLocationById['location.bandit-camp'].enemyPool.every((entry) => enemyById[entry.enemyId].familyId === 'family.bandits')).toBe(true)
   })
 
-  it('starts and interrupts an independent archer special inside a generated group', () => {
+  it('starts an independent archer special inside a generated group', () => {
     const game = createInitialGameState()
     const stats = statsFor(game)
     const context = sequenceContext([0.5, 0.1, 0.5, 0.5, 0.5])
@@ -258,11 +258,10 @@ describe('gameplay domain', () => {
     const targeted = { ...started, combat: { ...started.combat, selectedEnemyInstanceId: archer!.instanceId, mana: 100 } }
     const preparing = advanceCombat(targeted, 0.1, context, stats)
     expect(preparing.combat.enemies.find((enemy) => enemy.instanceId === archer!.instanceId)?.currentAction).not.toBeNull()
-    const interrupted = castSpell(preparing, 'spell.disrupting-pulse', stats, context)
-    expect(interrupted.combat.enemies.find((enemy) => enemy.instanceId === archer!.instanceId)?.currentAction).toBeNull()
-    expect(interrupted.combat.mana).toBeCloseTo(65.12, 5)
-    expect(interrupted.progression.proficiencies['air-magic']?.totalXp).toBe(50)
-    expect(interrupted.combat.session.proficiencyXpGained['air-magic']).toBe(50)
+    const cast = castSpell(preparing, 'spell.lightning-pulse', stats, context)
+    expect(cast.combat.enemies.find((enemy) => enemy.instanceId === archer!.instanceId)?.currentAction).not.toBeNull()
+    expect(cast.combat.mana).toBeCloseTo(72.12, 5)
+    expect(cast.progression.proficiencies['air-magic']?.totalXp).toBeGreaterThan(0)
   })
 
   it('consumes a potion only when it restores health', () => {

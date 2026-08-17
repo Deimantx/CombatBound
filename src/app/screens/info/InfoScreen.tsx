@@ -20,7 +20,6 @@ import { effectDefinitions } from "../../../game/data/effects";
 import { proficiencyDefinitions } from "../../../game/data/proficiencies";
 import { proficiencyPerkDefinitions } from "../../../game/data/proficiencyPerks";
 import { spellDefinitions } from "../../../game/data/spells";
-import { stanceDefinitions } from "../../../game/data/stances";
 import { techniqueDefinitions } from "../../../game/data/techniques";
 import { weaponSkillDefinitions } from "../../../game/data/weaponSkills";
 import { CollapsiblePanel } from "../../components/CollapsiblePanel";
@@ -115,7 +114,7 @@ export function InfoScreen() {
           <GuideRow
             icon={Shield}
             title="Player decisions"
-            copy="Equipment, weapon Proficiency, stance, sustained Techniques, magic, Healing Potion, and target selection shape the fight."
+            copy="Equipment, weapon Proficiency, sustained Techniques, magic, Healing Potion, and target selection shape the fight."
           />
         </Panel>
         <Panel
@@ -339,7 +338,7 @@ export function InfoScreen() {
           </div>
         </Panel>
         <CollapsiblePanel
-          title="Stances / Techniques / Spells"
+          title="Techniques / Spells"
           subtitle="Current combat choices"
           icon={Sparkles}
           panelId="infoActions"
@@ -348,16 +347,6 @@ export function InfoScreen() {
           className="info-actions-panel"
         >
           <div className="info-action-columns">
-            <div>
-              <h3>Stances</h3>
-              {Object.values(stanceDefinitions).map((stance) => (
-                <GuideRow
-                  key={stance.id}
-                  title={stance.name}
-                  copy={stance.description}
-                />
-              ))}
-            </div>
             <div>
               <h3>Techniques</h3>
               {Object.values(techniqueDefinitions).map((technique) => (
@@ -411,7 +400,7 @@ export function InfoScreen() {
             <GuideRow
               icon={Sparkles}
               title="Effects remain independent"
-              copy="Spells can apply their own effects, barriers, and interrupts. Cross-spell elemental reactions are intentionally not part of the current prototype."
+              copy="Spells can apply their own effects and barriers. Cross-spell elemental reactions are intentionally not part of the current prototype."
             />
           </div>
         </Panel>

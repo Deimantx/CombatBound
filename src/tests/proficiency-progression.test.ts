@@ -68,7 +68,7 @@ describe('weapon proficiency progression', () => {
   it('scopes sword stat perks to the equipped weapon proficiency', () => {
     const progression = { ...createInitialGameState().progression, purchasedPerks: { 'perk.one-handed-sword.blade-familiarity': 3 } }
     const active = getActiveProficiencyStatModifiers(progression, 'one-handed-sword', perkById)
-    const baseStats: CombatStats = normalizeCombatStats({ maxLife: 100, attackDamage: 20, accuracyRating: 50, baseAttackTime: 2, armour: 10, evasionRating: 10, baseCritChance: 0.05, criticalStrikeMultiplier: 1.5, maxStamina: 100, staminaRegen: 5, maxMana: 100, manaRegenFlat: 5, resistances: {} })
+    const baseStats: CombatStats = normalizeCombatStats({ maxLife: 100, attackDamage: 20, accuracyRating: 50, baseAttackTime: 2, armour: 10, evasionRating: 10, criticalStrikeChance: 0.05, criticalStrikeMultiplier: 1.5, maxStamina: 100, staminaRegen: 5, maxMana: 100, manaRegenFlat: 5, resistances: {} })
     expect(applyProficiencyStatModifiers(baseStats, active).accuracyRating).toBe(56)
     expect(active).toHaveLength(1)
     expect(active[0].value).toBe(6)

@@ -10,7 +10,7 @@ import { createInitialGameState } from '../game/gameState'
 import { migrateCurrentSave } from '../game/persistence/saveMigration'
 import { normalizeCombatStats } from '../game/combat/combatStats'
 
-const stats: CombatStats = normalizeCombatStats({ maxLife: 100, attackDamage: 40, accuracyRating: 100, baseAttackTime: 2, armour: 10, evasionRating: 0, baseCritChance: 0, criticalStrikeMultiplier: 1.5, maxStamina: 100, staminaRegen: 5, maxMana: 100, manaRegenFlat: 5, resistances: {} })
+const stats: CombatStats = normalizeCombatStats({ maxLife: 100, attackDamage: 40, accuracyRating: 100, baseAttackTime: 2, armour: 10, evasionRating: 0, criticalStrikeChance: 0, criticalStrikeMultiplier: 1.5, maxStamina: 100, staminaRegen: 5, maxMana: 100, manaRegenFlat: 5, resistances: {} })
 const fixedContext = createCombatContext({ next: () => .5 })
 
 describe('Magic Schools V5', () => {
@@ -27,15 +27,15 @@ describe('Magic Schools V5', () => {
 
   it('keeps canonical spell IDs and school mappings stable', () => {
     expect(spellById['spell.flame-blast'].magicProficiencyId).toBe('fire-magic')
-    expect(spellById['spell.disrupting-pulse'].magicProficiencyId).toBe('air-magic')
+    expect(spellById['spell.lightning-pulse'].magicProficiencyId).toBe('air-magic')
     expect(spellById['spell.ice-shard'].damageType).toBe('cold')
     expect(spellById['spell.stone-spike'].damageType).toBe('physical')
     expect(spellById['spell.shadow-bolt'].damageType).toBe('chaos')
   })
 
   it('provides source-owned core statuses and Darkness periodic progression credit', () => {
-    expect(effectById['effect.chilled'].statModifiers).toContainEqual({ stat: 'actionSpeed', operation: 'flat', value: -.03 })
-    expect(effectById['effect.shocked'].statModifiers).toContainEqual({ stat: 'increasedDamageTaken', operation: 'flat', value: .1 })
+    expect(effectById['effect.chilled'].statModifiers).toEqual(expect.arrayContaining([{ stat: 'increasedAttackSpeed', operation: 'flat', value: -.03 }, { stat: 'increasedCastSpeed', operation: 'flat', value: -.03 }]))
+    expect(effectById['effect.shocked'].incomingDamageModifiers).toContainEqual({ operation: 'increased', value: .1 })
     expect(effectById['effect.cursed'].statModifiers).toContainEqual({ stat: 'accuracyRating', operation: 'flat', value: -5 })
     expect(effectById['effect.shadow-decay'].periodic?.operation).toEqual({ type: 'damage', damageType: 'chaos', baseAmount: 7, canCrit: false })
   })
@@ -57,10 +57,10 @@ describe('Magic Schools V5', () => {
     expect(water.combat.enemies[0].effects.some((effect) => effect.effectId === 'effect.chilled')).toBe(true)
     const earth = castSpell({ ...started, combat: { ...started.combat, selectedEnemyInstanceId: target.instanceId, mana: 100 } }, 'spell.stone-spike', stats as never, createCombatContext({ next: () => .1 }))
     expect(earth.progression.proficiencies['earth-magic']?.totalXp).toBeGreaterThan(0)
-    expect(earth.combat.enemies[0].effects.some((effect) => effect.effectId === 'effect.armor-broken')).toBe(true)
-    const darkness = castSpell({ ...started, spellbook: { ...started.spellbook, equippedSpellSlots: [...started.spellbook.equippedSpellSlots.slice(0, 4), 'spell.shadow-bolt'] }, combat: { ...started.combat, selectedEnemyInstanceId: target.instanceId, mana: 100 } }, 'spell.shadow-bolt', stats as never, fixedContext)
+    expect(earth.combat.enemies[0].effects.some((effect) => effect.effectId === 'effect.crushed')).toBe(true)
+    const darkness = castSpell({ ...started, spellbook: { ...started.spellbook, equippedSpellSlots: ['spell.shadow-bolt', ...started.spellbook.equippedSpellSlots.slice(1)] }, combat: { ...started.combat, selectedEnemyInstanceId: target.instanceId, mana: 100 } }, 'spell.shadow-bolt', stats as never, fixedContext)
     expect(darkness.progression.proficiencies['darkness-magic']?.totalXp).toBeGreaterThan(0)
-    expect(darkness.combat.enemies[0].effects.find((effect) => effect.effectId === 'effect.shadow-decay')?.sourceProficiencyId).toBe('darkness-magic')
+    expect(darkness.combat.enemies[0].effects.find((effect) => effect.effectId === 'effect.withered')?.sourceProficiencyId).toBe('darkness-magic')
   })
 
   it('migrates V2 school progress without duplicating Mastery or preserving legacy purchases', () => {

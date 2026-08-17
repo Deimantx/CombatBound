@@ -27,14 +27,13 @@ describe('combat presentation selectors', () => {
   it('aggregates independent barrier effects from runtime values', () => {
     let combat = createCombatState()
     combat = applyEffect(combat, effectById['effect.earth-barrier'], { kind: 'player' }, { kind: 'player' }, { absorbAmount: 25 }).combat
-    combat = applyEffect(combat, effectById['effect.disruptive-shield'], { kind: 'player' }, { kind: 'player' }, { absorbAmount: 40 }).combat
-    expect(getBarrierAmount(combat.playerEffects, effectById)).toBe(65)
-    expect(getPlayerBarrierAmount(combat)).toBe(65)
+    expect(getBarrierAmount(combat.playerEffects, effectById)).toBe(25)
+    expect(getPlayerBarrierAmount(combat)).toBe(25)
   })
 
   it('uses effective runtime stats and the canonical hit chance for the selected target', () => {
     const game = createInitialGameState()
-    const stats = calculateHunterCombatStats(game.equipment, game.inventory, game.progression, game.combat.stance, game.combat.techniques)
+    const stats = calculateHunterCombatStats(game.equipment, game.inventory, game.progression, game.combat.techniques)
     const enemies = instantiateEnemies(['enemy.grey-wolf', 'enemy.alpha-wolf'], 1)
     const combat = { ...game.combat, enemies, selectedEnemyInstanceId: enemies[0].instanceId }
     const first = getSelectedTargetMatchup(combat, stats, game.progression, enemies[0])

@@ -12,9 +12,8 @@ export interface EffectiveSpellDefinition extends SpellDefinition {
   healing?: { flatAmount: number }
   barrierAmount?: number
   canCrit: boolean
-  criticalBaseChance: number
-  criticalChanceBonus: number
-  criticalDamageMultiplier: number
+  criticalStrikeChance: number
+  criticalStrikeMultiplier: number
   effectDurationModifiers: Record<string, { durationBonusSeconds: number; durationMultiplier: number }>
   effectPeriodicPowerModifiers: Record<string, number>
   effectMaxStacksModifiers: Record<string, number>
@@ -44,5 +43,5 @@ export function calculateEffectiveSpell(spell: SpellDefinition, progression: Pro
   const effectPeriodicPowerModifiers = Object.fromEntries(Object.entries(modifiers.effectPeriodicPowerPercent).map(([effectId, value]) => [effectId, 1 + value]))
   const effectMaxStacksModifiers = Object.fromEntries(Object.entries(modifiers.effectMaxStacksBonus).map(([effectId, value]) => [effectId, value]))
   const healing = spell.healing === undefined ? undefined : { flatAmount: Math.max(0, spell.healing.flatAmount * (1 + modifiers.healingPercent)) }
-  return { ...spell, manaCost, cooldownSeconds, baseDamageMin, baseDamageMax, healing, barrierAmount: spell.barrierAmount === undefined ? undefined : Math.max(0, spell.barrierAmount * (1 + modifiers.barrierAmountPercent) + modifiers.barrierAmountFlat), canCrit: Boolean(baseDamageMin > 0 && modifiers.canCrit), criticalBaseChance: spell.baseCritChance ?? 0, criticalChanceBonus: modifiers.spellCriticalChance + getConditionalMagicCritChance(progression, spell.magicProficiencyId, context.targetHpFraction ?? 1), criticalDamageMultiplier: 1 + modifiers.spellCriticalDamagePercent, effectDurationModifiers, effectPeriodicPowerModifiers, effectMaxStacksModifiers }
+  return { ...spell, manaCost, cooldownSeconds, baseDamageMin, baseDamageMax, healing, barrierAmount: spell.barrierAmount === undefined ? undefined : Math.max(0, spell.barrierAmount * (1 + modifiers.barrierAmountPercent) + modifiers.barrierAmountFlat), canCrit: Boolean(baseDamageMin > 0 && modifiers.canCrit), criticalStrikeChance: (spell.criticalStrikeChance ?? 0) + modifiers.spellCriticalChance + getConditionalMagicCritChance(progression, spell.magicProficiencyId, context.targetHpFraction ?? 1), criticalStrikeMultiplier: 1 + modifiers.spellCriticalDamagePercent, effectDurationModifiers, effectPeriodicPowerModifiers, effectMaxStacksModifiers }
 }

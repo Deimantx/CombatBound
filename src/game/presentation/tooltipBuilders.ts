@@ -11,7 +11,6 @@ import type { ResolvedItemInstance } from "../items/itemTypes";
 import { combatStatReferenceById } from "../data/combatGlossary";
 import { effectById } from "../data/effects";
 import type { SpellDefinition } from "../data/spells";
-import { stanceDefinitions } from "../data/stances";
 import type { TechniqueId } from "../combat/combatTypes";
 import type { ProgressionState } from "../progression/progressionTypes";
 import { calculateEffectiveSpell, type SpellCalculationContext } from "../progression/spellProgression";
@@ -391,9 +390,8 @@ export function buildEnemyDefinitionTooltip(enemy: EnemyDefinition, options: { d
     { label: "Armour", value: `${enemy.armour}`, tone: "blue" },
     { label: "Evasion Rating", value: `${enemy.evasionRating}`, tone: "blue" },
     { label: "Attack Interval", value: formatSeconds(enemy.baseAttackTime), tone: "blue" },
-    { label: "Attack Block", value: formatPercent(enemy.attackBlockChance ?? 0, true), tone: "blue" },
-    { label: "Spell Block", value: formatPercent(enemy.spellBlockChance ?? 0, true), tone: "blue" },
-    { label: "Spell Suppression", value: formatPercent(enemy.spellSuppressionChance ?? 0, true), tone: "blue" },
+    { label: "Block Chance", value: formatPercent(enemy.blockChance ?? 0, true), tone: "blue" },
+    { label: "Block Effect", value: formatPercent(enemy.blockEffect ?? 0, true), tone: "blue" },
   ];
   rows.push(...Object.entries(enemy.resistances).map(([damageType, value]) => ({ label: `${damageType} resistance`, value: formatPercent(value, true), tone: toneForValue(value) } satisfies TooltipRow)));
   if (options.defeats !== undefined) rows.push({ label: "Collection defeats", value: `${options.defeats}`, tone: "gold" });
@@ -462,12 +460,6 @@ export function buildSpellTooltip(
         )
         .join(", "),
       tone: "red",
-    });
-  if (spell.interruptsAction)
-    rows.push({
-      label: "Utility",
-      value: "Interrupts a selected enemy special action",
-      tone: "blue",
     });
   return {
     id: spell.id,
@@ -606,45 +598,5 @@ export function buildCombatAbilityTooltip(
       { label: "Requirement", value: options.availability?.requirement ?? "None" },
       { label: "Equipped slot", value: options.equippedSlot >= 0 ? `Active ${options.equippedSlot + 1}` : "Not equipped" },
     ],
-  };
-}
-
-export function buildStanceTooltip(
-  id: keyof typeof stanceDefinitions,
-): TooltipModel {
-  const stance = stanceDefinitions[id];
-  const rows: TooltipRow[] = [];
-  const addMultiplier = (label: string, value: number, note?: string) => {
-    if (value !== 1)
-      rows.push({
-        label,
-        value: `${value > 1 ? "+" : ""}${Math.round((value - 1) * 100)}%${note ? ` (${note})` : ""}`,
-        tone: toneForValue(value - 1),
-      });
-  };
-  addMultiplier("Attack Damage", stance.damageMultiplier);
-  addMultiplier("Armour", stance.armourMultiplier);
-  addMultiplier("Accuracy Rating", stance.accuracyMultiplier);
-  addMultiplier(
-    "Attack Interval",
-    stance.attackIntervalMultiplier,
-    stance.attackIntervalMultiplier < 1 ? "faster" : "slower",
-  );
-  if (stance.evasionRating)
-    rows.push({
-      label: "Evasion Rating",
-      value: formatSignedNumber(stance.evasionRating),
-      tone: "green",
-    });
-  addMultiplier("Stamina Regeneration", stance.staminaRegenMultiplier);
-  addMultiplier("Stamina Drain", stance.staminaDrainMultiplier);
-  return {
-    id: `stance.${id}`,
-    icon: "shield",
-    title: stance.name,
-    subtitle: "Combat stance",
-    tone: id === "high" ? "red" : id === "low" ? "blue" : "default",
-    description: stance.description,
-    rows,
   };
 }

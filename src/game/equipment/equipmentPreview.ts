@@ -31,7 +31,6 @@ export function buildEquipmentPreviewState(game: GameState, request: EquipmentPr
     game.equipment,
     game.inventory,
     game.progression,
-    game.combat.stance,
     game.combat.techniques,
   );
   if (!request) return { request: null, currentStats, comparison: [] };
@@ -64,7 +63,6 @@ export function buildEquipmentPreviewState(game: GameState, request: EquipmentPr
     preview.equipment,
     game.inventory,
     game.progression,
-    game.combat.stance,
     game.combat.techniques,
   );
   return {

@@ -11,6 +11,7 @@ import {
   migrateV9Save,
   migrateV10Save,
   migrateV11Save,
+  normalizeProgressionPerkIds,
 } from "./saveMigration";
 import { isGameSave } from "./saveValidation";
 import { normalizeSpellbook } from "../spellbook/spellbookLogic";
@@ -66,7 +67,7 @@ function normalizeCurrentSave(value: unknown): GameSaveV12 | null {
   }
   const inventory = normalizeInventoryState(raw.inventory);
   const equipment = normalizeEquipmentState(raw.equipment, inventory);
-  const normalized: GameSaveV12 = { ...raw, inventory, equipment, spellbook: normalizeSpellbook(raw.spellbook), combatAutomation: normalizeCombatAutomation(raw.combatAutomation), combatAutomationPresets: normalizeCombatAutomationPresets(raw.combatAutomationPresets), combatAbilities: normalizeCombatAbilityLoadout(raw.combatAbilities) };
+  const normalized: GameSaveV12 = { ...raw, progression: normalizeProgressionPerkIds(raw.progression), inventory, equipment, spellbook: normalizeSpellbook(raw.spellbook), combatAutomation: normalizeCombatAutomation(raw.combatAutomation), combatAutomationPresets: normalizeCombatAutomationPresets(raw.combatAutomationPresets), combatAbilities: normalizeCombatAbilityLoadout(raw.combatAbilities) };
   return isGameSave(normalized) ? normalized : null;
 }
 

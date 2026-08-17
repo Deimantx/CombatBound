@@ -1,6 +1,6 @@
 import { proficiencyById } from '../data/proficiencies'
 import type { CombatProficiencyId, ProgressionState, ProficiencyProgress, ProficiencyXpReason, ProficiencyXpResult } from './progressionTypes'
-import { DISRUPTION_XP_BY_DANGER, MAX_PROFICIENCY_LEVEL, PROFICIENCY_XP_PER_DAMAGE } from './progressionBalance'
+import { MAX_PROFICIENCY_LEVEL, PROFICIENCY_XP_PER_DAMAGE } from './progressionBalance'
 import { calculateEarnedPerkPoints, masteryLevelForXp } from './masteryProgression'
 
 export function proficiencyXpForLevel(level: number) {
@@ -68,7 +68,6 @@ export function discoverProficiency(progression: ProgressionState, proficiencyId
 }
 
 export function calculateProficiencyXpAward(reason: ProficiencyXpReason) {
-  if (reason.type === 'successful-interrupt') return DISRUPTION_XP_BY_DANGER[reason.danger]
   if (reason.type === 'successful-cleanse') return Math.max(0, Number.isFinite(reason.weight) ? reason.weight : 0)
   return Math.max(0, Number.isFinite(reason.amount) ? reason.amount : 0)
 }

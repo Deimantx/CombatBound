@@ -38,7 +38,7 @@ function instanceBuild(equipment: TestEquipment) {
 
 function statsFor(equipment: TestEquipment) {
   const build = instanceBuild(equipment);
-  return calculateHunterCombatStats(build.equipment, build.inventory, initial.progression, "mid", neutralTechniques);
+  return calculateHunterCombatStats(build.equipment, build.inventory, initial.progression, neutralTechniques);
 }
 
 function canonicalValue(stats: ReturnType<typeof statsFor>, key: string) {
@@ -111,14 +111,13 @@ describe("Equipment stat integrity V11.2", () => {
       expect.objectContaining({ label: "Armour", value: "+9" }),
       expect.objectContaining({ label: "Max Life", value: "+15" }),
       expect.objectContaining({ label: "Life Regen", value: "+0.2 / sec" }),
-      expect.objectContaining({ label: "Ailment Duration Reduction", value: "+3%" }),
     ]));
   });
 
   it("uses explicit signed percentage semantics for crit damage and resistances", () => {
     expect(formatItemStat("criticalStrikeMultiplier", 0.1).value).toBe("+10%");
     expect(formatItemStat("fireResistance", 0.03).value).toBe("+3%");
-    expect(formatItemStat("ailmentDurationReduction", 0.03).value).toBe("+3%");
+    expect(formatItemStat("blockEffect", 0.03).value).toBe("+3%");
     expect(formatItemStat("baseAttackTime", 2.2)).toMatchObject({ label: "Weapon Base Attack Time", value: "2.2s" });
   });
 
@@ -161,7 +160,7 @@ describe("Equipment stat integrity V11.2", () => {
     }
   });
 
-  it("keeps ailment duration reduction in the canonical stat field and sums multiple items", () => {
+  it("keeps removed ailment defenses out of the canonical stat field", () => {
     const before = statsFor(emptyEquipment);
     const after = statsFor({ slots: {
       head: "item.vanguard-helm",
@@ -169,17 +168,14 @@ describe("Equipment stat integrity V11.2", () => {
       cape: "item.vanguard-cape",
       necklace: "item.arcane-necklace",
     } });
-    expect(before.ailmentDurationReduction).toBe(0);
-    expect(after.ailmentDurationReduction ?? 0).toBeCloseTo(0.17, 10);
-    expect((after.ailmentDurationReduction ?? 0) - (before.ailmentDurationReduction ?? 0)).toBeCloseTo(0.17, 10);
-    expect(after.additionalPhysicalDamageReduction).toBeCloseTo(0, 10);
-    expect(statsFor({ slots: { cape: "item.warden-cape" } }).additionalPhysicalDamageReduction).toBeCloseTo(0.03, 10);
+    expect(before.blockEffect ?? 0).toBe(0);
+    expect(after.blockEffect ?? 0).toBe(0);
+    expect(after.physicalDamageReduction ?? 0).toBeGreaterThanOrEqual(before.physicalDamageReduction ?? 0);
   });
 
-  it("applies ailment duration reduction only to ailment effects", () => {
-    expect(calculateEffectDuration(harmfulTenSecondEffect, { ...statsFor(emptyEquipment), ailmentDurationReduction: 0 })).toBe(10);
-    expect(calculateEffectDuration(harmfulTenSecondEffect, { ...statsFor(emptyEquipment), ailmentDurationReduction: 0.03 })).toBe(10);
-    expect(calculateEffectDuration(ailmentTenSecondEffect, { ...statsFor(emptyEquipment), ailmentDurationReduction: 0.03 })).toBeCloseTo(9.7, 10);
+  it("does not shorten effect duration from removed generic defenses", () => {
+    expect(calculateEffectDuration(harmfulTenSecondEffect, statsFor(emptyEquipment))).toBe(10);
+    expect(calculateEffectDuration(ailmentTenSecondEffect, statsFor(emptyEquipment))).toBe(10);
 
     const game = createInitialGameState();
     const result = applyEffect(
@@ -187,16 +183,16 @@ describe("Equipment stat integrity V11.2", () => {
       ailmentTenSecondEffect,
       { kind: "enemy", instanceId: "enemy.test" },
       { kind: "player" },
-      { targetStats: { ...statsFor(emptyEquipment), ailmentDurationReduction: 0.03 } },
+      { targetStats: statsFor(emptyEquipment) },
     );
-    expect(result.instance?.remainingSeconds).toBeCloseTo(9.7, 10);
+    expect(result.instance?.remainingSeconds).toBeCloseTo(10, 10);
   });
 
   it("uses canonical preview values and keeps them equal to the committed build", () => {
     const before = statsFor({ slots: { weapon: "item.training-sword" } });
     const preview = statsFor({ slots: { weapon: "item.training-sword", earring1: "item.wind-earring" } });
     const actual = statsFor({ slots: { weapon: "item.training-sword", earring1: "item.wind-earring" } });
-    for (const key of ["evasionRating", "staminaRegen", "maxLife", "ailmentDurationReduction", "attackInterval", "criticalStrikeMultiplier"] as const)
+    for (const key of ["evasionRating", "staminaRegen", "maxLife", "attackInterval", "criticalStrikeMultiplier"] as const)
       expect(preview[key]).toBeCloseTo(actual[key] as number, 10);
     expect(preview.staminaRegen - before.staminaRegen).toBeCloseTo(0.2, 10);
   });
@@ -212,11 +208,11 @@ describe("Equipment stat integrity V11.2", () => {
     const candidateInstanceId = candidate.getAttribute("data-debug-instance-id");
 
     expect(document.querySelector('[data-debug-stat="statusResistance"]')).not.toBeInTheDocument();
-    expect(statsFor({ slots: { head: "item.vanguard-helm" } }).ailmentDurationReduction ?? 0).toBeCloseTo(0.03);
+    expect(statsFor({ slots: { head: "item.vanguard-helm" } }).blockEffect ?? 0).toBe(0);
 
     fireEvent.click(screen.getByRole("button", { name: "EQUIP" }));
     expect(useGameStore.getState().game.equipment.slots.head).toBe(candidateInstanceId);
     expect(document.querySelector('[data-debug-kind="hero-combat-stats"]')).not.toHaveAttribute("data-debug-preview-item-id");
-    expect(statsFor({ slots: { head: "item.vanguard-helm" } }).ailmentDurationReduction ?? 0).toBeCloseTo(0.03);
+    expect(statsFor({ slots: { head: "item.vanguard-helm" } }).blockEffect ?? 0).toBe(0);
   });
 });

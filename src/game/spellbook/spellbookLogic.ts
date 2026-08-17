@@ -11,24 +11,27 @@ export function createInitialSpellbook(): SpellbookState {
   };
 }
 
+/** V12 boundary compatibility: the removed pulse kept its slot as Lightning Pulse. */
+export function normalizeSpellId(id: unknown): string | null {
+  if (typeof id !== "string") return null;
+  const normalized = id === "spell.disrupting-pulse" ? "spell.lightning-pulse" : id;
+  return spellDefinitions.some((spell) => spell.id === normalized) ? normalized : null;
+}
+
 export function normalizeSpellbook(
   value: Partial<SpellbookState> | undefined,
 ): SpellbookState {
   const knownSpellIds = Array.from(
     new Set(
-      (value?.knownSpellIds ?? []).filter(
-        (id): id is string =>
-          typeof id === "string" &&
-          Boolean(spellDefinitions.find((spell) => spell.id === id)),
-      ),
+      (value?.knownSpellIds ?? []).map(normalizeSpellId).filter((id): id is string => Boolean(id)),
     ),
   );
   const used = new Set<string>();
   const equippedSpellSlots = Array.from(
     { length: COMBAT_SPELL_SLOT_COUNT },
     (_, index) => {
-      const id = value?.equippedSpellSlots?.[index];
-      if (typeof id !== "string" || !knownSpellIds.includes(id) || used.has(id))
+      const id = normalizeSpellId(value?.equippedSpellSlots?.[index]);
+      if (!id || !knownSpellIds.includes(id) || used.has(id))
         return null;
       used.add(id);
       return id;
@@ -42,17 +45,19 @@ function validSlot(slot: number) {
 }
 
 function knownSpell(value: SpellbookState, spellId: string) {
-  return spellDefinitions.some((spell) => spell.id === spellId) && value.knownSpellIds.includes(spellId);
+  const normalized = normalizeSpellId(spellId);
+  return Boolean(normalized && value.knownSpellIds.includes(normalized));
 }
 
 /** Equip a known spell into a slot. A spell already equipped elsewhere is moved. */
 export function equipSpellToSlot(value: SpellbookState, spellId: string, targetSlot: number): SpellbookState {
-  if (!validSlot(targetSlot) || !knownSpell(value, spellId)) return value;
-  const sourceSlot = value.equippedSpellSlots.findIndex((id) => id === spellId);
+  const normalizedSpellId = normalizeSpellId(spellId);
+  if (!validSlot(targetSlot) || !normalizedSpellId || !knownSpell(value, normalizedSpellId)) return value;
+  const sourceSlot = value.equippedSpellSlots.findIndex((id) => id === normalizedSpellId);
   if (sourceSlot === targetSlot) return value;
   const equippedSpellSlots = [...value.equippedSpellSlots];
   if (sourceSlot >= 0) equippedSpellSlots[sourceSlot] = null;
-  equippedSpellSlots[targetSlot] = spellId;
+  equippedSpellSlots[targetSlot] = normalizedSpellId;
   return { ...value, equippedSpellSlots };
 }
 

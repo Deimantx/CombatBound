@@ -25,7 +25,7 @@ function modifierAppliesToDefinition(definition: ItemDefinition, modifier: ItemA
   if (modifier.scope === "global") return true;
   if (modifier.target === "physicalDamage") return definition.stats?.baseDamageMin !== undefined && definition.stats.baseDamageMax !== undefined;
   if (modifier.target === "attackSpeed") return definition.stats?.baseAttackTime !== undefined;
-  if (modifier.target === "criticalChance") return definition.stats?.baseCritChance !== undefined;
+  if (modifier.target === "criticalChance") return definition.stats?.criticalStrikeChance !== undefined;
   if (modifier.target === "armour") return definition.stats?.armour !== undefined;
   if (modifier.target === "evasion") return definition.stats?.evasionRating !== undefined;
   return false;

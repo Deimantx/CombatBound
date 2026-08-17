@@ -151,7 +151,6 @@ export function getActiveDefensiveStatModifiers(progression: ProgressionState, e
 }
 
 export interface ActiveStatContext {
-  stance?: 'high' | 'mid' | 'low'
   activeTechniqueCount?: number
   staminaFraction?: number
   playerHpFraction?: number
@@ -178,7 +177,6 @@ export function getActiveProficiencyStatModifiers(
       if (matches) modifiers.push({ stat: effect.stat, operation: effect.operation, value: effect.valuePerRank * rank })
     }
     if (effect.type === 'activeTechniqueStatModifier' && (context.activeTechniqueCount ?? 0) > 0) modifiers.push({ stat: effect.stat, operation: effect.operation, value: effect.valuePerRank * rank * Math.max(1, context.activeTechniqueCount ?? 0) })
-    if (effect.type === 'stanceSpecificStatModifier' && context.stance === effect.stance) modifiers.push({ stat: effect.stat, operation: effect.operation, value: effect.valuePerRank * rank })
   }
   return modifiers
 }
@@ -254,16 +252,6 @@ export function getTechniqueStaminaDrainMultiplier(progression: ProgressionState
   return Math.max(0, 1 + activeEffects(progression, proficiencyId, definitions).reduce((sum, { effect, rank }) => sum + (effect.type === 'techniqueStaminaDrainModifier' ? effect.valuePerRank * rank : 0), 0))
 }
 
-export function getStanceSwitchCooldownMultiplier(progression: ProgressionState, proficiencyId: WeaponProficiencyId | null, definitions: Record<string, ProficiencyPerkDefinition> = perkById) {
-  if (!proficiencyId) return 1
-  return Math.max(.1, 1 + activeEffects(progression, proficiencyId, definitions).reduce((sum, { effect, rank }) => sum + (effect.type === 'stanceSwitchCooldownModifier' ? effect.valuePerRank * rank : 0), 0))
-}
-
-export function getStanceSwitchEffectHooks(progression: ProgressionState, proficiencyId: WeaponProficiencyId | null, definitions: Record<string, ProficiencyPerkDefinition> = perkById) {
-  if (!proficiencyId) return [] as Array<{ effectId: string; durationSeconds?: number }>
-  return activeEffects(progression, proficiencyId, definitions).flatMap(({ effect, rank }) => effect.type === 'onStanceSwitchApplyEffect' ? Array.from({ length: rank }, () => ({ effectId: effect.effectId, durationSeconds: effect.durationSeconds })) : [])
-}
-
 function matchesCondition(condition: { type: 'targetHpAbove' | 'targetHpBelow' | 'targetHasEffect' | 'targetHasEffectAndHpBelow' | 'manaAbove'; fraction?: number; effectId?: string }, targetHpFraction: number, targetEffectIds: string[]) {
   if (condition.type === 'manaAbove') return false
   if (condition.type === 'targetHpAbove') return targetHpFraction > (condition.fraction ?? 1)
@@ -296,13 +284,12 @@ export function getConditionalWeaponDamageMultiplier(
   return (1 + additive.value) * multiplicative.value
 }
 
-export function getWeaponDamageMultiplier(progression: ProgressionState, proficiencyId: WeaponProficiencyId | null, targetHpFraction: number, targetEffectIds: string[] = [], definitions: Record<string, ProficiencyPerkDefinition> = perkById, stance?: 'high' | 'mid' | 'low', equipmentContext?: DefensiveEquipmentContext) {
+export function getWeaponDamageMultiplier(progression: ProgressionState, proficiencyId: WeaponProficiencyId | null, targetHpFraction: number, targetEffectIds: string[] = [], definitions: Record<string, ProficiencyPerkDefinition> = perkById, equipmentContext?: DefensiveEquipmentContext) {
   if (!proficiencyId) return 1
   let additive = 0
   let multiplicative = 1
   for (const { effect, rank } of activeEffects(progression, proficiencyId, definitions)) {
     if (effect.type === 'weaponDamageModifier') additive += effect.valuePerRank * rank
-    if (effect.type === 'stanceSpecificDamageModifier' && stance === effect.stance) additive += effect.valuePerRank * rank
     if (effect.type === 'weaponConditionalDamageModifier' && matchesCondition(effect.condition, targetHpFraction, targetEffectIds)) {
       if (effect.operation === 'increased') additive += effect.valuePerRank * rank
       else multiplicative *= Math.pow(1 + effect.valuePerRank, rank)
@@ -451,40 +438,6 @@ export function getSpellLifeDrainFraction(progression: ProgressionState, profici
   return getEffectiveMagicModifiers(progression, proficiencyId, definitions).lifeDrainFraction
 }
 
-export function getProficiencyXpMultiplier(progression: ProgressionState, proficiencyId: MagicProficiencyId, reasonType: 'successful-interrupt', definitions: Record<string, ProficiencyPerkDefinition> = perkById) {
-  return 1 + activeMagicEffects(progression, proficiencyId, definitions).reduce((sum, { effect, rank }) => sum + (effect.type === 'proficiencyXpModifier' && effect.reasonType === reasonType ? effect.valuePerRank * rank : 0), 0)
-}
-
-export interface SuccessfulInterruptHooks {
-  restoreMana: number
-  restoreStamina: number
-  effects: Array<{ effectId: string; durationMultiplier?: number }>
-  statEffects: Array<{ effectId: string; durationSeconds: number }>
-  cooldownMultiplier: number
-  enemyAttackDelay: number
-  reduceSpellCooldownFraction: number
-  reduceSpellCooldownSeconds: number
-  refundManaFraction: number
-  barrierAmount: number
-}
-
-export function getSuccessfulInterruptHooks(progression: ProgressionState, definitions: Record<string, ProficiencyPerkDefinition> = perkById, proficiencyId: MagicProficiencyId = 'air-magic'): SuccessfulInterruptHooks {
-  const hooks: SuccessfulInterruptHooks = { restoreMana: 0, restoreStamina: 0, effects: [], statEffects: [], cooldownMultiplier: 1, enemyAttackDelay: 0, reduceSpellCooldownFraction: 0, reduceSpellCooldownSeconds: 0, refundManaFraction: 0, barrierAmount: 0 }
-  for (const { effect, rank } of activeMagicEffects(progression, proficiencyId, definitions)) {
-    if (effect.type === 'onSuccessfulInterruptRestoreMana') hooks.restoreMana += effect.amountPerRank * rank
-    if (effect.type === 'onSuccessfulInterruptRestoreStamina') hooks.restoreStamina += effect.amountPerRank * rank
-    if (effect.type === 'onSuccessfulInterruptApplyEffect') for (let i = 0; i < rank; i += 1) hooks.effects.push({ effectId: effect.effectId, durationMultiplier: effect.durationMultiplier })
-    if (effect.type === 'onSuccessfulInterruptApplyStatEffect') for (let i = 0; i < rank; i += 1) hooks.statEffects.push({ effectId: effect.effectId, durationSeconds: effect.durationSeconds })
-    if (effect.type === 'interruptCooldownModifier') hooks.cooldownMultiplier += effect.valuePerRank * rank
-    if (effect.type === 'interruptedActionCooldownModifier') hooks.cooldownMultiplier += effect.valuePerRank * rank
-    if (effect.type === 'interruptedEnemyAttackDelay') hooks.enemyAttackDelay += effect.valuePerRank * rank
-    if (effect.type === 'onSuccessfulInterruptApplyBarrier') hooks.barrierAmount += effect.amountPerRank * rank
-    if (effect.type === 'onSuccessfulInterruptReduceCooldown') hooks.reduceSpellCooldownFraction += effect.fraction * rank
-    if (effect.type === 'onSuccessfulInterruptReduceCooldownSeconds') hooks.reduceSpellCooldownSeconds += effect.amountSeconds * rank
-    if (effect.type === 'onSuccessfulInterruptRefundManaCost') hooks.refundManaFraction += effect.fraction * rank
-  }
-  return hooks
-}
 
 export function getBarrierAbsorbResourceRestore(progression: ProgressionState, resource: 'mana' | 'stamina', definitions: Record<string, ProficiencyPerkDefinition> = perkById, proficiencyId?: MagicProficiencyId) {
   const schools = proficiencyId ? [proficiencyId] : ['fire-magic', 'water-magic', 'air-magic', 'earth-magic', 'darkness-magic'] as MagicProficiencyId[]

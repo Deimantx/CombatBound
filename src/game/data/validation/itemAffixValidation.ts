@@ -13,14 +13,10 @@ const validKinds = new Set(["prefix", "suffix"]);
 const validLocalTargets = new Set<LocalItemModifierTarget>(["physicalDamage", "attackSpeed", "criticalChance", "armour", "evasion"]);
 const derivedStatKeys = new Set(["baseDamageMin", "baseDamageMax", "baseAttackTime", "attackInterval", "attacksPerSecond", "castTime", "castsPerSecond"]);
 const validGlobalTargets = new Set<GlobalItemStatKey>(Object.keys({
-  maxLife: 0, lifeRegenFlat: 0, accuracyRating: 0, evasionRating: 0, armour: 0, attackBlockChance: 0,
-  maxAttackBlockChance: 0, additionalPhysicalDamageReduction: 0, spellBlockChance: 0, maxSpellBlockChance: 0,
-  spellSuppressionChance: 0, manaRegenFlat: 0, ailmentDurationReduction: 0, elementalAilmentAvoidance: 0,
-  physicalAilmentAvoidance: 0, nonDamagingAilmentEffectReduction: 0, increasedDamageTaken: 0, actionSpeed: 0,
-  increasedAttackSpeed: 0, increasedCastSpeed: 0, baseCritChance: 0, additionalBaseCritChance: 0,
+  maxLife: 0, lifeRegenFlat: 0, accuracyRating: 0, evasionRating: 0, armour: 0, blockChance: 0, blockEffect: 0,
+  manaRegenFlat: 0, increasedAttackSpeed: 0, increasedCastSpeed: 0, criticalStrikeChance: 0,
   criticalStrikeMultiplier: 0, maxStamina: 0, staminaRegen: 0, maxMana: 0, fireResistance: 0,
-  coldResistance: 0, lightningResistance: 0, chaosResistance: 0, maxFireResistance: 0, maxColdResistance: 0,
-  maxLightningResistance: 0, maxChaosResistance: 0,
+  coldResistance: 0, lightningResistance: 0, chaosResistance: 0,
 } as ItemStats) as GlobalItemStatKey[]);
 
 export function validateItemAffixDefinitions(affixes: readonly ItemAffixDefinition[]): ItemAffixValidationResult {

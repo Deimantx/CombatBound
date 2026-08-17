@@ -13,6 +13,14 @@ export interface EffectOutgoingDamageModifier {
   value: number
 }
 
+export interface EffectIncomingDamageModifier {
+  sourceKind?: DamageSourceKind
+  deliveryKind?: DamageDeliveryKind
+  damageType?: DamageType
+  operation: 'increased' | 'more'
+  value: number
+}
+
 export type PeriodicOperation =
   | { type: 'damage'; damageType: DamageType; baseAmount: number; canCrit?: boolean }
   | { type: 'heal'; baseAmount: number }
@@ -32,6 +40,7 @@ export interface EffectDefinition {
   statModifiers?: StatModifier[]
   resistanceModifiers?: Array<{ damageType: DamageType; operation: 'flat' | 'more'; value: number }>
   outgoingDamageModifiers?: EffectOutgoingDamageModifier[]
+  incomingDamageModifiers?: EffectIncomingDamageModifier[]
   periodic?: {
     intervalSeconds: number
     operation: PeriodicOperation

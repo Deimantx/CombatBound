@@ -10,13 +10,13 @@ import type { EquipmentState } from "../equipment/equipmentTypes";
 import type { InventoryState } from "../inventory/inventoryTypes";
 import type { ItemStats } from "../items/itemTypes";
 import type { ProgressionState } from "../progression/progressionTypes";
-import type { StanceId, TechniqueId } from "../combat/combatTypes";
+import type { TechniqueId } from "../combat/combatTypes";
 import { COMBAT_STAT_KEYS, DEBUG_STAT_DEFINITIONS, type DebugStatInspectionId } from "./debugStatRegistry";
 
 export type StatBreakdownMode = "build" | "effective";
 export interface StatContribution {
   stat: DebugStatInspectionId;
-  sourceType: "base" | "equipment" | "perk" | "stance" | "technique" | "effect" | "other";
+  sourceType: "base" | "equipment" | "perk" | "technique" | "effect" | "other";
   sourceId: string;
   sourceLabel: string;
   operation: ModifierOperation;
@@ -39,7 +39,6 @@ export interface StatInspectionContext {
   equipment: EquipmentState;
   inventory: InventoryState;
   progression: ProgressionState;
-  stance: StanceId;
   techniques: Record<TechniqueId, boolean>;
   playerEffects: GameState["combat"]["playerEffects"];
   combatPhase: GameState["combat"]["phase"];
@@ -47,7 +46,7 @@ export interface StatInspectionContext {
 
 function inspectionContext(input: GameState | StatInspectionContext): StatInspectionContext {
   if ("equipment" in input && "progression" in input && "combatPhase" in input) return input;
-  return { equipment: input.equipment, inventory: input.inventory, progression: input.progression, stance: input.combat.stance, techniques: input.combat.techniques, playerEffects: input.combat.playerEffects, combatPhase: input.combat.phase };
+  return { equipment: input.equipment, inventory: input.inventory, progression: input.progression, techniques: input.combat.techniques, playerEffects: input.combat.playerEffects, combatPhase: input.combat.phase };
 }
 
 function itemStat(stats: ItemStats, stat: DebugStatInspectionId) {
@@ -59,7 +58,7 @@ function itemStat(stats: ItemStats, stat: DebugStatInspectionId) {
 
 function baseStatValue(stat: DebugStatInspectionId) {
   if (stat.startsWith("resistance:")) return Number(combatBalance[`base${stat.slice(12, 13).toUpperCase()}${stat.slice(13)}Resistance` as keyof typeof combatBalance] ?? 0);
-  const map: Partial<Record<CombatStatKey, number>> = { maxLife: combatBalance.baseMaxLife, attackDamage: combatBalance.baseAttackDamage, accuracyRating: combatBalance.baseAccuracy, attackInterval: combatBalance.baseAttackInterval, armour: combatBalance.baseArmour, evasionRating: combatBalance.baseEvasion, baseCritChance: combatBalance.baseCritChance, criticalStrikeMultiplier: combatBalance.baseCritDamage, attackBlockChance: combatBalance.baseAttackBlockChance, spellBlockChance: combatBalance.baseSpellBlockChance, maxStamina: combatBalance.baseMaxStamina, staminaRegen: combatBalance.baseStaminaRegen, maxMana: combatBalance.baseMaxMana, manaRegenFlat: combatBalance.baseManaRegen, lifeRegenFlat: 0 };
+  const map: Partial<Record<CombatStatKey, number>> = { maxLife: combatBalance.baseMaxLife, attackDamage: combatBalance.baseAttackDamage, accuracyRating: combatBalance.baseAccuracy, baseAttackTime: combatBalance.baseAttackInterval, attackInterval: combatBalance.baseAttackInterval, armour: combatBalance.baseArmour, evasionRating: combatBalance.baseEvasion, criticalStrikeChance: combatBalance.baseCriticalStrikeChance, criticalStrikeMultiplier: combatBalance.baseCriticalStrikeMultiplier, blockChance: combatBalance.baseBlockChance, blockEffect: combatBalance.baseBlockEffect, maxStamina: combatBalance.baseMaxStamina, staminaRegen: combatBalance.baseStaminaRegen, maxMana: combatBalance.baseMaxMana, manaRegenFlat: combatBalance.baseManaRegen, lifeRegenFlat: 0 };
   return Number(map[stat as CombatStatKey] ?? 0);
 }
 
@@ -76,7 +75,7 @@ export function buildStatBreakdown(input: GameState | StatInspectionContext, sta
   const context = inspectionContext(input);
   const resolvedMode = mode ?? (context.combatPhase === "active" || context.combatPhase === "recovery" ? "effective" : "build");
   const canonicalContributions: CombatStatContribution[] = [];
-  const buildStats = calculateHunterCombatStats(context.equipment, context.inventory, context.progression, context.stance, context.techniques, itemById, { record: (contribution) => canonicalContributions.push(contribution) });
+  const buildStats = calculateHunterCombatStats(context.equipment, context.inventory, context.progression, context.techniques, itemById, { record: (contribution) => canonicalContributions.push(contribution) });
   const effectiveStats = calculateEffectiveCombatStats(buildStats, context.playerEffects, effectById);
   const finalValue = Number(resolvedMode === "effective" ? readEffectiveValue(effectiveStats, stat) : readValue(buildStats, stat));
   const contributions: StatContribution[] = [];
@@ -93,12 +92,11 @@ export function buildStatBreakdown(input: GameState | StatInspectionContext, sta
   }
   if (stat === "accuracyRating" && context.techniques["heightened-reflexes"]) { const before = current; current += 10; pushContribution(contributions, stat, "technique", "technique.heightened-reflexes", "Heightened Reflexes", "flat", before, current); }
   if (stat === "evasionRating" && context.techniques["careful-positioning"]) { const before = current; current += 8; pushContribution(contributions, stat, "technique", "technique.careful-positioning", "Careful Positioning", "flat", before, current); }
-  const buildStageRecords = canonicalContributions.filter((entry) => entry.stat === stat && (entry.sourceType === "stance" || entry.sourceType === "perk"));
+  const buildStageRecords = canonicalContributions.filter((entry) => entry.stat === stat && entry.sourceType === "perk");
   if (buildStageRecords.length) for (const entry of buildStageRecords) {
     const before = current;
-    const isStanceMultiplier = entry.sourceType === "stance" && ["attackDamage", "armour", "accuracyRating", "attackInterval"].includes(stat);
-    const after = isStanceMultiplier && Math.abs(entry.before) > 1e-9 ? before * (entry.after / entry.before) : before + entry.value;
-    pushContribution(contributions, stat, entry.sourceType, entry.sourceId, entry.sourceLabel, isStanceMultiplier ? "more" : entry.operation, before, after);
+    const after = before + entry.value;
+    pushContribution(contributions, stat, entry.sourceType, entry.sourceId, entry.sourceLabel, entry.operation, before, after);
     current = after;
   }
   else { const buildDelta = readValue(buildStats, stat) - current; if (Math.abs(buildDelta) > 1e-9) { const before = current; current += buildDelta; pushContribution(contributions, stat, "other", "canonical-normalization", "Canonical stat normalization", "flat", before, current); } }
