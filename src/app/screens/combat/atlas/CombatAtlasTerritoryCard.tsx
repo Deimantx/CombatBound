@@ -24,10 +24,12 @@ export function CombatAtlasTerritoryCard({ node, details, selected, dimmed, inde
     const y = ((event.clientY - rect.top) / Math.max(1, rect.height)) * 100
     event.currentTarget.style.setProperty('--card-pointer-x', `${x}%`)
     event.currentTarget.style.setProperty('--card-pointer-y', `${y}%`)
-    event.currentTarget.style.setProperty('--card-tilt-x', `${Math.max(-1.8, Math.min(1.8, (x - 50) / 28))}deg`)
-    event.currentTarget.style.setProperty('--card-tilt-y', `${Math.max(-1.3, Math.min(1.3, (50 - y) / 38))}deg`)
-    event.currentTarget.style.setProperty('--card-icon-shift-x', `${Math.max(-2, Math.min(2, (x - 50) / 24))}px`)
-    event.currentTarget.style.setProperty('--card-icon-shift-y', `${Math.max(-2, Math.min(2, (y - 50) / 24))}px`)
+    if (details.available) {
+      event.currentTarget.style.setProperty('--card-tilt-x', `${Math.max(-1.8, Math.min(1.8, (x - 50) / 28))}deg`)
+      event.currentTarget.style.setProperty('--card-tilt-y', `${Math.max(-1.3, Math.min(1.3, (50 - y) / 38))}deg`)
+      event.currentTarget.style.setProperty('--card-icon-shift-x', `${Math.max(-2, Math.min(2, (x - 50) / 24))}px`)
+      event.currentTarget.style.setProperty('--card-icon-shift-y', `${Math.max(-2, Math.min(2, (y - 50) / 24))}px`)
+    }
   }
   const resetPointer = (event: ReactPointerEvent<HTMLButtonElement>) => {
     event.currentTarget.style.setProperty('--card-pointer-x', '50%')
