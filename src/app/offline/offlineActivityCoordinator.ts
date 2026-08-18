@@ -14,10 +14,10 @@ import {
 import { offlineTimePolicy } from "../../game/offline/offlineTimePolicy";
 import {
   getProfileMetadata,
-  useProfileStore,
 } from "../../state/profileStore";
 import { useGameStore } from "../../state/gameStore";
 import { useOfflineActivityRuntimeStore } from "../../state/offlineActivityRuntimeStore";
+import { commitOfflineActivitySimulation } from "./commitOfflineActivitySimulation";
 import {
   getProfileSessionOwnerId,
   hasValidOwnedProfileSessionLease,
@@ -92,18 +92,15 @@ export function requestOfflineSkip(requestedSeconds: number): OfflineActivityTra
     setRunning: (running) => useOfflineActivityRuntimeStore.getState().setTransactionRunning(running),
     rng: createDeterministicOfflineRng(seedForState(current.game)),
     seed: seedForState(current.game),
-    commit: ({ result: simulation }) => {
-      // Client-side storage has two keys. Debit first so a crash cannot leave
-      // simulated rewards with the old bank balance; the narrow cross-key crash
-      // window is documented by the Contract 1.0 coordinator boundary.
-      if (!hasValidOwnedProfileSessionLease(current.id, ownerId)) return false;
-      if (simulation.simulatedSeconds > 0) {
-        const spend = useProfileStore.getState().spendOfflineTime(current.id, simulation.simulatedSeconds);
-        if (!spend?.ok) return false;
-      }
-      if (!useGameStore.getState().replaceGameStateForOfflineSimulation(simulation.state)) return false;
-      return useGameStore.getState().saveActiveProfileNow();
-    },
+    commit: ({ result: simulation }) => commitOfflineActivitySimulation({
+      profileId: current.id,
+      ownerId,
+      previousGame: current.game,
+      nextGame: simulation.state,
+      simulatedSeconds: simulation.simulatedSeconds,
+      reducedMotion: useGameStore.getState().reducedMotion,
+      showInspectorButton: useGameStore.getState().showInspectorButton,
+    }),
   });
 
   if (result.ok) {

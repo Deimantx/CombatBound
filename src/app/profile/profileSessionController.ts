@@ -6,6 +6,7 @@ import {
 } from "../../game/profiles/profileSessionLease";
 import type { Difficulty, GameType, OfflineTimeReport, ProfileId, ProfileSlot } from "../../game/profiles/profileTypes";
 import { useDevToolsRuntimeStore } from "../debug/devtools/devToolsRuntimeStore";
+import { useOfflineActivityRuntimeStore } from "../../state/offlineActivityRuntimeStore";
 import { useGameStore } from "../../state/gameStore";
 import { getProfileMetadata, useProfileStore } from "../../state/profileStore";
 
@@ -16,6 +17,7 @@ export function createAndEnterProfile(
   gameType: GameType,
   difficulty: Difficulty,
 ): boolean {
+  useOfflineActivityRuntimeStore.getState().reset();
   const now = Date.now();
   const metadata = useProfileStore.getState().createProfileMetadata(slot, gameType, difficulty, now);
   if (!metadata) return false;
@@ -31,6 +33,7 @@ export function createAndEnterProfile(
 }
 
 export function loadAndEnterProfile(profileId: ProfileId): { ok: boolean; error?: string; report?: OfflineTimeReport | null } {
+  useOfflineActivityRuntimeStore.getState().reset();
   if (!getProfileMetadata(profileId)) return { ok: false, error: "Profile metadata is missing." };
   const save = loadProfileGameSave(profileId);
   if (!save) return { ok: false, error: "This profile save is missing or corrupted." };
@@ -53,6 +56,7 @@ export function loadAndEnterProfile(profileId: ProfileId): { ok: boolean; error?
 }
 
 export function disconnectForSessionConflict(): void {
+  useOfflineActivityRuntimeStore.getState().reset();
   const gameStore = useGameStore.getState();
   if (!gameStore.activeProfileId) return;
   gameStore.stopHunt();
@@ -65,6 +69,7 @@ export function disconnectForSessionConflict(): void {
 }
 
 export function returnToProfileSelect(): void {
+  useOfflineActivityRuntimeStore.getState().reset();
   const gameStore = useGameStore.getState();
   const profileId = gameStore.activeProfileId;
   if (!profileId) return;

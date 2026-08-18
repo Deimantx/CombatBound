@@ -420,13 +420,18 @@ export function advanceCombat(
   let remaining = Math.max(0, Number.isFinite(deltaSeconds) ? deltaSeconds : 0);
   while (remaining > 0) {
     const step = Math.min(remaining, combatBalance.maxSimulationStepSeconds);
-    game = advanceStep(game, step, context, stats);
+    game = advanceCombatStep(game, step, context, stats);
     remaining -= step;
   }
   return game;
 }
 
-function advanceStep(
+/**
+ * Resolve one canonical Combat step. Live play slices into 0.1 second
+ * quanta; Offline Combat may call this with a larger, scheduler-proven safe
+ * interval so every damage/action implementation remains shared.
+ */
+export function advanceCombatStep(
   game: GameState,
   step: number,
   context: CombatContext,

@@ -35,7 +35,7 @@ describe("Time Bank player UI", () => {
     expect(screen.getByText("7d")).toBeInTheDocument();
     expect(screen.getByText("CURRENT ACTIVITY")).toBeInTheDocument();
     expect(screen.getByText("Hunt — Wolf Den")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "SKIP 5M" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "SKIP 5M" })).toBeEnabled();
     expect(screen.getByRole("button", { name: "SKIP 15M" })).toBeDisabled();
     expect(screen.getByRole("button", { name: "SKIP 1H" })).toBeDisabled();
     expect(screen.getByLabelText("Custom minutes")).toBeInTheDocument();

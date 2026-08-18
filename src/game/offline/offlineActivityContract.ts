@@ -195,7 +195,12 @@ export function runOfflineActivityTransaction<TState, TSummary = unknown>(
       return failure("invalid-result", "The activity returned an invalid simulation result. No Time Bank time was spent.");
     if (!dependencies.verifyLease())
       return failure("lease-lost-before-commit", "Profile ownership changed during simulation. No result was committed.");
-    const committed = dependencies.commit({ adapter, result, requestedSeconds });
+    let committed = false;
+    try {
+      committed = dependencies.commit({ adapter, result, requestedSeconds });
+    } catch {
+      committed = false;
+    }
     if (!committed) return failure("commit-failed", "The simulation could not be committed. No result was applied.");
     return { ok: true, simulation: result as OfflineActivitySimulationResult<unknown, TSummary>, activityType: adapter.activityType };
   } finally {

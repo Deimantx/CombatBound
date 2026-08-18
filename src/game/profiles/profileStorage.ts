@@ -64,10 +64,15 @@ export function readProfileIndex(): ProfileIndexV1 {
   }
 }
 
-export function writeProfileIndex(index: ProfileIndexV1): void {
-  if (typeof localStorage === "undefined") return;
+export function writeProfileIndex(index: ProfileIndexV1): boolean {
+  if (typeof localStorage === "undefined") return true;
   const normalized = { version: 1 as const, slots: [1, 2, 3].map((slot) => normalizeMetadata(index.slots[slot - 1], slot as ProfileSlot)) as ProfileIndexV1["slots"] };
-  localStorage.setItem(PROFILE_INDEX_KEY, JSON.stringify(normalized));
+  try {
+    localStorage.setItem(PROFILE_INDEX_KEY, JSON.stringify(normalized));
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 export function getProfileSaveKey(profileId: ProfileId): string {
@@ -84,8 +89,14 @@ export function loadProfileGameSave(profileId: ProfileId): GameSaveV12 | null {
   }
 }
 
-export function saveProfileGameSave(profileId: ProfileId, save: GameSaveV12): void {
-  if (typeof localStorage !== "undefined") localStorage.setItem(getProfileSaveKey(profileId), JSON.stringify(save));
+export function saveProfileGameSave(profileId: ProfileId, save: GameSaveV12): boolean {
+  if (typeof localStorage === "undefined") return true;
+  try {
+    localStorage.setItem(getProfileSaveKey(profileId), JSON.stringify(save));
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 export function clearProfileGameSave(profileId: ProfileId): void {

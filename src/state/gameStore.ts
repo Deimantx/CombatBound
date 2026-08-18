@@ -36,7 +36,7 @@ import {
   loadProfileGameSave,
 } from "../game/profiles/profileStorage";
 import { getProfileSessionOwnerId, isProfileSessionOwner } from "../game/profiles/profileSessionLease";
-import { CURRENT_SAVE_VERSION, parseGameSaveJson } from "../game/persistence/saveGame";
+import { gameStateToSaveV12, parseGameSaveJson } from "../game/persistence/saveGame";
 import type { ProfileId } from "../game/profiles/profileTypes";
 import type { InventoryEntryRef } from "../game/items/itemTypes";
 import type { TechniqueId } from "../game/combat/combatTypes";
@@ -427,20 +427,7 @@ function savePermanent(
   const profileId = activeProfileIdForPersistence();
   // A lease check here protects every gameplay save path, including debug and combat mutations.
   if (!profileId || !isProfileSessionOwner(profileId, getProfileSessionOwnerId())) return false;
-  saveProfileGameSave(profileId, {
-    version: CURRENT_SAVE_VERSION as 12,
-    progression: game.progression,
-    inventory: game.inventory,
-    equipment: game.equipment,
-    collection: game.collection,
-    gold: game.gold,
-    settings,
-    spellbook: game.spellbook,
-    combatAutomation: game.combatAutomation,
-    combatAutomationPresets: game.combatAutomationPresets,
-    combatAbilities: game.combatAbilities,
-  });
-  return true;
+  return saveProfileGameSave(profileId, gameStateToSaveV12(game, settings));
 }
 
 function captureDebugCombatEvents(previous: GameState, next: GameState) {

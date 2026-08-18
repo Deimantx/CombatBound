@@ -1,4 +1,5 @@
 import type { GameSaveV12 } from "./saveTypes";
+import type { GameState } from "../gameState";
 import {
   migrateCurrentSave,
   migrateLegacySave,
@@ -36,6 +37,25 @@ export const LEGACY_V4_GAME_SAVE_KEY = "combatbound-idle-save-v4";
 export const LEGACY_V3_GAME_SAVE_KEY = "combatbound-idle-save-v3";
 export const LEGACY_CURRENT_GAME_SAVE_KEY = "combatbound-idle-save-v2";
 export const LEGACY_GAME_SAVE_KEY = "combatbound-idle-save-v1";
+
+export function gameStateToSaveV12(
+  game: GameState,
+  settings: { reducedMotion: boolean; showInspectorButton: boolean },
+): GameSaveV12 {
+  return {
+    version: 12,
+    progression: game.progression,
+    inventory: game.inventory,
+    equipment: game.equipment,
+    collection: game.collection,
+    gold: game.gold,
+    settings,
+    spellbook: game.spellbook,
+    combatAutomation: game.combatAutomation,
+    combatAutomationPresets: game.combatAutomationPresets,
+    combatAbilities: game.combatAbilities,
+  };
+}
 
 function migrateV8ToCurrent(value: unknown): GameSaveV12 | null {
   const v9 = migrateV8Save(value);

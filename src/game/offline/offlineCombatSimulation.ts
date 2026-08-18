@@ -1,0 +1,161 @@
+import { calculateHunterCombatStats } from "../equipment/derivedStats";
+import { advanceCombatStep, createCombatContext } from "../combat/combatEngine";
+import type { CombatProficiencyId } from "../progression/progressionTypes";
+import type { GameState } from "../gameState";
+import type {
+  OfflineActivitySimulationRequest,
+  OfflineActivitySimulationResult,
+  OfflineSimulationRng,
+} from "./offlineActivityContract";
+import {
+  getNextOfflineCombatBoundary,
+  quantizeOfflineCombatBoundary,
+  secondsToOfflineCombatTicks,
+  OFFLINE_COMBAT_TICKS_PER_SECOND,
+} from "./offlineCombatScheduler";
+
+export interface CombatHuntOfflineSummary {
+  enemiesDefeated: number;
+  groupClears: number;
+  damageDealt: number;
+  damageTaken: number;
+  healing: number;
+  masteryXp: number;
+  proficiencyXp: Partial<Record<CombatProficiencyId, number>>;
+  gold: number;
+  itemsGained: number;
+  lootGained: Record<string, number>;
+  eventSteps: number;
+  virtualElapsedSeconds: number;
+}
+
+const MAX_EVENT_STEPS = 2_000_000;
+
+function delta(current: number, previous: number): number {
+  return Math.max(0, current - previous);
+}
+
+function recordDelta(
+  current: Record<string, number>,
+  previous: Record<string, number>,
+): Record<string, number> {
+  const result: Record<string, number> = {};
+  for (const id of new Set([...Object.keys(current), ...Object.keys(previous)])) {
+    const amount = delta(current[id] ?? 0, previous[id] ?? 0);
+    if (amount > 0) result[id] = amount;
+  }
+  return result;
+}
+
+function summaryFor(initial: GameState, final: GameState, eventSteps: number, virtualElapsedSeconds: number): CombatHuntOfflineSummary {
+  const initialSession = initial.combat.session;
+  const finalSession = final.combat.session;
+  const proficiencyXp: Partial<Record<CombatProficiencyId, number>> = {};
+  for (const proficiencyId of new Set([
+    ...Object.keys(initialSession.proficiencyXpGained),
+    ...Object.keys(finalSession.proficiencyXpGained),
+  ]) as Set<CombatProficiencyId>) {
+    const amount = delta(
+      finalSession.proficiencyXpGained[proficiencyId] ?? 0,
+      initialSession.proficiencyXpGained[proficiencyId] ?? 0,
+    );
+    if (amount > 0) proficiencyXp[proficiencyId] = amount;
+  }
+  return {
+    enemiesDefeated: delta(finalSession.enemiesDefeated, initialSession.enemiesDefeated),
+    groupClears: delta(finalSession.groupClears, initialSession.groupClears),
+    damageDealt: delta(finalSession.damageDealt, initialSession.damageDealt),
+    damageTaken: delta(finalSession.damageTaken, initialSession.damageTaken),
+    healing: delta(finalSession.healing, initialSession.healing),
+    masteryXp: delta(finalSession.masteryXpGained, initialSession.masteryXpGained),
+    proficiencyXp,
+    gold: delta(finalSession.goldGained, initialSession.goldGained),
+    itemsGained: delta(finalSession.itemsGained, initialSession.itemsGained),
+    lootGained: recordDelta(finalSession.lootGained, initialSession.lootGained),
+    eventSteps,
+    virtualElapsedSeconds,
+  };
+}
+
+function isTerminal(game: GameState): boolean {
+  return game.combat.phase === "defeat" || game.combat.phase === "stopped" || game.combat.phase === "inactive";
+}
+
+function stopReason(game: GameState): OfflineActivitySimulationResult<GameState, CombatHuntOfflineSummary>["stopReason"] {
+  if (game.combat.phase === "defeat" || game.combat.stopReason === "defeat") return "death";
+  if (game.combat.phase !== "stopped") return "requested-time-complete";
+  switch (game.combat.stopReason) {
+    case "safety": return "safety-stop";
+    case "consumablesDepleted": return "requirements-lost";
+    case "completed":
+    case "victoryLimit":
+    case "manual": return "activity-ended";
+    default: return "invalid";
+  }
+}
+
+export function simulateCombatHuntOffline(
+  snapshot: GameState,
+  request: OfflineActivitySimulationRequest,
+  rng: OfflineSimulationRng,
+): OfflineActivitySimulationResult<GameState, CombatHuntOfflineSummary> {
+  const requestedSeconds = request.requestedSeconds;
+  const requestedTicks = secondsToOfflineCombatTicks(requestedSeconds);
+  const initial = snapshot;
+  let game = snapshot;
+  let elapsedTicks = 0;
+  let eventSteps = 0;
+  let wakeAutomationNextQuantum = false;
+  const context = createCombatContext(rng);
+
+  while (elapsedTicks < requestedTicks && !isTerminal(game)) {
+    if (++eventSteps > MAX_EVENT_STEPS) {
+      return {
+        requestedSeconds,
+        simulatedSeconds: 0,
+        stopReason: "invalid",
+        state: initial,
+        summary: summaryFor(initial, initial, eventSteps, 0),
+      };
+    }
+    const stats = calculateHunterCombatStats(
+      game.equipment,
+      game.inventory,
+      game.progression,
+      game.combat.techniques,
+    );
+    const rawBoundary = getNextOfflineCombatBoundary(game, stats, context, wakeAutomationNextQuantum);
+    const boundarySeconds = quantizeOfflineCombatBoundary(rawBoundary);
+    const boundaryTicks = Number.isFinite(boundarySeconds)
+      ? secondsToOfflineCombatTicks(boundarySeconds)
+      : requestedTicks - elapsedTicks;
+    const stepTicks = Math.min(
+      Math.max(1, boundaryTicks),
+      requestedTicks - elapsedTicks,
+    );
+    const previousEventSequence = game.combat.eventSequence;
+    game = advanceCombatStep(
+      game,
+      stepTicks / OFFLINE_COMBAT_TICKS_PER_SECOND,
+      context,
+      stats,
+    );
+    wakeAutomationNextQuantum = game.combat.eventSequence !== previousEventSequence;
+    elapsedTicks += stepTicks;
+  }
+
+  const virtualElapsedSeconds = elapsedTicks / OFFLINE_COMBAT_TICKS_PER_SECOND;
+  const reason = elapsedTicks >= requestedTicks && !isTerminal(game)
+    ? "requested-time-complete"
+    : stopReason(game);
+  const simulatedSeconds = elapsedTicks >= requestedTicks
+    ? Math.floor(requestedSeconds)
+    : Math.min(Math.floor(requestedSeconds), Math.ceil(virtualElapsedSeconds));
+  return {
+    requestedSeconds,
+    simulatedSeconds,
+    stopReason: reason,
+    state: game,
+    summary: summaryFor(initial, game, eventSteps, virtualElapsedSeconds),
+  };
+}

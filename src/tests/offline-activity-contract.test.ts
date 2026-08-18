@@ -103,6 +103,11 @@ describe("Offline Activity Simulation Contract 1.0", () => {
     const invalid = harness(makeAdapter((_state, request) => ({ ...request, simulatedSeconds: request.requestedSeconds + 1, stopReason: "requested-time-complete", state: { active: true, value: 1 }, summary: { note: "bad" } })));
     expect(invalid.run()).toMatchObject({ ok: false, error: "invalid-result" });
     expect(invalid.getCommitted()).toBeNull();
+    const commitThrows = harness(makeAdapter((_state, request) => ({ ...request, simulatedSeconds: request.requestedSeconds, stopReason: "requested-time-complete", state: { active: true, value: 1 }, summary: { note: "fake" } })), {
+      commit: () => { throw new Error("commit failed"); },
+    });
+    expect(commitThrows.run()).toMatchObject({ ok: false, error: "commit-failed" });
+    expect(commitThrows.getCommitted()).toBeNull();
   });
 
   it("checks lease ownership before and after simulation", () => {
