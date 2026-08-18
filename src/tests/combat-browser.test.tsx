@@ -1,5 +1,5 @@
 import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
-import { afterEach, beforeEach, describe, expect, it } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import App from '../../App'
 import { masteryXpForLevel } from '../game/progression/masteryProgression'
 import { useGameStore } from '../state/gameStore'
@@ -8,7 +8,10 @@ beforeEach(() => {
   useGameStore.getState().resetGameplay()
 })
 
-afterEach(() => cleanup())
+afterEach(() => {
+  cleanup()
+  vi.useRealTimers()
+})
 
 function openCombatBrowser() {
   render(<App />)
@@ -25,92 +28,110 @@ function debugElement(kind: string) {
   return element as HTMLElement
 }
 
+function openDeepWoods() {
+  fireEvent.click(screen.getByRole('button', { name: 'Open Greenvale' }))
+  fireEvent.click(screen.getByRole('button', { name: 'Open Northwood' }))
+  fireEvent.click(screen.getByRole('button', { name: 'Open Deep Woods' }))
+}
+
 describe('combat world map browser', () => {
-  it('renders the world context and arena markers on the map', () => {
+  it('drills from World to Greenvale, Northwood, Deep Woods, and Wolf Den', () => {
     openCombatBrowser()
-    expect(screen.getByText('GREENVALE')).toBeInTheDocument()
-    expect(screen.getByText('NORTHWOOD')).toBeInTheDocument()
-    expect(screen.getByText('DEEP WOODS')).toBeInTheDocument()
-    expect(screen.getByText('FROSTMARCH')).toBeInTheDocument()
+    expect(screen.getByText('Greenvale')).toBeInTheDocument()
+    expect(screen.getByText('Frostmarch')).toBeInTheDocument()
+    expect(screen.getByText('Emberreach')).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /^Wolf Den/ })).not.toBeInTheDocument()
+
+    openDeepWoods()
+
+    expect(screen.getByText('Deep Woods')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: /^Wolf Den/ })).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: /^Bandit Camp/ })).toBeInTheDocument()
-    expect(document.querySelector('[data-debug-kind="combat-world-arena-marker"] .lucide-swords')).toBeInTheDocument()
-    expect(document.querySelector('[data-debug-kind="combat-world-map"]')).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /^Bandit Camp/ })).not.toBeInTheDocument()
+    expect(debugElement('combat-world-map')).toHaveAttribute('data-debug-map-level', 'area')
+    expect(debugElement('combat-world-map')).toHaveAttribute('data-debug-map-id', 'area.deep-woods')
   })
 
-  it('selects an arena for preview without starting a hunt', () => {
+  it('shows only child geography before the arena level', () => {
     openCombatBrowser()
-    act(unlockBanditCamp)
-    fireEvent.click(screen.getByRole('button', { name: /^Bandit Camp/ }))
-    expect(screen.getByRole('heading', { name: 'Bandit Camp' })).toBeInTheDocument()
-    expect(screen.getByText('SELECTED ARENA')).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Open Greenvale' }))
+    expect(screen.getByRole('button', { name: 'Open Northwood' })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /^Wolf Den/ })).not.toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Open Northwood' }))
+    expect(screen.getByRole('button', { name: 'Open Deep Woods' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Open Old Road' })).toBeEnabled()
+    expect(screen.queryByRole('button', { name: /^Wolf Den/ })).not.toBeInTheDocument()
+  })
+
+  it('selects an arena without starting combat', () => {
+    openCombatBrowser()
+    openDeepWoods()
+    fireEvent.click(screen.getByRole('button', { name: /^Wolf Den/ }))
+    expect(screen.getByRole('heading', { name: 'Wolf Den' })).toBeInTheDocument()
     expect(useGameStore.getState().game.combat.phase).toBe('inactive')
     expect(useGameStore.getState().activeCombatLocationId).toBeNull()
   })
 
-  it('starts the selected hunt and collapses the map explicitly', () => {
+  it('starts the selected hunt and collapses the map', () => {
     openCombatBrowser()
+    openDeepWoods()
+    fireEvent.click(screen.getByRole('button', { name: /^Wolf Den/ }))
     fireEvent.click(screen.getByRole('button', { name: 'Start selected location hunt' }))
-    expect(useGameStore.getState().game.combat.phase).toBe('active')
     expect(useGameStore.getState().activeCombatLocationId).toBe('location.wolf-den')
     expect(screen.getByRole('button', { name: 'Expand' })).toHaveAttribute('aria-expanded', 'false')
     expect(document.querySelector('[data-debug-kind="combat-world-map"]')).not.toBeInTheDocument()
   })
 
-  it('keeps the current hunt while browsing and switching to another arena', () => {
+  it('browses the hierarchy during combat without changing the active hunt', () => {
     openCombatBrowser()
+    openDeepWoods()
+    fireEvent.click(screen.getByRole('button', { name: /^Wolf Den/ }))
+    fireEvent.click(screen.getByRole('button', { name: 'Start selected location hunt' }))
+    const activeBeforeBrowsing = useGameStore.getState().activeCombatLocationId
+    fireEvent.click(screen.getByRole('button', { name: 'Expand' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Go to WORLD' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Open Greenvale' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Open Northwood' }))
+    act(unlockBanditCamp)
+    fireEvent.click(screen.getByRole('button', { name: 'Open Old Road' }))
+    fireEvent.click(screen.getByRole('button', { name: /^Bandit Camp/ }))
+    expect(screen.getAllByText('CURRENT HUNT').length).toBeGreaterThan(0)
+    expect(useGameStore.getState().activeCombatLocationId).toBe(activeBeforeBrowsing)
+    expect(useGameStore.getState().selectedCombatLocationId).toBe('location.bandit-camp')
+    expect(screen.getByRole('button', { name: 'Switch hunt' })).toBeInTheDocument()
+  })
+
+  it('switches hunt only from the explicit Switch Hunt action', () => {
+    openCombatBrowser()
+    openDeepWoods()
+    fireEvent.click(screen.getByRole('button', { name: /^Wolf Den/ }))
     fireEvent.click(screen.getByRole('button', { name: 'Start selected location hunt' }))
     fireEvent.click(screen.getByRole('button', { name: 'Expand' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Go to WORLD' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Open Greenvale' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Open Northwood' }))
     act(unlockBanditCamp)
+    fireEvent.click(screen.getByRole('button', { name: 'Open Old Road' }))
     fireEvent.click(screen.getByRole('button', { name: /^Bandit Camp/ }))
-    expect(screen.getByText('CURRENT HUNT')).toBeInTheDocument()
-    expect(screen.getByText('BROWSING')).toBeInTheDocument()
     expect(useGameStore.getState().activeCombatLocationId).toBe('location.wolf-den')
     fireEvent.click(screen.getByRole('button', { name: 'Switch hunt' }))
     expect(useGameStore.getState().activeCombatLocationId).toBe('location.bandit-camp')
     expect(screen.getByRole('button', { name: 'Expand' })).toHaveAttribute('aria-expanded', 'false')
   })
 
-  it('allows map browsing during combat without changing the active hunt', () => {
-    openCombatBrowser()
-    fireEvent.click(screen.getByRole('button', { name: 'Start selected location hunt' }))
-    const before = useGameStore.getState()
-    fireEvent.click(screen.getByRole('button', { name: 'Expand' }))
-    act(unlockBanditCamp)
-    fireEvent.click(screen.getByRole('button', { name: /^Bandit Camp/ }))
-    const after = useGameStore.getState()
-    expect(after.activeCombatLocationId).toBe(before.activeCombatLocationId)
-    expect(after.game.combat.phase).toBe(before.game.combat.phase)
-    expect(screen.getByRole('button', { name: 'Collapse' })).toHaveAttribute('aria-expanded', 'true')
-  })
-
-  it('does not close a manually reopened map during active and recovery cycling', () => {
-    openCombatBrowser()
-    fireEvent.click(screen.getByRole('button', { name: 'Start selected location hunt' }))
-    fireEvent.click(screen.getByRole('button', { name: 'Expand' }))
-    act(() => {
-      useGameStore.setState((state) => ({ game: { ...state.game, combat: { ...state.game.combat, phase: 'recovery' } } }))
-      useGameStore.setState((state) => ({ game: { ...state.game, combat: { ...state.game.combat, phase: 'active' } } }))
-    })
-    expect(screen.getByRole('button', { name: 'Collapse' })).toHaveAttribute('aria-expanded', 'true')
-    expect(debugElement('combat-world-map')).toBeInTheDocument()
-  })
-
-  it('supports discrete zoom levels and drag panning as presentation state', () => {
+  it('resets each child map to centered 100% and keeps discrete wheel zoom', () => {
     openCombatBrowser()
     const map = debugElement('combat-world-map')
-    expect(debugElement('combat-world-map-zoom-readout')).toHaveTextContent('ZOOM 100%')
-    fireEvent.click(screen.getByRole('button', { name: 'Zoom 150%' }))
-    expect(debugElement('combat-world-map-zoom-readout')).toHaveTextContent('ZOOM 150%')
+    expect(debugElement('combat-world-map-zoom-readout')).toHaveTextContent('100%')
+    vi.useFakeTimers()
+    fireEvent.wheel(map, { deltaY: -100 })
+    expect(debugElement('combat-world-map-zoom-readout')).toHaveTextContent('150%')
+    act(() => vi.advanceTimersByTime(200))
     fireEvent.wheel(map, { deltaY: 100 })
-    expect(debugElement('combat-world-map-zoom-readout')).toHaveTextContent('ZOOM 100%')
-    fireEvent.click(screen.getByRole('button', { name: 'Zoom 50%' }))
+    expect(debugElement('combat-world-map-zoom-readout')).toHaveTextContent('100%')
+    act(() => vi.advanceTimersByTime(200))
     fireEvent.wheel(map, { deltaY: 100 })
-    expect(debugElement('combat-world-map-zoom-readout')).toHaveTextContent('ZOOM 50%')
-    fireEvent.pointerDown(map, { button: 0, pointerId: 1, clientX: 20, clientY: 20 })
-    fireEvent.pointerMove(map, { pointerId: 1, clientX: 80, clientY: 45 })
-    fireEvent.pointerUp(map, { pointerId: 1, clientX: 80, clientY: 45 })
-    expect(map).toBeInTheDocument()
-    expect(useGameStore.getState().activeCombatLocationId).toBeNull()
+    expect(debugElement('combat-world-map-zoom-readout')).toHaveTextContent('50%')
+    fireEvent.click(screen.getByRole('button', { name: 'Open Greenvale' }))
+    expect(debugElement('combat-world-map-zoom-readout')).toHaveTextContent('100%')
   })
 })

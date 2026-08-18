@@ -78,55 +78,73 @@ html[data-reduced-motion="true"] .danger-high.has-special { animation: none; tra
 .combat-world-hunt-context > div + div { border-left: 1px solid var(--line-soft); padding-left: 14px; }
 .combat-world-hunt-context strong, .combat-world-collapsed-summary strong { font-size: 12px; }
 .combat-world-hunt-context small, .combat-world-collapsed-summary small { color: var(--muted); font-size: 10px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.combat-world-map-workspace { align-items: stretch; display: grid; gap: 14px; grid-template-columns: minmax(0, 1.65fr) minmax(300px, .72fr); }
-.combat-world-map-panel { background: rgba(255,255,255,.012); border: 1px solid var(--line-soft); border-radius: 8px; display: flex; flex-direction: column; min-width: 0; overflow: hidden; }
-.combat-world-map-heading { align-items: center; border-bottom: 1px solid var(--line-soft); display: flex; justify-content: space-between; min-height: 45px; padding: 8px 11px; }
-.combat-world-map-heading p { color: var(--muted); font-size: 10px; margin-top: 2px; }
-.map-availability-note { color: var(--muted); font-size: 9px; text-align: right; }
-.combat-world-map-viewport { background: #101b20; cursor: grab; flex: 1; height: 420px; min-height: 340px; overflow: hidden; position: relative; touch-action: none; user-select: none; }
+.combat-world-map-header { border-bottom: 1px solid var(--line-soft); margin-bottom: 10px; padding: 2px 2px 10px; }
+.combat-world-map-navigation { align-items: center; display: flex; gap: 13px; min-height: 25px; }
+.combat-world-map-navigation nav { align-items: center; display: flex; flex-wrap: wrap; gap: 2px; min-width: 0; }
+.combat-world-map-back, .combat-world-map-crumb { align-items: center; background: transparent; border: 0; color: var(--muted); cursor: pointer; display: inline-flex; font-size: 9px; font-weight: 800; gap: 4px; letter-spacing: .08em; padding: 3px 4px; }
+.combat-world-map-back:hover, .combat-world-map-crumb:hover { color: var(--gold); }
+.combat-world-map-crumb.is-current { color: var(--gold); }
+.combat-world-map-crumb-separator { color: var(--line); font-size: 14px; padding: 0 2px; }
+.combat-world-map-title-row { align-items: flex-end; display: flex; gap: 16px; justify-content: space-between; }
+.combat-world-map-title-row h3 { font-size: 18px; margin-top: 3px; }
+.combat-world-map-title-row p { color: var(--muted); font-size: 10px; line-height: 1.35; margin-top: 4px; max-width: 650px; }
+.combat-world-active-context { align-items: flex-end; display: flex; flex: 0 0 250px; flex-direction: column; gap: 2px; text-align: right; }
+.combat-world-active-context strong { color: var(--green); font-size: 12px; }
+.combat-world-active-context small, .combat-world-active-context > span:last-of-type { color: var(--muted); font-size: 9px; }
+.combat-world-active-context .text-button { color: var(--gold); font-size: 9px; margin-top: 4px; padding: 0; }
+.combat-world-map-workspace { align-items: stretch; display: grid; gap: 14px; grid-template-columns: 1fr; }
+.combat-world-map-workspace.is-area-level { grid-template-columns: minmax(0, 1.65fr) minmax(300px, .72fr); }
+.combat-world-map-panel { animation: combat-map-enter 160ms ease both; background: rgba(255,255,255,.012); border: 1px solid var(--line-soft); border-radius: 8px; display: flex; flex-direction: column; min-width: 0; overflow: hidden; }
+
+@keyframes combat-map-enter {
+  from { opacity: .72; transform: scale(.985); }
+  to { opacity: 1; transform: scale(1); }
+}
+.combat-world-map-viewport { background: #151c20; cursor: grab; flex: 1; height: 530px; min-height: 390px; overflow: hidden; position: relative; touch-action: none; user-select: none; }
+.is-area-level .combat-world-map-viewport { height: 480px; min-height: 360px; }
 .combat-world-map-viewport.is-dragging { cursor: grabbing; }
 .combat-world-map-scene { height: 100%; inset: 0; position: absolute; transform-origin: center; width: 100%; will-change: transform; }
-.combat-world-map-backdrop { background: radial-gradient(ellipse at 31% 39%, rgba(88,128,93,.55) 0 17%, transparent 18%), radial-gradient(ellipse at 62% 49%, rgba(113,101,66,.46) 0 19%, transparent 20%), radial-gradient(ellipse at 50% 50%, rgba(46,78,77,.5), #112126 64%); height: 100%; inset: 0; overflow: hidden; position: absolute; width: 100%; }
-.combat-world-map-backdrop::before { background-image: linear-gradient(115deg, transparent 0 48%, rgba(192,165,101,.12) 48.2% 48.7%, transparent 49%), linear-gradient(30deg, transparent 0 66%, rgba(196,178,116,.1) 66.2% 66.6%, transparent 67%); content: ''; inset: 0; opacity: .8; position: absolute; }
-.map-landmass { border: 1px solid rgba(177,177,132,.2); border-radius: 46% 54% 51% 49%; position: absolute; }
-.map-landmass-west { background: rgba(84,122,83,.27); height: 77%; left: 4%; top: 7%; transform: rotate(-10deg); width: 50%; }
-.map-landmass-east { background: rgba(137,113,67,.2); height: 61%; right: 1%; top: 24%; transform: rotate(13deg); width: 43%; }
-.map-waterway { border: 1px solid rgba(106,165,174,.24); border-radius: 50%; position: absolute; transform: rotate(-22deg); }
-.map-waterway-north { height: 155%; left: 46%; top: -76%; width: 13%; }
-.map-waterway-south { height: 115%; left: 18%; top: 52%; transform: rotate(35deg); width: 9%; }
-.map-road { border-top: 1px dashed rgba(220,193,117,.35); height: 0; position: absolute; transform-origin: left; }
-.map-road-old { left: 25%; top: 50%; transform: rotate(8deg); width: 42%; }
-.map-road-fen { left: 54%; top: 53%; transform: rotate(62deg); width: 27%; }
-.map-compass { align-items: center; color: rgba(225,199,132,.64); display: flex; flex-direction: column; font-size: 9px; gap: 3px; left: 17px; position: absolute; top: 15px; }
-.map-compass i { border: 1px solid rgba(225,199,132,.44); border-radius: 50%; height: 22px; position: relative; width: 22px; }
-.map-compass i::after { border-bottom: 5px solid rgba(225,199,132,.7); border-left: 3px solid transparent; border-right: 3px solid transparent; content: ''; left: 7px; position: absolute; top: 3px; }
-.map-legend { align-items: center; bottom: 13px; color: rgba(215,207,167,.65); display: flex; font-size: 8px; gap: 5px; left: 15px; letter-spacing: .08em; position: absolute; }
-.map-legend-dot { background: var(--gold); border-radius: 50%; height: 5px; width: 5px; }
-.combat-world-map-label { align-items: center; color: rgba(224,207,157,.82); display: flex; gap: 4px; pointer-events: none; position: absolute; text-shadow: 0 1px 3px #0d1619; transform: translate(-50%, -50%); white-space: nowrap; }
-.combat-world-map-label svg { color: var(--muted); }
-.combat-world-map-label.is-locked { color: rgba(164,173,173,.58); }
-.map-label-continent { font-size: 17px; font-weight: 800; letter-spacing: .22em; }
-.map-label-region { font-size: 12px; font-weight: 800; letter-spacing: .16em; }
-.map-label-area { color: rgba(216,196,144,.77); font-size: 10px; font-weight: 700; letter-spacing: .1em; }
-.combat-world-arena-marker { align-items: center; background: transparent; border: 0; color: var(--text); cursor: pointer; display: flex; flex-direction: column; gap: 3px; padding: 0; position: absolute; transform: translate(-50%, -50%); width: 108px; z-index: 2; }
-.combat-world-arena-marker:hover:not(:disabled) .arena-marker-orb { background: var(--panel-hover); border-color: var(--gold); transform: scale(1.06); }
-.combat-world-arena-marker:disabled { cursor: not-allowed; }
-.arena-marker-status { color: transparent; font-size: 8px; font-weight: 800; height: 10px; letter-spacing: .1em; }
-.arena-marker-orb { align-items: center; background: rgba(20,31,34,.95); border: 1px solid rgba(211,178,102,.66); border-radius: 50%; color: var(--gold); display: flex; height: 42px; justify-content: center; transition: background .16s ease, border-color .16s ease, transform .16s ease; width: 42px; }
-.combat-world-arena-marker strong { color: var(--text); font-size: 10px; letter-spacing: .03em; text-shadow: 0 1px 3px #0d1619; white-space: nowrap; }
-.combat-world-arena-marker.is-selected .arena-marker-orb { border-color: var(--gold-bright, var(--gold)); box-shadow: 0 0 0 3px rgba(213,170,98,.2); }
-.combat-world-arena-marker.is-selected .arena-marker-status { color: var(--gold); }
-.combat-world-arena-marker.is-active .arena-marker-orb { border-color: var(--green); box-shadow: 0 0 0 3px rgba(123,177,139,.16); color: var(--green); }
-.combat-world-arena-marker.is-active .arena-marker-status { color: var(--green); }
-.combat-world-arena-marker.is-active.is-selected .arena-marker-status { color: var(--green); }
-.combat-world-arena-marker.is-locked { opacity: .52; }
-.combat-world-arena-marker.is-locked .arena-marker-status { color: var(--muted); }
+.combat-world-map-artwork { background: #182327; height: 100%; inset: 0; position: absolute; width: 100%; }
+.combat-world-map-artwork-image { background-position: center; background-repeat: no-repeat; background-size: cover; }
+.combat-world-map-artwork rect { opacity: .6; }
+.combat-world-map-artwork .map-art-secondary { fill: rgba(62,75,72,.55); stroke: rgba(219,196,139,.14); stroke-width: 2; }
+.combat-world-map-artwork .map-art-land { fill: #3d5249; stroke: rgba(230,210,155,.42); stroke-width: 3; }
+.combat-world-map-artwork .map-art-river { fill: none; stroke: rgba(106,168,176,.72); stroke-linecap: round; stroke-width: 12; }
+.combat-world-map-artwork .map-art-road { fill: none; stroke: rgba(211,179,107,.72); stroke-dasharray: 12 9; stroke-linecap: round; stroke-width: 4; }
+.combat-world-map-artwork .map-art-ridge { fill: none; stroke: rgba(30,42,42,.62); stroke-linecap: round; stroke-linejoin: round; stroke-width: 15; }
+.combat-world-map-artwork .map-art-forest { fill: #233d35; opacity: .82; stroke: #152823; stroke-width: 3; }
+.combat-world-map-node { align-items: center; background: rgba(19,29,31,.88); border: 1px solid rgba(206,177,104,.44); border-radius: 7px; color: var(--text); cursor: pointer; display: flex; flex-direction: column; gap: 3px; min-width: 112px; padding: 7px 10px; position: absolute; text-align: center; transform: translate(-50%, -50%); transition: background .16s ease, border-color .16s ease, box-shadow .16s ease, transform .16s ease; z-index: 2; }
+.combat-world-map-node:hover:not(:disabled) { background: rgba(35,49,49,.96); border-color: var(--gold); box-shadow: 0 0 0 3px rgba(213,170,98,.12); transform: translate(-50%, -50%) translateY(-2px); }
+.combat-world-map-node.is-locked { border-color: rgba(139,151,149,.3); color: var(--muted); cursor: not-allowed; opacity: .62; }
+.combat-world-map-node.is-selected { border-color: var(--gold); box-shadow: 0 0 0 3px rgba(213,170,98,.18); }
+.combat-world-map-node.is-active { border-color: var(--green); box-shadow: 0 0 0 3px rgba(123,177,139,.18); color: var(--green); }
+.combat-world-map-node-icon { color: var(--gold); }
+.combat-world-map-node strong { font-size: 10px; letter-spacing: .06em; text-shadow: 0 1px 3px #0d1619; white-space: nowrap; }
+.combat-world-map-node-status { color: transparent; font-size: 7px; font-weight: 800; height: 9px; letter-spacing: .1em; }
+.combat-world-map-node.is-selected .combat-world-map-node-status { color: var(--gold); }
+.combat-world-map-node.is-active .combat-world-map-node-status { color: var(--green); }
+.combat-world-map-node.is-locked .combat-world-map-node-status { color: var(--muted); }
+.combat-world-map-node-lock { color: var(--muted); position: absolute; right: 5px; top: 5px; }
+.combat-map-node-kind-continent { background: rgba(25,39,39,.92); border-radius: 10px; min-width: 150px; padding: 12px 17px; }
+.combat-map-node-kind-continent strong { font-size: 15px; letter-spacing: .13em; }
+.combat-map-node-kind-region { min-width: 135px; }
+.combat-map-node-kind-region strong { font-size: 12px; }
+.combat-map-node-kind-area { background: rgba(26,37,37,.9); min-width: 126px; }
+.combat-map-node-kind-area strong { font-size: 11px; }
+.combat-map-node-kind-arena { background: transparent; border: 0; min-width: 112px; padding: 2px 4px; }
+.combat-map-node-kind-arena:hover:not(:disabled) { background: transparent; border-color: transparent; box-shadow: none; }
+.combat-map-node-kind-arena .arena-marker-orb { background: rgba(20,31,34,.95); border: 1px solid rgba(211,178,102,.66); border-radius: 50%; color: var(--gold); display: flex; height: 46px; justify-content: center; transition: background .16s ease, border-color .16s ease, transform .16s ease; width: 46px; }
+.combat-map-node-kind-arena:hover:not(:disabled) .arena-marker-orb { background: var(--panel-hover); border-color: var(--gold); transform: scale(1.06); }
+.combat-map-node-kind-arena.is-selected .arena-marker-orb { box-shadow: 0 0 0 3px rgba(213,170,98,.2); }
+.combat-map-node-kind-arena.is-active .arena-marker-orb { border-color: var(--green); color: var(--green); box-shadow: 0 0 0 3px rgba(123,177,139,.16); }
+.combat-map-node-kind-arena strong { font-size: 10px; }
 .combat-world-map-toolbar { align-items: center; background: rgba(10,17,20,.82); border-top: 1px solid rgba(220,193,117,.18); bottom: 0; display: flex; gap: 9px; justify-content: flex-end; left: 0; min-height: 34px; padding: 5px 9px; pointer-events: auto; position: absolute; right: 0; }
 .map-pan-hint { color: var(--muted); font-size: 8px; letter-spacing: .06em; margin-right: auto; }
 .map-zoom-controls { display: flex; gap: 3px; }
-.map-zoom-button { background: transparent; border: 1px solid transparent; border-radius: 4px; color: var(--muted); cursor: pointer; font-size: 9px; padding: 3px 5px; }
-.map-zoom-button:hover, .map-zoom-button.is-selected { background: var(--gold-soft); border-color: rgba(213,170,98,.38); color: var(--gold); }
-.map-zoom-readout { color: var(--text-dim); font-size: 9px; font-variant-numeric: tabular-nums; min-width: 55px; text-align: right; }
+.map-zoom-button { background: transparent; border: 1px solid transparent; border-radius: 4px; color: var(--muted); cursor: pointer; font-size: 14px; line-height: 1; min-width: 23px; padding: 3px 5px; }
+.map-zoom-button:hover:not(:disabled) { background: var(--gold-soft); border-color: rgba(213,170,98,.38); color: var(--gold); }
+.map-zoom-button:disabled { cursor: not-allowed; opacity: .35; }
+.map-zoom-readout { color: var(--text-dim); font-size: 10px; font-variant-numeric: tabular-nums; min-width: 38px; text-align: center; }
 .combat-world-collapsed-summary { align-items: center; display: flex; gap: 18px; }
 .combat-world-collapsed-summary > div { display: flex; flex: 1; flex-direction: column; gap: 2px; min-width: 0; }
 .combat-world-collapsed-summary > div + div { border-left: 1px solid var(--line-soft); padding-left: 18px; }
@@ -465,6 +483,8 @@ html[data-reduced-motion="true"] .danger-high.has-special { animation: none; tra
 @media (max-width: 1050px) { .combat-location-preview { min-height: 0; } }
 @media (max-width: 900px) { .combat-world-map-workspace { grid-template-columns: 1fr; } .combat-world-map-viewport { height: 390px; } }
 @media (max-width: 600px) {
+  .combat-world-map-title-row { align-items: flex-start; flex-direction: column; gap: 9px; }
+  .combat-world-active-context { align-items: flex-start; flex-basis: auto; text-align: left; }
   .combat-world-hunt-context, .combat-world-collapsed-summary { align-items: stretch; flex-direction: column; gap: 9px; }
   .combat-world-hunt-context > div + div, .combat-world-collapsed-summary > div + div { border-left: 0; border-top: 1px solid var(--line-soft); padding-left: 0; padding-top: 9px; }
   .combat-resource-hud { gap: 7px; padding: 8px; }
