@@ -97,14 +97,14 @@ html[data-reduced-motion="true"] .danger-high.has-special { animation: none; tra
 .combat-world-map-viewport { background: #151c20; cursor: grab; flex: 1; height: 530px; min-height: 390px; overflow: hidden; position: relative; touch-action: none; user-select: none; }
 .is-area-level .combat-world-map-viewport { height: 480px; min-height: 360px; }
 .combat-world-map-viewport.is-dragging { cursor: grabbing; }
-.combat-world-map-scene { height: 100%; inset: 0; position: absolute; transform-origin: center; transition: transform 250ms cubic-bezier(.2,.75,.25,1); width: 100%; will-change: transform; }
+.combat-world-map-scene { position: absolute; transform-origin: center; transition: transform 250ms cubic-bezier(.2,.75,.25,1); will-change: transform; }
 .combat-world-map-viewport.is-dragging .combat-world-map-scene { transition: none; }
 .combat-world-map-nav-controls { display: flex; gap: 5px; left: 9px; position: absolute; top: 9px; z-index: 4; }
 .combat-world-map-nav-button { align-items: center; backdrop-filter: blur(4px); background: rgba(10,17,20,.78); border: 1px solid rgba(220,193,117,.28); border-radius: 5px; color: var(--muted); cursor: pointer; display: inline-flex; height: 34px; justify-content: center; padding: 0; transition: background .16s ease, border-color .16s ease, color .16s ease; width: 34px; }
 .combat-world-map-nav-button:hover:not(:disabled) { background: var(--gold-soft); border-color: rgba(213,170,98,.65); color: var(--gold); }
 .combat-world-map-nav-button:disabled { cursor: default; opacity: .38; }
 .combat-world-map-artwork { background: #182327; height: 100%; inset: 0; position: absolute; width: 100%; }
-.combat-world-map-artwork-image { background-position: center; background-repeat: no-repeat; background-size: cover; }
+.combat-world-map-artwork-image { display: block; object-fit: contain; object-position: center; }
 .combat-world-map-artwork rect { opacity: .6; }
 .combat-world-map-artwork .map-art-secondary { fill: rgba(62,75,72,.55); stroke: rgba(219,196,139,.14); stroke-width: 2; }
 .combat-world-map-artwork .map-art-land { fill: #3d5249; stroke: rgba(230,210,155,.42); stroke-width: 3; }

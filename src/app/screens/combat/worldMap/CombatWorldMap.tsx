@@ -7,6 +7,7 @@ import { CombatWorldMapNode } from './CombatWorldMapNode'
 const ZOOM_LEVELS = [0.5, 1, 1.5] as const
 const ZOOM_LABELS = ['50%', '100%', '150%'] as const
 const MAP_ZOOM_STEP_LOCK_MS = 160
+const FALLBACK_SCENE_ASPECT_RATIO = 900 / 540
 
 interface CombatWorldMapProps {
   view: CombatMapViewDefinition
@@ -35,6 +36,8 @@ export function CombatWorldMap({ view, masteryLevel, selectedNodeId, activeLocat
   const [viewportSize, setViewportSize] = useState({ width: 0, height: 0 })
   const [dragging, setDragging] = useState(false)
   const zoom = ZOOM_LEVELS[zoomIndex]
+  const sceneAspectRatio = view.backgroundAspectRatio ?? FALLBACK_SCENE_ASPECT_RATIO
+  const sceneSize = sceneSizeForViewport(viewportSize, sceneAspectRatio)
 
   useEffect(() => {
     const viewport = viewportRef.current
@@ -51,8 +54,8 @@ export function CombatWorldMap({ view, masteryLevel, selectedNodeId, activeLocat
   }, [])
 
   useEffect(() => {
-    setPan((current) => clampPan(current, zoom, viewportSize))
-  }, [zoom, viewportSize])
+    setPan((current) => clampPan(current, zoom, viewportSize, sceneSize))
+  }, [sceneSize.height, sceneSize.width, viewportSize.height, viewportSize.width, zoom])
 
   const changeZoom = (direction: -1 | 1) => {
     setZoomIndex((current) => Math.max(0, Math.min(ZOOM_LEVELS.length - 1, current + direction)))
@@ -77,13 +80,21 @@ export function CombatWorldMap({ view, masteryLevel, selectedNodeId, activeLocat
     const current = panRef.current
     if (!current || current.pointerId !== event.pointerId) return
     if (Math.abs(event.clientX - current.startX) > 4 || Math.abs(event.clientY - current.startY) > 4) setDragging(true)
-    setPan(clampPan({ x: current.originX + event.clientX - current.startX, y: current.originY + event.clientY - current.startY }, zoom, viewportSize))
+    setPan(clampPan({ x: current.originX + event.clientX - current.startX, y: current.originY + event.clientY - current.startY }, zoom, viewportSize, sceneSize))
   }
 
   const finishPointer = (event: React.PointerEvent<HTMLDivElement>) => {
     if (panRef.current?.pointerId === event.pointerId) panRef.current = null
     setDragging(false)
     if (typeof event.currentTarget.hasPointerCapture === 'function' && event.currentTarget.hasPointerCapture(event.pointerId) && typeof event.currentTarget.releasePointerCapture === 'function') event.currentTarget.releasePointerCapture(event.pointerId)
+  }
+
+  const sceneStyle = {
+    left: sceneSize.width > 0 ? `${(viewportSize.width - sceneSize.width) / 2}px` : '0px',
+    top: sceneSize.height > 0 ? `${(viewportSize.height - sceneSize.height) / 2}px` : '0px',
+    width: sceneSize.width > 0 ? `${sceneSize.width}px` : '100%',
+    height: sceneSize.height > 0 ? `${sceneSize.height}px` : '100%',
+    transform: `translate3d(${pan.x}px, ${pan.y}px, 0) scale(${zoom})`,
   }
 
   return <div
@@ -99,7 +110,7 @@ export function CombatWorldMap({ view, masteryLevel, selectedNodeId, activeLocat
     onPointerUp={finishPointer}
     onPointerCancel={finishPointer}
     >
-    <div className="combat-world-map-scene" style={{ transform: `translate3d(${pan.x}px, ${pan.y}px, 0) scale(${zoom})` }}>
+    <div className="combat-world-map-scene" style={sceneStyle}>
       <CombatWorldMapArtwork backgroundKey={view.backgroundKey} backgroundAsset={view.backgroundAsset} />
       {view.nodes.map((node) => <CombatWorldMapNode
         key={`${node.kind}-${node.sourceId}`}
@@ -129,9 +140,15 @@ export function CombatWorldMap({ view, masteryLevel, selectedNodeId, activeLocat
   </div>
 }
 
-function clampPan(pan: { x: number; y: number }, zoom: number, viewport: { width: number; height: number }) {
-  const horizontalLimit = Math.max(0, (viewport.width * zoom - viewport.width) / 2)
-  const verticalLimit = Math.max(0, (viewport.height * zoom - viewport.height) / 2)
+function sceneSizeForViewport(viewport: { width: number; height: number }, aspectRatio: number) {
+  if (viewport.width <= 0 || viewport.height <= 0) return { width: 0, height: 0 }
+  const width = Math.min(viewport.width, viewport.height * aspectRatio)
+  return { width, height: width / aspectRatio }
+}
+
+function clampPan(pan: { x: number; y: number }, zoom: number, viewport: { width: number; height: number }, scene: { width: number; height: number }) {
+  const horizontalLimit = Math.max(0, (scene.width * zoom - viewport.width) / 2)
+  const verticalLimit = Math.max(0, (scene.height * zoom - viewport.height) / 2)
   return {
     x: Math.max(-horizontalLimit, Math.min(horizontalLimit, pan.x)),
     y: Math.max(-verticalLimit, Math.min(verticalLimit, pan.y)),

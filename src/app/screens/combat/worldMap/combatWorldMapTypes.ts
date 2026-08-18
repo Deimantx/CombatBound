@@ -17,5 +17,6 @@ export interface CombatMapViewDefinition {
   sourceId?: string
   backgroundKey: string
   backgroundAsset?: string
+  backgroundAspectRatio?: number
   nodes: readonly CombatMapNodeLayout[]
 }

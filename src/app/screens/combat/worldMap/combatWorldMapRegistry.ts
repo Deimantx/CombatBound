@@ -2,6 +2,7 @@ import { areaById } from '../../../../game/data/world/areas'
 import { continentById, continentDefinitions } from '../../../../game/data/world/continents'
 import { regionById } from '../../../../game/data/world/regions'
 import { getAreasForRegion, getLocationsForArea, getRegionsForContinent } from '../../../../game/world/worldSelectors'
+import { combatWorldMapAssetAspectRatios, combatWorldMapAssets } from './combatWorldMapAssets'
 import type { CombatMapViewDefinition, CombatWorldMapLevel } from './combatWorldMapTypes'
 import type { CombatMapNodeKind, CombatMapNodeLayout } from './combatWorldMapTypes'
 
@@ -9,27 +10,27 @@ const view = (definition: CombatMapViewDefinition) => definition
 type MapPoint = Pick<CombatMapNodeLayout, 'x' | 'y'>
 
 const worldPositions: Record<string, MapPoint> = {
-  'continent.greenvale': { x: 27, y: 40 },
-  'continent.frostmarch': { x: 70, y: 18 },
-  'continent.emberreach': { x: 76, y: 64 },
-  'continent.stormcoast': { x: 15, y: 67 },
-  'continent.duskmoor': { x: 49, y: 76 },
+  'continent.greenvale': { x: 30, y: 42 },
+  'continent.frostmarch': { x: 55, y: 15 },
+  'continent.emberreach': { x: 75, y: 39 },
+  'continent.stormcoast': { x: 12, y: 61 },
+  'continent.duskmoor': { x: 46, y: 79 },
 }
 
 const greenvaleRegionPositions: Record<string, MapPoint> = {
-  'region.northwood': { x: 43, y: 23 },
-  'region.greyspine-highlands': { x: 70, y: 30 },
-  'region.westmere-coast': { x: 17, y: 46 },
-  'region.crowmoor': { x: 49, y: 63 },
-  'region.southfen': { x: 65, y: 78 },
+  'region.northwood': { x: 25, y: 23 },
+  'region.greyspine-highlands': { x: 80, y: 25 },
+  'region.westmere-coast': { x: 12, y: 55 },
+  'region.crowmoor': { x: 45, y: 78 },
+  'region.southfen': { x: 78, y: 78 },
 }
 
 const northwoodAreaPositions: Record<string, MapPoint> = {
   'area.deep-woods': { x: 23, y: 27 },
   'area.blackroot-hollow': { x: 74, y: 25 },
-  'area.old-road': { x: 49, y: 49 },
-  'area.thornwatch-glade': { x: 19, y: 75 },
-  'area.hunters-crossing': { x: 76, y: 75 },
+  'area.old-road': { x: 53, y: 50 },
+  'area.thornwatch-glade': { x: 22, y: 77 },
+  'area.hunters-crossing': { x: 76, y: 72 },
 }
 
 const southfenAreaPositions: Record<string, MapPoint> = {
@@ -40,8 +41,8 @@ const southfenAreaPositions: Record<string, MapPoint> = {
 }
 
 const arenaPositions: Record<string, MapPoint> = {
-  'location.wolf-den': { x: 57, y: 44 },
-  'location.bandit-camp': { x: 61, y: 45 },
+  'location.wolf-den': { x: 21, y: 22 },
+  'location.bandit-camp': { x: 34, y: 23 },
 }
 
 function nodesFor<T extends { id: string }>(kind: CombatMapNodeKind, definitions: readonly T[], positions: Record<string, MapPoint>): CombatMapNodeLayout[] {
@@ -64,21 +65,21 @@ function arenaNodesFor(areaId: string) {
 }
 
 export const combatMapViewRegistry: Record<string, CombatMapViewDefinition> = {
-  world: view({ id: 'world', level: 'world', backgroundKey: 'world', nodes: worldNodes }),
+  world: view({ id: 'world', level: 'world', backgroundKey: 'world', backgroundAsset: combatWorldMapAssets.world, backgroundAspectRatio: combatWorldMapAssetAspectRatios.world, nodes: worldNodes }),
   'continent.greenvale': view({
-    id: 'continent.greenvale', level: 'continent', parentId: 'world', sourceId: 'continent.greenvale', backgroundKey: 'greenvale', nodes: greenvaleRegionNodes,
+    id: 'continent.greenvale', level: 'continent', parentId: 'world', sourceId: 'continent.greenvale', backgroundKey: 'greenvale', backgroundAsset: combatWorldMapAssets.greenvale, backgroundAspectRatio: combatWorldMapAssetAspectRatios.greenvale, nodes: greenvaleRegionNodes,
   }),
   'region.northwood': view({
-    id: 'region.northwood', level: 'region', parentId: 'continent.greenvale', sourceId: 'region.northwood', backgroundKey: 'northwood', nodes: northwoodAreaNodes,
+    id: 'region.northwood', level: 'region', parentId: 'continent.greenvale', sourceId: 'region.northwood', backgroundKey: 'northwood', backgroundAsset: combatWorldMapAssets.northwood, backgroundAspectRatio: combatWorldMapAssetAspectRatios.northwood, nodes: northwoodAreaNodes,
   }),
   'region.southfen': view({
     id: 'region.southfen', level: 'region', parentId: 'continent.greenvale', sourceId: 'region.southfen', backgroundKey: 'southfen', nodes: southfenAreaNodes,
   }),
   'area.deep-woods': view({
-    id: 'area.deep-woods', level: 'area', parentId: 'region.northwood', sourceId: 'area.deep-woods', backgroundKey: 'deep-woods', nodes: arenaNodesFor('area.deep-woods'),
+    id: 'area.deep-woods', level: 'area', parentId: 'region.northwood', sourceId: 'area.deep-woods', backgroundKey: 'deep-woods', backgroundAsset: combatWorldMapAssets['deep-woods'], backgroundAspectRatio: combatWorldMapAssetAspectRatios['deep-woods'], nodes: arenaNodesFor('area.deep-woods'),
   }),
   'area.old-road': view({
-    id: 'area.old-road', level: 'area', parentId: 'region.northwood', sourceId: 'area.old-road', backgroundKey: 'old-road', nodes: arenaNodesFor('area.old-road'),
+    id: 'area.old-road', level: 'area', parentId: 'region.northwood', sourceId: 'area.old-road', backgroundKey: 'old-road', backgroundAsset: combatWorldMapAssets['old-road'], backgroundAspectRatio: combatWorldMapAssetAspectRatios['old-road'], nodes: arenaNodesFor('area.old-road'),
   }),
 }
 

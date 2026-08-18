@@ -61,7 +61,7 @@ const artworkByKey: Record<string, MapArtworkShape> = {
 }
 
 export function CombatWorldMapArtwork({ backgroundKey, backgroundAsset }: CombatWorldMapArtworkProps) {
-  if (backgroundAsset) return <div className="combat-world-map-artwork combat-world-map-artwork-image" data-map-background={backgroundKey} style={{ backgroundImage: `url(${backgroundAsset})` }} aria-hidden="true" />
+  if (backgroundAsset) return <img className="combat-world-map-artwork combat-world-map-artwork-image" data-map-background={backgroundKey} src={backgroundAsset} alt="" draggable={false} aria-hidden="true" />
   const art = artworkByKey[backgroundKey] ?? artworkByKey.world
   return <svg className="combat-world-map-artwork" data-map-background={backgroundKey} viewBox="0 0 900 540" preserveAspectRatio="none" aria-hidden="true">
     <defs>

@@ -8,7 +8,7 @@ export const combatBalance = {
   enforceWeaponSkillLevelRequirements: false, // [TUNING] Prototype weapon skills are unlocked for testing.
   autoPotionThreshold: 0.35, // [TUNING] Prototype value.
   healingPotionAmount: 70, // [TUNING] Prototype value.
-  baseMaxLife: 250, // [TUNING] Prototype value.
+  baseMaxLife: 500, // [TUNING] Prototype value.
   baseAttackDamage: 20, // [TUNING] Prototype value.
   baseAccuracy: 70, // [TUNING] Prototype value. Migrated to Accuracy Rating.
   baseArmour: 35, // [TUNING] Prototype value.
