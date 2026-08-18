@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createAndEnterProfile, returnToProfileSelect } from "../app/profile/profileSessionController";
 import { commitOfflineActivitySimulation } from "../app/offline/commitOfflineActivitySimulation";
 import { gameStateToSaveV12 } from "../game/persistence/saveGame";
-import { loadProfileGameSave } from "../game/profiles/profileStorage";
+import { loadProfileGameSave, saveProfileGameSave } from "../game/profiles/profileStorage";
 import { getProfileSessionOwnerId } from "../game/profiles/profileSessionLease";
 import { useGameStore } from "../state/gameStore";
 import { useProfileStore } from "../state/profileStore";
@@ -60,5 +60,34 @@ describe("Offline Combat coordinated commit", () => {
     expect(useGameStore.getState().game.gold).toBe(42);
     expect(loadProfileGameSave("profile-1")?.version).toBe(12);
     expect(loadProfileGameSave("profile-1")?.gold).toBe(42);
+  });
+
+  it("rolls back the exact stored save when publishing the live result fails", () => {
+    const current = useGameStore.getState();
+    const liveGame = { ...current.game, gold: 10 };
+    expect(useGameStore.getState().replaceGameStateForOfflineSimulation(liveGame)).toBe(true);
+    const storedSave = {
+      ...gameStateToSaveV12(liveGame, {
+        reducedMotion: current.reducedMotion,
+        showInspectorButton: current.showInspectorButton,
+      }),
+      gold: 5,
+    };
+    expect(saveProfileGameSave("profile-1", storedSave)).toBe(true);
+
+    const originalReplace = useGameStore.getState().replaceGameStateForOfflineSimulation;
+    useGameStore.setState({ replaceGameStateForOfflineSimulation: () => false });
+    try {
+      expect(commitOfflineActivitySimulation({
+        ...input({ ...liveGame, gold: 20 }),
+        previousGame: liveGame,
+      })).toBe(false);
+    } finally {
+      useGameStore.setState({ replaceGameStateForOfflineSimulation: originalReplace });
+    }
+
+    expect(loadProfileGameSave("profile-1")?.gold).toBe(5);
+    expect(useGameStore.getState().game.gold).toBe(10);
+    expect(useProfileStore.getState().index.slots[0]?.offlineBankSeconds).toBe(3600);
   });
 });

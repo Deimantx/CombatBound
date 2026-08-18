@@ -29,6 +29,9 @@ export interface CombatHuntOfflineSummary {
   virtualElapsedSeconds: number;
 }
 
+// Phase A Wolf Den/Bandit Camp benchmarks peaked at 79,887 event steps for
+// seven days. Keep a large finite ceiling for malformed/stalled state without
+// making the guard an arbitrary 10x bump over the observed workload.
 const MAX_EVENT_STEPS = 2_000_000;
 
 function delta(current: number, previous: number): number {

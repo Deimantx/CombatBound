@@ -6,6 +6,7 @@ import { getEquippedWeaponProficiency } from "../progression/progressionSelector
 import type { GameState } from "../gameState";
 import type { CombatContext, EnemyCombatInstance } from "../combat/combatTypes";
 import type { HunterCombatStats } from "../equipment/derivedStats";
+import type { AutomationCondition } from "../automation/automationTypes";
 
 export const OFFLINE_COMBAT_TIME_QUANTUM_SECONDS = 0.1;
 export const OFFLINE_COMBAT_TICKS_PER_SECOND = 10;
@@ -26,6 +27,105 @@ function effectBoundary(effects: GameState["combat"]["playerEffects"]): number {
   let boundary = Number.POSITIVE_INFINITY;
   for (const effect of effects) {
     boundary = Math.min(boundary, timerBoundary(effect.remainingSeconds), timerBoundary(effect.nextTickRemaining));
+  }
+  return boundary;
+}
+
+function thresholdBoundary(
+  current: number,
+  maximum: number,
+  fraction: number,
+  rate: number,
+  above: boolean,
+): number {
+  if (!(maximum > 0) || !Number.isFinite(rate) || rate === 0) return Number.POSITIVE_INFINITY;
+  const threshold = Math.max(0, Math.min(1, fraction)) * maximum;
+  const distance = above ? threshold - current : current - threshold;
+  const movingTowardThreshold = above ? rate > 0 : rate < 0;
+  const movingAwayFromThreshold = above ? rate < 0 : rate > 0;
+  if (!movingTowardThreshold && !movingAwayFromThreshold) return Number.POSITIVE_INFINITY;
+  if (distance === 0) return OFFLINE_COMBAT_TIME_QUANTUM_SECONDS;
+  if ((distance > 0 && !movingTowardThreshold) || (distance < 0 && !movingAwayFromThreshold))
+    return Number.POSITIVE_INFINITY;
+  return Math.max(OFFLINE_COMBAT_TIME_QUANTUM_SECONDS, Math.abs(distance / rate));
+}
+
+/**
+ * Returns the next continuous resource crossing that can change automation.
+ * This intentionally contains no invented resource drain: mana and stamina
+ * use the same rates as the canonical live combat step.
+ */
+export function getAutomationConditionBoundary(
+  game: GameState,
+  stats: HunterCombatStats,
+  context: CombatContext,
+): number {
+  if (!game.combatAutomation.enabled || game.combat.phase !== "active") return Number.POSITIVE_INFINITY;
+  const playerStats = getPlayerStats(game.combat, stats, context, game.progression);
+  const staminaRate = calculateStaminaDelta(
+    game.combat,
+    stats,
+    context,
+    game.progression,
+    getEquippedWeaponProficiency(game.equipment, game.inventory),
+  );
+  const manaRate = playerStats.manaRegenFlat ?? 0;
+  const lifeRate = Math.max(0, playerStats.lifeRegenFlat ?? 0);
+  let boundary = Number.POSITIVE_INFINITY;
+  const add = (condition: AutomationCondition) => {
+    switch (condition.type) {
+      case "player-hp-above":
+        boundary = Math.min(boundary, thresholdBoundary(
+          game.combat.playerHp,
+          game.combat.maxPlayerHp,
+          condition.fraction,
+          lifeRate,
+          true,
+        ));
+        break;
+      case "mana-above":
+        boundary = Math.min(boundary, thresholdBoundary(
+          game.combat.mana,
+          game.combat.maxMana,
+          condition.fraction,
+          manaRate,
+          true,
+        ));
+        break;
+      case "mana-below":
+        boundary = Math.min(boundary, thresholdBoundary(
+          game.combat.mana,
+          game.combat.maxMana,
+          condition.fraction,
+          manaRate,
+          false,
+        ));
+        break;
+      case "stamina-above":
+        boundary = Math.min(boundary, thresholdBoundary(
+          game.combat.stamina,
+          game.combat.maxStamina,
+          condition.fraction,
+          staminaRate,
+          true,
+        ));
+        break;
+      case "stamina-below":
+        boundary = Math.min(boundary, thresholdBoundary(
+          game.combat.stamina,
+          game.combat.maxStamina,
+          condition.fraction,
+          staminaRate,
+          false,
+        ));
+        break;
+      default:
+        break;
+    }
+  };
+  for (const rule of game.combatAutomation.rules) {
+    if (!rule.enabled) continue;
+    for (const condition of rule.conditions) add(condition);
   }
   return boundary;
 }
@@ -79,8 +179,10 @@ export function enemyActionReady(
 }
 
 function enemyBoundary(enemy: EnemyCombatInstance): number {
+  if (enemy.defeated) return Number.POSITIVE_INFINITY;
+  if (enemy.currentAction)
+    return Math.min(timerBoundary(enemy.currentAction.remainingSeconds), effectBoundary(enemy.effects));
   let boundary = timerBoundary(enemy.attackTimer);
-  if (enemy.currentAction) boundary = Math.min(boundary, timerBoundary(enemy.currentAction.remainingSeconds));
   for (const remaining of Object.values(enemy.actionCooldowns)) boundary = Math.min(boundary, cooldownBoundary(remaining));
   return Math.min(boundary, effectBoundary(enemy.effects));
 }
@@ -120,7 +222,6 @@ export function getNextOfflineCombatBoundary(
   let boundary = Number.POSITIVE_INFINITY;
   if (combat.phase === "recovery") {
     boundary = Math.min(boundary, timerBoundary(combat.recoveryRemaining), effectBoundary(combat.playerEffects));
-    for (const enemy of combat.enemies) boundary = Math.min(boundary, effectBoundary(enemy.effects));
     return boundary;
   }
   if (combat.phase !== "active") return boundary;
@@ -135,6 +236,7 @@ export function getNextOfflineCombatBoundary(
     cooldownBoundary(combat.potionCooldownRemaining),
     effectBoundary(combat.playerEffects),
     automationResourceBoundary(game, stats, context),
+    getAutomationConditionBoundary(game, stats, context),
   );
   for (const remaining of Object.values(combat.actionCooldowns)) boundary = Math.min(boundary, cooldownBoundary(remaining));
   const staminaRate = calculateStaminaDelta(

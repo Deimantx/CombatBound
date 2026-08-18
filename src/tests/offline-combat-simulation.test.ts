@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { calculateHunterCombatStats } from "../game/equipment/derivedStats";
 import { createInitialGameState, type GameState } from "../game/gameState";
+import { createItemInstance } from "../game/items/itemOwnership";
+import { enemyById } from "../game/data/enemies";
 import {
   advanceCombatStep,
   createCombatContext,
@@ -11,6 +13,7 @@ import {
 } from "../game/offline/offlineActivityContract";
 import { simulateCombatHuntOffline } from "../game/offline/offlineCombatSimulation";
 import { combatHuntActivityAdapter } from "../game/offline/combatHuntActivity";
+import type { AutomationCondition } from "../game/automation/automationTypes";
 
 function activeHunt(): GameState {
   const game = createInitialGameState();
@@ -29,6 +32,77 @@ function liveReference(snapshot: GameState, seconds: number): GameState {
     if (game.combat.phase !== "active" && game.combat.phase !== "recovery") break;
   }
   return game;
+}
+
+function stableCombat(snapshot: GameState): GameState {
+  return {
+    ...snapshot,
+    combat: {
+      ...snapshot.combat,
+      enemies: snapshot.combat.enemies.map((enemy) => ({
+        ...enemy,
+        maxHealth: 100_000,
+        currentHealth: 100_000,
+        attackTimer: 1_000_000,
+        actionCooldowns: Object.fromEntries(
+          (enemyById[enemy.enemyId]?.actions ?? []).map((action) => [action.id, 1_000_000]),
+        ),
+      })),
+    },
+  };
+}
+
+function thresholdHunt(
+  condition: AutomationCondition,
+  actionId: string,
+  combatPatch: Partial<GameState["combat"]> = {},
+): GameState {
+  const base = stableCombat(activeHunt());
+  return {
+    ...base,
+    combat: { ...base.combat, ...combatPatch },
+    combatAutomation: {
+      ...base.combatAutomation,
+      rules: [{ id: "threshold-test", actionId, priority: 1, enabled: true, conditions: [condition] }],
+    },
+    combatAbilities: {
+      ...base.combatAbilities,
+      activeSlots: ["weapon-skill.one-handed-sword.swift-cut", ...base.combatAbilities.activeSlots.slice(1)],
+    },
+  };
+}
+
+function firstAutomationEvent(game: GameState, actionId: string) {
+  return game.combat.events.find(
+    (event) => event.type === "automationActionUsed" && event.data?.actionId === actionId,
+  )?.id;
+}
+
+function addRegenerationGear(snapshot: GameState): GameState {
+  const head = createItemInstance(snapshot.inventory, "item.vanguard-helm");
+  const armor = createItemInstance(head.inventory, "item.vanguard-plate");
+  if (!head.instance || !armor.instance) return snapshot;
+  const inventory = armor.inventory;
+  const equipment = {
+    ...snapshot.equipment,
+    slots: { ...snapshot.equipment.slots, head: head.instance.id, armor: armor.instance.id },
+  };
+  const stats = calculateHunterCombatStats(
+    equipment,
+    inventory,
+    snapshot.progression,
+    snapshot.combat.techniques,
+  );
+  return {
+    ...snapshot,
+    inventory,
+    equipment,
+    combat: {
+      ...snapshot.combat,
+      maxPlayerHp: stats.maxLife ?? snapshot.combat.maxPlayerHp,
+      playerHp: (stats.maxLife ?? snapshot.combat.maxPlayerHp) * 0.5,
+    },
+  };
 }
 
 describe("Offline Combat Simulation 1.0", () => {
@@ -130,5 +204,61 @@ describe("Offline Combat Simulation 1.0", () => {
     expect(offline.state.gold).toBe(live.gold);
     expect(offline.state.inventory).toEqual(live.inventory);
     expect(offline.summary.eventSteps).toBeLessThan(600);
+  });
+
+  it("matches live threshold crossings for continuous automation resources", () => {
+    const cases: Array<{ snapshot: GameState; actionId: string; seconds: number }> = [
+      {
+        snapshot: thresholdHunt(
+          { type: "mana-above", fraction: 0.8 },
+          "spell.flame-blast",
+          { mana: 0 },
+        ),
+        actionId: "spell.flame-blast",
+        seconds: 90,
+      },
+      {
+        snapshot: thresholdHunt(
+          { type: "stamina-above", fraction: 0.5 },
+          "weapon-skill.one-handed-sword.swift-cut",
+          { stamina: 0 },
+        ),
+        actionId: "weapon-skill.one-handed-sword.swift-cut",
+        seconds: 20,
+      },
+      {
+        snapshot: thresholdHunt(
+          { type: "stamina-below", fraction: 0.5 },
+          "weapon-skill.one-handed-sword.swift-cut",
+          { stamina: 100, techniques: { "careful-positioning": true, "heightened-reflexes": true } },
+        ),
+        actionId: "weapon-skill.one-handed-sword.swift-cut",
+        seconds: 55,
+      },
+      {
+        snapshot: addRegenerationGear(thresholdHunt(
+          { type: "player-hp-above", fraction: 0.55 },
+          "weapon-skill.one-handed-sword.swift-cut",
+        )),
+        actionId: "weapon-skill.one-handed-sword.swift-cut",
+        seconds: 30,
+      },
+    ];
+
+    for (const testCase of cases) {
+      const offline = simulateCombatHuntOffline(
+        testCase.snapshot,
+        { requestedSeconds: testCase.seconds },
+        createDeterministicOfflineRng(991),
+      );
+      const live = liveReference(testCase.snapshot, testCase.seconds);
+      expect(firstAutomationEvent(offline.state, testCase.actionId)).toBeDefined();
+      expect(firstAutomationEvent(offline.state, testCase.actionId)).toBe(
+        firstAutomationEvent(live, testCase.actionId),
+      );
+      expect(offline.state.combat.playerHp).toBeCloseTo(live.combat.playerHp, 8);
+      expect(offline.state.combat.mana).toBeCloseTo(live.combat.mana, 8);
+      expect(offline.state.combat.stamina).toBeCloseTo(live.combat.stamina, 8);
+    }
   });
 });

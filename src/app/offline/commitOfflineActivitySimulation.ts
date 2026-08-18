@@ -3,11 +3,13 @@ import { normalizeBankSeconds, spendOfflineBankTime } from "../../game/offline/o
 import { offlineTimePolicy } from "../../game/offline/offlineTimePolicy";
 import {
   readProfileIndex,
+  loadProfileGameSave,
   saveProfileGameSave,
   writeProfileIndex,
   slotMetadata,
 } from "../../game/profiles/profileStorage";
 import { gameStateToSaveV12 } from "../../game/persistence/saveGame";
+import type { GameSaveV12 } from "../../game/persistence/saveTypes";
 import type { GameState } from "../../game/gameState";
 import { hasValidOwnedProfileSessionLease } from "../../game/profiles/profileSessionLease";
 import { useGameStore } from "../../state/gameStore";
@@ -30,14 +32,20 @@ function sameActiveProfile(profileId: ProfileId): boolean {
 function restoreStorage(
   profileId: ProfileId,
   previousIndex: ProfileIndexV1,
-  previousSave: ReturnType<typeof gameStateToSaveV12>,
+  previousStoredSave: GameSaveV12,
   gameSaveWasWritten: boolean,
 ) {
   // Rollback is deliberately best-effort: a storage failure can prevent even
   // the compensating write, but it must never mutate the live stores first.
-  if (gameSaveWasWritten) saveProfileGameSave(profileId, previousSave);
+  if (gameSaveWasWritten) saveProfileGameSave(profileId, previousStoredSave);
   writeProfileIndex(previousIndex);
   useProfileStore.getState().refreshProfiles();
+}
+
+function restoreLiveState(profileId: ProfileId, previousGame: GameState) {
+  // The live snapshot is only for the in-memory rollback. It is deliberately
+  // never used as the persisted-save rollback source.
+  if (sameActiveProfile(profileId)) useGameStore.getState().replaceGameStateForOfflineSimulation(previousGame);
 }
 
 /** Stages both profile keys, then publishes the new state to Zustand. */
@@ -53,6 +61,8 @@ export function commitOfflineActivitySimulation(
     previousIndex.slots.find((entry) => entry?.id === input.profileId)?.slot ?? 1,
   );
   if (!previousMetadata || previousMetadata.id !== input.profileId) return false;
+  const previousStoredSave = loadProfileGameSave(input.profileId);
+  if (!previousStoredSave) return false;
 
   const spend = input.simulatedSeconds > 0
     ? spendOfflineBankTime(previousMetadata.offlineBankSeconds, input.simulatedSeconds, offlineTimePolicy)
@@ -73,10 +83,6 @@ export function commitOfflineActivitySimulation(
         : entry,
     ) as ProfileIndexV1["slots"],
   };
-  const previousSave = gameStateToSaveV12(input.previousGame, {
-    reducedMotion: input.reducedMotion,
-    showInspectorButton: input.showInspectorButton,
-  });
   const nextSave = gameStateToSaveV12(input.nextGame, {
     reducedMotion: input.reducedMotion,
     showInspectorButton: input.showInspectorButton,
@@ -87,30 +93,35 @@ export function commitOfflineActivitySimulation(
   try {
     if (!sameActiveProfile(input.profileId) || !hasValidOwnedProfileSessionLease(input.profileId, input.ownerId)) return false;
     metadataWriteAttempted = true;
-    if (!writeProfileIndex(nextIndex)) return false;
+    if (!writeProfileIndex(nextIndex)) {
+      restoreStorage(input.profileId, previousIndex, previousStoredSave, false);
+      return false;
+    }
 
     if (!sameActiveProfile(input.profileId) || !hasValidOwnedProfileSessionLease(input.profileId, input.ownerId)) {
-      restoreStorage(input.profileId, previousIndex, previousSave, false);
+      restoreStorage(input.profileId, previousIndex, previousStoredSave, false);
       return false;
     }
     gameSaveWriteAttempted = true;
     if (!saveProfileGameSave(input.profileId, nextSave)) {
-      restoreStorage(input.profileId, previousIndex, previousSave, true);
+      restoreStorage(input.profileId, previousIndex, previousStoredSave, true);
       return false;
     }
 
     if (!sameActiveProfile(input.profileId) || !hasValidOwnedProfileSessionLease(input.profileId, input.ownerId)) {
-      restoreStorage(input.profileId, previousIndex, previousSave, true);
+      restoreStorage(input.profileId, previousIndex, previousStoredSave, true);
       return false;
     }
     useProfileStore.getState().refreshProfiles();
     if (!sameActiveProfile(input.profileId) || !useGameStore.getState().replaceGameStateForOfflineSimulation(input.nextGame)) {
-      restoreStorage(input.profileId, previousIndex, previousSave, true);
+      restoreStorage(input.profileId, previousIndex, previousStoredSave, true);
+      restoreLiveState(input.profileId, input.previousGame);
       return false;
     }
     return true;
   } catch {
-    if (metadataWriteAttempted) restoreStorage(input.profileId, previousIndex, previousSave, gameSaveWriteAttempted);
+    if (metadataWriteAttempted) restoreStorage(input.profileId, previousIndex, previousStoredSave, gameSaveWriteAttempted);
+    restoreLiveState(input.profileId, input.previousGame);
     return false;
   }
 }
