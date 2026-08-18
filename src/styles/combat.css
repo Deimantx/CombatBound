@@ -78,72 +78,131 @@ html[data-reduced-motion="true"] .danger-high.has-special { animation: none; tra
 .combat-world-hunt-context > div + div { border-left: 1px solid var(--line-soft); padding-left: 14px; }
 .combat-world-hunt-context strong, .combat-world-collapsed-summary strong { font-size: 12px; }
 .combat-world-hunt-context small, .combat-world-collapsed-summary small { color: var(--muted); font-size: 10px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.combat-world-map-header { border-bottom: 1px solid var(--line-soft); margin-bottom: 10px; padding: 2px 2px 10px; }
-.combat-world-map-title-row { align-items: flex-end; display: flex; gap: 16px; justify-content: space-between; }
-.combat-world-map-title-row h3 { font-size: 18px; margin-top: 3px; }
-.combat-world-map-title-row p { color: var(--muted); font-size: 10px; line-height: 1.35; margin-top: 4px; max-width: 650px; }
+.combat-atlas-header { border-bottom: 1px solid var(--line-soft); margin-bottom: 10px; padding: 2px 2px 10px; }
+.combat-atlas-title-row { align-items: flex-end; display: flex; gap: 16px; justify-content: space-between; }
+.combat-atlas-title-row h3 { font-size: 18px; margin-top: 3px; }
+.combat-atlas-title-row p { color: var(--muted); font-size: 10px; line-height: 1.35; margin-top: 4px; max-width: 650px; }
 .combat-world-active-context { align-items: flex-end; display: flex; flex: 0 0 250px; flex-direction: column; gap: 2px; text-align: right; }
 .combat-world-active-context strong { color: var(--green); font-size: 12px; }
 .combat-world-active-context small, .combat-world-active-context > span:last-of-type { color: var(--muted); font-size: 9px; }
 .combat-world-active-context .text-button { color: var(--gold); font-size: 9px; margin-top: 4px; padding: 0; }
-.combat-world-map-workspace { align-items: stretch; display: grid; gap: 14px; grid-template-columns: 1fr; }
-.combat-world-map-workspace.is-area-level { grid-template-columns: minmax(0, 1.65fr) minmax(300px, .72fr); }
-.combat-world-map-panel { animation: combat-map-enter 160ms ease both; background: rgba(255,255,255,.012); border: 1px solid var(--line-soft); border-radius: 8px; display: flex; flex-direction: column; min-width: 0; overflow: hidden; }
+.combat-atlas-workspace { align-items: stretch; display: grid; gap: 14px; grid-template-columns: 1fr; }
+.combat-atlas-workspace.is-area-level { grid-template-columns: minmax(0, 1.65fr) minmax(300px, .72fr); }
+.combat-atlas-panel { animation: atlas-panel-enter 220ms ease both; background: rgba(255,255,255,.012); border: 1px solid var(--line-soft); border-radius: 8px; display: flex; flex-direction: column; min-width: 0; overflow: hidden; }
 
-@keyframes combat-map-enter {
-  from { opacity: .72; transform: scale(.985); }
-  to { opacity: 1; transform: scale(1); }
+@keyframes atlas-panel-enter {
+  from { opacity: .72; transform: scale(.985) translateY(4px); }
+  to { opacity: 1; transform: scale(1) translateY(0); }
 }
-.combat-world-map-viewport { background: #151c20; cursor: grab; flex: 1; height: 530px; min-height: 390px; overflow: hidden; position: relative; touch-action: none; user-select: none; }
-.is-area-level .combat-world-map-viewport { height: 480px; min-height: 360px; }
-.combat-world-map-viewport.is-dragging { cursor: grabbing; }
-.combat-world-map-scene { position: absolute; transform-origin: center; transition: transform 250ms cubic-bezier(.2,.75,.25,1); will-change: transform; }
-.combat-world-map-viewport.is-dragging .combat-world-map-scene { transition: none; }
-.combat-world-map-nav-controls { display: flex; gap: 5px; left: 9px; position: absolute; top: 9px; z-index: 4; }
-.combat-world-map-nav-button { align-items: center; backdrop-filter: blur(4px); background: rgba(10,17,20,.78); border: 1px solid rgba(220,193,117,.28); border-radius: 5px; color: var(--muted); cursor: pointer; display: inline-flex; height: 34px; justify-content: center; padding: 0; transition: background .16s ease, border-color .16s ease, color .16s ease; width: 34px; }
-.combat-world-map-nav-button:hover:not(:disabled) { background: var(--gold-soft); border-color: rgba(213,170,98,.65); color: var(--gold); }
-.combat-world-map-nav-button:disabled { cursor: default; opacity: .38; }
-.combat-world-map-artwork { background: #182327; height: 100%; inset: 0; position: absolute; width: 100%; }
-.combat-world-map-artwork-image { display: block; object-fit: contain; object-position: center; }
-.combat-world-map-artwork rect { opacity: .6; }
-.combat-world-map-artwork .map-art-secondary { fill: rgba(62,75,72,.55); stroke: rgba(219,196,139,.14); stroke-width: 2; }
-.combat-world-map-artwork .map-art-land { fill: #3d5249; stroke: rgba(230,210,155,.42); stroke-width: 3; }
-.combat-world-map-artwork .map-art-river { fill: none; stroke: rgba(106,168,176,.72); stroke-linecap: round; stroke-width: 12; }
-.combat-world-map-artwork .map-art-road { fill: none; stroke: rgba(211,179,107,.72); stroke-dasharray: 12 9; stroke-linecap: round; stroke-width: 4; }
-.combat-world-map-artwork .map-art-ridge { fill: none; stroke: rgba(30,42,42,.62); stroke-linecap: round; stroke-linejoin: round; stroke-width: 15; }
-.combat-world-map-artwork .map-art-forest { fill: #233d35; opacity: .82; stroke: #152823; stroke-width: 3; }
-.combat-world-map-node { align-items: center; background: rgba(19,29,31,.88); border: 1px solid rgba(206,177,104,.44); border-radius: 7px; color: var(--text); cursor: pointer; display: flex; flex-direction: column; gap: 3px; min-width: 112px; padding: 7px 10px; position: absolute; text-align: center; transform: translate(-50%, -50%); transition: background .16s ease, border-color .16s ease, box-shadow .16s ease, transform .16s ease; z-index: 2; }
-.combat-world-map-node:hover:not(:disabled) { background: rgba(35,49,49,.96); border-color: var(--gold); box-shadow: 0 0 0 3px rgba(213,170,98,.12); transform: translate(-50%, -50%) translateY(-2px); }
-.combat-world-map-node.is-locked { border-color: rgba(139,151,149,.3); color: var(--muted); cursor: not-allowed; opacity: .62; }
-.combat-world-map-node.is-selected { border-color: var(--gold); box-shadow: 0 0 0 3px rgba(213,170,98,.18); }
-.combat-world-map-node.is-active { border-color: var(--green); box-shadow: 0 0 0 3px rgba(123,177,139,.18); color: var(--green); }
-.combat-world-map-node-icon { color: var(--gold); }
-.combat-world-map-node strong { font-size: 10px; letter-spacing: .06em; text-shadow: 0 1px 3px #0d1619; white-space: nowrap; }
-.combat-world-map-node-status { color: transparent; font-size: 7px; font-weight: 800; height: 9px; letter-spacing: .1em; }
-.combat-world-map-node.is-selected .combat-world-map-node-status { color: var(--gold); }
-.combat-world-map-node.is-active .combat-world-map-node-status { color: var(--green); }
-.combat-world-map-node.is-locked .combat-world-map-node-status { color: var(--muted); }
-.combat-world-map-node-lock { color: var(--muted); position: absolute; right: 5px; top: 5px; }
-.combat-map-node-kind-continent { background: rgba(25,39,39,.92); border-radius: 10px; min-width: 150px; padding: 12px 17px; }
-.combat-map-node-kind-continent strong { font-size: 15px; letter-spacing: .13em; }
-.combat-map-node-kind-region { min-width: 135px; }
-.combat-map-node-kind-region strong { font-size: 12px; }
-.combat-map-node-kind-area { background: rgba(26,37,37,.9); min-width: 126px; }
-.combat-map-node-kind-area strong { font-size: 11px; }
-.combat-map-node-kind-arena { background: transparent; border: 0; min-width: 112px; padding: 2px 4px; }
-.combat-map-node-kind-arena:hover:not(:disabled) { background: transparent; border-color: transparent; box-shadow: none; }
-.combat-map-node-kind-arena .arena-marker-orb { background: rgba(20,31,34,.95); border: 1px solid rgba(211,178,102,.66); border-radius: 50%; color: var(--gold); display: flex; height: 46px; justify-content: center; transition: background .16s ease, border-color .16s ease, transform .16s ease; width: 46px; }
-.combat-map-node-kind-arena:hover:not(:disabled) .arena-marker-orb { background: var(--panel-hover); border-color: var(--gold); transform: scale(1.06); }
-.combat-map-node-kind-arena.is-selected .arena-marker-orb { box-shadow: 0 0 0 3px rgba(213,170,98,.2); }
-.combat-map-node-kind-arena.is-active .arena-marker-orb { border-color: var(--green); color: var(--green); box-shadow: 0 0 0 3px rgba(123,177,139,.16); }
-.combat-map-node-kind-arena strong { font-size: 10px; }
-.combat-world-map-toolbar { align-items: center; background: rgba(10,17,20,.82); border-top: 1px solid rgba(220,193,117,.18); bottom: 0; display: flex; gap: 9px; justify-content: flex-end; left: 0; min-height: 34px; padding: 5px 9px; pointer-events: auto; position: absolute; right: 0; }
-.map-pan-hint { color: var(--muted); font-size: 8px; letter-spacing: .06em; margin-right: auto; }
-.map-zoom-controls { display: flex; gap: 3px; }
-.map-zoom-button { background: transparent; border: 1px solid transparent; border-radius: 4px; color: var(--muted); cursor: pointer; font-size: 14px; line-height: 1; min-width: 23px; padding: 3px 5px; }
-.map-zoom-button:hover:not(:disabled) { background: var(--gold-soft); border-color: rgba(213,170,98,.38); color: var(--gold); }
-.map-zoom-button:disabled { cursor: not-allowed; opacity: .35; }
-.map-zoom-readout { color: var(--text-dim); font-size: 10px; font-variant-numeric: tabular-nums; min-width: 38px; text-align: center; }
+@keyframes atlas-stage-enter {
+  from { filter: blur(2px); opacity: 0; transform: scale(.975) translateY(5px); }
+  to { filter: blur(0); opacity: 1; transform: scale(1) translateY(0); }
+}
+@keyframes atlas-line-enter { from { opacity: 0; stroke-dashoffset: 120; } to { opacity: 1; stroke-dashoffset: 0; } }
+@keyframes atlas-node-enter { from { opacity: 0; transform: translate(-50%, -50%) scale(.94); } to { opacity: 1; transform: translate(-50%, -50%) scale(1); } }
+@keyframes atlas-mobile-node-enter { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
+@keyframes atlas-fog-drift { 0%, 100% { transform: translate3d(calc(var(--atlas-shift-x) * -1), calc(var(--atlas-shift-y) * -1), 0) scale(1); } 50% { transform: translate3d(calc(var(--atlas-shift-x) + 8px), calc(var(--atlas-shift-y) - 7px), 0) scale(1.04); } }
+@keyframes atlas-focus-pulse { 0%, 100% { opacity: .2; transform: scale(1); } 50% { opacity: .34; transform: scale(1.04); } }
+
+.combat-atlas-stage { --atlas-accent-rgb: 92,145,122; --atlas-x: 50%; --atlas-y: 50%; --atlas-shift-x: 0px; --atlas-shift-y: 0px; background: #10181b; border-radius: 7px; isolation: isolate; min-height: clamp(420px, 46vw, 550px); overflow: hidden; position: relative; }
+.is-area-level .combat-atlas-stage { min-height: clamp(390px, 42vw, 490px); }
+.combat-atlas-atmosphere-world { --atlas-accent-rgb: 130,154,148; }
+.combat-atlas-atmosphere-forest { --atlas-accent-rgb: 84,151,116; }
+.combat-atlas-atmosphere-marsh { --atlas-accent-rgb: 61,137,137; }
+.combat-atlas-atmosphere-highland { --atlas-accent-rgb: 117,139,153; }
+.combat-atlas-atmosphere-coast { --atlas-accent-rgb: 83,146,164; }
+.combat-atlas-atmosphere-moor { --atlas-accent-rgb: 115,100,145; }
+.combat-atlas-atmosphere-road { --atlas-accent-rgb: 166,133,82; }
+.combat-atlas-backdrop { background: radial-gradient(700px circle at var(--atlas-x) var(--atlas-y), rgba(var(--atlas-accent-rgb), .1), transparent 62%), radial-gradient(ellipse at center, rgba(43,68,67,.24), transparent 68%), repeating-linear-gradient(0deg, rgba(147,172,159,.035) 0, rgba(147,172,159,.035) 1px, transparent 1px, transparent 52px), repeating-linear-gradient(90deg, rgba(147,172,159,.025) 0, rgba(147,172,159,.025) 1px, transparent 1px, transparent 52px), #10181b; inset: 0; overflow: hidden; position: absolute; z-index: 0; }
+.combat-atlas-backdrop::after { background: radial-gradient(ellipse at center, transparent 38%, rgba(5,10,12,.66) 100%); content: ''; inset: 0; pointer-events: none; position: absolute; }
+.combat-atlas-fog { border-radius: 50%; filter: blur(42px); opacity: .16; pointer-events: none; position: absolute; transition: transform .45s ease; }
+.combat-atlas-fog-one { background: rgba(54,132,113,.8); height: 48%; left: 4%; top: 11%; width: 40%; animation: atlas-fog-drift 24s ease-in-out infinite; }
+.combat-atlas-fog-two { background: rgba(98,80,152,.55); bottom: -13%; height: 52%; right: -5%; width: 48%; animation: atlas-fog-drift 30s ease-in-out infinite reverse; }
+.combat-atlas-contours { height: 100%; inset: 0; opacity: .26; position: absolute; transform: translate3d(var(--atlas-shift-x), var(--atlas-shift-y), 0); transition: transform .45s ease; width: 100%; }
+.combat-atlas-contours path, .combat-atlas-contours circle { fill: none; stroke: rgba(148,176,160,.13); stroke-width: .16; vector-effect: non-scaling-stroke; }
+.combat-atlas-atmosphere-mark { bottom: 12px; color: rgba(171,189,177,.28); font-size: 8px; letter-spacing: .22em; position: absolute; right: 14px; z-index: 1; }
+.combat-atlas-connections { height: 100%; inset: 0; overflow: visible; pointer-events: none; position: absolute; width: 100%; z-index: 1; }
+.combat-atlas-connection { fill: none; opacity: .3; stroke: rgba(186,173,125,.7); stroke-dasharray: 3 5; stroke-linecap: round; stroke-width: .24; vector-effect: non-scaling-stroke; animation: atlas-line-enter 280ms ease both; transition: opacity .18s ease, stroke .18s ease, stroke-width .18s ease; }
+.combat-atlas-connection.is-subtle { opacity: .16; }
+.combat-atlas-connection.is-highlighted { opacity: .78; stroke: var(--gold); stroke-width: .42; }
+.combat-atlas-connection.is-selected { opacity: .72; stroke: var(--gold); stroke-width: .34; }
+.combat-atlas-connection.is-active { opacity: .76; stroke: var(--green); stroke-width: .36; }
+.combat-atlas-decoration-route { fill: none; opacity: .28; stroke-dasharray: 1 2.8; stroke-linecap: round; stroke-width: .45; vector-effect: non-scaling-stroke; }
+.combat-atlas-decoration-route.is-forest { stroke: rgba(116,171,135,.7); }
+.combat-atlas-decoration-route.is-road { stroke: rgba(207,168,92,.72); stroke-dasharray: 2 2; }
+.combat-atlas-decoration-route.is-water { stroke: rgba(98,173,184,.68); }
+.combat-atlas-decoration-ring { fill: none; opacity: .22; stroke: rgba(176,187,151,.58); stroke-dasharray: .6 2.4; stroke-width: .28; vector-effect: non-scaling-stroke; }
+.combat-atlas-decoration-landmark { fill: rgba(207,184,118,.72); opacity: .46; }
+.combat-atlas-nav-controls { display: flex; gap: 5px; left: 10px; position: absolute; top: 10px; z-index: 5; }
+.combat-atlas-nav-button { align-items: center; backdrop-filter: blur(6px); background: rgba(7,14,16,.76); border: 1px solid rgba(220,193,117,.3); border-radius: 5px; color: var(--muted); cursor: pointer; display: inline-flex; height: 33px; justify-content: center; padding: 0; transition: background .18s ease, border-color .18s ease, color .18s ease, transform .18s ease; width: 33px; }
+.combat-atlas-nav-button:hover:not(:disabled), .combat-atlas-nav-button:focus-visible { background: var(--gold-soft); border-color: rgba(213,170,98,.72); color: var(--gold); transform: translateY(-1px); }
+.combat-atlas-nav-button:disabled { cursor: default; opacity: .36; }
+.combat-atlas-stage-index { color: rgba(187,195,183,.4); font-size: 8px; letter-spacing: .2em; position: absolute; right: 14px; top: 18px; z-index: 4; }
+
+.combat-atlas-territory { --card-pointer-x: 50%; --card-pointer-y: 50%; align-items: flex-start; background: radial-gradient(circle at var(--card-pointer-x) var(--card-pointer-y), rgba(var(--atlas-accent-rgb), .2), transparent 47%), linear-gradient(135deg, rgba(24,38,39,.98), rgba(12,20,23,.96)); border: 1px solid rgba(var(--atlas-accent-rgb), .42); border-radius: 9px; box-shadow: 0 11px 24px rgba(0,0,0,.2), inset 0 1px rgba(255,255,255,.035); color: var(--text); cursor: pointer; display: flex; gap: 12px; min-height: 132px; padding: 15px 16px; position: absolute; text-align: left; transform: translate(-50%, -50%); transition: border-color .2s ease, box-shadow .2s ease, transform .2s ease, filter .2s ease; width: min(260px, 30%); z-index: 2; animation: atlas-node-enter 270ms cubic-bezier(.2,.75,.25,1) both; }
+.combat-atlas-territory::before { background: repeating-radial-gradient(ellipse at 15% 10%, transparent 0, transparent 18px, rgba(var(--atlas-accent-rgb), .07) 19px, transparent 20px); content: ''; inset: 0; opacity: .5; pointer-events: none; position: absolute; }
+.combat-atlas-territory::after { background: linear-gradient(116deg, transparent 26%, rgba(255,255,255,.055) 48%, transparent 70%); content: ''; inset: 0; opacity: 0; pointer-events: none; position: absolute; transform: translateX(-35%); transition: opacity .2s ease, transform .4s ease; }
+.combat-atlas-territory:hover:not(:disabled), .combat-atlas-territory:focus-visible { border-color: rgba(var(--atlas-accent-rgb), .82); box-shadow: 0 16px 30px rgba(0,0,0,.3), 0 0 22px rgba(var(--atlas-accent-rgb), .13), inset 0 1px rgba(255,255,255,.07); transform: translate(-50%, calc(-50% - 4px)); }
+.combat-atlas-territory:hover:not(:disabled)::after, .combat-atlas-territory:focus-visible::after { opacity: 1; transform: translateX(35%); }
+.combat-atlas-territory.is-selected { border-color: var(--gold); box-shadow: 0 0 0 2px rgba(213,170,98,.13), 0 14px 28px rgba(0,0,0,.28); }
+.combat-atlas-territory.is-locked { cursor: not-allowed; filter: saturate(.55); }
+.combat-atlas-territory.is-locked::before { background: repeating-linear-gradient(135deg, transparent 0, transparent 7px, rgba(156,164,155,.045) 7px, rgba(156,164,155,.045) 8px); }
+.combat-atlas-territory-icon { align-items: center; background: rgba(var(--atlas-accent-rgb), .1); border: 1px solid rgba(var(--atlas-accent-rgb), .3); border-radius: 50%; color: rgba(var(--atlas-accent-rgb), .95); display: inline-flex; flex: 0 0 auto; height: 43px; justify-content: center; position: relative; width: 43px; z-index: 1; }
+.combat-atlas-territory-body { display: flex; flex: 1; flex-direction: column; gap: 3px; min-width: 0; position: relative; z-index: 1; }
+.combat-atlas-territory-kind { color: rgba(var(--atlas-accent-rgb), .8); font-size: 7px; font-weight: 800; letter-spacing: .18em; }
+.combat-atlas-territory-body strong { font-size: 14px; letter-spacing: .08em; line-height: 1.05; }
+.combat-atlas-territory-description { color: var(--muted); display: -webkit-box; font-size: 9px; line-height: 1.32; max-height: 24px; overflow: hidden; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
+.combat-atlas-territory-meta { color: var(--text-dim); display: flex; flex-wrap: wrap; font-size: 8px; gap: 8px; margin-top: 5px; }
+.combat-atlas-territory-status { align-items: center; color: rgba(var(--atlas-accent-rgb), .95); display: flex; font-size: 8px; font-weight: 800; gap: 4px; letter-spacing: .1em; margin-top: 3px; }
+.combat-atlas-territory.is-locked .combat-atlas-territory-status { color: var(--muted); }
+.combat-atlas-enter { color: var(--gold); font-size: 8px; font-weight: 800; letter-spacing: .12em; margin-top: 3px; opacity: 0; transform: translateY(3px); transition: opacity .18s ease, transform .18s ease; }
+.combat-atlas-territory:hover:not(:disabled) .combat-atlas-enter, .combat-atlas-territory:focus-visible .combat-atlas-enter { opacity: 1; transform: translateY(0); }
+.combat-atlas-territory.is-locked .combat-atlas-enter { color: var(--muted); opacity: 1; transform: none; }
+.combat-atlas-level-continent .combat-atlas-territory { min-height: 116px; padding: 12px 14px; width: min(232px, 28%); }
+.combat-atlas-level-continent .combat-atlas-territory-body strong { font-size: 12px; }
+
+.combat-atlas-node { align-items: center; background: transparent; border: 0; color: var(--text); cursor: pointer; display: flex; flex-direction: column; gap: 8px; padding: 5px; position: absolute; text-align: center; transform: translate(-50%, -50%); transition: color .18s ease, transform .18s ease; width: 170px; z-index: 2; animation: atlas-node-enter 270ms cubic-bezier(.2,.75,.25,1) both; }
+.combat-atlas-node:hover:not(:disabled), .combat-atlas-node:focus-visible { color: var(--text); transform: translate(-50%, calc(-50% - 2px)); }
+.combat-atlas-node.is-locked { color: var(--muted); cursor: not-allowed; }
+.combat-atlas-node-orb { align-items: center; background: rgba(13,25,28,.94); border: 1px solid rgba(var(--atlas-accent-rgb), .62); border-radius: 50%; color: rgba(var(--atlas-accent-rgb), .95); display: inline-flex; height: 48px; justify-content: center; position: relative; transition: background .18s ease, border-color .18s ease, box-shadow .18s ease, transform .18s ease; width: 48px; }
+.combat-atlas-node-orb::before { border: 1px solid rgba(var(--atlas-accent-rgb), .3); border-radius: 50%; content: ''; inset: -7px; position: absolute; transition: border-color .18s ease, transform .18s ease; }
+.combat-atlas-node-halo { border: 1px solid rgba(var(--atlas-accent-rgb), .26); border-radius: 50%; height: 62px; left: 50%; margin-left: -31px; opacity: .22; position: absolute; top: -2px; transform: scale(1); transition: opacity .18s ease, transform .18s ease; width: 62px; }
+.combat-atlas-node:not(.is-locked) .combat-atlas-node-halo { animation: atlas-focus-pulse 4.8s ease-in-out infinite; }
+.combat-atlas-node:hover:not(:disabled) .combat-atlas-node-orb, .combat-atlas-node:focus-visible .combat-atlas-node-orb { background: rgba(var(--atlas-accent-rgb), .16); border-color: rgba(var(--atlas-accent-rgb), .95); box-shadow: 0 0 22px rgba(var(--atlas-accent-rgb), .2); transform: scale(1.05); }
+.combat-atlas-node:hover:not(:disabled) .combat-atlas-node-halo, .combat-atlas-node:focus-visible .combat-atlas-node-halo { opacity: .5; transform: scale(1.09); }
+.combat-atlas-node.is-selected .combat-atlas-node-orb { border-color: var(--gold); box-shadow: 0 0 0 3px rgba(213,170,98,.13), 0 0 20px rgba(213,170,98,.16); color: var(--gold); }
+.combat-atlas-node.is-locked .combat-atlas-node-orb { border-style: dashed; color: var(--muted); opacity: .72; }
+.combat-atlas-node-label { display: flex; flex-direction: column; gap: 2px; max-width: 170px; }
+.combat-atlas-node-label strong { font-size: 11px; letter-spacing: .1em; }
+.combat-atlas-node-label small { color: var(--muted); font-size: 8px; line-height: 1.25; max-height: 20px; overflow: hidden; }
+.combat-atlas-node-label em { align-items: center; color: rgba(var(--atlas-accent-rgb), .9); display: flex; font-size: 7px; font-style: normal; font-weight: 800; gap: 3px; justify-content: center; letter-spacing: .13em; }
+.combat-atlas-node.is-locked .combat-atlas-node-label em { color: var(--muted); }
+
+.combat-atlas-arena { align-items: center; background: transparent; border: 0; color: var(--text); cursor: pointer; display: flex; flex-direction: column; gap: 8px; padding: 6px; position: absolute; text-align: center; transform: translate(-50%, -50%); transition: transform .18s ease; width: 150px; z-index: 2; animation: atlas-node-enter 270ms cubic-bezier(.2,.75,.25,1) both; }
+.combat-atlas-arena:hover:not(:disabled), .combat-atlas-arena:focus-visible { transform: translate(-50%, calc(-50% - 3px)); }
+.combat-atlas-arena.is-locked { color: var(--muted); cursor: not-allowed; }
+.combat-atlas-arena-orb { align-items: center; background: rgba(11,20,23,.96); border: 1px solid rgba(var(--atlas-accent-rgb), .74); border-radius: 50%; color: rgba(var(--atlas-accent-rgb), .98); display: inline-flex; height: 62px; justify-content: center; position: relative; transition: background .18s ease, border-color .18s ease, box-shadow .18s ease, transform .18s ease; width: 62px; }
+.combat-atlas-arena-orb::before { border: 1px solid rgba(var(--atlas-accent-rgb), .28); border-radius: 50%; content: ''; inset: -9px; position: absolute; }
+.combat-atlas-arena:hover:not(:disabled) .combat-atlas-arena-orb, .combat-atlas-arena:focus-visible .combat-atlas-arena-orb { background: rgba(var(--atlas-accent-rgb), .18); border-color: var(--gold); box-shadow: 0 0 25px rgba(var(--atlas-accent-rgb), .25); transform: scale(1.05); }
+.combat-atlas-arena.is-selected .combat-atlas-arena-orb { border-color: var(--gold); box-shadow: 0 0 0 3px rgba(213,170,98,.16), 0 0 24px rgba(213,170,98,.18); color: var(--gold); }
+.combat-atlas-arena.is-active .combat-atlas-arena-orb { border-color: var(--green); box-shadow: 0 0 0 3px rgba(123,177,139,.15), 0 0 23px rgba(123,177,139,.2); color: var(--green); }
+.combat-atlas-arena.is-active .combat-atlas-arena-halo { animation: atlas-focus-pulse 4s ease-in-out infinite; border-color: var(--green); opacity: .52; }
+.combat-atlas-arena.is-locked .combat-atlas-arena-orb { border-style: dashed; opacity: .62; }
+.combat-atlas-arena-halo { border: 1px solid rgba(var(--atlas-accent-rgb), .32); border-radius: 50%; height: 82px; left: 50%; margin-left: -41px; opacity: .22; position: absolute; top: -4px; width: 82px; }
+.combat-atlas-arena-label { display: flex; flex-direction: column; gap: 3px; }
+.combat-atlas-arena-label strong { font-size: 11px; letter-spacing: .13em; }
+.combat-atlas-arena-label em { align-items: center; color: rgba(var(--atlas-accent-rgb), .95); display: flex; font-size: 7px; font-style: normal; font-weight: 800; gap: 3px; justify-content: center; letter-spacing: .14em; }
+.combat-atlas-arena.is-locked .combat-atlas-arena-label em { color: var(--muted); }
+
+.combat-atlas-accent-forest { --atlas-accent-rgb: 91,157,119; }
+.combat-atlas-accent-frost { --atlas-accent-rgb: 123,163,181; }
+.combat-atlas-accent-ember { --atlas-accent-rgb: 174,105,78; }
+.combat-atlas-accent-storm { --atlas-accent-rgb: 83,157,170; }
+.combat-atlas-accent-moor { --atlas-accent-rgb: 132,111,153; }
+.combat-atlas-accent-marsh { --atlas-accent-rgb: 70,147,144; }
+.combat-atlas-accent-highland { --atlas-accent-rgb: 130,143,153; }
+.combat-atlas-accent-coast { --atlas-accent-rgb: 79,151,169; }
+.combat-atlas-accent-road, .combat-atlas-accent-gold { --atlas-accent-rgb: 188,151,83; }
 .combat-world-collapsed-summary { align-items: center; display: flex; gap: 18px; }
 .combat-world-collapsed-summary > div { display: flex; flex: 1; flex-direction: column; gap: 2px; min-width: 0; }
 .combat-world-collapsed-summary > div + div { border-left: 1px solid var(--line-soft); padding-left: 18px; }
@@ -480,9 +539,9 @@ html[data-reduced-motion="true"] .danger-high.has-special { animation: none; tra
 @media (max-width: 620px) { .enemy-roster { grid-template-columns: 1fr; } }
 @media (max-width: 700px) { .combat-resource-hud { grid-template-columns: 1fr; } .session-metric-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } .session-breakdown { grid-template-columns: 1fr; } .progression-value-grid { grid-template-columns: 1fr 1fr; } }
 @media (max-width: 1050px) { .combat-location-preview { min-height: 0; } }
-@media (max-width: 900px) { .combat-world-map-workspace { grid-template-columns: 1fr; } .combat-world-map-viewport { height: 390px; } }
+@media (max-width: 900px) { .combat-atlas-workspace { grid-template-columns: 1fr; } .combat-atlas-stage { min-height: 430px; } }
 @media (max-width: 600px) {
-  .combat-world-map-title-row { align-items: flex-start; flex-direction: column; gap: 9px; }
+  .combat-atlas-title-row { align-items: flex-start; flex-direction: column; gap: 9px; }
   .combat-world-active-context { align-items: flex-start; flex-basis: auto; text-align: left; }
   .combat-world-hunt-context, .combat-world-collapsed-summary { align-items: stretch; flex-direction: column; gap: 9px; }
   .combat-world-hunt-context > div + div, .combat-world-collapsed-summary > div + div { border-left: 0; border-top: 1px solid var(--line-soft); padding-left: 0; padding-top: 9px; }
@@ -501,4 +560,37 @@ html[data-reduced-motion="true"] .danger-high.has-special { animation: none; tra
   .location-preview-footer { align-items: stretch; flex-direction: column; }
   .location-preview-action { align-items: stretch; }
   .location-preview-action .button { width: 100%; }
+}
+
+@media (max-width: 780px) {
+  .combat-atlas-territory { min-height: 122px; padding: 12px; width: min(230px, 32%); }
+  .combat-atlas-territory-body strong { font-size: 12px; }
+  .combat-atlas-territory-description { font-size: 8px; }
+}
+
+@media (max-width: 620px) {
+  .combat-atlas-stage-index { font-size: 7px; right: 10px; top: 17px; }
+  .combat-atlas-mode-territories, .combat-atlas-mode-constellation { display: grid; gap: 10px; grid-template-columns: repeat(2, minmax(0, 1fr)); min-height: 0; padding: 56px 12px 18px; }
+  .combat-atlas-mode-territories .combat-atlas-territory, .combat-atlas-mode-constellation .combat-atlas-node { animation: atlas-mobile-node-enter 270ms cubic-bezier(.2,.75,.25,1) both; left: auto !important; position: relative; top: auto !important; transform: none; width: 100%; }
+  .combat-atlas-mode-territories .combat-atlas-territory:hover:not(:disabled), .combat-atlas-mode-territories .combat-atlas-territory:focus-visible, .combat-atlas-mode-constellation .combat-atlas-node:hover:not(:disabled), .combat-atlas-mode-constellation .combat-atlas-node:focus-visible { transform: translateY(-3px); }
+  .combat-atlas-connections { opacity: .45; }
+  .combat-atlas-mode-territories .combat-atlas-connections, .combat-atlas-mode-constellation .combat-atlas-connections { display: none; }
+}
+
+@media (max-width: 460px) {
+  .combat-atlas-mode-territories, .combat-atlas-mode-constellation { grid-template-columns: 1fr; }
+  .combat-atlas-stage { min-height: 0; }
+  .combat-atlas-mode-arenas { min-height: 360px; }
+  .combat-atlas-territory { min-height: 112px; }
+}
+
+html[data-reduced-motion="true"] .combat-atlas-panel,
+html[data-reduced-motion="true"] .combat-atlas-stage,
+html[data-reduced-motion="true"] .combat-atlas-fog,
+html[data-reduced-motion="true"] .combat-atlas-node-halo,
+html[data-reduced-motion="true"] .combat-atlas-arena-halo { animation: none; }
+html[data-reduced-motion="true"] .combat-atlas-contours { transition: none; }
+@media (prefers-reduced-motion: reduce) {
+  .combat-atlas-panel, .combat-atlas-stage, .combat-atlas-fog, .combat-atlas-node-halo, .combat-atlas-arena-halo { animation: none; }
+  .combat-atlas-contours { transition: none; }
 }

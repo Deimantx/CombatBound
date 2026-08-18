@@ -34,7 +34,7 @@ function openDeepWoods() {
   fireEvent.click(screen.getByRole('button', { name: 'Open Deep Woods' }))
 }
 
-describe('combat world map browser', () => {
+describe('combat world atlas browser', () => {
   it('drills from World to Greenvale, Northwood, Deep Woods, and Wolf Den', () => {
     openCombatBrowser()
     expect(screen.getByText('Greenvale')).toBeInTheDocument()
@@ -47,8 +47,8 @@ describe('combat world map browser', () => {
     expect(screen.getByText('Deep Woods')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: /^Wolf Den/ })).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: /^Bandit Camp/ })).not.toBeInTheDocument()
-    expect(debugElement('combat-world-map')).toHaveAttribute('data-debug-map-level', 'area')
-    expect(debugElement('combat-world-map')).toHaveAttribute('data-debug-map-id', 'area.deep-woods')
+    expect(debugElement('combat-atlas-stage')).toHaveAttribute('data-debug-atlas-mode', 'arenas')
+    expect(debugElement('combat-atlas-stage')).toHaveAttribute('data-debug-atlas-view-id', 'area.deep-woods')
   })
 
   it('shows only child geography before the arena level', () => {
@@ -58,7 +58,7 @@ describe('combat world map browser', () => {
     expect(screen.queryByRole('button', { name: /^Wolf Den/ })).not.toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: 'Open Northwood' }))
     expect(screen.getByRole('button', { name: 'Open Deep Woods' })).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Open Old Road' })).toBeEnabled()
+    expect(screen.getByRole('button', { name: 'LOCKED Old Road' })).toBeDisabled()
     expect(screen.queryByRole('button', { name: /^Wolf Den/ })).not.toBeInTheDocument()
   })
 
@@ -71,18 +71,18 @@ describe('combat world map browser', () => {
     expect(screen.getByRole('button', { name: 'Back one map level' })).toBeEnabled()
     expect(screen.getByRole('button', { name: 'Return to World Map' })).toBeEnabled()
     fireEvent.click(screen.getByRole('button', { name: 'Back one map level' }))
-    expect(debugElement('combat-world-map')).toHaveAttribute('data-debug-map-level', 'region')
+    expect(debugElement('combat-atlas-stage')).toHaveAttribute('data-debug-atlas-mode', 'constellation')
     fireEvent.click(screen.getByRole('button', { name: 'Back one map level' }))
-    expect(debugElement('combat-world-map')).toHaveAttribute('data-debug-map-level', 'continent')
+    expect(debugElement('combat-atlas-stage')).toHaveAttribute('data-debug-atlas-mode', 'territories')
     fireEvent.click(screen.getByRole('button', { name: 'Back one map level' }))
-    expect(debugElement('combat-world-map')).toHaveAttribute('data-debug-map-id', 'world')
+    expect(debugElement('combat-atlas-stage')).toHaveAttribute('data-debug-atlas-view-id', 'world')
     expect(screen.getByRole('button', { name: 'Back one map level' })).toBeDisabled()
     expect(screen.getByRole('button', { name: 'Return to World Map' })).toBeDisabled()
 
     fireEvent.click(screen.getByRole('button', { name: 'Open Greenvale' }))
     fireEvent.click(screen.getByRole('button', { name: 'Open Northwood' }))
     fireEvent.click(screen.getByRole('button', { name: 'Return to World Map' }))
-    expect(debugElement('combat-world-map')).toHaveAttribute('data-debug-map-id', 'world')
+    expect(debugElement('combat-atlas-stage')).toHaveAttribute('data-debug-atlas-view-id', 'world')
   })
 
   it('selects an arena without starting combat', () => {
@@ -101,7 +101,7 @@ describe('combat world map browser', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Start selected location hunt' }))
     expect(useGameStore.getState().activeCombatLocationId).toBe('location.wolf-den')
     expect(screen.getByRole('button', { name: 'Expand' })).toHaveAttribute('aria-expanded', 'false')
-    expect(document.querySelector('[data-debug-kind="combat-world-map"]')).not.toBeInTheDocument()
+    expect(document.querySelector('[data-debug-kind="combat-atlas-stage"]')).not.toBeInTheDocument()
   })
 
   it('browses the hierarchy during combat without changing the active hunt', () => {
@@ -141,20 +141,15 @@ describe('combat world map browser', () => {
     expect(screen.getByRole('button', { name: 'Expand' })).toHaveAttribute('aria-expanded', 'false')
   })
 
-  it('resets each child map to centered 100% and keeps discrete wheel zoom', () => {
+  it('uses the hybrid atlas mode at each hierarchy depth without a camera HUD', () => {
     openCombatBrowser()
-    const map = debugElement('combat-world-map')
-    expect(debugElement('combat-world-map-zoom-readout')).toHaveTextContent('100%')
-    vi.useFakeTimers()
-    fireEvent.wheel(map, { deltaY: -100 })
-    expect(debugElement('combat-world-map-zoom-readout')).toHaveTextContent('150%')
-    act(() => vi.advanceTimersByTime(200))
-    fireEvent.wheel(map, { deltaY: 100 })
-    expect(debugElement('combat-world-map-zoom-readout')).toHaveTextContent('100%')
-    act(() => vi.advanceTimersByTime(200))
-    fireEvent.wheel(map, { deltaY: 100 })
-    expect(debugElement('combat-world-map-zoom-readout')).toHaveTextContent('50%')
+    expect(debugElement('combat-atlas-stage')).toHaveAttribute('data-debug-atlas-mode', 'territories')
+    expect(screen.queryByLabelText('Map zoom')).not.toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: 'Open Greenvale' }))
-    expect(debugElement('combat-world-map-zoom-readout')).toHaveTextContent('100%')
+    expect(debugElement('combat-atlas-stage')).toHaveAttribute('data-debug-atlas-mode', 'territories')
+    fireEvent.click(screen.getByRole('button', { name: 'Open Northwood' }))
+    expect(debugElement('combat-atlas-stage')).toHaveAttribute('data-debug-atlas-mode', 'constellation')
+    fireEvent.click(screen.getByRole('button', { name: 'Open Deep Woods' }))
+    expect(debugElement('combat-atlas-stage')).toHaveAttribute('data-debug-atlas-mode', 'arenas')
   })
 })
