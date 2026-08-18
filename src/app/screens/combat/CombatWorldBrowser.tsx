@@ -1,9 +1,6 @@
 import { Map, Play, Swords, Target } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
-import { itemById } from '../../../game/data/items'
 import { combatLocationById } from '../../../game/data/world/combatLocations'
-import { enemyById } from '../../../game/data/enemies'
-import { enemyFamilyById } from '../../../game/data/world/enemyFamilies'
 import { masteryLevelForXp } from '../../../game/progression/masteryProgression'
 import { isCombatLocationAvailable, locationBreadcrumb } from '../../../game/world/worldSelectors'
 import type { CombatLocationDefinition } from '../../../game/world/worldTypes'
@@ -14,6 +11,7 @@ import { GameTooltip } from '../../components/tooltip/GameTooltip'
 import { CombatAtlasStage } from './atlas/CombatAtlasStage'
 import { atlasAccentRgb } from './atlas/combatAtlasLayout'
 import { combatAtlasViewFor, combatAtlasViewId, combatAtlasViewTitle, combatAtlasViewDescription } from './atlas/combatAtlasRegistry'
+import { combatLocationPresentation } from './combatLocationPresentation'
 import type { CombatAtlasLevel, CombatAtlasNodeLayout } from './atlas/combatAtlasTypes'
 import type { CombatAtlasTransitionOrigin } from './atlas/CombatAtlasStage'
 
@@ -178,16 +176,15 @@ function CollapsedWorldSummary({ viewTitle, level, activeLocation, location }: {
 
 function LocationPreview({ location, active, activeLocation, available, onStart }: { location?: CombatLocationDefinition; active: boolean; activeLocation?: CombatLocationDefinition; available: boolean; onStart: () => void }) {
   if (!location) return <div className="combat-location-preview empty-state" data-debug-kind="combat-location-preview" data-debug-label="No combat location"><Target size={20} /><strong>No combat arena</strong><p>Select an arena on the area map.</p></div>
-  const family = enemyFamilyById[location.familyId]?.name ?? 'Unknown Family'
-  const poolNames = location.enemyPool.map((entry) => enemyById[entry.enemyId]?.name).filter((name): name is string => Boolean(name))
-  const lootNames = location.sharedLoot?.map((drop) => itemById[drop.itemId]?.name).filter((name): name is string => Boolean(name)) ?? []
+  const presentation = combatLocationPresentation(location)
+  const lootNames = presentation.sharedLootNames
   const browsingAnotherLocation = Boolean(activeLocation && activeLocation.id !== location.id)
   const buttonLabel = !available ? 'Locked' : active ? 'Hunt active' : browsingAnotherLocation ? 'Switch hunt' : 'Start hunt'
   return <section className="combat-location-preview" data-debug-kind="combat-location-preview" data-debug-location-id={location.id} data-debug-label={`Preview ${location.name}`}>
     <div className="location-preview-context"><span className="tiny-label">{browsingAnotherLocation ? 'SELECTED ARENA' : active ? 'CURRENT HUNT' : 'SELECTED ARENA'}</span>{browsingAnotherLocation && <small>Current hunt: <strong>{activeLocation?.name}</strong></small>}</div>
-    <div className="location-preview-top"><div className={`location-preview-marker ${active ? 'is-active' : ''}`}><Swords size={20} /></div><div className="location-preview-heading"><h3>{location.name}</h3><GameTooltip content={{ id: location.id, icon: 'target', title: location.name, subtitle: family, description: location.description }}><p>{location.description}</p></GameTooltip></div></div>
-    <div className="location-meta-grid"><div><span>FAMILY</span><strong>{family}</strong></div><div><span>GROUP SIZE</span><strong>{location.groupGeneration.minGroupSize}-{location.groupGeneration.maxGroupSize}</strong></div><div><span>RECOMMENDED</span><strong>Mastery {location.recommendedMasteryLevel[0]}-{location.recommendedMasteryLevel[1]}</strong></div></div>
-    <div className="location-pool"><span className="tiny-label">POSSIBLE ENEMIES</span><div>{poolNames.map((name) => <span key={name}>{name}</span>)}</div></div>
+    <div className="location-preview-top"><div className={`location-preview-marker ${active ? 'is-active' : ''}`}><Swords size={20} /></div><div className="location-preview-heading"><h3>{location.name}</h3><GameTooltip content={{ id: location.id, icon: 'target', title: location.name, subtitle: presentation.familyName, description: location.description }}><p>{location.description}</p></GameTooltip></div></div>
+    <div className="location-meta-grid"><div><span>FAMILY</span><strong>{presentation.familyName}</strong></div><div><span>GROUP SIZE</span><strong>{presentation.groupSizeLabel}</strong></div><div><span>RECOMMENDED</span><strong>{presentation.recommendedMasteryLabel}</strong></div></div>
+    <div className="location-pool"><span className="tiny-label">POSSIBLE ENEMIES</span><div>{presentation.enemyNames.map((name) => <span key={name}>{name}</span>)}</div></div>
     <div className="location-preview-footer"><div className="location-shared-loot">{lootNames.length > 0 && <><span className="tiny-label">KNOWN SHARED LOOT</span><small>{lootNames.join(' · ')}</small></>}</div><div className="location-preview-action"><button aria-label={active ? 'Hunt active' : browsingAnotherLocation ? 'Switch hunt' : 'Start selected location hunt'} className="button button-primary" onClick={onStart} disabled={!available || active}>{buttonLabel}<Play size={14} /></button>{!available && <small className="locked-copy">{location.availability === 'coming-soon' ? 'Coming soon' : `Requires Mastery Level ${location.requiredMasteryLevel}`}</small>}</div></div>
   </section>
 }

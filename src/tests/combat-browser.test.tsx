@@ -45,7 +45,10 @@ describe('combat world atlas browser', () => {
     openDeepWoods()
 
     expect(screen.getByText('Deep Woods')).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: /^Wolf Den/ })).toBeInTheDocument()
+    const wolfDen = screen.getByRole('button', { name: /^Wolf Den/ })
+    expect(wolfDen).toBeInTheDocument()
+    expect(wolfDen).toHaveAttribute('data-debug-tooltip-id', 'combat-arena:location.wolf-den')
+    expect(wolfDen).not.toHaveAttribute('title')
     expect(screen.queryByRole('button', { name: /^Bandit Camp/ })).not.toBeInTheDocument()
     expect(debugElement('combat-atlas-stage')).toHaveAttribute('data-debug-atlas-mode', 'arenas')
     expect(debugElement('combat-atlas-stage')).toHaveAttribute('data-debug-atlas-view-id', 'area.deep-woods')

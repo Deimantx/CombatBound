@@ -2,7 +2,7 @@ import { ArrowLeft, Globe2 } from 'lucide-react'
 import type { CSSProperties, ReactNode } from 'react'
 import { useMemo, useRef, useState } from 'react'
 import { combatAtlasNodeDetails } from './combatAtlasNodeDetails'
-import { atlasAccentRgb, atlasAtmosphereAccent } from './combatAtlasLayout'
+import { atlasAccentRgb, atlasAtmosphereAccent, atlasNeutralRgb } from './combatAtlasLayout'
 import { CombatAtlasArenaNode } from './CombatAtlasArenaNode'
 import { CombatAtlasBackdrop } from './CombatAtlasBackdrop'
 import { CombatAtlasConnections } from './CombatAtlasConnections'
@@ -33,7 +33,7 @@ export function CombatAtlasStage({ view, masteryLevel, selectedNodeId, activeLoc
   const [hoveredNodeId, setHoveredNodeId] = useState<string>()
   const defaultAccent = atlasAtmosphereAccent[view.atmosphere]
   const hoveredNode = view.nodes.find((node) => node.sourceId === hoveredNodeId)
-  const focusAccent = hoveredNode?.accent ?? defaultAccent
+  const focusRgb = hoveredNode ? atlasAccentRgb[hoveredNode.accent] : atlasNeutralRgb
   const connectedNodeIds = useMemo(() => {
     const ids = new Set<string>()
     if (!hoveredNodeId) return ids
@@ -46,10 +46,11 @@ export function CombatAtlasStage({ view, masteryLevel, selectedNodeId, activeLoc
   }, [hoveredNodeId, view.connections])
   const stageStyle = {
     '--atlas-default-rgb': atlasAccentRgb[defaultAccent],
-    '--atlas-focus-rgb': atlasAccentRgb[focusAccent],
+    '--atlas-atmosphere-rgb': atlasAccentRgb[defaultAccent],
+    '--atlas-focus-rgb': focusRgb,
     '--atlas-transition-x': `${transitionOrigin?.x ?? 50}%`,
     '--atlas-transition-y': `${transitionOrigin?.y ?? 50}%`,
-    '--atlas-transition-rgb': transitionOrigin?.rgb ?? atlasAccentRgb[focusAccent],
+    '--atlas-transition-rgb': transitionOrigin?.rgb ?? focusRgb,
   } as CSSProperties
 
   const handlePointerMove = (event: React.PointerEvent<HTMLDivElement>) => {

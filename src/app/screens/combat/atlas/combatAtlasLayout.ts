@@ -30,6 +30,8 @@ export const atlasAtmosphereAccent: Record<AtlasAtmosphere, AtlasAccent> = {
   road: 'road',
 }
 
+export const atlasNeutralRgb = '122,130,136'
+
 export { atlasAccentRgb }
 
 export function generateAtlasFallbackPositions(count: number, options: AtlasFallbackLayoutOptions = {}): AtlasPoint[] {
