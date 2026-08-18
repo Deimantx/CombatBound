@@ -40,7 +40,7 @@ export type DefensiveOutcome = "evaded" | "hit";
 
 type DefensiveStats = Partial<Pick<CombatStats, "blockChance" | "evasionRating">>;
 
-/** Resolves only canonical Attack evasion and eligible Block. DoTs never enter this path. */
+/** Resolves only canonical Attack evasion. Block is rolled separately. */
 export function resolveDefensiveOutcome(
   attackerAccuracy: number,
   defenderEvasion: number,

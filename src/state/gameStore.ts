@@ -234,6 +234,7 @@ interface GameStoreState {
   setShowInspectorButton: (value: boolean) => void;
   hydrateProfile: (profileId: ProfileId, save: NonNullable<ReturnType<typeof loadProfileGameSave>>) => void;
   startFreshProfile: (profileId: ProfileId) => void;
+  replaceGameStateForOfflineSimulation: (game: GameState) => boolean;
   saveActiveProfileNow: () => boolean;
   unloadProfile: () => void;
   resetGameplay: () => void;
@@ -661,6 +662,12 @@ export const useGameStore = create<GameStoreState>((set, get) => {
         activeProfileId: profileId,
         ...flatState(createInitialGameState(), freshUi(state)),
       })),
+    replaceGameStateForOfflineSimulation: (game) => {
+      const state = get();
+      if (!state.activeProfileId) return false;
+      set(flatState(game, state));
+      return true;
+    },
     saveActiveProfileNow: () => {
       const state = get();
       return savePermanent(state.game, {

@@ -18,3 +18,15 @@ export function formatDuration(seconds: number): string {
   if (minutes > 0) return `${minutes}m ${String(remainingSeconds).padStart(2, "0")}s`;
   return `${remainingSeconds}s`;
 }
+
+export function formatCompactDuration(seconds: number): string {
+  const safe = Math.max(0, Math.floor(Number.isFinite(seconds) ? seconds : 0));
+  const days = Math.floor(safe / 86400);
+  const hours = Math.floor((safe % 86400) / 3600);
+  const minutes = Math.floor((safe % 3600) / 60);
+  const remainingSeconds = safe % 60;
+  if (days > 0) return `${days}d${hours > 0 ? ` ${hours}h` : ""}`;
+  if (hours > 0) return `${hours}h${minutes > 0 ? ` ${minutes}m` : ""}`;
+  if (minutes > 0) return `${minutes}m${remainingSeconds > 0 ? ` ${remainingSeconds}s` : ""}`;
+  return `${remainingSeconds}s`;
+}

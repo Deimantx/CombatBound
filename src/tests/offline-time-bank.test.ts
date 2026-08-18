@@ -12,6 +12,14 @@ const input = (overrides: Partial<Parameters<typeof calculateOfflineTimeCredit>[
 });
 
 describe("Offline Time Bank domain", () => {
+  it("uses seven days for both the single-credit and total bank caps", () => {
+    expect(offlineTimePolicy.maxSingleCreditSeconds).toBe(7 * 24 * 60 * 60);
+    expect(offlineTimePolicy.bankCapSeconds).toBe(7 * 24 * 60 * 60);
+    expect(normalizeBankSeconds(8 * 24 * 60 * 60)).toBe(7 * 24 * 60 * 60);
+    expect(calculateOfflineTimeCredit(input({ bankBeforeSeconds: 6 * 24 * 60 * 60, now: 1_000_000 + 3 * 24 * 60 * 60 * 1000 })).bankAfterSeconds).toBe(7 * 24 * 60 * 60);
+    expect(spendOfflineBankTime(7 * 24 * 60 * 60, 24 * 60 * 60).bankAfterSeconds).toBe(6 * 24 * 60 * 60);
+  });
+
   it("credits a normal absence in whole seconds", () => {
     const result = calculateOfflineTimeCredit(input({ now: 1_000_000 + 7_200_000 }));
     expect(result.rawAwaySeconds).toBe(7200);

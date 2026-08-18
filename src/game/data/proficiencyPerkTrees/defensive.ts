@@ -76,7 +76,7 @@ const branchData: Record<DefensiveId, { name: string; icon: string; root: string
     name: 'Shield', icon: 'shield', root: 'Shield Foundation', apex: 'Shieldmaster',
     branches: [
       { name: 'Shield Mastery', icon: 'shield', names: ['Shield Familiarity', 'Guard Training', 'Broad Guard', 'Shield Wall', 'Perfect Guard', 'Aegis Training', 'Impenetrable Guard'] },
-        { name: 'Impact Guard', icon: 'shield', names: ['Braced Impact', 'Dense Guard', 'Absorbing Face', 'Reinforced Rim', 'Heavy Deflection', 'Warding Block', 'Unstoppable Guard'] },
+        { name: 'Impact Warding', icon: 'shield', names: ['Braced Impact', 'Dense Guard', 'Absorbing Face', 'Reinforced Rim', 'Heavy Deflection', 'Warding Block', 'Unstoppable Guard'] },
       { name: 'Stamina Control', icon: 'wind', names: ['Guarded Breathing', 'Efficient Block', 'Stamina on Guard', 'Measured Defense', 'Endless Guard', 'Rhythmic Guard', 'Unbroken Rhythm'] },
       { name: 'Counterattack', icon: 'sword', names: ['Shield and Blade', 'Opening Counter', 'Reprisal', 'Perfect Riposte', 'Driving Counter', 'Punishing Wall', 'Countermaster'] },
       { name: 'Warding Shield', icon: 'spark', names: ['Elemental Facing', 'Arcane Facing', 'Steadfast Guard', 'Ward the Blow', 'Spellguard', 'Warding Wall', 'Aegis'] },

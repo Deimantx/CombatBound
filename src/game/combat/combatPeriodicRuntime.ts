@@ -15,7 +15,6 @@ import {
   combatEvent as event,
   getEnemyStats,
   getPlayerStats,
-  playerBaseStats,
 } from "./combatRuntime";
 import { applyEnemyHealthDamage, applyPlayerHealthDamage, type EnemyDamageApplication, type PlayerDamageApplication } from "./combatHealth";
 import { calculateProficiencyXpAward } from "../progression/proficiencyProgression";
@@ -133,15 +132,27 @@ export function resolvePeriodicEffect(
     return game;
   }
 
-  const targetId = effect.target.kind === "enemy" ? effect.target.instanceId : undefined;
-  const target = targetId ? game.combat.enemies.find((enemy) => enemy.instanceId === targetId) : undefined;
-  if (effect.target.kind === "enemy" && (!target || target.defeated)) return game;
+  const sourceEnemyId = effect.source.kind === "enemy" ? effect.source.instanceId : null;
+  const targetEnemyId = effect.target.kind === "enemy" ? effect.target.instanceId : null;
+  const sourceEnemy = sourceEnemyId
+    ? game.combat.enemies.find((enemy) => enemy.instanceId === sourceEnemyId)
+    : undefined;
+  const targetEnemy = targetEnemyId
+    ? game.combat.enemies.find((enemy) => enemy.instanceId === targetEnemyId)
+    : undefined;
+  if (effect.source.kind === "enemy" && (!sourceEnemy || sourceEnemy.defeated)) {
+    // Enemy-origin effects do not snapshot a fallback attacker in Combat 2.0.1.
+    // If their source has left the encounter, skip the tick instead of silently
+    // substituting player stats or the target's stats.
+    return game;
+  }
+  if (effect.target.kind === "enemy" && (!targetEnemy || targetEnemy.defeated)) return game;
   const attacker = effect.source.kind === "player"
     ? getPlayerStats(game.combat, stats, context, game.progression)
-    : target ? getEnemyStats(game.combat, target, context) : playerBaseStats(stats);
+    : getEnemyStats(game.combat, sourceEnemy!, context);
   const defender = effect.target.kind === "player"
     ? getPlayerStats(game.combat, stats, context, game.progression)
-    : target ? getEnemyStats(game.combat, target, context) : playerBaseStats(stats);
+    : getEnemyStats(game.combat, targetEnemy!, context);
   const packet: DamagePacket = {
     ...componentFromAttack(operation.damageType, 0, operation.canCrit ?? false),
     sourceKind: effect.source.kind === "player" ? "spell" : "secondary",
@@ -168,8 +179,8 @@ export function resolvePeriodicEffect(
   let next = { ...game, combat: barrierResult.combat };
   let playerDamage: PlayerDamageApplication | null = null;
   let enemyDamage: EnemyDamageApplication | null = null;
-  if (effect.target.kind === "enemy" && target) {
-    enemyDamage = applyEnemyHealthDamage(next.combat, target.instanceId, resolved.healthDamage, context);
+  if (effect.target.kind === "enemy" && targetEnemy) {
+    enemyDamage = applyEnemyHealthDamage(next.combat, targetEnemy.instanceId, resolved.healthDamage, context);
     next.combat = enemyDamage.combat;
     resolved = { ...resolved, healthDamage: enemyDamage.appliedDamage, targetDied: enemyDamage.targetDied };
     if (effect.progressionCredit?.mode === "hp-damage" && enemyDamage.appliedDamage > 0)

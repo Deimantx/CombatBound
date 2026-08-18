@@ -31,6 +31,31 @@
 .top-stat em { color: var(--muted); font-size: 10px; font-style: normal; font-weight: 400; }
 .save-state { align-items: center; color: var(--muted); display: flex; font-size: 10px; gap: 7px; white-space: nowrap; }
 .topbar-actions { align-items: center; display: flex; gap: 9px; }
+.time-bank-control { position: relative; }
+.time-bank-button { align-items: center; background: rgba(213,170,98,.09); border: 1px solid rgba(213,170,98,.35); border-radius: 7px; color: var(--gold-bright); cursor: pointer; display: inline-flex; font-size: 9px; gap: 6px; height: 32px; letter-spacing: .05em; padding: 0 8px; }
+.time-bank-button:hover { background: rgba(213,170,98,.18); }
+.time-bank-button strong { color: var(--text); font-size: 10px; letter-spacing: 0; }
+.time-bank-button .disclosure-chevron { margin-left: -2px; }
+.time-bank-panel { background: var(--panel); border: 1px solid rgba(213,170,98,.38); border-radius: 9px; box-shadow: 0 16px 35px rgba(0,0,0,.4); padding: 14px; position: absolute; right: 0; top: calc(100% + 8px); width: min(360px, calc(100vw - 28px)); z-index: 25; }
+.time-bank-panel-header { align-items: flex-start; display: flex; justify-content: space-between; }
+.time-bank-panel-header strong { display: block; font-size: 14px; margin-top: 4px; }
+.time-bank-status { border-bottom: 1px solid var(--line-soft); border-top: 1px solid var(--line-soft); display: grid; gap: 12px; grid-template-columns: 1fr 1fr; margin: 13px 0 10px; padding: 10px 0; }
+.time-bank-status div { display: flex; flex-direction: column; gap: 4px; }
+.time-bank-status span, .time-bank-activity small, .time-bank-custom label, .time-bank-last-result small { color: var(--muted); font-size: 10px; }
+.time-bank-status strong { font-size: 13px; }
+.time-bank-progress { background: #0e1214; border: 1px solid rgba(53,64,71,.62); border-radius: 99px; height: 7px; overflow: hidden; }
+.time-bank-progress span { background: linear-gradient(90deg, var(--bronze), var(--gold)); border-radius: inherit; display: block; height: 100%; transition: width .2s ease; }
+.time-bank-activity { display: flex; flex-direction: column; gap: 5px; margin-top: 15px; }
+.time-bank-activity strong { font-size: 12px; }
+.time-bank-quick-actions { display: flex; flex-wrap: wrap; gap: 7px; margin-top: 14px; }
+.time-bank-custom { margin-top: 15px; }
+.time-bank-custom label { display: block; margin-bottom: 5px; }
+.time-bank-custom > div { display: flex; gap: 7px; }
+.time-bank-custom input { background: #111518; border: 1px solid var(--line); border-radius: 6px; color: var(--text); flex: 1; font-size: 11px; min-width: 0; padding: 0 9px; }
+.time-bank-custom input:focus { border-color: var(--gold); outline: 1px solid rgba(213,170,98,.25); }
+.time-bank-error, .time-bank-message { color: #e59790; display: block; font-size: 10px; line-height: 1.4; margin-top: 7px; }
+.time-bank-last-result { border-top: 1px solid var(--line-soft); display: flex; flex-direction: column; gap: 5px; margin-top: 15px; padding-top: 12px; }
+.time-bank-last-result strong { font-size: 11px; }
 .inspect-button { align-items: center; background: transparent; border: 1px solid rgba(140,169,195,.3); border-radius: 7px; color: var(--blue); cursor: pointer; display: inline-flex; font-size: 10px; gap: 6px; height: 32px; padding: 0 10px; }
 .inspect-button:hover { background: var(--blue-soft); }
 .debug-topbar-button { align-items: center; background: var(--gold-soft); border: 1px solid rgba(213,170,98,.35); border-radius: 7px; color: var(--gold-bright); cursor: pointer; display: inline-flex; font-size: 10px; gap: 6px; height: 32px; padding: 0 10px; }
@@ -63,4 +88,4 @@
 .activity-bar.is-compact .activity-copy strong { font-size: 10px; font-weight: 600; margin: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 @media (max-width: 1120px) { :root { --sidebar-width: 72px; --content-padding: 18px; } .sidebar { padding: 20px 10px 14px; } .brand-block { justify-content: center; padding: 0 0 22px; } .brand-block > div:last-child, .nav-caption, .nav-item span, .sidebar-footer { display: none; } .nav-item { justify-content: center; padding: 0; } .nav-arrow { display: none; } .activity-bar { left: calc(var(--sidebar-width) + var(--content-padding)); right: var(--content-padding); } .player-identity { min-width: 140px; } .topbar-stats { gap: 12px; justify-content: flex-start; } }
 @media (max-width: 900px) { .topbar { gap: 12px; padding: 0 16px; } .topbar-stats .top-stat:first-child { display: none; } .save-state { display: none; } .screen-content { padding-top: 20px; } .activity-bar { left: calc(var(--sidebar-width) + 10px); right: 10px; } }
-@media (max-width: 620px) { :root { --sidebar-width: 58px; } .sidebar { padding-left: 6px; padding-right: 6px; } .brand-mark { height: 31px; width: 31px; } .topbar { height: 62px; } .topbar-stats { display: none; } .player-identity { flex: 1; } .inspect-button { font-size: 0; padding: 0; width: 32px; } .inspect-button svg { margin: auto; } .screen-content { padding-left: 12px; padding-right: 12px; } .activity-bar { gap: 9px; height: 68px; left: 8px; right: 8px; } .activity-copy { min-width: 0; } .activity-copy small, .activity-health { display: none; } .activity-action { font-size: 9px; } }
+@media (max-width: 620px) { :root { --sidebar-width: 58px; } .sidebar { padding-left: 6px; padding-right: 6px; } .brand-mark { height: 31px; width: 31px; } .topbar { height: 62px; } .topbar-stats { display: none; } .player-identity { flex: 1; } .time-bank-button span, .time-bank-button strong { display: none; } .time-bank-button { padding: 0; width: 32px; } .time-bank-button svg { margin: auto; } .inspect-button { font-size: 0; padding: 0; width: 32px; } .inspect-button svg { margin: auto; } .screen-content { padding-left: 12px; padding-right: 12px; } .activity-bar { gap: 9px; height: 68px; left: 8px; right: 8px; } .activity-copy { min-width: 0; } .activity-copy small, .activity-health { display: none; } .activity-action { font-size: 9px; } .time-bank-panel { right: -42px; } }

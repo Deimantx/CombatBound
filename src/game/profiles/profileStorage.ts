@@ -54,7 +54,11 @@ export function readProfileIndex(): ProfileIndexV1 {
     const value = JSON.parse(raw) as { version?: unknown; slots?: unknown[] };
     if (value.version !== 1 || !Array.isArray(value.slots)) return emptyProfileIndex();
     const slots = [1, 2, 3].map((slot) => normalizeMetadata(value.slots?.[slot - 1], slot as ProfileSlot)) as ProfileIndexV1["slots"];
-    return { version: 1, slots };
+    const normalized = { version: 1 as const, slots };
+    // Policy normalization is deliberately persisted at the profile boundary so
+    // an older prototype bank cannot reappear above the seven-day cap.
+    if (JSON.stringify(normalized) !== JSON.stringify(value)) writeProfileIndex(normalized);
+    return normalized;
   } catch {
     return emptyProfileIndex();
   }

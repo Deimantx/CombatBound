@@ -3,6 +3,7 @@ import type { SpellDefinition } from '../data/spells'
 import type { ProgressionState } from './progressionTypes'
 import type { DefensiveEquipmentContext } from '../equipment/defensiveEquipment'
 import { getConditionalMagicCooldownMultiplier, getConditionalMagicCritChance, getConditionalMagicDamageMultiplier, getConditionalMagicManaCostMultiplier, getEffectiveMagicModifiers } from './perkProgression'
+import { combatBalance } from '../combat/combatBalance'
 
 export interface EffectiveSpellDefinition extends SpellDefinition {
   manaCost: number
@@ -48,7 +49,7 @@ export function calculateEffectiveSpell(spell: SpellDefinition, progression: Pro
   const healing = spell.healing === undefined ? undefined : { flatAmount: Math.max(0, spell.healing.flatAmount * (1 + modifiers.healingPercent)) }
   const canCrit = Boolean(baseDamageMin > 0 && modifiers.canCrit)
   const criticalStrikeChance = canCrit
-    ? Math.max(0, (context.globalCriticalStrikeChance ?? 0) + (spell.criticalStrikeChance ?? 0) + modifiers.spellCriticalChance + getConditionalMagicCritChance(progression, spell.magicProficiencyId, context.targetHpFraction ?? 1))
+    ? Math.min(combatBalance.maximumCriticalStrikeChance, Math.max(0, (context.globalCriticalStrikeChance ?? 0) + (spell.criticalStrikeChance ?? 0) + modifiers.spellCriticalChance + getConditionalMagicCritChance(progression, spell.magicProficiencyId, context.targetHpFraction ?? 1)))
     : 0
   const criticalStrikeMultiplier = canCrit
     ? Math.max(1, (context.globalCriticalStrikeMultiplier ?? 1) + modifiers.spellCriticalDamagePercent)

@@ -10,6 +10,9 @@ import { effectById } from "../game/data/effects";
 import { itemById } from "../game/data/items";
 import { spellById } from "../game/data/spells";
 import { calculateEffectiveSpell } from "../game/progression/spellProgression";
+import { advanceCombatEffects } from "../game/combat/combatPeriodicRuntime";
+import { applyEffect } from "../game/combat/combatEffects";
+import type { EffectDefinition } from "../game/combat/combatEffectTypes";
 
 const fixedRng = (value: number) => ({ next: () => value });
 
@@ -121,5 +124,122 @@ describe("Combat Systems 2.0.1 hardening", () => {
     expect(effective.canCrit).toBe(true);
     expect(effective.criticalStrikeChance).toBeCloseTo(.2);
     expect(effective.criticalStrikeMultiplier).toBeCloseTo(1.7);
+  });
+
+  it("caps effective spell crit at the canonical maximum", () => {
+    const progression = { ...createInitialGameState().progression, purchasedPerks: { "perk.fire-magic.pyromancers-focus": 1 } };
+    const effective = calculateEffectiveSpell(spellById["spell.flame-blast"], progression, {
+      globalCriticalStrikeChance: 1.2,
+    });
+    expect(effective.criticalStrikeChance).toBe(combatBalance.maximumCriticalStrikeChance);
+  });
+
+  it("applies Withered to Poison ticks through the periodic runtime", () => {
+    const base = createInitialGameState();
+    const started = startHunt(base, "location.wolf-den", attacker, createCombatContext(fixedRng(.5)));
+    const target = started.combat.enemies[0];
+    const withoutWithered = applyEffect(
+      started.combat,
+      effectById["effect.poison"],
+      { kind: "player" },
+      { kind: "enemy", instanceId: target.instanceId },
+    ).combat;
+    const withPoison = applyEffect(
+      started.combat,
+      effectById["effect.poison"],
+      { kind: "player" },
+      { kind: "enemy", instanceId: target.instanceId },
+    ).combat;
+    const withWithered = applyEffect(
+      withPoison,
+      effectById["effect.withered"],
+      { kind: "player" },
+      { kind: "enemy", instanceId: target.instanceId },
+    ).combat;
+    const dependencies = {
+      applyEffectiveHealing: (game: typeof started) => game,
+      restoreBarrierResource: (game: typeof started) => game,
+      resolveDefeatedEnemies: (game: typeof started) => game,
+    };
+    const normal = advanceCombatEffects({ ...started, combat: withoutWithered }, 2, createCombatContext(fixedRng(.5)), attacker, dependencies);
+    const modified = advanceCombatEffects({ ...started, combat: withWithered }, 2, createCombatContext(fixedRng(.5)), attacker, dependencies);
+    const normalTick = normal.combat.events.find((event) => event.type === "effectTicked" && event.data?.effectId === "effect.poison");
+    const modifiedTick = modified.combat.events.find((event) => event.type === "effectTicked" && event.data?.effectId === "effect.poison");
+    expect(Number(modifiedTick?.data?.damage ?? 0)).toBeGreaterThan(Number(normalTick?.data?.damage ?? 0));
+  });
+
+  it("applies Shock to Ignite ticks through the periodic runtime", () => {
+    const base = createInitialGameState();
+    const started = startHunt(base, "location.wolf-den", attacker, createCombatContext(fixedRng(.5)));
+    const target = started.combat.enemies[0];
+    const withIgnite = applyEffect(
+      started.combat,
+      effectById["effect.ignite"],
+      { kind: "player" },
+      { kind: "enemy", instanceId: target.instanceId },
+    ).combat;
+    const withShocked = applyEffect(
+      withIgnite,
+      effectById["effect.shocked"],
+      { kind: "player" },
+      { kind: "enemy", instanceId: target.instanceId },
+    ).combat;
+    const withoutShock = advanceCombatEffects({ ...started, combat: withIgnite }, 2, createCombatContext(fixedRng(.5)), attacker, {
+      applyEffectiveHealing: (game: typeof started) => game,
+      restoreBarrierResource: (game: typeof started) => game,
+      resolveDefeatedEnemies: (game: typeof started) => game,
+    });
+    const withShock = advanceCombatEffects({ ...started, combat: withShocked }, 2, createCombatContext(fixedRng(.5)), attacker, {
+      applyEffectiveHealing: (game: typeof started) => game,
+      restoreBarrierResource: (game: typeof started) => game,
+      resolveDefeatedEnemies: (game: typeof started) => game,
+    });
+    const normalTick = withoutShock.combat.events.find((event) => event.type === "effectTicked" && event.data?.effectId === "effect.ignite");
+    const shockedTick = withShock.combat.events.find((event) => event.type === "effectTicked" && event.data?.effectId === "effect.ignite");
+    expect(Number(shockedTick?.data?.damage ?? 0)).toBeGreaterThan(Number(normalTick?.data?.damage ?? 0));
+  });
+
+  it("resolves an enemy-origin periodic effect from the source enemy", () => {
+    const base = createInitialGameState();
+    const started = startHunt({ ...base, combat: { ...base.combat, playerHp: 1000 } }, "location.wolf-den", attacker, createCombatContext(fixedRng(.5)));
+    const source = started.combat.enemies[0];
+    const sourceRef = { kind: "enemy" as const, instanceId: source.instanceId };
+    const sourceBoost: EffectDefinition = {
+      id: "test.enemy-crit-boost",
+      name: "Enemy Crit Boost",
+      description: "test",
+      icon: "spark",
+      kind: "buff",
+      tags: [],
+      durationSeconds: 10,
+      stacking: { mode: "refresh", maxStacks: 1 },
+      statModifiers: [{ stat: "criticalStrikeChance", operation: "flat", value: 1 }],
+      persistence: "enemy-life",
+    };
+    const sourcePeriodic: EffectDefinition = {
+      id: "test.enemy-periodic",
+      name: "Enemy Periodic",
+      description: "test",
+      icon: "spark",
+      kind: "debuff",
+      tags: [],
+      durationSeconds: 5,
+      stacking: { mode: "refresh", maxStacks: 1 },
+      periodic: { intervalSeconds: 1, operation: { type: "damage", damageType: "chaos", baseAmount: 10, canCrit: true } },
+      persistence: "hunt",
+    };
+    const definitions = { ...effectById, [sourceBoost.id]: sourceBoost, [sourcePeriodic.id]: sourcePeriodic };
+    const sourceEffect = { instanceId: "test.source-boost", effectId: sourceBoost.id, source: sourceRef, target: sourceRef, stacks: 1, remainingSeconds: 10, nextTickRemaining: null, appliedSequence: 1 };
+    const periodic = { instanceId: "test.enemy-periodic", effectId: sourcePeriodic.id, source: sourceRef, target: { kind: "player" as const }, stacks: 1, remainingSeconds: 5, nextTickRemaining: 1, appliedSequence: 2 };
+    const game = { ...started, combat: { ...started.combat, enemies: started.combat.enemies.map((enemy) => enemy.instanceId === source.instanceId ? { ...enemy, effects: [sourceEffect] } : enemy), playerEffects: [periodic] } };
+    const result = advanceCombatEffects(game, 1, { ...createCombatContext(fixedRng(.5)), effects: definitions }, attacker, {
+      applyEffectiveHealing: (next: typeof started) => next,
+      restoreBarrierResource: (next: typeof started) => next,
+      resolveDefeatedEnemies: (next: typeof started) => next,
+    });
+    const tick = result.combat.events.find((event) => event.type === "effectTicked" && event.data?.effectId === sourcePeriodic.id);
+    expect(tick?.source).toEqual(sourceRef);
+    expect(tick?.target).toEqual({ kind: "player" });
+    expect(tick?.data?.damage).toBe(10);
   });
 });

@@ -33,7 +33,7 @@ export function InfoScreen() {
       <div className="info-layout">
         <Panel
           title="Defensive Proficiency Training"
-          subtitle="Armor and Shield improve from resolved enemy attacks"
+          subtitle="Armour and Shield improve from resolved enemy attacks"
           icon={Shield}
           panelId="infoDefensiveTraining"
           screen="info"
@@ -41,7 +41,7 @@ export function InfoScreen() {
         >
           <div className="skill-reference-grid">
             <div className="skill-reference-card">
-              <strong>Armor XP</strong>
+              <strong>Armour XP</strong>
               <p>
                 Each resolved enemy direct attack awards 0.25 XP for every
                 equipped matching armour piece. Miss, Evasion, Block, and
@@ -58,7 +58,7 @@ export function InfoScreen() {
               <p>
                 An actual Shield in the Offhand trains Shield at the full 1.00
                 XP/event rate. A successful Block is not required, and Shield XP
-                is added alongside Armor XP.
+                is added alongside Armour XP.
               </p>
               <small>
                 Health Regen restores HP during active combat only and grants no
@@ -142,8 +142,8 @@ export function InfoScreen() {
               "Accuracy vs Evasion",
               "Damage Roll",
               "Critical Strike",
-              "Impact Guard",
-              "Armor",
+              "Block",
+              "Armour",
               "Resistance",
               "Incoming Effect Modifiers",
               "Barrier",
@@ -233,8 +233,8 @@ export function InfoScreen() {
           </div>
           <p className="info-callout">
             Positive Resistance reduces that damage type. Negative Resistance is
-            a Weakness and increases damage taken. True Damage ignores Armor and
-            normal Resistances.
+            a Weakness and increases damage taken. Physical damage is reduced by
+            Armour; elemental and Chaos damage use matching Resistances.
           </p>
         </Panel>
         <Panel
@@ -317,7 +317,7 @@ export function InfoScreen() {
             <div className="skill-reference-card">
               <strong>Magic progression</strong>
               <p>
-                Fire, Water, Air, Earth, Light, and Darkness Magic gain XP from
+                Fire, Water, Air, Earth, and Darkness Magic gain XP from
                 meaningful outcomes: effective damage, credited periodic damage,
                 successful action effects, effective healing, and meaningful Barrier
                 or cleanse results.

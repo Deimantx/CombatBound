@@ -7,6 +7,7 @@ import { useGameStore } from "../state/gameStore";
 import { useProfileStore } from "../state/profileStore";
 import type { OfflineTimeReport } from "../game/profiles/profileTypes";
 import { readProfileSessionLease } from "../game/profiles/profileSessionLease";
+import { useOfflineActivityRuntimeStore } from "../state/offlineActivityRuntimeStore";
 
 function setVisibility(value: "visible" | "hidden") {
   Object.defineProperty(document, "visibilityState", { configurable: true, value });
@@ -18,6 +19,7 @@ describe("Offline Time browser lifecycle", () => {
     cleanup();
     localStorage.clear();
     useGameStore.getState().unloadProfile();
+    useOfflineActivityRuntimeStore.getState().setTransactionRunning(false);
     useProfileStore.getState().refreshProfiles();
     vi.useFakeTimers();
     vi.setSystemTime(1_000_000);
@@ -30,6 +32,7 @@ describe("Offline Time browser lifecycle", () => {
     vi.useRealTimers();
     localStorage.clear();
     useGameStore.getState().unloadProfile();
+    useOfflineActivityRuntimeStore.getState().setTransactionRunning(false);
     useProfileStore.getState().refreshProfiles();
     setVisibility("visible");
   });
@@ -94,6 +97,20 @@ describe("Offline Time browser lifecycle", () => {
     act(() => useProfileStore.getState().dismissOfflineReport());
     act(() => vi.advanceTimersByTime(1_000));
     expect(useGameStore.getState().game.combat.session.elapsedSeconds).toBeGreaterThan(beforeReport);
+  });
+
+  it("pauses the live driver only while a fast-forward transaction is running", () => {
+    expect(createAndEnterProfile(1, "regular", "normal")).toBe(true);
+    useGameStore.getState().startHunt();
+    render(<SimulationDriver />);
+    act(() => vi.advanceTimersByTime(500));
+    const beforeFastForward = useGameStore.getState().game.combat.session.elapsedSeconds;
+    act(() => useOfflineActivityRuntimeStore.getState().setTransactionRunning(true));
+    act(() => vi.advanceTimersByTime(1_000));
+    expect(useGameStore.getState().game.combat.session.elapsedSeconds).toBe(beforeFastForward);
+    act(() => useOfflineActivityRuntimeStore.getState().setTransactionRunning(false));
+    act(() => vi.advanceTimersByTime(1_000));
+    expect(useGameStore.getState().game.combat.session.elapsedSeconds).toBeGreaterThan(beforeFastForward);
   });
 
   it("keeps a BFCache page alive and re-establishes an expired same-owner lease", () => {

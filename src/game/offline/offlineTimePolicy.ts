@@ -10,7 +10,7 @@ export interface OfflineTimePolicy {
 export const offlineTimePolicy: Readonly<OfflineTimePolicy> = Object.freeze({
   reportMinSeconds: 60,
   maxSingleCreditSeconds: 7 * 24 * 60 * 60,
-  bankCapSeconds: 30 * 24 * 60 * 60,
+  bankCapSeconds: 7 * 24 * 60 * 60,
   heartbeatMs: 30_000,
   sessionLeaseTtlMs: 5 * 60_000,
 });

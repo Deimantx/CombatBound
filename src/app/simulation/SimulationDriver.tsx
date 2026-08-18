@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { useGameStore } from "../../state/gameStore";
 import { useProfileStore } from "../../state/profileStore";
 import { useDevToolsRuntimeStore } from "../debug/devtools/devToolsRuntimeStore";
+import { useOfflineActivityRuntimeStore } from "../../state/offlineActivityRuntimeStore";
 
 /** The only wall-clock loop that advances gameplay in the application. */
 export function SimulationDriver() {
@@ -13,6 +14,7 @@ export function SimulationDriver() {
   });
   const tickCombat = useGameStore((state) => state.tickCombat);
   const paused = useDevToolsRuntimeStore((state) => state.simulationPaused);
+  const offlineTransactionRunning = useOfflineActivityRuntimeStore((state) => state.transactionRunning);
   const offlineReportOpen = useProfileStore((state) => Boolean(state.pendingOfflineReport));
   const timeScale = useDevToolsRuntimeStore((state) => state.timeScale);
   const accumulator = useRef(0);
@@ -30,7 +32,7 @@ export function SimulationDriver() {
   }, []);
 
   useEffect(() => {
-    if ((!combatActive && !recoveryActive) || paused || !visible || offlineReportOpen) {
+    if ((!combatActive && !recoveryActive) || paused || offlineTransactionRunning || !visible || offlineReportOpen) {
       accumulator.current = 0;
       return;
     }
@@ -47,7 +49,7 @@ export function SimulationDriver() {
       }
     }, 100);
     return () => window.clearInterval(interval);
-  }, [combatActive, recoveryActive, paused, offlineReportOpen, resetVersion, timeScale, tickCombat, visible]);
+  }, [combatActive, recoveryActive, paused, offlineTransactionRunning, offlineReportOpen, resetVersion, timeScale, tickCombat, visible]);
 
   return null;
 }

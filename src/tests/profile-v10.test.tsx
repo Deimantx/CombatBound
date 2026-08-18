@@ -130,6 +130,16 @@ describe("profile gate and offline foundation", () => {
     expect(useProfileStore.getState().index.slots[0]?.offlineBankSeconds).toBe(0);
   });
 
+  it("clamps an existing bank above the seven-day policy on profile load", () => {
+    expect(createAndEnterProfile(1, "regular", "normal")).toBe(true);
+    returnToProfileSelect();
+    const metadata = useProfileStore.getState().index.slots[0]!;
+    localStorage.setItem(PROFILE_INDEX_KEY, JSON.stringify({ version: 1, slots: [{ ...metadata, offlineBankSeconds: 8 * 24 * 60 * 60 }, null, null] }));
+    useProfileStore.getState().refreshProfiles();
+    expect(useProfileStore.getState().index.slots[0]?.offlineBankSeconds).toBe(7 * 24 * 60 * 60);
+    expect(localStorage.getItem(PROFILE_INDEX_KEY)).toContain('604800');
+  });
+
   it("clears profile lease and metadata when deleting a profile", () => {
     expect(createAndEnterProfile(1, "regular", "normal")).toBe(true);
     expect(localStorage.getItem(profileSessionLeaseKey("profile-1"))).not.toBeNull();

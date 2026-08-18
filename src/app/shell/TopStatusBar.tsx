@@ -6,6 +6,7 @@ import { masteryLevelForXp } from '../../game/progression/masteryProgression'
 import { formatHealthWithBarrier } from '../../game/presentation/statFormatting'
 import { useGameStore } from '../../state/gameStore'
 import { IconButton } from '../components/IconButton'
+import { TimeBankPopover } from './TimeBankPopover'
 
 export function TopStatusBar({ onInspect, onDebug }: { onInspect: () => void; onDebug: () => void }) {
   const setScreen = useGameStore((state) => state.setScreen)
@@ -24,6 +25,7 @@ export function TopStatusBar({ onInspect, onDebug }: { onInspect: () => void; on
         <div className="save-state"><span className="status-dot" />Saved just now</div>
       </div>
       <div className="topbar-actions">
+        <TimeBankPopover />
         {import.meta.env.DEV && showInspectorButton && <button className="inspect-button" onClick={onInspect} data-debug-kind="inspector-control" data-debug-label="Inspect UI"><Eye size={15} />Inspect UI</button>}
         {import.meta.env.DEV && <button className="debug-topbar-button" onClick={onDebug} data-debug-kind="debug-control" data-debug-label="Debug"><Bug size={15} />Debug</button>}
         <IconButton icon={Settings} label="Open Settings" onClick={() => setScreen('settings')} />

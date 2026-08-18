@@ -26,7 +26,7 @@ const baseDefinitions: ProficiencyDefinition[] = [
   { id: 'light-armor', name: 'Light Armor', category: 'defense', description: 'Arcane mobility armor focused on Mana, spell efficiency, Evasion, and magical protection.', icon: 'wind', maxLevel: MAX_PROFICIENCY_LEVEL, perkIds: authoredPerkIds('light-armor') },
   { id: 'medium-armor', name: 'Medium Armor', category: 'defense', description: 'Balanced combat armor focused on Stamina, mobility, Weapon tempo, and flexible defense.', icon: 'swords', maxLevel: MAX_PROFICIENCY_LEVEL, perkIds: authoredPerkIds('medium-armor') },
   { id: 'heavy-armor', name: 'Heavy Armor', category: 'defense', description: 'Tank armor focused on Max Health, Armor, Health regeneration, and surviving pressure.', icon: 'shield', maxLevel: MAX_PROFICIENCY_LEVEL, perkIds: authoredPerkIds('heavy-armor') },
-  { id: 'shield', name: 'Shield', category: 'defense', description: 'Defensive offhand mastery focused on Impact Guard, counterattacks, and warding.', icon: 'shield', maxLevel: MAX_PROFICIENCY_LEVEL, perkIds: authoredPerkIds('shield') },
+  { id: 'shield', name: 'Shield', category: 'defense', description: 'Defensive offhand mastery focused on impact warding, counterattacks, and protection.', icon: 'shield', maxLevel: MAX_PROFICIENCY_LEVEL, perkIds: authoredPerkIds('shield') },
 ]
 
 export const proficiencyDefinitions = deepFreeze<ProficiencyDefinition[]>(baseDefinitions)
