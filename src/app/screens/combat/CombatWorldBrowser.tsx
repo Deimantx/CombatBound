@@ -1,99 +1,143 @@
-import { ChevronRight, Globe2, Lock, Map, MapPin, Mountain, Play, Shield, Target, Tent, Trees } from 'lucide-react'
-import { useEffect, useState } from 'react'
+import { Map, Play, Target } from 'lucide-react'
+import { useEffect, useRef, useState } from 'react'
 import { itemById } from '../../../game/data/items'
 import { combatLocationById } from '../../../game/data/world/combatLocations'
-import { continentDefinitions } from '../../../game/data/world/continents'
 import { enemyById } from '../../../game/data/enemies'
 import { enemyFamilyById } from '../../../game/data/world/enemyFamilies'
 import { masteryLevelForXp } from '../../../game/progression/masteryProgression'
-import { getAreasForRegion, getLocationsForArea, getRegionsForContinent, isCombatLocationAvailable, locationBreadcrumb } from '../../../game/world/worldSelectors'
+import { isCombatLocationAvailable, locationBreadcrumb } from '../../../game/world/worldSelectors'
+import type { CombatLocationDefinition } from '../../../game/world/worldTypes'
 import { useGameStore } from '../../../state/gameStore'
-import type { AreaDefinition, CombatLocationDefinition, ContinentDefinition, RegionDefinition } from '../../../game/world/worldTypes'
 import { Panel } from '../../components/Panel'
-import { PlaceholderArt } from '../../components/PlaceholderArt'
 import { DisclosureChevron } from '../../components/DisclosureChevron'
 import { GameTooltip } from '../../components/tooltip/GameTooltip'
-
-const worldIcons = { globe: Globe2, map: Map, mountain: Mountain, trees: Trees, pin: MapPin, target: Target, tent: Tent, shield: Shield }
-type WorldTier = 'continent' | 'region' | 'area'
-type WorldNode = ContinentDefinition | RegionDefinition | AreaDefinition
+import { CombatWorldMap } from './worldMap/CombatWorldMap'
 
 export function CombatWorldBrowser() {
   const game = useGameStore((state) => state.game)
   const phase = game.combat.phase
-  const selectedContinentId = useGameStore((state) => state.selectedContinentId)
-  const selectedRegionId = useGameStore((state) => state.selectedRegionId)
-  const selectedAreaId = useGameStore((state) => state.selectedAreaId)
   const selectedLocationId = useGameStore((state) => state.selectedCombatLocationId)
   const activeLocationId = useGameStore((state) => state.activeCombatLocationId)
-  const selectContinent = useGameStore((state) => state.selectContinent)
-  const selectRegion = useGameStore((state) => state.selectRegion)
-  const selectArea = useGameStore((state) => state.selectArea)
   const selectLocation = useGameStore((state) => state.selectCombatLocation)
   const startHunt = useGameStore((state) => state.startHunt)
   const switchHunt = useGameStore((state) => state.switchHunt)
-  const [open, setOpen] = useState(true)
-
-  useEffect(() => {
-    if (phase === 'active' || phase === 'recovery') setOpen(false)
-    else setOpen(true)
-  }, [phase])
+  const [open, setOpen] = useState(() => phase !== 'active' && phase !== 'recovery')
+  const previousCombatRef = useRef({ active: phase === 'active' || phase === 'recovery', locationId: activeLocationId })
 
   const masteryLevel = masteryLevelForXp(game.progression.masteryXp)
-  const continent = continentDefinitions.find((candidate) => candidate.id === selectedContinentId) ?? continentDefinitions[0]
-  const regions = getRegionsForContinent(continent.id)
-  const region = regions.find((candidate) => candidate.id === selectedRegionId) ?? regions[0]
-  const areas = region ? getAreasForRegion(region.id) : []
-  const area = areas.find((candidate) => candidate.id === selectedAreaId) ?? areas[0]
-  const locations = area ? getLocationsForArea(area.id) : []
-  const location = locations.find((candidate) => candidate.id === selectedLocationId) ?? locations[0]
+  const location = combatLocationById[selectedLocationId] ?? undefined
   const activeLocation = activeLocationId ? combatLocationById[activeLocationId] : undefined
+  const isCombatActive = phase === 'active' || phase === 'recovery'
+  const sameLocation = Boolean(activeLocation && activeLocation.id === location?.id && isCombatActive)
   const canHunt = Boolean(location && isCombatLocationAvailable(location.id, masteryLevel))
-  const selectedBreadcrumb = location ? locationBreadcrumb(location.id) : 'No combat location selected'
-  const sameLocation = activeLocationId === location?.id && (phase === 'active' || phase === 'recovery')
 
-  return <Panel title="Combat world" subtitle={open ? 'Choose a territory, then hunt its changing population.' : activeLocation ? `Current Hunt \u00b7 ${activeLocation.name}` : `Selected \u00b7 ${location?.name ?? 'No location'}`} icon={Map} panelId="combatWorldBrowser" screen="combat" className="combat-world-browser" actions={<button type="button" className="button button-ghost button-small world-browser-toggle" onClick={() => setOpen((value) => !value)} aria-expanded={open} aria-controls="combat-world-browser-content" aria-label={open ? 'Collapse' : 'Expand'}><DisclosureChevron open={open} size={13} /></button>}>
+  useEffect(() => {
+    const previous = previousCombatRef.current
+    const becameActive = !previous.active && isCombatActive
+    const changedActiveLocation = isCombatActive && Boolean(activeLocationId) && previous.locationId !== activeLocationId
+    if (becameActive || changedActiveLocation) setOpen(false)
+    previousCombatRef.current = { active: isCombatActive, locationId: activeLocationId }
+  }, [activeLocationId, isCombatActive])
+
+  const handleHuntAction = () => {
+    if (!location || !canHunt || sameLocation) return
+    setOpen(false)
+    if (activeLocationId) switchHunt()
+    else startHunt()
+  }
+
+  const subtitle = open
+    ? 'Browse combat arenas across the world.'
+    : activeLocation
+      ? `Current Hunt · ${activeLocation.name}`
+      : `Selected · ${location?.name ?? 'No location'}`
+
+  return <Panel
+    title="Combat world"
+    subtitle={subtitle}
+    icon={Map}
+    panelId="combatWorldBrowser"
+    screen="combat"
+    className="combat-world-browser"
+    actions={<button
+      type="button"
+      className="button button-ghost button-small combat-world-browser-toggle"
+      onClick={() => setOpen((value) => !value)}
+      aria-expanded={open}
+      aria-controls="combat-world-browser-content"
+      aria-label={open ? 'Collapse' : 'Expand'}
+    ><DisclosureChevron open={open} size={13} /></button>}
+  >
     <div id="combat-world-browser-content">
-    {open ? <>
-      {activeLocation && activeLocation.id !== location?.id && <HuntContext activeLocation={activeLocation} browsingLocation={location} />}
-      <div className="world-hierarchy-stack">
-        <WorldTierRow tier="continent" label="CONTINENT" nodes={continentDefinitions} selectedId={continent.id} onSelect={selectContinent} masteryLevel={masteryLevel} />
-        <WorldTierRow tier="region" label="REGION" nodes={regions} selectedId={region?.id} onSelect={selectRegion} masteryLevel={masteryLevel} />
-        <WorldTierRow tier="area" label="AREA" nodes={areas} selectedId={area?.id} onSelect={selectArea} masteryLevel={masteryLevel} />
-      </div>
-      <section className="world-location-section" data-debug-kind="combat-location-section" data-debug-label="Combat Locations">
-        <div className="world-section-heading"><span className="tiny-label">COMBAT LOCATIONS</span></div>
-        <div className="combat-locations-workspace">
-          <div className="combat-location-browser" data-debug-kind="combat-location-grid" data-debug-label="Combat location grid">
-            {locations.length > 0 ? <div className="world-location-grid">{locations.map((candidate) => <LocationCard key={candidate.id} location={candidate} selected={candidate.id === location?.id} active={candidate.id === activeLocationId} available={isCombatLocationAvailable(candidate.id, masteryLevel)} onSelect={() => selectLocation(candidate.id)} />)}</div> : <div className="world-location-empty"><Target size={20} /><strong>No combat locations</strong><small>Select another area to browse a hunting destination.</small></div>}
-          </div>
-          <LocationPreview location={location} active={sameLocation} available={canHunt} activeLocationId={activeLocationId} onStart={sameLocation ? undefined : activeLocationId ? switchHunt : startHunt} />
+      {open ? <>
+        {activeLocation && activeLocation.id !== location?.id && <HuntContext activeLocation={activeLocation} browsingLocation={location} />}
+        <div className="combat-world-map-workspace">
+          <section className="combat-world-map-panel" data-debug-kind="combat-world-map-section" data-debug-label="World map">
+            <div className="combat-world-map-heading">
+              <div><span className="tiny-label">WORLD MAP</span><p>Named territories and combat arenas</p></div>
+              <span className="map-availability-note">{activeLocation ? 'Hunt continues while you browse' : 'Select an arena to inspect it'}</span>
+            </div>
+            <CombatWorldMap
+              masteryLevel={masteryLevel}
+              selectedLocationId={location?.id ?? ''}
+              activeLocationId={activeLocationId}
+              onSelectLocation={selectLocation}
+            />
+          </section>
+          <LocationPreview
+            location={location}
+            active={sameLocation}
+            activeLocation={activeLocation}
+            available={canHunt}
+            onStart={handleHuntAction}
+          />
         </div>
-      </section>
-    </> : <div className="collapsed-world-summary"><div><span className="tiny-label">{activeLocation ? 'CURRENT HUNT' : 'SELECTED'}</span><strong>{activeLocation ? activeLocation.name : location?.name}</strong><small>{activeLocation ? locationBreadcrumb(activeLocation.id) : selectedBreadcrumb}</small></div>{activeLocation && activeLocation.id !== location?.id && <div><span className="tiny-label">SELECTED</span><strong>{location?.name}</strong><small>{selectedBreadcrumb}</small></div>}</div>}
+      </> : <CollapsedWorldSummary location={location} activeLocation={activeLocation} />}
     </div>
-    </Panel>
+  </Panel>
 }
 
 function HuntContext({ activeLocation, browsingLocation }: { activeLocation: CombatLocationDefinition; browsingLocation?: CombatLocationDefinition }) {
-  return <div className="world-hunt-context has-browsing" data-debug-kind="hunt-context" data-debug-label="Current hunt context"><div><span className="tiny-label">CURRENT HUNT</span><strong>{activeLocation.name}</strong><small>{locationBreadcrumb(activeLocation.id)}</small></div>{browsingLocation && <div><span className="tiny-label">BROWSING</span><strong>{browsingLocation.name}</strong><small>{locationBreadcrumb(browsingLocation.id)}</small></div>}</div>
+  return <div className="combat-world-hunt-context has-browsing" data-debug-kind="hunt-context" data-debug-label="Current hunt context">
+    <div><span className="tiny-label">CURRENT HUNT</span><strong>{activeLocation.name}</strong><small>{locationBreadcrumb(activeLocation.id)}</small></div>
+    {browsingLocation && <div><span className="tiny-label">BROWSING</span><strong>{browsingLocation.name}</strong><small>{locationBreadcrumb(browsingLocation.id)}</small></div>}
+  </div>
 }
 
-function WorldTierRow({ tier, label, nodes, selectedId, onSelect, masteryLevel }: { tier: WorldTier; label: string; nodes: WorldNode[]; selectedId?: string; onSelect: (id: string) => void; masteryLevel: number }) {
-  return <section className="world-tier" data-debug-kind="world-tier" data-debug-tier={tier} data-debug-label={label}><div className="world-tier-heading"><span className="tiny-label">{label}</span></div><div className="world-tier-grid">{nodes.map((node) => { const requiredMasteryLevel = 'requiredMasteryLevel' in node ? node.requiredMasteryLevel : undefined; const available = node.availability === 'available' && (requiredMasteryLevel ?? 0) <= masteryLevel; const Icon = worldIcons[node.presentation.iconKey] ?? MapPin; const lockText = node.availability === 'coming-soon' ? 'Coming soon' : requiredMasteryLevel ? `Requires Mastery Lv ${requiredMasteryLevel}` : 'Locked'; const button = <button key={node.id} className={`world-node ${selectedId === node.id ? 'is-selected' : ''} ${!available ? 'is-locked' : ''}`} onClick={() => available && onSelect(node.id)} disabled={!available} aria-pressed={selectedId === node.id} data-debug-kind={`world-${tier}`} data-debug-world-id={node.id} data-debug-continent-id={tier === 'continent' ? node.id : undefined} data-debug-region-id={tier === 'region' ? node.id : undefined} data-debug-area-id={tier === 'area' ? node.id : undefined} data-debug-label={node.name}><Icon size={13} /><span><strong>{node.name}</strong>{!available && <small>{lockText}</small>}</span>{!available ? <Lock size={11} /> : <ChevronRight size={11} />}</button>; const content = { id: node.id, icon: node.presentation.iconKey, title: node.name, subtitle: label, description: node.description }; return <GameTooltip key={node.id} content={content}>{available ? button : <span className="world-tooltip-host">{button}</span>}</GameTooltip> })}</div></section>
+function CollapsedWorldSummary({ location, activeLocation }: { location?: CombatLocationDefinition; activeLocation?: CombatLocationDefinition }) {
+  if (activeLocation && activeLocation.id !== location?.id) return <div className="combat-world-collapsed-summary" data-debug-kind="collapsed-world-summary">
+    <div><span className="tiny-label">CURRENT HUNT</span><strong>{activeLocation.name}</strong><small>{locationBreadcrumb(activeLocation.id)}</small></div>
+    <div><span className="tiny-label">BROWSING</span><strong>{location?.name ?? 'No location'}</strong><small>{location ? locationBreadcrumb(location.id) : 'Select an arena from the map'}</small></div>
+  </div>
+  return <div className="combat-world-collapsed-summary" data-debug-kind="collapsed-world-summary">
+    <div><span className="tiny-label">{activeLocation ? 'CURRENT HUNT' : 'SELECTED'}</span><strong>{activeLocation?.name ?? location?.name ?? 'No location'}</strong><small>{locationBreadcrumb(activeLocation?.id ?? location?.id ?? '')}</small></div>
+  </div>
 }
 
-function LocationCard({ location, selected, active, available, onSelect }: { location: CombatLocationDefinition; selected: boolean; active: boolean; available: boolean; onSelect: () => void }) {
-  const family = enemyFamilyById[location.familyId]?.name ?? 'Unknown Family'
-  const stateLabel = active ? 'CURRENT HUNT' : selected ? 'SELECTED' : available ? 'AVAILABLE' : location.availability === 'coming-soon' ? 'COMING SOON' : 'LOCKED'
-  return <button className={`world-location-card ${selected ? 'is-selected' : ''} ${active ? 'is-active' : ''} ${!available ? 'is-locked' : ''}`} onClick={onSelect} aria-pressed={selected} data-debug-kind="combat-location" data-debug-location-id={location.id} data-debug-label={location.name}><PlaceholderArt icon={location.presentation.iconKey === 'tent' ? 'shield' : 'target'} size="small" variant={active ? 'gold' : location.presentation.accent === 'blue' ? 'blue' : 'muted'} /><span className="world-location-card-copy"><span className="world-location-card-heading"><strong>{location.name}</strong>{!available ? <Lock size={11} /> : <ChevronRight size={12} />}</span><small className="world-location-card-family">{family}</small><small>Mastery {location.recommendedMasteryLevel[0]}-{location.recommendedMasteryLevel[1]} {'\u00b7'} Groups {location.groupGeneration.minGroupSize}-{location.groupGeneration.maxGroupSize}</small><em>{stateLabel}</em></span></button>
-}
-
-function LocationPreview({ location, active, available, activeLocationId, onStart }: { location?: CombatLocationDefinition; active: boolean; available: boolean; activeLocationId: string | null; onStart?: () => void }) {
-  if (!location) return <div className="combat-location-preview empty-state" data-debug-kind="combat-location-preview" data-debug-label="No combat location"><Target size={20} /><strong>No combat location</strong><p>Select an area with a hunting destination.</p></div>
+function LocationPreview({ location, active, activeLocation, available, onStart }: { location?: CombatLocationDefinition; active: boolean; activeLocation?: CombatLocationDefinition; available: boolean; onStart: () => void }) {
+  if (!location) return <div className="combat-location-preview empty-state" data-debug-kind="combat-location-preview" data-debug-label="No combat location"><Target size={20} /><strong>No combat location</strong><p>Select an arena on the world map.</p></div>
   const family = enemyFamilyById[location.familyId]?.name ?? 'Unknown Family'
   const poolNames = location.enemyPool.map((entry) => enemyById[entry.enemyId]?.name).filter((name): name is string => Boolean(name))
   const lootNames = location.sharedLoot?.map((drop) => itemById[drop.itemId]?.name).filter((name): name is string => Boolean(name)) ?? []
-  const buttonLabel = !available ? 'Locked' : active ? 'Hunt active' : activeLocationId ? 'Switch hunt' : 'Start hunt'
-  return <div className="combat-location-preview" data-debug-kind="combat-location-preview" data-debug-location-id={location.id} data-debug-label={`Preview ${location.name}`}><div className="location-preview-top"><PlaceholderArt icon={location.presentation.iconKey === 'tent' ? 'shield' : 'target'} size="medium" variant={active ? 'gold' : 'muted'} /><div className="location-preview-heading"><span className="tiny-label">{active ? 'CURRENT HUNT' : 'SELECTED LOCATION'}</span><h3>{location.name}</h3><GameTooltip content={{ id: location.id, icon: 'target', title: location.name, subtitle: family, description: location.description }}><p>{location.description}</p></GameTooltip></div></div><div className="location-meta-grid"><div><span>FAMILY</span><strong>{family}</strong></div><div><span>GROUP SIZE</span><strong>{location.groupGeneration.minGroupSize}-{location.groupGeneration.maxGroupSize}</strong></div><div><span>RECOMMENDED</span><strong>Mastery {location.recommendedMasteryLevel[0]}-{location.recommendedMasteryLevel[1]}</strong></div></div><div className="location-pool"><span className="tiny-label">POSSIBLE ENEMIES</span><div>{poolNames.map((name) => <span key={name}>{name}</span>)}</div></div><div className="location-preview-footer"><div className="location-shared-loot">{lootNames.length > 0 && <><span className="tiny-label">KNOWN SHARED LOOT</span><small>{lootNames.join(' \u00b7 ')}</small></>}</div><div className="location-preview-action"><button aria-label={active ? 'Hunt active' : activeLocationId ? 'Switch hunt' : 'Start selected location hunt'} className="button button-primary" onClick={onStart} disabled={!available || active}>{buttonLabel}<Play size={14} /></button>{!available && <small className="locked-copy">{location.availability === 'coming-soon' ? 'Coming soon' : `Requires Mastery Level ${location.requiredMasteryLevel}`}</small>}</div></div></div>
+  const browsingAnotherLocation = Boolean(activeLocation && activeLocation.id !== location.id)
+  const buttonLabel = !available ? 'Locked' : active ? 'Hunt active' : browsingAnotherLocation ? 'Switch hunt' : 'Start hunt'
+  return <section className="combat-location-preview" data-debug-kind="combat-location-preview" data-debug-location-id={location.id} data-debug-label={`Preview ${location.name}`}>
+    <div className="location-preview-context">
+      <span className="tiny-label">{browsingAnotherLocation ? 'SELECTED ARENA' : active ? 'CURRENT HUNT' : 'SELECTED ARENA'}</span>
+      {browsingAnotherLocation && <small>Current hunt: <strong>{activeLocation?.name}</strong></small>}
+    </div>
+    <div className="location-preview-top">
+      <div className={`location-preview-marker ${active ? 'is-active' : ''}`}><Target size={20} /></div>
+      <div className="location-preview-heading">
+        <h3>{location.name}</h3>
+        <GameTooltip content={{ id: location.id, icon: 'target', title: location.name, subtitle: family, description: location.description }}><p>{location.description}</p></GameTooltip>
+      </div>
+    </div>
+    <div className="location-meta-grid"><div><span>FAMILY</span><strong>{family}</strong></div><div><span>GROUP SIZE</span><strong>{location.groupGeneration.minGroupSize}-{location.groupGeneration.maxGroupSize}</strong></div><div><span>RECOMMENDED</span><strong>Mastery {location.recommendedMasteryLevel[0]}-{location.recommendedMasteryLevel[1]}</strong></div></div>
+    <div className="location-pool"><span className="tiny-label">POSSIBLE ENEMIES</span><div>{poolNames.map((name) => <span key={name}>{name}</span>)}</div></div>
+    <div className="location-preview-footer">
+      <div className="location-shared-loot">{lootNames.length > 0 && <><span className="tiny-label">KNOWN SHARED LOOT</span><small>{lootNames.join(' · ')}</small></>}</div>
+      <div className="location-preview-action"><button aria-label={active ? 'Hunt active' : browsingAnotherLocation ? 'Switch hunt' : 'Start selected location hunt'} className="button button-primary" onClick={onStart} disabled={!available || active}>{buttonLabel}<Play size={14} /></button>{!available && <small className="locked-copy">{location.availability === 'coming-soon' ? 'Coming soon' : `Requires Mastery Level ${location.requiredMasteryLevel}`}</small>}</div>
+    </div>
+  </section>
 }
