@@ -12,7 +12,6 @@ import { Panel } from '../../components/Panel'
 import { DisclosureChevron } from '../../components/DisclosureChevron'
 import { GameTooltip } from '../../components/tooltip/GameTooltip'
 import { CombatWorldMap } from './worldMap/CombatWorldMap'
-import { CombatWorldMapBreadcrumbs } from './worldMap/CombatWorldMapBreadcrumbs'
 import { combatMapViewFor, combatMapViewId, combatMapViewTitle, combatMapViewDescription } from './worldMap/combatWorldMapRegistry'
 import type { CombatMapNodeLayout, CombatWorldMapLevel } from './worldMap/combatWorldMapTypes'
 
@@ -72,12 +71,12 @@ export function CombatWorldBrowser() {
     }
   }
 
-  const navigateTo = (nextLevel: CombatWorldMapLevel) => setLevel(nextLevel)
   const handleBack = () => {
     if (level === 'area') setLevel('region')
     else if (level === 'region') setLevel('continent')
     else if (level === 'continent') setLevel('world')
   }
+  const handleReturnToWorld = () => setLevel('world')
   const viewCurrentHunt = () => {
     if (!activeLocationId) return
     selectLocation(activeLocationId)
@@ -111,14 +110,6 @@ export function CombatWorldBrowser() {
     <div id="combat-world-browser-content">
       {open ? <>
         <div className="combat-world-map-header">
-          <CombatWorldMapBreadcrumbs
-            level={level}
-            continentId={selectedContinentId}
-            regionId={selectedRegionId}
-            areaId={selectedAreaId}
-            onNavigate={navigateTo}
-            onBack={handleBack}
-          />
           <div className="combat-world-map-title-row">
             <div><span className="tiny-label">{level === 'world' ? 'WORLD MAP' : `${level.toUpperCase()} MAP`}</span><h3>{viewTitle}</h3><p>{viewDescription}</p></div>
             {activeLocation && <div className="combat-world-active-context"><span className="tiny-label">CURRENT HUNT</span><strong>{activeLocation.name}</strong><small>{locationBreadcrumb(activeLocation.id)}</small><span>Hunt continues while browsing.</span><button type="button" className="text-button" onClick={viewCurrentHunt}>View current hunt</button></div>}
@@ -134,6 +125,8 @@ export function CombatWorldBrowser() {
               selectedNodeId={selectedNodeId}
               activeLocationId={activeLocationId}
               onNodeSelect={handleNodeSelect}
+              onBack={handleBack}
+              onReturnToWorld={handleReturnToWorld}
             />
           </section>
           {areaLevel && <LocationPreview location={location} active={sameLocation} activeLocation={activeLocation} available={canHunt} onStart={handleHuntAction} />}

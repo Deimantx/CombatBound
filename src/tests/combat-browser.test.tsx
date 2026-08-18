@@ -62,6 +62,29 @@ describe('combat world map browser', () => {
     expect(screen.queryByRole('button', { name: /^Wolf Den/ })).not.toBeInTheDocument()
   })
 
+  it('uses fixed viewport controls for one-level back and direct world navigation', () => {
+    openCombatBrowser()
+    expect(screen.getByRole('button', { name: 'Back one map level' })).toBeDisabled()
+    expect(screen.getByRole('button', { name: 'Return to World Map' })).toBeDisabled()
+
+    openDeepWoods()
+    expect(screen.getByRole('button', { name: 'Back one map level' })).toBeEnabled()
+    expect(screen.getByRole('button', { name: 'Return to World Map' })).toBeEnabled()
+    fireEvent.click(screen.getByRole('button', { name: 'Back one map level' }))
+    expect(debugElement('combat-world-map')).toHaveAttribute('data-debug-map-level', 'region')
+    fireEvent.click(screen.getByRole('button', { name: 'Back one map level' }))
+    expect(debugElement('combat-world-map')).toHaveAttribute('data-debug-map-level', 'continent')
+    fireEvent.click(screen.getByRole('button', { name: 'Back one map level' }))
+    expect(debugElement('combat-world-map')).toHaveAttribute('data-debug-map-id', 'world')
+    expect(screen.getByRole('button', { name: 'Back one map level' })).toBeDisabled()
+    expect(screen.getByRole('button', { name: 'Return to World Map' })).toBeDisabled()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Open Greenvale' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Open Northwood' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Return to World Map' }))
+    expect(debugElement('combat-world-map')).toHaveAttribute('data-debug-map-id', 'world')
+  })
+
   it('selects an arena without starting combat', () => {
     openCombatBrowser()
     openDeepWoods()
@@ -88,7 +111,7 @@ describe('combat world map browser', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Start selected location hunt' }))
     const activeBeforeBrowsing = useGameStore.getState().activeCombatLocationId
     fireEvent.click(screen.getByRole('button', { name: 'Expand' }))
-    fireEvent.click(screen.getByRole('button', { name: 'Go to WORLD' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Return to World Map' }))
     fireEvent.click(screen.getByRole('button', { name: 'Open Greenvale' }))
     fireEvent.click(screen.getByRole('button', { name: 'Open Northwood' }))
     act(unlockBanditCamp)
@@ -106,7 +129,7 @@ describe('combat world map browser', () => {
     fireEvent.click(screen.getByRole('button', { name: /^Wolf Den/ }))
     fireEvent.click(screen.getByRole('button', { name: 'Start selected location hunt' }))
     fireEvent.click(screen.getByRole('button', { name: 'Expand' }))
-    fireEvent.click(screen.getByRole('button', { name: 'Go to WORLD' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Return to World Map' }))
     fireEvent.click(screen.getByRole('button', { name: 'Open Greenvale' }))
     fireEvent.click(screen.getByRole('button', { name: 'Open Northwood' }))
     act(unlockBanditCamp)

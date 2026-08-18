@@ -1,3 +1,4 @@
+import { ArrowLeft, Globe2 } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import type { CombatMapNodeLayout, CombatMapViewDefinition } from './combatWorldMapTypes'
 import { CombatWorldMapArtwork } from './CombatWorldMapArtwork'
@@ -13,6 +14,8 @@ interface CombatWorldMapProps {
   selectedNodeId?: string
   activeLocationId: string | null
   onNodeSelect: (node: CombatMapNodeLayout) => void
+  onBack: () => void
+  onReturnToWorld: () => void
 }
 
 interface PanState {
@@ -23,7 +26,7 @@ interface PanState {
   originY: number
 }
 
-export function CombatWorldMap({ view, masteryLevel, selectedNodeId, activeLocationId, onNodeSelect }: CombatWorldMapProps) {
+export function CombatWorldMap({ view, masteryLevel, selectedNodeId, activeLocationId, onNodeSelect, onBack, onReturnToWorld }: CombatWorldMapProps) {
   const viewportRef = useRef<HTMLDivElement>(null)
   const panRef = useRef<PanState | null>(null)
   const zoomLockRef = useRef(false)
@@ -66,6 +69,7 @@ export function CombatWorldMap({ view, masteryLevel, selectedNodeId, activeLocat
   const handlePointerDown = (event: React.PointerEvent<HTMLDivElement>) => {
     if (event.button !== 0) return
     panRef.current = { pointerId: event.pointerId, startX: event.clientX, startY: event.clientY, originX: pan.x, originY: pan.y }
+    setDragging(true)
     if (typeof event.currentTarget.setPointerCapture === 'function') event.currentTarget.setPointerCapture(event.pointerId)
   }
 
@@ -94,7 +98,7 @@ export function CombatWorldMap({ view, masteryLevel, selectedNodeId, activeLocat
     onPointerMove={handlePointerMove}
     onPointerUp={finishPointer}
     onPointerCancel={finishPointer}
-  >
+    >
     <div className="combat-world-map-scene" style={{ transform: `translate3d(${pan.x}px, ${pan.y}px, 0) scale(${zoom})` }}>
       <CombatWorldMapArtwork backgroundKey={view.backgroundKey} backgroundAsset={view.backgroundAsset} />
       {view.nodes.map((node) => <CombatWorldMapNode
@@ -106,7 +110,15 @@ export function CombatWorldMap({ view, masteryLevel, selectedNodeId, activeLocat
         onSelect={onNodeSelect}
       />)}
     </div>
-    <div className="combat-world-map-toolbar" onPointerDown={(event) => event.stopPropagation()} data-debug-kind="combat-world-map-controls" data-debug-label="Map controls">
+    <div className="combat-world-map-nav-controls" onPointerDown={(event) => event.stopPropagation()} onWheel={(event) => event.stopPropagation()} data-debug-kind="combat-world-map-nav-controls" data-debug-label="Map navigation controls">
+      <button type="button" className="combat-world-map-nav-button" onClick={onBack} aria-label="Back one map level" title="Back one map level" disabled={view.level === 'world'} data-debug-kind="combat-world-map-nav-button" data-debug-map-action="back">
+        <ArrowLeft size={16} aria-hidden="true" />
+      </button>
+      <button type="button" className="combat-world-map-nav-button" onClick={onReturnToWorld} aria-label="Return to World Map" title="Return to World Map" disabled={view.level === 'world'} data-debug-kind="combat-world-map-nav-button" data-debug-map-action="world">
+        <Globe2 size={16} aria-hidden="true" />
+      </button>
+    </div>
+    <div className="combat-world-map-toolbar" onPointerDown={(event) => event.stopPropagation()} onWheel={(event) => event.stopPropagation()} data-debug-kind="combat-world-map-controls" data-debug-label="Map controls">
       <span className="map-pan-hint">DRAG TO PAN</span>
       <div className="map-zoom-controls" aria-label="Map zoom">
         <button type="button" className="map-zoom-button" onClick={() => changeZoom(-1)} aria-label="Zoom out" disabled={zoomIndex === 0}>−</button>
