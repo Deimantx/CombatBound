@@ -4,7 +4,7 @@ import { areaById } from '../../../../game/data/world/areas'
 import { combatLocationById } from '../../../../game/data/world/combatLocations'
 import { continentById } from '../../../../game/data/world/continents'
 import { regionById } from '../../../../game/data/world/regions'
-import { getAreasForRegion, getLocationsForArea, getRegionsForContinent, isCombatLocationAvailable, isWorldNodeAvailable } from '../../../../game/world/worldSelectors'
+import { isCombatLocationAvailable, isWorldNodeAvailable } from '../../../../game/world/worldSelectors'
 import type { ContentAvailability } from '../../../../game/world/worldTypes'
 import type { AtlasIconKey, CombatAtlasNodeLayout } from './combatAtlasTypes'
 
@@ -14,9 +14,6 @@ export interface CombatAtlasNodeDetails {
   availability: ContentAvailability
   available: boolean
   requiredMasteryLevel?: number
-  recommendedMasteryLevel?: [number, number]
-  childCount?: number
-  childLabel?: 'Regions' | 'Areas' | 'Arenas'
 }
 
 export const atlasIconByKey: Record<AtlasIconKey, LucideIcon> = {
@@ -43,9 +40,6 @@ export function combatAtlasNodeDetails(node: CombatAtlasNodeLayout, masteryLevel
       description: definition?.description ?? 'A distant territory in the CombatBound frontier.',
       availability: definition?.availability ?? 'locked',
       available: isWorldNodeAvailable(definition?.availability, undefined, masteryLevel),
-      recommendedMasteryLevel: definition?.recommendedMasteryLevel,
-      childCount: definition ? getRegionsForContinent(definition.id).length : undefined,
-      childLabel: 'Regions',
     }
   }
 
@@ -57,9 +51,6 @@ export function combatAtlasNodeDetails(node: CombatAtlasNodeLayout, masteryLevel
       availability: definition?.availability ?? 'locked',
       available: isWorldNodeAvailable(definition?.availability, definition?.requiredMasteryLevel, masteryLevel),
       requiredMasteryLevel: definition?.requiredMasteryLevel,
-      recommendedMasteryLevel: definition?.recommendedMasteryLevel,
-      childCount: definition ? getAreasForRegion(definition.id).length : undefined,
-      childLabel: 'Areas',
     }
   }
 
@@ -71,9 +62,6 @@ export function combatAtlasNodeDetails(node: CombatAtlasNodeLayout, masteryLevel
       availability: definition?.availability ?? 'locked',
       available: isWorldNodeAvailable(definition?.availability, definition?.requiredMasteryLevel, masteryLevel),
       requiredMasteryLevel: definition?.requiredMasteryLevel,
-      recommendedMasteryLevel: definition?.recommendedMasteryLevel,
-      childCount: definition ? getLocationsForArea(definition.id).length : undefined,
-      childLabel: 'Arenas',
     }
   }
 
@@ -84,7 +72,6 @@ export function combatAtlasNodeDetails(node: CombatAtlasNodeLayout, masteryLevel
     availability: definition?.availability ?? 'locked',
     available: isCombatLocationAvailable(node.sourceId, masteryLevel),
     requiredMasteryLevel: definition?.requiredMasteryLevel,
-    recommendedMasteryLevel: definition?.recommendedMasteryLevel,
   }
 }
 

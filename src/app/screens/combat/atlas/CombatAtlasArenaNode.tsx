@@ -1,5 +1,6 @@
 import type { CSSProperties } from 'react'
 import { Lock, Swords } from 'lucide-react'
+import { atlasAccentRgb } from './combatAtlasLayout'
 import type { CombatAtlasNodeDetails } from './combatAtlasNodeDetails'
 import { atlasStatusLabel } from './combatAtlasNodeDetails'
 import type { CombatAtlasNodeLayout } from './combatAtlasTypes'
@@ -18,8 +19,8 @@ export function CombatAtlasArenaNode({ node, details, selected, active, index, o
   const status = atlasStatusLabel(details, selected, active)
   return <button
     type="button"
-    className={`combat-atlas-arena combat-atlas-accent-${node.accent} ${selected ? 'is-selected' : ''} ${active ? 'is-active' : ''} ${!details.available ? 'is-locked' : ''}`}
-    style={{ left: `${node.x}%`, top: `${node.y}%`, animationDelay: `${Math.min(index * 42, 180)}ms` } as CSSProperties}
+    className={`combat-atlas-arena ${selected ? 'is-selected' : ''} ${active ? 'is-active' : ''} ${!details.available ? 'is-locked' : ''}`}
+    style={{ left: `${node.x}%`, top: `${node.y}%`, animationDelay: `${Math.min(index * 42, 180)}ms`, '--atlas-node-rgb': atlasAccentRgb[node.accent] } as CSSProperties}
     disabled={!details.available}
     aria-disabled={!details.available}
     aria-pressed={selected}

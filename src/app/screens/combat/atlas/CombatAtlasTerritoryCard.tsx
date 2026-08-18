@@ -1,5 +1,6 @@
 import type { CSSProperties, PointerEvent as ReactPointerEvent } from 'react'
 import { Lock } from 'lucide-react'
+import { atlasAccentRgb } from './combatAtlasLayout'
 import type { CombatAtlasNodeDetails } from './combatAtlasNodeDetails'
 import { atlasIconByKey, atlasStatusLabel } from './combatAtlasNodeDetails'
 import type { CombatAtlasNodeLayout } from './combatAtlasTypes'
@@ -8,34 +9,44 @@ interface CombatAtlasTerritoryCardProps {
   node: CombatAtlasNodeLayout
   details: CombatAtlasNodeDetails
   selected: boolean
+  dimmed: boolean
   index: number
   onSelect: (node: CombatAtlasNodeLayout) => void
   onHover: (nodeId: string | undefined) => void
 }
 
-export function CombatAtlasTerritoryCard({ node, details, selected, index, onSelect, onHover }: CombatAtlasTerritoryCardProps) {
+export function CombatAtlasTerritoryCard({ node, details, selected, dimmed, index, onSelect, onHover }: CombatAtlasTerritoryCardProps) {
   const Icon = atlasIconByKey[node.icon]
   const status = atlasStatusLabel(details, selected, false)
   const handlePointerMove = (event: ReactPointerEvent<HTMLButtonElement>) => {
     const rect = event.currentTarget.getBoundingClientRect()
-    event.currentTarget.style.setProperty('--card-pointer-x', `${((event.clientX - rect.left) / Math.max(1, rect.width)) * 100}%`)
-    event.currentTarget.style.setProperty('--card-pointer-y', `${((event.clientY - rect.top) / Math.max(1, rect.height)) * 100}%`)
+    const x = ((event.clientX - rect.left) / Math.max(1, rect.width)) * 100
+    const y = ((event.clientY - rect.top) / Math.max(1, rect.height)) * 100
+    event.currentTarget.style.setProperty('--card-pointer-x', `${x}%`)
+    event.currentTarget.style.setProperty('--card-pointer-y', `${y}%`)
+    event.currentTarget.style.setProperty('--card-tilt-x', `${Math.max(-1.8, Math.min(1.8, (x - 50) / 28))}deg`)
+    event.currentTarget.style.setProperty('--card-tilt-y', `${Math.max(-1.3, Math.min(1.3, (50 - y) / 38))}deg`)
+    event.currentTarget.style.setProperty('--card-icon-shift-x', `${Math.max(-2, Math.min(2, (x - 50) / 24))}px`)
+    event.currentTarget.style.setProperty('--card-icon-shift-y', `${Math.max(-2, Math.min(2, (y - 50) / 24))}px`)
   }
   const resetPointer = (event: ReactPointerEvent<HTMLButtonElement>) => {
     event.currentTarget.style.setProperty('--card-pointer-x', '50%')
     event.currentTarget.style.setProperty('--card-pointer-y', '50%')
+    event.currentTarget.style.setProperty('--card-tilt-x', '0deg')
+    event.currentTarget.style.setProperty('--card-tilt-y', '0deg')
+    event.currentTarget.style.setProperty('--card-icon-shift-x', '0px')
+    event.currentTarget.style.setProperty('--card-icon-shift-y', '0px')
     onHover(undefined)
   }
   const label = details.available ? `Open ${details.name}` : `${status} ${details.name}`
+
   return <button
     type="button"
-    className={`combat-atlas-territory combat-atlas-accent-${node.accent} ${selected ? 'is-selected' : ''} ${!details.available ? 'is-locked' : ''}`}
-    style={{ left: `${node.x}%`, top: `${node.y}%`, animationDelay: `${Math.min(index * 38, 180)}ms` } as CSSProperties}
-    disabled={!details.available}
+    className={`combat-atlas-territory ${selected ? 'is-selected' : ''} ${dimmed ? 'is-dimmed' : ''} ${!details.available ? 'is-locked' : ''}`}
+    style={{ left: `${node.x}%`, top: `${node.y}%`, animationDelay: `${Math.min(index * 38, 180)}ms`, '--atlas-node-rgb': atlasAccentRgb[node.accent] } as CSSProperties}
     aria-disabled={!details.available}
     aria-pressed={selected}
     aria-label={label}
-    title={`${details.name} · ${status}`}
     onPointerEnter={() => onHover(node.sourceId)}
     onPointerMove={handlePointerMove}
     onPointerLeave={resetPointer}
@@ -47,19 +58,16 @@ export function CombatAtlasTerritoryCard({ node, details, selected, index, onSel
     data-debug-source-id={node.sourceId}
     data-debug-label={details.name}
   >
-    <span className="combat-atlas-territory-glow" />
-    <span className="combat-atlas-territory-corner" />
-    <span className="combat-atlas-territory-icon"><Icon size={node.kind === 'continent' ? 23 : 19} strokeWidth={1.5} /></span>
-    <span className="combat-atlas-territory-body">
-      <span className="combat-atlas-territory-kind">{node.kind === 'continent' ? 'CONTINENT' : 'REGION'}</span>
-      <strong>{details.name}</strong>
-      <span className="combat-atlas-territory-description">{details.description}</span>
-      <span className="combat-atlas-territory-meta">
-        {details.childCount !== undefined && <span>{details.childCount} {details.childLabel}</span>}
-        {details.recommendedMasteryLevel && <span>MASTERY {details.recommendedMasteryLevel[0]}–{details.recommendedMasteryLevel[1]}</span>}
+    <span className="combat-atlas-territory-surface">
+      <span className="combat-atlas-territory-icon"><Icon size={node.kind === 'continent' ? 23 : 19} strokeWidth={1.5} /></span>
+      <span className="combat-atlas-territory-body">
+        <span className="combat-atlas-territory-kind">{node.kind === 'continent' ? 'CONTINENT' : 'REGION'}</span>
+        <strong>{details.name}</strong>
+        <span className="combat-atlas-territory-description">{details.description}</span>
+        {!details.available
+          ? <span className="combat-atlas-territory-status"><Lock size={11} aria-hidden="true" />{status}</span>
+          : <span className="combat-atlas-enter">ENTER →</span>}
       </span>
-      <span className="combat-atlas-territory-status">{!details.available && <Lock size={11} aria-hidden="true" />}{status}</span>
-      <span className="combat-atlas-enter">{details.available ? 'ENTER →' : 'COMING SOON'}</span>
     </span>
   </button>
 }

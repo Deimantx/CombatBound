@@ -58,7 +58,10 @@ describe('combat world atlas browser', () => {
     expect(screen.queryByRole('button', { name: /^Wolf Den/ })).not.toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: 'Open Northwood' }))
     expect(screen.getByRole('button', { name: 'Open Deep Woods' })).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'LOCKED Old Road' })).toBeDisabled()
+    const lockedOldRoad = screen.getByRole('button', { name: 'LOCKED Old Road' })
+    expect(lockedOldRoad).toHaveAttribute('aria-disabled', 'true')
+    fireEvent.click(lockedOldRoad)
+    expect(debugElement('combat-atlas-stage')).toHaveAttribute('data-debug-atlas-view-id', 'region.northwood')
     expect(screen.queryByRole('button', { name: /^Wolf Den/ })).not.toBeInTheDocument()
   })
 

@@ -12,6 +12,5 @@ export function CombatAtlasBackdrop({ atmosphere }: { atmosphere: AtlasAtmospher
       <circle cx="50" cy="50" r="31" />
       <circle cx="50" cy="50" r="43" />
     </svg>
-    <span className="combat-atlas-atmosphere-mark">ATLAS / {atmosphere.toUpperCase()}</span>
   </div>
 }

@@ -2,6 +2,7 @@ import { areaDefinitions } from '../../../../game/data/world/areas'
 import { continentDefinitions } from '../../../../game/data/world/continents'
 import { regionDefinitions } from '../../../../game/data/world/regions'
 import { getAreasForRegion, getLocationsForArea, getRegionsForContinent } from '../../../../game/world/worldSelectors'
+import { generateAtlasFallbackPositions } from './combatAtlasLayout'
 import type { AtlasAccent, AtlasAtmosphere, AtlasIconKey, AtlasPoint, CombatAtlasConnection, CombatAtlasLevel, CombatAtlasNodeLayout, CombatAtlasViewDefinition } from './combatAtlasTypes'
 
 type Presentation = { accent: AtlasAccent; icon: AtlasIconKey }
@@ -67,18 +68,21 @@ const arenaPositions: Record<string, AtlasPoint> = {
 }
 
 function nodesFor<T extends { id: string }>(kind: CombatAtlasNodeLayout['kind'], definitions: readonly T[], positions: Record<string, AtlasPoint>, presentation: Record<string, Presentation>, fallbackAccent: AtlasAccent, fallbackIcon: AtlasIconKey): CombatAtlasNodeLayout[] {
+  const fallbackPositions = generateAtlasFallbackPositions(definitions.length)
   return definitions.flatMap((definition, index) => {
-    const position = positions[definition.id] ?? { x: 50, y: 24 + (index % 4) * 18 }
+    const position = positions[definition.id] ?? fallbackPositions[index]
     const visual = presentation[definition.id] ?? { accent: fallbackAccent, icon: fallbackIcon }
     return [{ sourceId: definition.id, kind, ...position, ...visual }]
   })
 }
 
 function arenaNodesFor(areaId: string) {
-  return getLocationsForArea(areaId).map((location, index) => ({
+  const locations = getLocationsForArea(areaId)
+  const fallbackPositions = generateAtlasFallbackPositions(locations.length)
+  return locations.map((location, index) => ({
     sourceId: location.id,
     kind: 'arena' as const,
-    ...(arenaPositions[location.id] ?? { x: 50, y: 42 + index * 16 }),
+    ...(arenaPositions[location.id] ?? fallbackPositions[index]),
     accent: location.id === 'location.bandit-camp' ? 'road' as const : 'forest' as const,
     icon: 'swords' as const,
   }))
@@ -114,15 +118,10 @@ function areaDecorations(areaId: string) {
     { kind: 'route' as const, tone: 'forest' as const, points: [{ x: 16, y: 82 }, { x: 32, y: 68 }, { x: 37, y: 52 }, { x: 29, y: 37 }, { x: 50, y: 44 }] },
     { kind: 'ring' as const, x: 22, y: 25, radius: 11 },
     { kind: 'ring' as const, x: 74, y: 70, radius: 8 },
-    { kind: 'landmark' as const, x: 64, y: 23, radius: 1.2 },
-    { kind: 'landmark' as const, x: 78, y: 63, radius: 1 },
   ]
   if (areaId === 'area.old-road') return [
     { kind: 'route' as const, tone: 'road' as const, points: [{ x: 10, y: 76 }, { x: 25, y: 64 }, { x: 39, y: 58 }, { x: 57, y: 52 }, { x: 50, y: 44 }, { x: 87, y: 28 }] },
     { kind: 'ring' as const, x: 22, y: 32, radius: 9 },
-    { kind: 'landmark' as const, x: 31, y: 38, radius: 1.2 },
-    { kind: 'landmark' as const, x: 68, y: 63, radius: 1 },
-    { kind: 'landmark' as const, x: 79, y: 30, radius: 1 },
   ]
   return []
 }

@@ -12,8 +12,10 @@ import { Panel } from '../../components/Panel'
 import { DisclosureChevron } from '../../components/DisclosureChevron'
 import { GameTooltip } from '../../components/tooltip/GameTooltip'
 import { CombatAtlasStage } from './atlas/CombatAtlasStage'
+import { atlasAccentRgb } from './atlas/combatAtlasLayout'
 import { combatAtlasViewFor, combatAtlasViewId, combatAtlasViewTitle, combatAtlasViewDescription } from './atlas/combatAtlasRegistry'
 import type { CombatAtlasLevel, CombatAtlasNodeLayout } from './atlas/combatAtlasTypes'
+import type { CombatAtlasTransitionOrigin } from './atlas/CombatAtlasStage'
 
 const activePhases = new Set(['active', 'recovery'])
 
@@ -33,6 +35,9 @@ export function CombatWorldBrowser() {
   const switchHunt = useGameStore((state) => state.switchHunt)
   const [level, setLevel] = useState<CombatAtlasLevel>('world')
   const [open, setOpen] = useState(() => !activePhases.has(phase))
+  const [transitionOrigin, setTransitionOrigin] = useState<CombatAtlasTransitionOrigin>()
+  const transitionTimerRef = useRef<number | undefined>(undefined)
+  const lastTransitionNodeRef = useRef<{ id: string; at: number } | undefined>(undefined)
   const previousCombatRef = useRef({ active: activePhases.has(phase), locationId: activeLocationId })
 
   const masteryLevel = masteryLevelForXp(game.progression.masteryXp)
@@ -56,7 +61,22 @@ export function CombatWorldBrowser() {
     previousCombatRef.current = { active: isCombatActive, locationId: activeLocationId }
   }, [activeLocationId, isCombatActive])
 
+  useEffect(() => () => {
+    if (transitionTimerRef.current !== undefined) window.clearTimeout(transitionTimerRef.current)
+  }, [])
+
+  const showTransition = (origin: CombatAtlasTransitionOrigin) => {
+    setTransitionOrigin(origin)
+    if (transitionTimerRef.current !== undefined) window.clearTimeout(transitionTimerRef.current)
+    transitionTimerRef.current = window.setTimeout(() => setTransitionOrigin(undefined), 380)
+  }
+
   const handleNodeSelect = (node: CombatAtlasNodeLayout) => {
+    const now = Date.now()
+    const last = lastTransitionNodeRef.current
+    if (last?.id === node.sourceId && now - last.at < 350) return
+    lastTransitionNodeRef.current = { id: node.sourceId, at: now }
+    showTransition({ x: node.x, y: node.y, rgb: atlasAccentRgb[node.accent] })
     if (node.kind === 'continent') {
       selectContinent(node.sourceId)
       setLevel('continent')
@@ -72,13 +92,18 @@ export function CombatWorldBrowser() {
   }
 
   const handleBack = () => {
+    showTransition({ x: 50, y: 50, rgb: atlasAccentRgb.gold })
     if (level === 'area') setLevel('region')
     else if (level === 'region') setLevel('continent')
     else if (level === 'continent') setLevel('world')
   }
-  const handleReturnToWorld = () => setLevel('world')
+  const handleReturnToWorld = () => {
+    showTransition({ x: 50, y: 50, rgb: atlasAccentRgb.gold })
+    setLevel('world')
+  }
   const viewCurrentHunt = () => {
     if (!activeLocationId) return
+    showTransition({ x: 50, y: 50, rgb: atlasAccentRgb.gold })
     selectLocation(activeLocationId)
     setLevel('area')
   }
@@ -124,6 +149,7 @@ export function CombatWorldBrowser() {
               masteryLevel={masteryLevel}
               selectedNodeId={selectedNodeId}
               activeLocationId={activeLocationId}
+              transitionOrigin={transitionOrigin}
               onNodeSelect={handleNodeSelect}
               onBack={handleBack}
               onReturnToWorld={handleReturnToWorld}

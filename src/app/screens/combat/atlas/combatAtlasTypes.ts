@@ -24,7 +24,6 @@ export interface CombatAtlasConnection {
 }
 
 export type CombatAtlasDecoration =
-  | { kind: 'landmark'; x: number; y: number; radius?: number }
   | { kind: 'ring'; x: number; y: number; radius: number }
   | { kind: 'route'; points: readonly AtlasPoint[]; tone?: 'forest' | 'road' | 'water' }
 

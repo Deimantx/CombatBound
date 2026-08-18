@@ -1,26 +1,56 @@
 import { ArrowLeft, Globe2 } from 'lucide-react'
-import { useRef, useState } from 'react'
+import type { CSSProperties, ReactNode } from 'react'
+import { useMemo, useRef, useState } from 'react'
 import { combatAtlasNodeDetails } from './combatAtlasNodeDetails'
+import { atlasAccentRgb, atlasAtmosphereAccent } from './combatAtlasLayout'
 import { CombatAtlasArenaNode } from './CombatAtlasArenaNode'
 import { CombatAtlasBackdrop } from './CombatAtlasBackdrop'
 import { CombatAtlasConnections } from './CombatAtlasConnections'
 import { CombatAtlasConstellationNode } from './CombatAtlasConstellationNode'
+import { CombatAtlasConstellationViewport } from './CombatAtlasConstellationViewport'
 import { CombatAtlasTerritoryCard } from './CombatAtlasTerritoryCard'
 import type { CombatAtlasNodeLayout, CombatAtlasViewDefinition } from './combatAtlasTypes'
+
+export interface CombatAtlasTransitionOrigin {
+  x: number
+  y: number
+  rgb: string
+}
 
 interface CombatAtlasStageProps {
   view: CombatAtlasViewDefinition
   masteryLevel: number
   selectedNodeId?: string
   activeLocationId: string | null
+  transitionOrigin?: CombatAtlasTransitionOrigin
   onNodeSelect: (node: CombatAtlasNodeLayout) => void
   onBack: () => void
   onReturnToWorld: () => void
 }
 
-export function CombatAtlasStage({ view, masteryLevel, selectedNodeId, activeLocationId, onNodeSelect, onBack, onReturnToWorld }: CombatAtlasStageProps) {
+export function CombatAtlasStage({ view, masteryLevel, selectedNodeId, activeLocationId, transitionOrigin, onNodeSelect, onBack, onReturnToWorld }: CombatAtlasStageProps) {
   const stageRef = useRef<HTMLDivElement>(null)
   const [hoveredNodeId, setHoveredNodeId] = useState<string>()
+  const defaultAccent = atlasAtmosphereAccent[view.atmosphere]
+  const hoveredNode = view.nodes.find((node) => node.sourceId === hoveredNodeId)
+  const focusAccent = hoveredNode?.accent ?? defaultAccent
+  const connectedNodeIds = useMemo(() => {
+    const ids = new Set<string>()
+    if (!hoveredNodeId) return ids
+    ids.add(hoveredNodeId)
+    view.connections?.forEach((connection) => {
+      if (connection.from === hoveredNodeId) ids.add(connection.to)
+      if (connection.to === hoveredNodeId) ids.add(connection.from)
+    })
+    return ids
+  }, [hoveredNodeId, view.connections])
+  const stageStyle = {
+    '--atlas-default-rgb': atlasAccentRgb[defaultAccent],
+    '--atlas-focus-rgb': atlasAccentRgb[focusAccent],
+    '--atlas-transition-x': `${transitionOrigin?.x ?? 50}%`,
+    '--atlas-transition-y': `${transitionOrigin?.y ?? 50}%`,
+    '--atlas-transition-rgb': transitionOrigin?.rgb ?? atlasAccentRgb[focusAccent],
+  } as CSSProperties
 
   const handlePointerMove = (event: React.PointerEvent<HTMLDivElement>) => {
     const stage = stageRef.current
@@ -42,9 +72,17 @@ export function CombatAtlasStage({ view, masteryLevel, selectedNodeId, activeLoc
     stage?.style.setProperty('--atlas-shift-y', '0px')
   }
 
+  const renderNode = (node: CombatAtlasNodeLayout, index: number, dimmed: boolean): ReactNode => {
+    const details = combatAtlasNodeDetails(node, masteryLevel)
+    if (view.mode === 'territories') return <CombatAtlasTerritoryCard key={node.sourceId} node={node} details={details} selected={selectedNodeId === node.sourceId} dimmed={dimmed} index={index} onSelect={onNodeSelect} onHover={setHoveredNodeId} />
+    if (view.mode === 'constellation') return <CombatAtlasConstellationNode key={node.sourceId} node={node} details={details} selected={selectedNodeId === node.sourceId} dimmed={dimmed} index={index} onSelect={onNodeSelect} onHover={setHoveredNodeId} />
+    return <CombatAtlasArenaNode key={node.sourceId} node={node} details={details} selected={selectedNodeId === node.sourceId} active={activeLocationId === node.sourceId} index={index} onSelect={onNodeSelect} onHover={setHoveredNodeId} />
+  }
+
   return <div
     ref={stageRef}
-    className={`combat-atlas-stage combat-atlas-level-${view.level} combat-atlas-mode-${view.mode} combat-atlas-atmosphere-${view.atmosphere}`}
+    className={`combat-atlas-stage combat-atlas-level-${view.level} combat-atlas-mode-${view.mode} combat-atlas-atmosphere-${view.atmosphere} ${transitionOrigin ? 'is-transitioning' : ''}`}
+    style={stageStyle}
     data-debug-kind="combat-atlas-stage"
     data-debug-atlas-mode={view.mode}
     data-debug-atlas-view-id={view.id}
@@ -53,13 +91,12 @@ export function CombatAtlasStage({ view, masteryLevel, selectedNodeId, activeLoc
     onPointerLeave={resetPointer}
   >
     <CombatAtlasBackdrop atmosphere={view.atmosphere} />
-    <CombatAtlasConnections view={view} hoveredNodeId={hoveredNodeId} selectedNodeId={selectedNodeId} activeLocationId={activeLocationId} />
-    {view.nodes.map((node, index) => {
-      const details = combatAtlasNodeDetails(node, masteryLevel)
-      if (view.mode === 'territories') return <CombatAtlasTerritoryCard key={node.sourceId} node={node} details={details} selected={selectedNodeId === node.sourceId} index={index} onSelect={onNodeSelect} onHover={setHoveredNodeId} />
-      if (view.mode === 'constellation') return <CombatAtlasConstellationNode key={node.sourceId} node={node} details={details} selected={selectedNodeId === node.sourceId} index={index} onSelect={onNodeSelect} onHover={setHoveredNodeId} />
-      return <CombatAtlasArenaNode key={node.sourceId} node={node} details={details} selected={selectedNodeId === node.sourceId} active={activeLocationId === node.sourceId} index={index} onSelect={onNodeSelect} onHover={setHoveredNodeId} />
-    })}
+    {view.mode === 'constellation'
+      ? <CombatAtlasConstellationViewport view={view} selectedNodeId={selectedNodeId} activeLocationId={activeLocationId} hoveredNodeId={hoveredNodeId} renderNode={renderNode} />
+      : <>
+        <CombatAtlasConnections view={view} hoveredNodeId={hoveredNodeId} selectedNodeId={selectedNodeId} activeLocationId={activeLocationId} />
+        {view.nodes.map((node, index) => renderNode(node, index, Boolean(hoveredNodeId && !connectedNodeIds.has(node.sourceId))))}
+      </>}
     <div className="combat-atlas-nav-controls" data-debug-kind="combat-atlas-nav-controls" data-debug-label="Atlas navigation controls">
       <button type="button" className="combat-atlas-nav-button" onClick={onBack} aria-label="Back one map level" title="Back one map level" disabled={view.level === 'world'} data-debug-kind="combat-atlas-nav-button" data-debug-atlas-action="back">
         <ArrowLeft size={16} aria-hidden="true" />
@@ -68,6 +105,5 @@ export function CombatAtlasStage({ view, masteryLevel, selectedNodeId, activeLoc
         <Globe2 size={16} aria-hidden="true" />
       </button>
     </div>
-    <span className="combat-atlas-stage-index">{view.mode === 'territories' ? 'TERRITORY ATLAS' : view.mode === 'constellation' ? 'CONSTELLATION ATLAS' : 'COMBAT ARENA ATLAS'}</span>
   </div>
 }

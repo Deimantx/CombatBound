@@ -18,9 +18,10 @@ export function CombatAtlasConnections({ view, hoveredNodeId, selectedNodeId, ac
       const relatedToHover = Boolean(hoveredNodeId && (connection.from === hoveredNodeId || connection.to === hoveredNodeId))
       const relatedToSelection = Boolean(selectedNodeId && (connection.from === selectedNodeId || connection.to === selectedNodeId))
       const relatedToActive = Boolean(activeLocationId && (connection.from === activeLocationId || connection.to === activeLocationId))
+      const unrelatedToHover = Boolean(hoveredNodeId && !relatedToHover)
       return <path
         key={`${connection.from}-${connection.to}`}
-        className={`combat-atlas-connection ${connection.emphasis === 'subtle' ? 'is-subtle' : ''} ${relatedToHover ? 'is-highlighted' : ''} ${relatedToSelection ? 'is-selected' : ''} ${relatedToActive ? 'is-active' : ''}`}
+        className={`combat-atlas-connection ${connection.emphasis === 'subtle' ? 'is-subtle' : ''} ${relatedToHover ? 'is-highlighted' : ''} ${relatedToSelection ? 'is-selected' : ''} ${relatedToActive ? 'is-active' : ''} ${unrelatedToHover ? 'is-dimmed' : ''}`}
         d={connectionPath(from, to, connection.curve)}
       />
     })}
@@ -29,7 +30,6 @@ export function CombatAtlasConnections({ view, hoveredNodeId, selectedNodeId, ac
 
 function Decoration({ decoration }: { decoration: CombatAtlasDecoration }) {
   if (decoration.kind === 'ring') return <circle className="combat-atlas-decoration-ring" cx={decoration.x} cy={decoration.y} r={decoration.radius} />
-  if (decoration.kind === 'landmark') return <circle className="combat-atlas-decoration-landmark" cx={decoration.x} cy={decoration.y} r={decoration.radius ?? 1} />
   return <path className={`combat-atlas-decoration-route is-${decoration.tone ?? 'forest'}`} d={polylinePath(decoration.points)} />
 }
 
