@@ -7,7 +7,6 @@ import { getOfflineActivityPanelState, requestOfflineSkip } from "../offline/off
 import { useGameStore } from "../../state/gameStore";
 import { useProfileStore } from "../../state/profileStore";
 import { useOfflineActivityRuntimeStore } from "../../state/offlineActivityRuntimeStore";
-import { itemById } from "../../game/data/items";
 import type { CombatHuntOfflineSummary } from "../../game/offline/combatHuntActivity";
 
 const quickSkips = [
@@ -20,7 +19,6 @@ function stopReasonLabel(reason: string): string {
   return {
     "requested-time-complete": "Time complete",
     death: "Hunter defeated",
-    "safety-stop": "Safety stop",
     "requirements-lost": "Requirements lost",
     "activity-ended": "Activity ended",
   }[reason] ?? "Simulation invalid";
@@ -33,7 +31,10 @@ export function TimeBankPopover() {
   const activeProfileId = useGameStore((state) => state.activeProfileId);
   const profileIndex = useProfileStore((state) => state.index);
   const transactionRunning = useOfflineActivityRuntimeStore((state) => state.transactionRunning);
-  const lastResult = useOfflineActivityRuntimeStore((state) => state.lastResult);
+  const storedLastResult = useOfflineActivityRuntimeStore((state) => state.lastResult);
+  const lastResult = storedLastResult?.profileId === activeProfileId ? storedLastResult : null;
+  const resultsOpen = useOfflineActivityRuntimeStore((state) => state.resultsOpen);
+  const openResults = useOfflineActivityRuntimeStore((state) => state.openResults);
   const message = useOfflineActivityRuntimeStore((state) => state.message);
   const panel = getOfflineActivityPanelState(game);
 
@@ -64,15 +65,9 @@ export function TimeBankPopover() {
   const summary = lastResult?.activityType === "combat-hunt"
     ? lastResult.simulation.summary as CombatHuntOfflineSummary
     : null;
-  const partial = Boolean(lastResult && lastResult.simulation.simulatedSeconds < lastResult.simulation.requestedSeconds);
-  const lootGained = summary?.lootGained ?? {};
-  const lootRows = summary
-    ? Object.entries(lootGained)
-      .map(([itemId, quantity]) => ({ definition: itemById[itemId], quantity }))
-      .filter((entry): entry is { definition: NonNullable<typeof entry.definition>; quantity: number } => Boolean(entry.definition))
-      .slice(0, 3)
-    : [];
-  const extraLootTypes = summary ? Math.max(0, Object.keys(lootGained).filter((itemId) => Boolean(itemById[itemId])).length - lootRows.length) : 0;
+  useEffect(() => {
+    if (resultsOpen) setOpen(false);
+  }, [resultsOpen]);
 
   return (
     <div className="time-bank-control" data-debug-kind="offline-time-bank-control">
@@ -170,14 +165,10 @@ export function TimeBankPopover() {
           {lastResult && !message && (
             <div className="time-bank-last-result" data-debug-kind="offline-time-bank-last-result">
               <span className="eyebrow">LAST SKIP</span>
-              <strong>{partial ? `Requested ${formatCompactDuration(lastResult.simulation.requestedSeconds)}` : `Simulated ${formatCompactDuration(lastResult.simulation.simulatedSeconds)}`}</strong>
-              {partial && <small>Simulated {formatCompactDuration(lastResult.simulation.simulatedSeconds)}</small>}
-              <small>Stopped: {stopReasonLabel(lastResult.simulation.stopReason)}</small>
+              <strong>{formatCompactDuration(lastResult.simulation.requestedSeconds)} — {stopReasonLabel(lastResult.simulation.stopReason)}</strong>
+              <small>Active {formatCompactDuration(lastResult.simulation.activitySeconds)} · Wasted {formatCompactDuration(lastResult.simulation.wastedSeconds)}</small>
               {summary && <small>{summary.enemiesDefeated ?? 0} enemies · {summary.groupClears ?? 0} groups</small>}
-              {summary && (summary.masteryXp ?? 0) > 0 && <small>+{summary.masteryXp} Mastery XP</small>}
-              {summary && (summary.gold ?? 0) > 0 && <small>+{summary.gold} Gold</small>}
-              {lootRows.map(({ definition, quantity }) => <small key={definition.id}>{definition.name} ×{quantity}</small>)}
-              {extraLootTypes > 0 && <small>+ {extraLootTypes} more item types</small>}
+              <button type="button" className="button button-ghost button-small" onClick={openResults}>VIEW LAST RESULTS</button>
             </div>
           )}
         </section>

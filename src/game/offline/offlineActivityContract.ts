@@ -5,7 +5,6 @@ export type OfflineActivityStopReason =
   | "requested-time-complete"
   | "activity-ended"
   | "death"
-  | "safety-stop"
   | "requirements-lost"
   | "invalid";
 
@@ -32,7 +31,9 @@ export interface OfflineSimulationRng {
 
 export interface OfflineActivitySimulationResult<TState, TSummary = unknown> {
   requestedSeconds: number;
-  simulatedSeconds: number;
+  activitySeconds: number;
+  bankSpentSeconds: number;
+  wastedSeconds: number;
   stopReason: OfflineActivityStopReason;
   state: TState;
   summary: TSummary;
@@ -140,7 +141,7 @@ function failure(error: OfflineActivityTransactionError, message: string): Offli
 
 function isValidStopReason(value: unknown): value is OfflineActivityStopReason {
   return value === "requested-time-complete" || value === "activity-ended" || value === "death" ||
-    value === "safety-stop" || value === "requirements-lost" || value === "invalid";
+    value === "requirements-lost" || value === "invalid";
 }
 
 function validateResult<TState, TSummary>(
@@ -148,9 +149,14 @@ function validateResult<TState, TSummary>(
   requestedSeconds: number,
 ): boolean {
   return result.requestedSeconds === requestedSeconds &&
-    Number.isInteger(result.simulatedSeconds) &&
-    result.simulatedSeconds >= 0 &&
-    result.simulatedSeconds <= requestedSeconds &&
+    Number.isInteger(result.activitySeconds) &&
+    result.activitySeconds >= 0 &&
+    result.activitySeconds <= requestedSeconds &&
+    (result.bankSpentSeconds === 0 || result.bankSpentSeconds === requestedSeconds) &&
+    Number.isInteger(result.wastedSeconds) &&
+    result.wastedSeconds === result.bankSpentSeconds - result.activitySeconds &&
+    result.wastedSeconds >= 0 &&
+    result.bankSpentSeconds === requestedSeconds &&
     isValidStopReason(result.stopReason) &&
     result.state !== null && result.state !== undefined;
 }

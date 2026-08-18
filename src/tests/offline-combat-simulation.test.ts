@@ -113,7 +113,31 @@ describe("Offline Combat Simulation 1.0", () => {
     expect(combatHuntActivityAdapter.getEligibility({ ...active, combat: { ...active.combat, phase: "defeat" } }).eligible).toBe(false);
   });
 
-  it("stops and bills only actual time for death and safety", () => {
+  it("starts the next live group after recovery at low health", () => {
+    const snapshot = activeHunt();
+    const lowHealth = {
+      ...snapshot,
+      combatAutomation: { ...snapshot.combatAutomation, enabled: false },
+      combat: {
+        ...snapshot.combat,
+        playerHp: snapshot.combat.maxPlayerHp * 0.1,
+        enemies: snapshot.combat.enemies.map((enemy) => ({ ...enemy, currentHealth: 0, defeated: true })),
+      },
+    };
+    const context = createCombatContext(createDeterministicOfflineRng(991));
+    const stats = calculateHunterCombatStats(lowHealth.equipment, lowHealth.inventory, lowHealth.progression, lowHealth.combat.techniques);
+    const recovery = advanceCombatStep(lowHealth, 0.1, context, stats);
+    expect(recovery.combat.phase).toBe("recovery");
+    const nextGroup = advanceCombatStep(recovery, 3, context, stats);
+    expect(nextGroup.combat.phase).toBe("active");
+    expect(nextGroup.combat.groupNumber).toBe(2);
+    expect(nextGroup.combat.stopReason).toBeNull();
+
+    const offline = simulateCombatHuntOffline(lowHealth, { requestedSeconds: 8 }, createDeterministicOfflineRng(991));
+    expect(offline.state.combat.groupNumber).toBeGreaterThanOrEqual(2);
+  });
+
+  it("stops computation on death but spends the full requested skip", () => {
     const deathSnapshot = activeHunt();
     const death = simulateCombatHuntOffline({
       ...deathSnapshot,
@@ -122,23 +146,28 @@ describe("Offline Combat Simulation 1.0", () => {
         playerHp: 1,
         enemies: deathSnapshot.combat.enemies.map((enemy) => ({ ...enemy, attackTimer: 0 })),
       },
+      combatAutomation: { ...deathSnapshot.combatAutomation, enabled: false },
     }, { requestedSeconds: 60 }, createDeterministicOfflineRng(991));
     expect(death.stopReason).toBe("death");
-    expect(death.simulatedSeconds).toBeGreaterThan(0);
-    expect(death.simulatedSeconds).toBeLessThan(60);
+    expect(death.activitySeconds).toBeGreaterThan(0);
+    expect(death.activitySeconds).toBeLessThan(60);
+    expect(death.bankSpentSeconds).toBe(60);
+    expect(death.wastedSeconds).toBe(60 - death.activitySeconds);
 
-    const safetySnapshot = activeHunt();
-    const safety = simulateCombatHuntOffline({
-      ...safetySnapshot,
+    const lowHealthSnapshot = activeHunt();
+    const lowHealth = simulateCombatHuntOffline({
+      ...lowHealthSnapshot,
       combat: {
-        ...safetySnapshot.combat,
+        ...lowHealthSnapshot.combat,
         playerHp: 1,
-        enemies: safetySnapshot.combat.enemies.map((enemy) => ({ ...enemy, currentHealth: 0, defeated: true })),
+        enemies: lowHealthSnapshot.combat.enemies.map((enemy) => ({ ...enemy, currentHealth: 0, defeated: true })),
       },
+      combatAutomation: { ...lowHealthSnapshot.combatAutomation, enabled: false },
     }, { requestedSeconds: 60 }, createDeterministicOfflineRng(991));
-    expect(safety.stopReason).toBe("safety-stop");
-    expect(safety.simulatedSeconds).toBeGreaterThan(0);
-    expect(safety.simulatedSeconds).toBeLessThan(60);
+    expect(lowHealth.stopReason).toBe("death");
+    expect(lowHealth.activitySeconds).toBeGreaterThan(0);
+    expect(lowHealth.activitySeconds).toBeLessThan(60);
+    expect(lowHealth.bankSpentSeconds).toBe(60);
   });
 
   it("preserves periodic effects, Enemy Actions, automation, and Technique depletion", () => {
@@ -182,7 +211,7 @@ describe("Offline Combat Simulation 1.0", () => {
     const snapshot = activeHunt();
     const result = simulateCombatHuntOffline(snapshot, { requestedSeconds: 10 }, createDeterministicOfflineRng(991));
     expect(result.stopReason).toBe("requested-time-complete");
-    expect(result.simulatedSeconds).toBe(10);
+    expect(result.activitySeconds).toBe(10);
     expect(result.summary.eventSteps).toBeLessThan(100);
     expect(result.summary.virtualElapsedSeconds).toBe(10);
   });

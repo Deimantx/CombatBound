@@ -3,7 +3,6 @@ export type CombatPhase =
 export type CombatStopReason =
   | "manual"
   | "defeat"
-  | "safety"
   | "consumablesDepleted"
   | "victoryLimit"
   | "completed";

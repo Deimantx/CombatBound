@@ -22,10 +22,13 @@ describe("Offline activity runtime profile boundaries", () => {
   it("does not show Profile 1 Last Skip or errors in Profile 2", () => {
     expect(createAndEnterProfile(1, "regular", "normal")).toBe(true);
     useOfflineActivityRuntimeStore.getState().setLastResult({
+      profileId: "profile-1",
       activityType: "combat-hunt",
       simulation: {
         requestedSeconds: 300,
-        simulatedSeconds: 300,
+        activitySeconds: 300,
+        bankSpentSeconds: 300,
+        wastedSeconds: 0,
         stopReason: "requested-time-complete",
         state: useGameStore.getState().game,
         summary: {},
@@ -38,5 +41,6 @@ describe("Offline activity runtime profile boundaries", () => {
     expect(runtime.lastResult).toBeNull();
     expect(runtime.message).toBeNull();
     expect(runtime.transactionRunning).toBe(false);
+    expect(runtime.resultsOpen).toBe(false);
   });
 });

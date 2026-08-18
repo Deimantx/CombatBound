@@ -450,11 +450,7 @@ export function advanceCombatStep(
         elapsedSeconds: combat.session.elapsedSeconds + step,
       },
     };
-    if (
-      combat.recoveryRemaining <= 0 &&
-      combat.combatLocationId &&
-      combat.playerHp / Math.max(1, effective.maxLife ?? 0) >= combatBalance.safetyStopThreshold
-    ) {
+    if (combat.recoveryRemaining <= 0 && combat.combatLocationId) {
       const location = context.locations[combat.combatLocationId];
       const group = location
         ? generateCombatGroup(
@@ -474,7 +470,7 @@ export function advanceCombatStep(
             )
           : { ...combat, phase: "stopped", stopReason: "completed" };
     } else if (combat.recoveryRemaining <= 0)
-      combat = { ...combat, phase: "stopped", stopReason: "safety" };
+      combat = { ...combat, phase: "stopped", stopReason: "completed" };
     return { ...game, combat };
   }
   if (combat.phase === "inactive" || combat.phase === "stopped") {
@@ -769,28 +765,18 @@ function resolveDefeatedEnemies(
         groupClears: next.combat.session.groupClears + 1,
       },
     };
-    next.combat =
-      cleared.playerHp / cleared.maxPlayerHp < combatBalance.safetyStopThreshold
-        ? event(
-            { ...cleared, phase: "stopped", stopReason: "safety" },
-            {
-              text: "Group cleared. Safety rule stopped the hunt below 20% HP.",
-              type: "system",
-              eventType: "groupCleared",
-            },
-          )
-        : event(
-            {
-              ...cleared,
-              phase: "recovery",
-              recoveryRemaining: combatBalance.recoverySeconds,
-            },
-            {
-              text: `Group ${cleared.groupNumber} cleared. Recovery begins.`,
-              type: "system",
-              eventType: "recoveryStarted",
-            },
-          );
+    next.combat = event(
+      {
+        ...cleared,
+        phase: "recovery",
+        recoveryRemaining: combatBalance.recoverySeconds,
+      },
+      {
+        text: `Group ${cleared.groupNumber} cleared. Recovery begins.`,
+        type: "system",
+        eventType: "recoveryStarted",
+      },
+    );
   } else if (
     next.combat.phase === "active" &&
     (!next.combat.selectedEnemyInstanceId ||

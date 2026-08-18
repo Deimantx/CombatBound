@@ -15,6 +15,7 @@ export function SimulationDriver() {
   const tickCombat = useGameStore((state) => state.tickCombat);
   const paused = useDevToolsRuntimeStore((state) => state.simulationPaused);
   const offlineTransactionRunning = useOfflineActivityRuntimeStore((state) => state.transactionRunning);
+  const offlineResultsOpen = useOfflineActivityRuntimeStore((state) => state.resultsOpen);
   const offlineReportOpen = useProfileStore((state) => Boolean(state.pendingOfflineReport));
   const timeScale = useDevToolsRuntimeStore((state) => state.timeScale);
   const accumulator = useRef(0);
@@ -32,7 +33,7 @@ export function SimulationDriver() {
   }, []);
 
   useEffect(() => {
-    if ((!combatActive && !recoveryActive) || paused || offlineTransactionRunning || !visible || offlineReportOpen) {
+    if ((!combatActive && !recoveryActive) || paused || offlineTransactionRunning || offlineResultsOpen || !visible || offlineReportOpen) {
       accumulator.current = 0;
       return;
     }
@@ -49,7 +50,7 @@ export function SimulationDriver() {
       }
     }, 100);
     return () => window.clearInterval(interval);
-  }, [combatActive, recoveryActive, paused, offlineTransactionRunning, offlineReportOpen, resetVersion, timeScale, tickCombat, visible]);
+  }, [combatActive, recoveryActive, paused, offlineTransactionRunning, offlineResultsOpen, offlineReportOpen, resetVersion, timeScale, tickCombat, visible]);
 
   return null;
 }

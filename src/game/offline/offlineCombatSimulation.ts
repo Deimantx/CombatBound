@@ -1,7 +1,11 @@
 import { calculateHunterCombatStats } from "../equipment/derivedStats";
 import { advanceCombatStep, createCombatContext } from "../combat/combatEngine";
+import { proficiencyById } from "../data/proficiencies";
+import { masteryLevelForXp } from "../progression/masteryProgression";
+import { proficiencyLevelForXp } from "../progression/proficiencyProgression";
 import type { CombatProficiencyId } from "../progression/progressionTypes";
 import type { GameState } from "../gameState";
+import type { ItemInstanceId } from "../items/itemTypes";
 import type {
   OfflineActivitySimulationRequest,
   OfflineActivitySimulationResult,
@@ -13,6 +17,7 @@ import {
   secondsToOfflineCombatTicks,
   OFFLINE_COMBAT_TICKS_PER_SECOND,
 } from "./offlineCombatScheduler";
+import { perHour } from "./offlineResultMetrics";
 
 export interface CombatHuntOfflineSummary {
   enemiesDefeated: number;
@@ -20,13 +25,30 @@ export interface CombatHuntOfflineSummary {
   damageDealt: number;
   damageTaken: number;
   healing: number;
+  highestHit: number;
   masteryXp: number;
   proficiencyXp: Partial<Record<CombatProficiencyId, number>>;
+  progressionRows: OfflineProgressionResultRow[];
   gold: number;
   itemsGained: number;
   lootGained: Record<string, number>;
+  itemInstanceIdsGained: ItemInstanceId[];
+  requestedSeconds: number;
+  activitySeconds: number;
+  wastedSeconds: number;
   eventSteps: number;
   virtualElapsedSeconds: number;
+}
+
+export interface OfflineProgressionResultRow {
+  progressionId: string;
+  name: string;
+  xpBefore: number;
+  xpAfter: number;
+  xpGained: number;
+  levelBefore: number;
+  levelAfter: number;
+  xpPerHour: number;
 }
 
 // Phase A Wolf Den/Bandit Camp benchmarks peaked at 79,887 event steps for
@@ -50,7 +72,49 @@ function recordDelta(
   return result;
 }
 
-function summaryFor(initial: GameState, final: GameState, eventSteps: number, virtualElapsedSeconds: number): CombatHuntOfflineSummary {
+function progressionRows(initial: GameState, final: GameState, requestedSeconds: number): OfflineProgressionResultRow[] {
+  const rows: OfflineProgressionResultRow[] = [];
+  const masteryBefore = initial.progression.masteryXp;
+  const masteryAfter = final.progression.masteryXp;
+  rows.push({
+    progressionId: "combat-mastery",
+    name: "Combat Mastery",
+    xpBefore: masteryBefore,
+    xpAfter: masteryAfter,
+    xpGained: delta(masteryAfter, masteryBefore),
+    levelBefore: masteryLevelForXp(masteryBefore),
+    levelAfter: masteryLevelForXp(masteryAfter),
+    xpPerHour: perHour(delta(masteryAfter, masteryBefore), requestedSeconds),
+  });
+  const ids = new Set([
+    ...Object.keys(initial.progression.proficiencies),
+    ...Object.keys(final.progression.proficiencies),
+  ] as CombatProficiencyId[]);
+  for (const proficiencyId of ids) {
+    const before = initial.progression.proficiencies[proficiencyId]?.totalXp ?? 0;
+    const after = final.progression.proficiencies[proficiencyId]?.totalXp ?? 0;
+    rows.push({
+      progressionId: proficiencyId,
+      name: proficiencyById[proficiencyId]?.name ?? proficiencyId,
+      xpBefore: before,
+      xpAfter: after,
+      xpGained: delta(after, before),
+      levelBefore: proficiencyLevelForXp(before),
+      levelAfter: proficiencyLevelForXp(after),
+      xpPerHour: perHour(delta(after, before), requestedSeconds),
+    });
+  }
+  return rows;
+}
+
+function summaryFor(
+  initial: GameState,
+  final: GameState,
+  requestedSeconds: number,
+  activitySeconds: number,
+  eventSteps: number,
+  virtualElapsedSeconds: number,
+): CombatHuntOfflineSummary {
   const initialSession = initial.combat.session;
   const finalSession = final.combat.session;
   const proficiencyXp: Partial<Record<CombatProficiencyId, number>> = {};
@@ -70,11 +134,17 @@ function summaryFor(initial: GameState, final: GameState, eventSteps: number, vi
     damageDealt: delta(finalSession.damageDealt, initialSession.damageDealt),
     damageTaken: delta(finalSession.damageTaken, initialSession.damageTaken),
     healing: delta(finalSession.healing, initialSession.healing),
+    highestHit: Math.max(0, finalSession.highestHit),
     masteryXp: delta(finalSession.masteryXpGained, initialSession.masteryXpGained),
     proficiencyXp,
+    progressionRows: progressionRows(initial, final, requestedSeconds),
     gold: delta(finalSession.goldGained, initialSession.goldGained),
     itemsGained: delta(finalSession.itemsGained, initialSession.itemsGained),
     lootGained: recordDelta(finalSession.lootGained, initialSession.lootGained),
+    itemInstanceIdsGained: finalSession.itemInstanceIdsGained.filter((id) => !initialSession.itemInstanceIdsGained.includes(id)),
+    requestedSeconds,
+    activitySeconds,
+    wastedSeconds: Math.max(0, requestedSeconds - activitySeconds),
     eventSteps,
     virtualElapsedSeconds,
   };
@@ -88,7 +158,6 @@ function stopReason(game: GameState): OfflineActivitySimulationResult<GameState,
   if (game.combat.phase === "defeat" || game.combat.stopReason === "defeat") return "death";
   if (game.combat.phase !== "stopped") return "requested-time-complete";
   switch (game.combat.stopReason) {
-    case "safety": return "safety-stop";
     case "consumablesDepleted": return "requirements-lost";
     case "completed":
     case "victoryLimit":
@@ -115,10 +184,12 @@ export function simulateCombatHuntOffline(
     if (++eventSteps > MAX_EVENT_STEPS) {
       return {
         requestedSeconds,
-        simulatedSeconds: 0,
+        activitySeconds: 0,
+        bankSpentSeconds: 0,
+        wastedSeconds: 0,
         stopReason: "invalid",
         state: initial,
-        summary: summaryFor(initial, initial, eventSteps, 0),
+        summary: summaryFor(initial, initial, requestedSeconds, 0, eventSteps, 0),
       };
     }
     const stats = calculateHunterCombatStats(
@@ -151,14 +222,19 @@ export function simulateCombatHuntOffline(
   const reason = elapsedTicks >= requestedTicks && !isTerminal(game)
     ? "requested-time-complete"
     : stopReason(game);
-  const simulatedSeconds = elapsedTicks >= requestedTicks
-    ? Math.floor(requestedSeconds)
-    : Math.min(Math.floor(requestedSeconds), Math.ceil(virtualElapsedSeconds));
+  const activitySeconds = Math.min(
+    requestedSeconds,
+    elapsedTicks >= requestedTicks ? requestedSeconds : Math.ceil(virtualElapsedSeconds),
+  );
+  const bankSpentSeconds = requestedSeconds;
+  const wastedSeconds = Math.max(0, bankSpentSeconds - activitySeconds);
   return {
     requestedSeconds,
-    simulatedSeconds,
+    activitySeconds,
+    bankSpentSeconds,
+    wastedSeconds,
     stopReason: reason,
     state: game,
-    summary: summaryFor(initial, game, eventSteps, virtualElapsedSeconds),
+    summary: summaryFor(initial, game, requestedSeconds, activitySeconds, eventSteps, virtualElapsedSeconds),
   };
 }

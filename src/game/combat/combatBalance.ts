@@ -7,7 +7,6 @@ export const combatBalance = {
   standardGlobalCooldown: 0.75, // [TUNING] Shared player action GCD.
   enforceWeaponSkillLevelRequirements: false, // [TUNING] Prototype weapon skills are unlocked for testing.
   autoPotionThreshold: 0.35, // [TUNING] Prototype value.
-  safetyStopThreshold: 0.2, // [TUNING] Prototype value.
   healingPotionAmount: 70, // [TUNING] Prototype value.
   baseMaxLife: 250, // [TUNING] Prototype value.
   baseAttackDamage: 20, // [TUNING] Prototype value.

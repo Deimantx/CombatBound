@@ -426,7 +426,7 @@ export function InfoScreen() {
           <GuideRow
             icon={Swords}
             title="Start a Hunt"
-            copy="Starting a location generates a weighted random group. After recovery, another group is generated automatically until you stop, die, or trigger the safety rule."
+            copy="Starting a location generates a weighted random group. After recovery, another group is generated automatically until you stop, die, or the Hunter is defeated."
           />
         </Panel>
         <Panel

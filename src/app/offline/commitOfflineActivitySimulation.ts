@@ -20,7 +20,7 @@ export interface OfflineActivitySimulationCommitInput {
   ownerId: string;
   previousGame: GameState;
   nextGame: GameState;
-  simulatedSeconds: number;
+  bankSpentSeconds: number;
   reducedMotion: boolean;
   showInspectorButton: boolean;
 }
@@ -64,8 +64,8 @@ export function commitOfflineActivitySimulation(
   const previousStoredSave = loadProfileGameSave(input.profileId);
   if (!previousStoredSave) return false;
 
-  const spend = input.simulatedSeconds > 0
-    ? spendOfflineBankTime(previousMetadata.offlineBankSeconds, input.simulatedSeconds, offlineTimePolicy)
+  const spend = input.bankSpentSeconds > 0
+    ? spendOfflineBankTime(previousMetadata.offlineBankSeconds, input.bankSpentSeconds, offlineTimePolicy)
     : {
         ok: true as const,
         requestedSeconds: 0,

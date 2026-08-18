@@ -97,7 +97,7 @@ export function requestOfflineSkip(requestedSeconds: number): OfflineActivityTra
       ownerId,
       previousGame: current.game,
       nextGame: simulation.state,
-      simulatedSeconds: simulation.simulatedSeconds,
+      bankSpentSeconds: simulation.bankSpentSeconds,
       reducedMotion: useGameStore.getState().reducedMotion,
       showInspectorButton: useGameStore.getState().showInspectorButton,
     }),
@@ -105,10 +105,13 @@ export function requestOfflineSkip(requestedSeconds: number): OfflineActivityTra
 
   if (result.ok) {
     useOfflineActivityRuntimeStore.getState().setLastResult({
+      profileId: current.id,
       activityType: result.activityType,
       simulation: result.simulation,
     });
+    useOfflineActivityRuntimeStore.getState().openResults();
   } else {
+    useOfflineActivityRuntimeStore.getState().closeResults();
     useOfflineActivityRuntimeStore.getState().setMessage(result.message);
   }
   return result;

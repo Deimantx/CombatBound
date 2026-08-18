@@ -33,7 +33,7 @@ describe("Offline Combat coordinated commit", () => {
       ownerId: getProfileSessionOwnerId(),
       previousGame: current.game,
       nextGame,
-      simulatedSeconds: 900,
+      bankSpentSeconds: 900,
       reducedMotion: current.reducedMotion,
       showInspectorButton: current.showInspectorButton,
     };

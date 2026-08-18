@@ -113,6 +113,20 @@ describe("Offline Time browser lifecycle", () => {
     expect(useGameStore.getState().game.combat.session.elapsedSeconds).toBeGreaterThan(beforeFastForward);
   });
 
+  it("pauses the live driver while Time Skip results are open and resumes cleanly", () => {
+    expect(createAndEnterProfile(1, "regular", "normal")).toBe(true);
+    useGameStore.getState().startHunt();
+    render(<SimulationDriver />);
+    act(() => vi.advanceTimersByTime(500));
+    const beforeResults = useGameStore.getState().game.combat.session.elapsedSeconds;
+    act(() => useOfflineActivityRuntimeStore.getState().openResults());
+    act(() => vi.advanceTimersByTime(1_000));
+    expect(useGameStore.getState().game.combat.session.elapsedSeconds).toBe(beforeResults);
+    act(() => useOfflineActivityRuntimeStore.getState().closeResults());
+    act(() => vi.advanceTimersByTime(1_000));
+    expect(useGameStore.getState().game.combat.session.elapsedSeconds).toBeGreaterThan(beforeResults);
+  });
+
   it("keeps a BFCache page alive and re-establishes an expired same-owner lease", () => {
     expect(createAndEnterProfile(1, "regular", "normal")).toBe(true);
     render(<ProfileSessionCoordinator profileId="profile-1" />);
