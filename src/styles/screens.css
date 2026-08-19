@@ -13,7 +13,7 @@
 .proficiency-tile-top { align-items: center; display: flex; height: 27px; justify-content: center; position: relative; width: 100%; }
 .proficiency-tile-indicator { align-items: center; border-radius: 999px; display: flex; font-size: 7px; font-weight: 900; height: 13px; justify-content: center; position: absolute; right: -1px; top: -2px; width: 13px; }
 .proficiency-tile-indicator.is-active { background: var(--gold); color: var(--panel); }
-.proficiency-tile-indicator.is-spell { color: var(--blue); }
+.proficiency-tile-indicator.is-magic-art { color: var(--blue); }
 .proficiency-tile-name { display: -webkit-box; font-size: 9px; line-height: 1.1; min-height: 2.2em; overflow: hidden; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
 .proficiency-tile > small { color: var(--muted); font-size: 8px; white-space: nowrap; }
 .proficiency-tile .progress-wrap { height: 4px; margin-top: auto; width: 100%; }
