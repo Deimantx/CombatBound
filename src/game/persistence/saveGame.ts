@@ -24,7 +24,7 @@ import { normalizeCombatAbilityLoadout } from "../combatAbilities/combatAbilityL
 import { normalizeCombatAutomationPresets } from "../automation/automationPresets";
 import { normalizeInventoryState } from "../items/itemOwnership";
 import { normalizeEquipmentState } from "../equipment/equipmentRules";
-import { normalizeMagicArts, createInitialMagicArts } from "../magicArts/magicArtLogic";
+import { normalizeMagicArts } from "../magicArts/magicArtLogic";
 import { getActiveAbilityActionDefinitions } from "../combat/playerActions";
 
 export const CURRENT_SAVE_VERSION = 15;
@@ -76,7 +76,7 @@ export function gameStateToSaveV15(
   game: GameState,
   settings: { reducedMotion: boolean; showInspectorButton: boolean },
 ): GameSaveV15 {
-  const magicArts = normalizeMagicArts(game.magicArts ?? createInitialMagicArts());
+  const magicArts = normalizeMagicArts(game.magicArts);
   return {
     version: 15,
     progression: game.progression,

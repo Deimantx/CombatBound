@@ -7,6 +7,7 @@ import { getEnemyEffectiveCombatStats, getPlayerEffectiveCombatStats } from "../
 import { getCombatAbilityAvailability, getCombatAbilityEquippedSlot, getKnownCombatAbilities } from "../../../../game/combatAbilities/combatAbilitySelectors";
 import { COMBAT_ABILITY_SLOT_COUNT, type CombatAbilityCatalogueEntry } from "../../../../game/combatAbilities/combatAbilityTypes";
 import { spellDefinitions } from "../../../../game/data/spells";
+import { getMagicArt } from "../../../../game/magicArts/magicArtLogic";
 import { getMagicSchoolPresentation } from "../../../../game/presentation/magicSchool";
 import { weaponSkillById } from "../../../../game/data/weaponSkills";
 import { calculateHunterCombatStats } from "../../../../game/equipment/derivedStats";
@@ -107,10 +108,11 @@ function CombatAbilityDetails({ game, entry, stats, context, selectedSlot, locke
   if (!entry) return <section className="combat-ability-details"><span className="muted-copy">Select an ability to inspect it.</span></section>;
   if (entry.kind === "core") return <section className="combat-ability-details"><DetailHeading icon={entry.icon} title={entry.name} subtitle="Core Combat" /><DetailRow label="Loadout" value="Always available" /><DetailRow label="Attack interval" value={`${stats.attackInterval.toFixed(1)}s`} /><DetailCopy label="DESCRIPTION" value={entry.description} /></section>;
   const action = getActionById(game, entry.actionId, context);
+  const magicArt = entry.kind === "magic-art" ? getMagicArt(entry.actionId) : undefined;
   const slot = getCombatAbilityEquippedSlot(game, entry.actionId);
   const availability = getCombatAbilityAvailability(game, entry.actionId);
   if (entry.kind === "magic-art") {
-    return <section className="combat-ability-details" data-debug-kind="magic-art-details" data-debug-ability-id={entry.actionId}><DetailHeading icon={entry.icon} title={entry.name} subtitle="Magic Art" /><div className="combat-ability-detail-grid"><DetailRow label="Mana Cost" value={`${action?.resourceCost?.mana ?? 35}`} /><DetailRow label="Cooldown" value={`${action?.cooldown.toFixed(1) ?? "10.0"}s`} /><DetailRow label="Duration" value="12.0s" /><DetailRow label="Absorb" value="80" /><DetailRow label="Target" value="Self" /></div><DetailCopy label="MAGIC ARTS XP" value="Mana spent + effective HP damage. Earth Shield awards 35 XP per successful cast." /><div className="combat-ability-status is-ready"><strong>{slot >= 0 ? "READY WITH CURRENT BUILD" : "NOT EQUIPPED"}</strong><span>Magic Arts Proficiency</span></div><EquipActions locked={locked} slot={slot} selectedSlot={selectedSlot} actionId={entry.actionId} onEquip={onEquip} onUnequip={onUnequip} /></section>;
+    return <section className="combat-ability-details" data-debug-kind="magic-art-details" data-debug-ability-id={entry.actionId}><DetailHeading icon={entry.icon} title={entry.name} subtitle="Magic Art" /><div className="combat-ability-detail-grid"><DetailRow label="Mana Cost" value={`${magicArt?.manaCost ?? action?.resourceCost?.mana ?? 0}`} /><DetailRow label="Cooldown" value={`${(magicArt?.cooldownSeconds ?? action?.cooldown ?? 0).toFixed(1)}s`} /><DetailRow label="Duration" value={`${magicArt?.durationSeconds ?? 0}s`} /><DetailRow label="Absorb" value={`${magicArt?.barrier?.absorbAmount ?? 0}`} /><DetailRow label="Target" value={magicArt?.targetMode === "selected-enemy" ? "Selected enemy" : "Self"} /></div><DetailCopy label="MAGIC ARTS XP" value={`Mana spent + effective HP damage. ${magicArt?.name ?? "This Art"} awards ${magicArt?.manaCost ?? 0} XP before damage XP per successful cast.`} /><div className="combat-ability-status is-ready"><strong>{slot >= 0 ? "READY WITH CURRENT BUILD" : "NOT EQUIPPED"}</strong><span>Magic Arts Proficiency</span></div><EquipActions locked={locked} slot={slot} selectedSlot={selectedSlot} actionId={entry.actionId} onEquip={onEquip} onUnequip={onUnequip} /></section>;
   }
   if (entry.kind === "spell") {
     const spell = spellDefinitions.find((candidate) => candidate.id === entry.actionId);
