@@ -27,8 +27,22 @@ function twoSwords() {
   return { game: { ...game, inventory }, first: swords[0], second: swords[1] };
 }
 
+function legacySpellbook(game: ReturnType<typeof createInitialGameState>) {
+  return {
+    knownSpellIds: game.spellbook.knownSpellIds,
+    equippedSpellSlots: game.combatAbilities.slots.filter((id) => id?.startsWith("spell.")).slice(0, 5),
+  };
+}
+
+function legacyCombatAbilities(game: ReturnType<typeof createInitialGameState>) {
+  return {
+    activeSlots: game.combatAbilities.slots.map((id) => id?.startsWith("spell.") ? null : id),
+    techniqueSlots: [null, null],
+  };
+}
+
 function saveFor(game: ReturnType<typeof createInitialGameState>, inventory = game.inventory, equipment = game.equipment) {
-  return { version: 12 as const, progression: game.progression, inventory, equipment, collection: game.collection, gold: game.gold, settings: { reducedMotion: false, showInspectorButton: true }, spellbook: game.spellbook, combatAutomation: game.combatAutomation, combatAutomationPresets: game.combatAutomationPresets, combatAbilities: game.combatAbilities };
+  return { version: 12 as const, progression: game.progression, inventory, equipment, collection: game.collection, gold: game.gold, settings: { reducedMotion: false, showInspectorButton: true }, spellbook: legacySpellbook(game), combatAutomation: game.combatAutomation, combatAutomationPresets: game.combatAutomationPresets, combatAbilities: legacyCombatAbilities(game) };
 }
 
 describe("ItemInstance V2 modification foundation", () => {
@@ -67,11 +81,11 @@ describe("ItemInstance V2 modification foundation", () => {
   it("feeds the exact modified instance into combat and leaves the sibling at base", () => {
     const { first, second, game } = twoSwords();
     const modifiedInventory = addItemAffix(setItemQuality(game.inventory, first.id, 20).inventory, first.id, "affix.sharpened", "affix.sharpened.t1", { next: () => 1 }).inventory;
-    const firstStats = calculateHunterCombatStats({ slots: { weapon: first.id } }, modifiedInventory, game.progression, game.combat.techniques);
-    const secondStats = calculateHunterCombatStats({ slots: { weapon: second.id } }, modifiedInventory, game.progression, game.combat.techniques);
+    const firstStats = calculateHunterCombatStats({ slots: { weapon: first.id } }, modifiedInventory, game.progression);
+    const secondStats = calculateHunterCombatStats({ slots: { weapon: second.id } }, modifiedInventory, game.progression);
     expect(firstStats.attackDamageMin).toBeCloseTo(29 * 1.38, 10);
     expect(secondStats.attackDamageMin).toBe(29);
-    const breakdown = buildStatBreakdown({ equipment: { slots: { weapon: first.id } }, inventory: modifiedInventory, progression: game.progression, techniques: game.combat.techniques, playerEffects: [], combatPhase: "inactive" }, "attackDamage", "build");
+    const breakdown = buildStatBreakdown({ equipment: { slots: { weapon: first.id } }, inventory: modifiedInventory, progression: game.progression, playerEffects: [], combatPhase: "inactive" }, "attackDamage", "build");
     expect(breakdown.finalValue).toBeCloseTo(firstStats.attackDamage, 10);
     expect(breakdown.contributions.some((entry) => entry.sourceId === first.id)).toBe(true);
   });
@@ -108,7 +122,7 @@ describe("ItemInstance V2 modification foundation", () => {
 
   it("preserves exact item identity through V11 migration and V12 round trip", () => {
     const game = createInitialGameState();
-    const v11 = migrateV10Save({ version: 10, progression: game.progression, inventory: { quantities: { "item.hunter-sword": 2 } }, equipment: { slots: { weapon: "item.hunter-sword" } }, collection: game.collection, gold: 0, settings: { reducedMotion: false, showInspectorButton: true }, spellbook: game.spellbook, combatAutomation: game.combatAutomation, combatAutomationPresets: game.combatAutomationPresets, combatAbilities: game.combatAbilities })!;
+    const v11 = migrateV10Save({ version: 10, progression: game.progression, inventory: { quantities: { "item.hunter-sword": 2 } }, equipment: { slots: { weapon: "item.hunter-sword" } }, collection: game.collection, gold: 0, settings: { reducedMotion: false, showInspectorButton: true }, spellbook: legacySpellbook(game), combatAutomation: game.combatAutomation, combatAutomationPresets: game.combatAutomationPresets, combatAbilities: legacyCombatAbilities(game) })!;
     const migrated = migrateV11Save(v11)!;
     const id = migrated.equipment.slots.weapon!;
     expect(migrated.version).toBe(12);
@@ -123,10 +137,10 @@ describe("ItemInstance V2 modification foundation", () => {
 
   it("migrates duplicate ring ownership one-to-one and drops over-equipped copies", () => {
     const game = createInitialGameState();
-    const migrated = migrateV10Save({ version: 10, progression: game.progression, inventory: { quantities: { "item.copper-signet": 2 } }, equipment: { slots: { ring1: "item.copper-signet", ring2: "item.copper-signet" } }, collection: game.collection, gold: 0, settings: { reducedMotion: false, showInspectorButton: true }, spellbook: game.spellbook, combatAutomation: game.combatAutomation, combatAutomationPresets: game.combatAutomationPresets, combatAbilities: game.combatAbilities })!;
+    const migrated = migrateV10Save({ version: 10, progression: game.progression, inventory: { quantities: { "item.copper-signet": 2 } }, equipment: { slots: { ring1: "item.copper-signet", ring2: "item.copper-signet" } }, collection: game.collection, gold: 0, settings: { reducedMotion: false, showInspectorButton: true }, spellbook: legacySpellbook(game), combatAutomation: game.combatAutomation, combatAutomationPresets: game.combatAutomationPresets, combatAbilities: legacyCombatAbilities(game) })!;
     expect(new Set(Object.values(migrated.inventory.instances).map((instance) => instance.id)).size).toBe(2);
     expect(new Set(Object.values(migrated.equipment.slots))).toHaveLength(2);
-    const corrupt = migrateV10Save({ version: 10, progression: game.progression, inventory: { quantities: { "item.copper-signet": 1 } }, equipment: { slots: { ring1: "item.copper-signet", ring2: "item.copper-signet" } }, collection: game.collection, gold: 0, settings: { reducedMotion: false, showInspectorButton: true }, spellbook: game.spellbook, combatAutomation: game.combatAutomation, combatAutomationPresets: game.combatAutomationPresets, combatAbilities: game.combatAbilities })!;
+    const corrupt = migrateV10Save({ version: 10, progression: game.progression, inventory: { quantities: { "item.copper-signet": 1 } }, equipment: { slots: { ring1: "item.copper-signet", ring2: "item.copper-signet" } }, collection: game.collection, gold: 0, settings: { reducedMotion: false, showInspectorButton: true }, spellbook: legacySpellbook(game), combatAutomation: game.combatAutomation, combatAutomationPresets: game.combatAutomationPresets, combatAbilities: legacyCombatAbilities(game) })!;
     expect(Object.values(corrupt.equipment.slots)).toHaveLength(1);
   });
 
@@ -149,7 +163,7 @@ describe("ItemInstance V2 modification foundation", () => {
     const preview = previewEquipmentChange({ inventory: granted.inventory, equipment: bothEquip.equipment, instanceId: ids[0], slotId: "ring2", hunterRank: 10 });
     expect(preview.equipment.slots.ring1).toBeUndefined();
     expect(preview.equipment.slots.ring2).toBe(ids[0]);
-    const stats = calculateHunterCombatStats(preview.equipment, granted.inventory, game.progression, game.combat.techniques);
+    const stats = calculateHunterCombatStats(preview.equipment, granted.inventory, game.progression);
     expect(stats.accuracyRating).toBe(78);
   });
 

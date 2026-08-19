@@ -31,7 +31,6 @@ function equipmentStats(slots: Record<string, string> = {}) {
     { slots: resolvedSlots },
     { stackables: {}, instances, nextInstanceSequence: sequence },
     game.progression,
-    game.combat.techniques,
     itemById,
   );
 }
@@ -91,8 +90,8 @@ describe("Combat Systems 2.0.1 hardening", () => {
 
   it("keeps Shadow Bolt limited to Withered without Decay and grants Decay from its first perk", () => {
     const base = createInitialGameState();
-    const spellbook = { ...base.spellbook, equippedSpellSlots: ["spell.shadow-bolt", ...base.spellbook.equippedSpellSlots.slice(1)] };
-    const started = startHunt({ ...base, combat: { ...base.combat, playerHp: 1000 } }, "location.wolf-den", attacker, createCombatContext(fixedRng(.5)));
+    const spellbook = { ...base.spellbook, knownSpellIds: Array.from(new Set([...base.spellbook.knownSpellIds, "spell.shadow-bolt"])) };
+    const started = startHunt({ ...base, combat: { ...base.combat, playerHp: 1000 }, combatAbilities: { ...base.combatAbilities, slots: ["defense.guard", "defense.evasive-step", "defense.brace", "spell.shadow-bolt", null] } }, "location.wolf-den", attacker, createCombatContext(fixedRng(.5)));
     const target = started.combat.enemies[0];
     const castBase = castSpell({ ...started, spellbook, combat: { ...started.combat, selectedEnemyInstanceId: target.instanceId, mana: 100 } }, "spell.shadow-bolt", attacker, createCombatContext(fixedRng(.01)));
     expect(castBase.combat.enemies[0].effects.map((effect) => effect.effectId)).toEqual(["effect.withered"]);

@@ -7,6 +7,7 @@ import { grantItem, normalizeInventoryState } from "../game/items/itemOwnership"
 import { resolveItemInstance } from "../game/items/itemResolver";
 import { migrateV10Save } from "../game/persistence/saveMigration";
 import { isGameSave } from "../game/persistence/saveValidation";
+import { gameStateToSaveV14 } from "../game/persistence/saveGame";
 
 describe("Phase 1 item instances", () => {
   it("creates deterministic independent instances while keeping stacks fungible", () => {
@@ -68,10 +69,10 @@ describe("Phase 1 item instances", () => {
       collection: game.collection,
       gold: 0,
       settings: { reducedMotion: false, showInspectorButton: true },
-      spellbook: game.spellbook,
+      spellbook: { knownSpellIds: game.spellbook.knownSpellIds, equippedSpellSlots: ["spell.flame-blast", null, null, null, null] },
       combatAutomation: game.combatAutomation,
       combatAutomationPresets: game.combatAutomationPresets,
-      combatAbilities: game.combatAbilities,
+      combatAbilities: { activeSlots: ["defense.guard", "defense.evasive-step", "defense.brace", null, null], techniqueSlots: [null, null] },
     });
     expect(legacy?.version).toBe(11);
     expect(legacy?.inventory.stackables["item.wolf-fang"]).toBe(7);
@@ -81,19 +82,7 @@ describe("Phase 1 item instances", () => {
 
   it("validates modern saves against ownership and slot invariants", () => {
     const game = createInitialGameState();
-    const save = {
-      version: 13 as const,
-      progression: game.progression,
-      inventory: game.inventory,
-      equipment: game.equipment,
-      collection: game.collection,
-      gold: game.gold,
-      settings: { reducedMotion: false, showInspectorButton: true },
-      spellbook: game.spellbook,
-      combatAutomation: game.combatAutomation,
-      combatAutomationPresets: game.combatAutomationPresets,
-      combatAbilities: game.combatAbilities,
-    };
+    const save = gameStateToSaveV14(game, { reducedMotion: false, showInspectorButton: true });
     expect(isGameSave(save)).toBe(true);
     const invalid = { ...save, equipment: { slots: { weapon: "item.training-sword" } } };
     expect(isGameSave(invalid)).toBe(false);

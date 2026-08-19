@@ -21,7 +21,6 @@ import { effectDefinitions } from "../../../game/data/effects";
 import { proficiencyDefinitions } from "../../../game/data/proficiencies";
 import { proficiencyPerkDefinitions } from "../../../game/data/proficiencyPerks";
 import { spellDefinitions } from "../../../game/data/spells";
-import { techniqueDefinitions } from "../../../game/data/techniques";
 import { weaponSkillDefinitions } from "../../../game/data/weaponSkills";
 import { CollapsiblePanel } from "../../components/CollapsiblePanel";
 import { Panel } from "../../components/Panel";
@@ -115,7 +114,7 @@ export function InfoScreen() {
           <GuideRow
             icon={Shield}
             title="Player decisions"
-            copy="Equipment, weapon Proficiency, sustained Techniques, magic, Healing Potion, and target selection shape the fight."
+            copy="Equipment, weapon Proficiency, Combat Abilities, magic, Healing Potion, and target selection shape the fight."
           />
         </Panel>
         <Panel
@@ -126,8 +125,7 @@ export function InfoScreen() {
           screen="info"
           className="info-guide"
         >
-          <GuideRow icon={Zap} title="Active Ability Loadout" copy="Active Abilities are equipped in Hero and spend Stamina when triggered. Only equipped abilities appear in Combat." />
-          <GuideRow icon={Shield} title="Technique Loadout" copy="Sustained Techniques are toggled during Combat and drain Stamina continuously while enabled." />
+          <GuideRow icon={Zap} title="Five-slot Combat Ability Loadout" copy="Known spells, weapon skills, and active defenses share five Hero slots. Only equipped abilities appear in Combat." />
           <GuideRow icon={Swords} title="Equipment requirements" copy="Known abilities remain visible even when unavailable. Hero shows whether the current equipment satisfies each requirement." />
         </Panel>
         <Panel
@@ -336,8 +334,8 @@ export function InfoScreen() {
           </div>
         </Panel>
         <CollapsiblePanel
-          title="Techniques / Spells"
-          subtitle="Current combat choices"
+          title="Spells"
+          subtitle="Current Magic choices"
           icon={Sparkles}
           panelId="infoActions"
           screen="info"
@@ -345,16 +343,6 @@ export function InfoScreen() {
           className="info-actions-panel"
         >
           <div className="info-action-columns">
-            <div>
-              <h3>Techniques</h3>
-              {Object.values(techniqueDefinitions).map((technique) => (
-                <GuideRow
-                  key={technique.id}
-                  title={technique.name}
-                  copy={`${technique.description} Drains ${technique.staminaDrainPerSecond} Stamina/s.`}
-                />
-              ))}
-            </div>
             <div>
               <h3>Spells</h3>
               {spellDefinitions.map((spell) => (

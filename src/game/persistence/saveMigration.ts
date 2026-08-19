@@ -9,12 +9,13 @@ import type {
   CombatProficiencyId,
   ProgressionState,
 } from "../progression/progressionTypes";
-import type { GameSaveV3, GameSaveV4, GameSaveV5, GameSaveV6, GameSaveV7, GameSaveV8, GameSaveV9, GameSaveV10, GameSaveV11, GameSaveV12, GameSaveV13, LegacyEquipmentStateV10, LegacyInventoryStateV10, LegacyInventoryStateV11, LegacyProgressionState } from "./saveTypes";
+import type { GameSaveV3, GameSaveV4, GameSaveV5, GameSaveV6, GameSaveV7, GameSaveV8, GameSaveV9, GameSaveV10, GameSaveV11, GameSaveV12, GameSaveV13, GameSaveV14, LegacyEquipmentStateV10, LegacyInventoryStateV10, LegacyInventoryStateV11, LegacyProgressionState, LegacySpellbookStateV13, LegacyCombatAbilityLoadoutStateV13 } from "./saveTypes";
 import { createInitialCombatAutomation } from "../automation/automationTypes";
-import { normalizeSpellbook } from "../spellbook/spellbookLogic";
+import { normalizeSpellbook, normalizeSpellId } from "../spellbook/spellbookLogic";
 import { spellDefinitions } from "../data/spells";
 import { normalizeCombatAutomation } from "../automation/automationLogic";
-import { createInitialCombatAbilityLoadout, normalizeCombatAbilityLoadout } from "../combatAbilities/combatAbilityLogic";
+import { normalizeCombatAbilityLoadout } from "../combatAbilities/combatAbilityLogic";
+import { getActiveAbilityActionDefinitions } from "../combat/playerActions";
 import { createInitialCombatAutomationPresets, normalizeCombatAutomationPresets } from "../automation/automationPresets";
 import { EQUIPMENT_SLOT_IDS } from "../equipment/equipmentTypes";
 
@@ -58,16 +59,48 @@ function xp(value: unknown) {
     : 0;
 }
 
+function normalizeLegacySpellbook(value: unknown): LegacySpellbookStateV13 {
+  const raw = isRecord(value) ? value : {};
+  const knownSpellIds = normalizeSpellbook({ knownSpellIds: Array.isArray(raw.knownSpellIds) ? raw.knownSpellIds.filter((id): id is string => typeof id === "string") : [] }).knownSpellIds;
+  const used = new Set<string>();
+  const equippedSpellSlots = Array.from({ length: 5 }, (_, index) => {
+    const rawSlots = Array.isArray(raw.equippedSpellSlots) ? raw.equippedSpellSlots : [];
+    const id = normalizeSpellId(rawSlots[index]);
+    if (!id || !knownSpellIds.includes(id) || used.has(id)) return null;
+    used.add(id);
+    return id;
+  });
+  return { knownSpellIds, equippedSpellSlots };
+}
+
+function normalizeLegacyCombatAbility(value: unknown): LegacyCombatAbilityLoadoutStateV13 {
+  const raw = isRecord(value) ? value : {};
+  const validActionIds = new Set(getActiveAbilityActionDefinitions().map((action) => action.id));
+  const used = new Set<string>();
+  const activeSlots = Array.from({ length: 5 }, (_, index) => {
+    const rawSlots = Array.isArray(raw.activeSlots) ? raw.activeSlots : [];
+    const id = rawSlots[index];
+    if (typeof id !== "string" || !validActionIds.has(id) || used.has(id)) return null;
+    used.add(id);
+    return id;
+  });
+  const techniqueSlots = Array.from({ length: 2 }, (_, index) => {
+    const rawSlots = Array.isArray(raw.techniqueSlots) ? raw.techniqueSlots : [];
+    const id = rawSlots[index];
+    return typeof id === "string" && (id === "careful-positioning" || id === "heightened-reflexes") ? id : null;
+  });
+  return { activeSlots, techniqueSlots };
+}
+
+function legacyCombatAbilityDefaults(): LegacyCombatAbilityLoadoutStateV13 {
+  return { activeSlots: ["defense.guard", "defense.evasive-step", "defense.brace", null, null], techniqueSlots: ["careful-positioning", "heightened-reflexes"] };
+}
+
 // V12 boundary compatibility for renamed technique perk IDs. Runtime content
 // uses the canonical Technique names while old saves retain their purchased ranks.
 const legacyPerkIdAliases: Record<string, string> = {
   "perk.one-handed-sword.one-handed-mastery": "perk.one-handed-sword.one-handed-foundations",
   "perk.fire-magic.fire-magic-mastery": "perk.fire-magic.fire-magic-foundations",
-  "one-handed-sword.adaptive-stance": "one-handed-sword.adaptive-technique",
-  "one-handed-sword.high-form": "one-handed-sword.focused-technique",
-  "one-handed-sword.mid-form": "one-handed-sword.measured-technique",
-  "one-handed-sword.low-form": "one-handed-sword.mobile-technique",
-  "one-handed-sword.flowing-stance": "one-handed-sword.flowing-tempo",
   "fire-magic.scorching-exposure": "fire-magic.scorching-off-balance",
   "perk.two-handed-hammer.total-suppression": "perk.two-handed-hammer.total-crush",
 };
@@ -201,7 +234,7 @@ export function migrateV4Save(value: unknown): GameSaveV5 | null {
     ...old,
     version: 5,
     equipment: migrateEquipment(old.equipment),
-    spellbook: normalizeSpellbook(old.spellbook),
+    spellbook: normalizeLegacySpellbook(old.spellbook),
     combatAutomation: normalizeCombatAutomation(old.combatAutomation),
   };
 }
@@ -221,12 +254,12 @@ export function migrateV5Save(value: unknown): GameSaveV6 | null {
     ...old,
     version: 6,
     equipment: migrateEquipment(old.equipment),
-    spellbook: normalizeSpellbook(old.spellbook),
+    spellbook: normalizeLegacySpellbook(old.spellbook),
     combatAutomation: normalizeCombatAutomation(old.combatAutomation),
-    combatAbilities: normalizeCombatAbilityLoadout(
+    combatAbilities: normalizeLegacyCombatAbility(
       "combatAbilities" in old
         ? old.combatAbilities
-        : createInitialCombatAbilityLoadout(),
+        : legacyCombatAbilityDefaults(),
     ),
   };
 }
@@ -247,10 +280,10 @@ export function migrateV6Save(value: unknown): GameSaveV7 | null {
     ...old,
     version: 7,
     equipment: migrateEquipment(old.equipment),
-    spellbook: normalizeSpellbook(old.spellbook),
+    spellbook: normalizeLegacySpellbook(old.spellbook),
     combatAutomation: normalizeCombatAutomation(old.combatAutomation),
     combatAutomationPresets: createInitialCombatAutomationPresets(),
-    combatAbilities: normalizeCombatAbilityLoadout(old.combatAbilities),
+    combatAbilities: normalizeLegacyCombatAbility(old.combatAbilities),
   };
 }
 
@@ -271,10 +304,10 @@ export function migrateV7Save(value: unknown): GameSaveV8 | null {
     ...old,
     version: 8,
     equipment: migrateEquipment(old.equipment, old.inventory.quantities),
-    spellbook: normalizeSpellbook(old.spellbook),
+    spellbook: normalizeLegacySpellbook(old.spellbook),
     combatAutomation: normalizeCombatAutomation(old.combatAutomation),
     combatAutomationPresets: normalizeCombatAutomationPresets(old.combatAutomationPresets),
-    combatAbilities: normalizeCombatAbilityLoadout(old.combatAbilities),
+    combatAbilities: normalizeLegacyCombatAbility(old.combatAbilities),
   };
 }
 
@@ -301,10 +334,10 @@ export function migrateV8Save(value: unknown): GameSaveV9 | null {
         : 0,
     },
     equipment: migrateEquipment(old.equipment, old.inventory.quantities),
-    spellbook: normalizeSpellbook(old.spellbook),
+    spellbook: normalizeLegacySpellbook(old.spellbook),
     combatAutomation: normalizeCombatAutomation(old.combatAutomation),
     combatAutomationPresets: normalizeCombatAutomationPresets(old.combatAutomationPresets),
-    combatAbilities: normalizeCombatAbilityLoadout(old.combatAbilities),
+    combatAbilities: normalizeLegacyCombatAbility(old.combatAbilities),
   };
 }
 
@@ -349,10 +382,10 @@ export function migrateV9Save(value: unknown): GameSaveV10 | null {
       // manufacturing a refund from unavailable historical metadata.
       bonusPerkPoints: Math.max(0, Math.floor(old.progression.bonusPerkPoints ?? 0)),
     },
-    spellbook: normalizeSpellbook(old.spellbook),
+    spellbook: normalizeLegacySpellbook(old.spellbook),
     combatAutomation: normalizeCombatAutomation(old.combatAutomation),
     combatAutomationPresets: normalizeCombatAutomationPresets(old.combatAutomationPresets),
-    combatAbilities: normalizeCombatAbilityLoadout(old.combatAbilities),
+    combatAbilities: normalizeLegacyCombatAbility(old.combatAbilities),
   };
 }
 
@@ -479,6 +512,27 @@ export function migrateV12Save(value: unknown): GameSaveV13 | null {
   const old = value as unknown as GameSaveV12;
   const migrated: GameSaveV13 = { ...old, version: 13, progression };
   return migrated;
+}
+
+/** Convert the final pre-unification save without exposing its retired fields to runtime. */
+export function migrateV13Save(value: unknown): GameSaveV14 | null {
+  if (!isRecord(value) || value.version !== 13 || !sharedSaveShape(value) || !isRecord(value.progression) || !isRecord(value.inventory) || !isRecord(value.equipment) || !isRecord(value.spellbook) || !isRecord(value.combatAutomation) || !isRecord(value.combatAutomationPresets) || !isRecord(value.combatAbilities)) return null;
+  const old = value as unknown as GameSaveV13;
+  const spellbook = normalizeLegacySpellbook(old.spellbook);
+  const legacyAbilities = normalizeLegacyCombatAbility(old.combatAbilities);
+  const mergedSlots = [...legacyAbilities.activeSlots];
+  for (const spellId of spellbook.equippedSpellSlots) {
+    if (!spellId || mergedSlots.includes(spellId)) continue;
+    const empty = mergedSlots.findIndex((slot) => slot === null);
+    if (empty < 0) break;
+    mergedSlots[empty] = spellId;
+  }
+  return {
+    ...old,
+    version: 14,
+    spellbook: { knownSpellIds: spellbook.knownSpellIds },
+    combatAbilities: normalizeCombatAbilityLoadout({ slots: mergedSlots }, spellbook.knownSpellIds),
+  };
 }
 
 export function migrateLegacySave(value: unknown): GameSaveV3 | null {

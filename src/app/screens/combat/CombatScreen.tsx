@@ -14,8 +14,6 @@ export function CombatScreen() {
   const startHunt = useGameStore((state) => state.startHunt);
   const stopHunt = useGameStore((state) => state.stopHunt);
   const selectTarget = useGameStore((state) => state.selectTarget);
-  const toggleTechnique = useGameStore((state) => state.toggleTechnique);
-  const castSpell = useGameStore((state) => state.castSpell);
   const executeAction = useGameStore((state) => state.executeAction);
   const usePotion = useGameStore((state) => state.usePotion);
   const overviewTab = useGameStore((state) => state.combatOverviewTab);
@@ -35,7 +33,6 @@ export function CombatScreen() {
     game.equipment,
     game.inventory,
     game.progression,
-    combat.techniques,
   );
 
   return (
@@ -46,7 +43,6 @@ export function CombatScreen() {
         <HunterCombatPanel
           game={game}
           stats={stats}
-          onToggleTechnique={toggleTechnique}
         />
         <LiveHuntPanel
           game={game}
@@ -55,7 +51,6 @@ export function CombatScreen() {
           selectedEnemy={selectedEnemy}
           selectedDefinition={selectedDefinition}
           onSelectTarget={selectTarget}
-          onCastSpell={castSpell}
           onUseAction={executeAction}
           onUsePotion={usePotion}
           onStartHunt={startHunt}

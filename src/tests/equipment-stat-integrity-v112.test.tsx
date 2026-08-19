@@ -21,7 +21,6 @@ import { useGameStore } from "../state/gameStore";
 type TestEquipment = { slots: Partial<Record<string, string>> };
 const emptyEquipment: TestEquipment = { slots: {} };
 const initial = createInitialGameState();
-const neutralTechniques = initial.combat.techniques;
 
 function instanceBuild(equipment: TestEquipment) {
   const instances: Record<string, { id: string; definitionId: string; version: 2; quality: number; upgradeLevel: number; affixes: never[] }> = {};
@@ -39,7 +38,7 @@ function instanceBuild(equipment: TestEquipment) {
 
 function statsFor(equipment: TestEquipment) {
   const build = instanceBuild(equipment);
-  return calculateHunterCombatStats(build.equipment, build.inventory, initial.progression, neutralTechniques);
+  return calculateHunterCombatStats(build.equipment, build.inventory, initial.progression);
 }
 
 function canonicalValue(stats: ReturnType<typeof statsFor>, key: string) {

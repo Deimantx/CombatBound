@@ -6,7 +6,7 @@ const profile: WeaponTreeProfile = {
     { name: 'Crushing Power', kind: 'power', names: ['Massive Head', 'Full Force', 'Impact Training', 'Crushing Criticals', 'Overwhelming Impact', 'Earthshaker', 'Cataclysmic Blow'] },
     { name: 'Armour Destruction', kind: 'armour', names: ['Dent Armour', 'Crush Steel', 'Pulverize Plate', 'Broken Shell', 'Deep Fracture', 'Total Fracture', 'Fortress Breaker'] },
     { name: 'Guard Crushing', kind: 'guard', names: ['Through the Guard', 'Break the Shield', 'Unstoppable Weight', 'Shattered Block', 'No Safe Guard', 'Guard Annihilator', 'Nothing Stops the Hammer'] },
-    { name: 'Stamina / Heavy Rhythm', kind: 'tempo', names: ['Conditioned Back', 'Heavy Recovery', 'Impact Breathing', 'Efficient Technique', 'Full Body Swing', 'Siege Rhythm', 'Endless Siege'] },
+    { name: 'Stamina / Heavy Rhythm', kind: 'tempo', names: ['Conditioned Back', 'Heavy Recovery', 'Impact Breathing', 'Efficient Tempo', 'Full Body Swing', 'Siege Rhythm', 'Endless Siege'] },
     { name: 'Concussion / Control', kind: 'control', names: ['Rattling Blow', 'Dazed Enemy', 'Slowed Reaction', 'Heavy Daze', 'Exploit the Daze', 'Crushing Tempo', 'Brain Rattler'] },
   ],
   crossNodes: [

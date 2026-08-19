@@ -85,6 +85,7 @@ describe("Hierarchical action picker UI V8.4", () => {
     fireEvent.click(document.querySelector('[data-debug-kind="action-picker-group-header"][data-debug-group-id="weapon.one-handed-sword"]') as HTMLElement);
     expect(document.querySelector('[data-debug-kind="action-picker-group"][data-debug-group-id="weapon.one-handed-sword"]')).toBeInTheDocument();
     expect(document.querySelector('[data-debug-kind="action-picker-item"][data-debug-action-id="weapon-skill.one-handed-sword.opening-feint"]')).toBeInTheDocument();
+    fireEvent.click(document.querySelector('[data-debug-kind="action-picker-group-header"][data-debug-group-id="magic"]') as HTMLElement);
     expect(document.querySelector('[data-debug-kind="action-picker-group"][data-debug-group-id="magic.fire-magic"]')).toBeInTheDocument();
   });
 
@@ -103,16 +104,16 @@ describe("Hierarchical action picker UI V8.4", () => {
 
   it("keeps Combat Ability selection and DnD entries searchable through collapsed weapon groups", () => {
     openAbilities();
-    const group = document.querySelector('[data-debug-kind="combat-ability-group"][data-debug-proficiency-id="one-handed-sword"]') as HTMLElement;
+    const group = document.querySelector('[data-debug-kind="catalogue-accordion-group"][data-debug-group-id="all.weapon-skills"]') as HTMLElement;
     fireEvent.click(group.querySelector("button") as HTMLElement);
     expect(document.querySelector('[data-debug-ability-id="weapon-skill.one-handed-sword.swift-cut"]')).not.toBeInTheDocument();
 
     const search = screen.getByRole("textbox", { name: "Search abilities" });
     fireEvent.change(search, { target: { value: "feint" } });
     expect(document.querySelector('[data-debug-ability-id="weapon-skill.one-handed-sword.opening-feint"]')).toBeInTheDocument();
-    expect(document.querySelector('[data-debug-kind="combat-ability-group"][data-debug-proficiency-id="one-handed-sword"]')).toHaveAttribute("data-debug-expanded", "true");
+    expect(document.querySelector('[data-debug-kind="catalogue-accordion-group"][data-debug-group-id="all.weapon-skills"]')).toHaveAttribute("data-debug-expanded", "true");
 
     fireEvent.change(search, { target: { value: "" } });
-    expect(document.querySelector('[data-debug-kind="combat-ability-group"][data-debug-proficiency-id="one-handed-sword"]')).toHaveAttribute("data-debug-expanded", "false");
+    expect(document.querySelector('[data-debug-kind="catalogue-accordion-group"][data-debug-group-id="all.weapon-skills"]')).toHaveAttribute("data-debug-expanded", "false");
   });
 });

@@ -1,5 +1,4 @@
 import { useEffect, useRef, useState } from "react";
-import { techniqueDefinitions } from "../../../../game/data/techniques";
 import type {
   CombatState,
   EnemyActionDefinition,
@@ -72,20 +71,6 @@ export function useSmoothCombatProgress(remaining: number, total: number) {
 
 export function formatPercent(value: number) {
   return `${Math.round(value * 100)}%`;
-}
-
-export function techniqueStaminaDrain(combat: CombatState) {
-  return (
-    Object.entries(combat.techniques).reduce(
-      (sum, [id, enabled]) =>
-        sum +
-        (enabled
-          ? techniqueDefinitions[id as keyof typeof techniqueDefinitions]
-              .staminaDrainPerSecond
-          : 0),
-      0,
-    )
-  );
 }
 
 export interface SpellUiState {

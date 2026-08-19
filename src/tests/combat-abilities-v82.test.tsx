@@ -6,74 +6,62 @@ import {
   equipCombatAbility,
   moveCombatAbility,
   normalizeCombatAbilityLoadout,
-  unequipTechnique,
+  unequipCombatAbility,
 } from "../game/combatAbilities/combatAbilityLogic";
-import { canToggleTechnique } from "../game/combatAbilities/combatAbilitySelectors";
 import { createInitialGameState } from "../game/gameState";
 import { calculateHunterCombatStats } from "../game/equipment/derivedStats";
 import { validatePlayerAction } from "../game/combat/playerActions";
-import { migrateV5Save } from "../game/persistence/saveMigration";
+import { migrateV13Save } from "../game/persistence/saveMigration";
+import { gameStateToSaveV14 } from "../game/persistence/saveGame";
 import { useGameStore } from "../state/gameStore";
 
 const context = createCombatContext({ next: () => 0.5 });
 
-describe("Combat Abilities V8.2 domain", () => {
-  it("normalizes slot counts, duplicates, and unknown entries", () => {
+describe("Combat Abilities V14 domain", () => {
+  it("normalizes exactly five shared slots, duplicates, unknown entries, and unknown spells", () => {
     const normalized = normalizeCombatAbilityLoadout({
-      activeSlots: ["defense.guard", "defense.guard", "defense.unknown", "defense.brace", "extra"],
-      techniqueSlots: ["careful-positioning", "careful-positioning", "unknown"],
-    });
-    expect(normalized.activeSlots).toEqual(["defense.guard", null, null, "defense.brace", null]);
-    expect(normalized.techniqueSlots).toEqual(["careful-positioning", null]);
+      slots: ["defense.guard", "defense.guard", "defense.unknown", "spell.shadow-bolt", "spell.unknown", "defense.brace"],
+    }, ["spell.shadow-bolt"]);
+    expect(normalized.slots).toEqual(["defense.guard", null, null, "spell.shadow-bolt", null]);
+    expect(normalized.slots).toHaveLength(5);
   });
 
-  it("moves and unequips active abilities without duplicating them", () => {
+  it("moves, equips, and unequips any slottable combat ability", () => {
     const initial = createInitialGameState().combatAbilities;
     const moved = moveCombatAbility(initial, 0, 3);
-    expect(moved.activeSlots).toEqual([null, "defense.evasive-step", "defense.brace", "defense.guard", null]);
+    expect(moved.slots).toEqual(["spell.flame-blast", "defense.evasive-step", "defense.brace", "defense.guard", "spell.lightning-pulse"]);
     const replaced = equipCombatAbility(moved, "defense.guard", 1);
-    expect(replaced.activeSlots).toEqual([null, "defense.guard", "defense.brace", null, null]);
-    const removed = unequipTechnique({ ...initial, techniqueSlots: ["careful-positioning", "heightened-reflexes"] }, 0);
-    expect(removed.techniqueSlots).toEqual([null, "heightened-reflexes"]);
+    expect(replaced.slots).toEqual(["spell.flame-blast", "defense.guard", "defense.brace", null, "spell.lightning-pulse"]);
+    const removed = unequipCombatAbility(replaced, 1);
+    expect(removed.slots[1]).toBeNull();
   });
 
-  it("rejects an active action that is not equipped", () => {
+  it("requires one shared slot for every active action kind", () => {
     const game = createInitialGameState();
-    const started = startHunt({ ...game, combatAbilities: { ...game.combatAbilities, activeSlots: ["defense.evasive-step", null, null, null] } }, "location.wolf-den", calculateHunterCombatStats(game.equipment, game.inventory, game.progression, game.combat.techniques), context);
-    const result = validatePlayerAction(started, "defense.guard", calculateHunterCombatStats(game.equipment, game.inventory, game.progression, game.combat.techniques), context);
+    const stats = calculateHunterCombatStats(game.equipment, game.inventory, game.progression);
+    const active = startHunt({ ...game, combatAbilities: { slots: ["defense.evasive-step", null, null, null, null] } }, "location.wolf-den", stats, context);
+    const result = validatePlayerAction(active, "defense.guard", stats, context);
     expect(result.valid).toBe(false);
     expect(result.reason).toBe("ability-not-equipped");
   });
 
-  it("allows only equipped techniques to toggle during an active hunt", () => {
+  it("migrates V13 active and spell slots into one V14 loadout and discards techniques", () => {
     const game = createInitialGameState();
-    const stats = calculateHunterCombatStats(game.equipment, game.inventory, game.progression, game.combat.techniques);
-    const active = startHunt(game, "location.wolf-den", stats, context);
-    expect(canToggleTechnique(active, "careful-positioning")).toBe(true);
-    const unavailable = { ...active, combatAbilities: { ...active.combatAbilities, techniqueSlots: [null, "heightened-reflexes"] as Array<"careful-positioning" | "heightened-reflexes" | null> } };
-    expect(canToggleTechnique(unavailable, "careful-positioning")).toBe(false);
-  });
-
-  it("migrates a V5 save with the prototype abilities available", () => {
-    const game = createInitialGameState();
-    const migrated = migrateV5Save({
-      version: 5,
-      progression: game.progression,
-      inventory: game.inventory,
-      equipment: game.equipment,
-      collection: game.collection,
-      gold: game.gold,
-      settings: { reducedMotion: false, showInspectorButton: true },
-      spellbook: game.spellbook,
-      combatAutomation: game.combatAutomation,
-    });
-    expect(migrated?.version).toBe(6);
-    expect(migrated?.combatAbilities.activeSlots).toEqual(["defense.guard", "defense.evasive-step", "defense.brace", null, null]);
-    expect(migrated?.combatAbilities.techniqueSlots).toEqual(["careful-positioning", "heightened-reflexes"]);
+    const old = {
+      ...gameStateToSaveV14(game, { reducedMotion: false, showInspectorButton: true }),
+      version: 13 as const,
+      spellbook: { knownSpellIds: ["spell.flame-blast", "spell.shadow-bolt"], equippedSpellSlots: ["spell.shadow-bolt", null, null, null, null] },
+      combatAbilities: { activeSlots: ["defense.guard", "defense.brace", null, null, null], techniqueSlots: ["careful-positioning", "heightened-reflexes"] },
+    };
+    const migrated = migrateV13Save(old);
+    expect(migrated?.version).toBe(14);
+    expect(migrated?.spellbook).toEqual({ knownSpellIds: ["spell.flame-blast", "spell.shadow-bolt"] });
+    expect(migrated?.combatAbilities.slots).toEqual(["defense.guard", "defense.brace", "spell.shadow-bolt", null, null]);
+    expect((migrated?.combatAbilities as unknown as Record<string, unknown>).techniqueSlots).toBeUndefined();
   });
 });
 
-describe("Combat Abilities V8.2 UI", () => {
+describe("Combat Abilities V14 UI", () => {
   beforeEach(() => useGameStore.getState().resetGameplay());
   afterEach(() => cleanup());
 
@@ -83,10 +71,10 @@ describe("Combat Abilities V8.2 UI", () => {
     fireEvent.click(screen.getByRole("button", { name: /Combat Abilities/i }));
   }
 
-  it("shows the two loadouts and canonical library", () => {
+  it("shows one shared five-slot loadout and the canonical library", () => {
     openAbilities();
     expect(document.querySelectorAll('[data-debug-kind="combat-ability-slot"]')).toHaveLength(5);
-    expect(document.querySelectorAll('[data-debug-kind="technique-loadout-slot"]')).toHaveLength(2);
+    expect(document.querySelectorAll('[data-debug-kind="technique-loadout-slot"]')).toHaveLength(0);
     expect(screen.getByRole("button", { name: /Weapon Attack/ })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /Swift Cut/ })).toBeInTheDocument();
     expect(document.querySelector('[data-debug-kind="combat-ability-library-entry"][data-debug-ability-kind="weapon-skill"][data-debug-proficiency-id="one-handed-sword"]')).toBeInTheDocument();
@@ -94,27 +82,22 @@ describe("Combat Abilities V8.2 UI", () => {
     expect(screen.getByText(/Requires Shield/i)).toBeInTheDocument();
   });
 
-  it("supports active ability drag/drop and blocks cross-type drops", () => {
+  it("supports moving a defense into an empty shared slot", () => {
     openAbilities();
     const brace = document.querySelector('[data-debug-kind="combat-ability-library-entry"][data-debug-ability-id="defense.brace"]') as HTMLElement;
-    const activeSlot = document.querySelector('[data-debug-kind="combat-ability-slot"][data-debug-slot="3"]') as HTMLElement;
-    const techniqueSlot = document.querySelector('[data-debug-kind="technique-loadout-slot"][data-debug-slot="0"]') as HTMLElement;
+    const slot = document.querySelector('[data-debug-kind="combat-ability-slot"][data-debug-slot="3"]') as HTMLElement;
     fireEvent.dragStart(brace, { dataTransfer: { effectAllowed: "move", setData: () => undefined } });
-    fireEvent.drop(activeSlot, { dataTransfer: { dropEffect: "move" } });
-    expect(useGameStore.getState().game.combatAbilities.activeSlots[3]).toBe("defense.brace");
-    const guard = document.querySelector('[data-debug-kind="combat-ability-library-entry"][data-debug-ability-id="defense.guard"]') as HTMLElement;
-    fireEvent.dragStart(guard, { dataTransfer: { effectAllowed: "move", setData: () => undefined } });
-    fireEvent.drop(techniqueSlot, { dataTransfer: { dropEffect: "none" } });
-    expect(useGameStore.getState().game.combatAbilities.techniqueSlots[0]).toBe("careful-positioning");
+    fireEvent.drop(slot, { dataTransfer: { dropEffect: "move" } });
+    expect(useGameStore.getState().game.combatAbilities.slots[3]).toBe("defense.brace");
   });
 
-  it("locks both loadouts while a hunt is active", () => {
+  it("locks the shared loadout while a hunt is active", () => {
     render(<App />);
     fireEvent.click(screen.getByRole("button", { name: "Combat" }));
     fireEvent.click(screen.getByRole("button", { name: /Start hunt/i }));
     fireEvent.click(screen.getByRole("button", { name: "Hero" }));
     fireEvent.click(screen.getByRole("button", { name: /Combat Abilities/i }));
     expect(document.querySelector('[data-debug-kind="combat-ability-slot"]')).toHaveAttribute("draggable", "false");
-    expect(screen.getByText(/Loadouts are locked/i)).toBeInTheDocument();
+    expect(screen.getByText(/Loadout editing is locked/i)).toBeInTheDocument();
   });
 });

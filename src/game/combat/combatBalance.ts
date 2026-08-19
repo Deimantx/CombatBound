@@ -29,7 +29,6 @@ export const combatBalance = {
   recoveryResourceRegenMultiplier: 2, // [TUNING] Faster Stamina and Mana regeneration while out of combat.
   baseMaxMana: 100, // [TUNING] Prototype value.
   baseManaRegen: 1, // [TUNING] Prototype value.
-  baseStaminaDrain: 3, // [TUNING] Prototype value.
   minHitChance: 0.05,
   maxHitChance: 1,
   maximumCriticalStrikeChance: 1, // [TUNING] Prototype value.

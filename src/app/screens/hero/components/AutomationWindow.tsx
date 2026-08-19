@@ -43,7 +43,7 @@ const conditionOptions: Array<{ value: AutomationCondition["type"]; label: strin
 
 export function AutomationWindow({ game, initialActionId, createRule = false }: { game: GameState; initialActionId?: string; createRule?: boolean }) {
   const context = useMemo(() => createCombatPreviewContext(), []);
-  const stats = useMemo(() => calculateHunterCombatStats(game.equipment, game.inventory, game.progression, game.combat.techniques), [game.equipment, game.inventory, game.progression, game.combat.techniques]);
+  const stats = useMemo(() => calculateHunterCombatStats(game.equipment, game.inventory, game.progression), [game.equipment, game.inventory, game.progression]);
   const actions = useMemo(() => getPlayerActionDefinitions(game, context).filter((action) => action.kind !== "basic-attack" && (action.kind !== "spell" || game.spellbook.knownSpellIds.includes(action.id))), [context, game.spellbook.knownSpellIds]);
   const actionCatalogue = useMemo(() => buildPlayerActionCatalogue(actions, {
     getItemState: (action) => getActionCatalogueItemState(game, action),
@@ -70,7 +70,7 @@ export function AutomationWindow({ game, initialActionId, createRule = false }: 
     if (createRule) {
       const actionId = initialActionId && actions.some((action) => action.id === initialActionId)
         ? initialActionId
-        : game.spellbook.equippedSpellSlots.find(Boolean) ?? actions[0]?.id ?? "";
+        : game.combatAbilities.slots.find(Boolean) ?? actions[0]?.id ?? "";
       setDraftRule({ id: `automation-rule.draft-${Date.now()}`, actionId, priority: (game.combatAutomation.rules.length + 1) * 10, enabled: true, conditions: [{ type: "always" }] });
       setSelectedRuleId(null);
     } else if (initialActionId) {
@@ -85,7 +85,7 @@ export function AutomationWindow({ game, initialActionId, createRule = false }: 
   const summary = getAutomationSummary(game.combatAutomation, new Set(actions.map((action) => action.id)));
   const selectedRule = game.combatAutomation.rules.find((rule) => rule.id === selectedRuleId);
   const addNewRule = () => {
-    const actionId = game.spellbook.equippedSpellSlots.find(Boolean) ?? actions[0]?.id ?? "";
+    const actionId = game.combatAbilities.slots.find(Boolean) ?? actions[0]?.id ?? "";
     if (!actionId) return;
     setDraftRule({ id: `automation-rule.draft-${Date.now()}`, actionId, priority: (game.combatAutomation.rules.length + 1) * 10, enabled: true, conditions: [{ type: "always" }] });
     setSelectedRuleId(null);
@@ -133,9 +133,9 @@ export function AutomationWindow({ game, initialActionId, createRule = false }: 
               ? getCombatAbilityAvailability(game, rule.actionId)
               : undefined;
             const inactive = action?.kind === "spell"
-              ? !game.spellbook.equippedSpellSlots.includes(rule.actionId)
+              ? !game.combatAbilities.slots.includes(rule.actionId)
               : action && isCombatAbilityLoadoutAction(action)
-                ? !game.combatAbilities.activeSlots.includes(rule.actionId) || !abilityAvailability?.usable
+                ? !game.combatAbilities.slots.includes(rule.actionId) || !abilityAvailability?.usable
                 : false;
             const inactiveLabel = action?.kind === "spell"
               ? "INACTIVE · SPELL NOT EQUIPPED"
@@ -200,7 +200,7 @@ function targetCriterionLabel(criterion: string) {
 
 function getActionCatalogueItemState(game: GameState, action: PlayerActionDefinition) {
   if (action.kind === "spell") {
-    const slot = game.spellbook.equippedSpellSlots.findIndex((id) => id === action.id);
+    const slot = game.combatAbilities.slots.findIndex((id) => id === action.id);
     return {
       equipped: slot >= 0,
       available: true,
@@ -209,7 +209,7 @@ function getActionCatalogueItemState(game: GameState, action: PlayerActionDefini
   }
 
   if (isCombatAbilityLoadoutAction(action)) {
-    const slot = game.combatAbilities.activeSlots.findIndex((id) => id === action.id);
+    const slot = game.combatAbilities.slots.findIndex((id) => id === action.id);
     const availability = getCombatAbilityAvailability(game, action.id);
     const equipmentStatus = availability.usable ? "" : ` · ${availability.label}`;
     return {

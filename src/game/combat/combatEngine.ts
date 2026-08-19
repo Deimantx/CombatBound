@@ -22,7 +22,6 @@ import {
   recoverOutOfCombatResources,
 } from "./combatRuntime";
 import { advanceCombatEffects as runPeriodicRuntime } from "./combatPeriodicRuntime";
-import { calculateStaminaDelta } from "./combatResourceRuntime";
 import { advanceEnemyNormalAttacks as runEnemyNormalAttacks, advanceEnemySpecials as runEnemyRuntime } from "./combatEnemyRuntime";
 import {
   castSpell as runPlayerCastSpell,
@@ -47,14 +46,12 @@ import { hunterRankForPoints } from "../progression/hunterRankProgression";
 import {
   getBarrierAbsorbResourceRestore,
 } from "../progression/perkProgression";
-import { getEquippedWeaponProficiency } from "../progression/progressionSelectors";
 import { perkById } from "../data/proficiencyPerks";
 import {
   calculateDefensiveTrainingAwards,
   getDefensiveEquipmentContext,
   type DefensiveTrainingEvent,
 } from "../equipment/defensiveEquipment";
-import { canToggleTechnique } from "../combatAbilities/combatAbilitySelectors";
 import {
   evaluateAutomation,
   selectAutomationTarget,
@@ -70,7 +67,6 @@ import type {
   CombatStats,
   CombatantRef,
   EnemyCombatInstance,
-  TechniqueId,
 } from "./combatTypes";
 import type {
   CombatProficiencyId,
@@ -341,20 +337,6 @@ export function selectEnemy(combat: CombatState, instanceId: string) {
     : combat;
 }
 
-export function toggleTechnique(game: GameState, technique: TechniqueId) {
-  if (!canToggleTechnique(game, technique)) return game;
-  return {
-    ...game,
-    combat: {
-      ...game.combat,
-      techniques: {
-        ...game.combat.techniques,
-        [technique]: !game.combat.techniques[technique],
-      },
-    },
-  };
-}
-
 export function executePlayerAction(
   game: GameState,
   actionId: string,
@@ -491,13 +473,7 @@ export function advanceCombatStep(
     playerAttackTimer: combat.playerAttackTimer - step,
     stamina: clamp(
       combat.stamina +
-        calculateStaminaDelta(
-          combat,
-          stats,
-          context,
-          game.progression,
-          getEquippedWeaponProficiency(game.equipment, game.inventory),
-        ) *
+        getPlayerStats(combat, stats, context, game.progression).staminaRegen *
           step,
       0,
       combat.maxStamina,
@@ -539,23 +515,6 @@ export function advanceCombatStep(
         : combat.session,
   };
   game = { ...game, combat };
-  if (
-    combat.stamina <= 0 &&
-    (combat.techniques["careful-positioning"] ||
-      combat.techniques["heightened-reflexes"])
-  ) {
-    combat = event(
-      {
-        ...combat,
-        stamina: 0,
-        techniques: {
-          "careful-positioning": false,
-          "heightened-reflexes": false,
-        },
-      },
-      { text: "Techniques deactivated: Stamina depleted.", type: "system" },
-    );
-  }
   game = advanceEnemySpecials(
     { ...game, combat },
     step,
@@ -870,7 +829,6 @@ export function syncCombatStats(game: GameState): GameState {
     game.equipment,
     game.inventory,
     game.progression,
-    game.combat.techniques,
   );
   const canonical = playerBaseStats(stats);
   const fraction = (value: number, maximum: number) =>

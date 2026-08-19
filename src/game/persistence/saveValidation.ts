@@ -1,7 +1,9 @@
-import type { GameSaveV13 } from "./saveTypes";
+import type { GameSaveV14 } from "./saveTypes";
 import { proficiencyById } from "../data/proficiencies";
 import { perkById } from "../data/proficiencyPerks";
-import { COMBAT_SPELL_SLOT_COUNT } from "../spellbook/spellbookTypes";
+import { COMBAT_ABILITY_SLOT_COUNT } from "../combatAbilities/combatAbilityTypes";
+import { spellDefinitions } from "../data/spells";
+import { getActiveAbilityActionDefinitions } from "../combat/playerActions";
 import { isEquipmentSlotId } from "../equipment/equipmentTypes";
 import { itemById } from "../data/items";
 import { isItemInstanceId, itemInstanceSequence } from "../items/itemTypes";
@@ -12,10 +14,10 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return Boolean(value) && typeof value === "object" && !Array.isArray(value);
 }
 
-export function isGameSave(value: unknown): value is GameSaveV13 {
+export function isGameSave(value: unknown): value is GameSaveV14 {
   if (
     !isRecord(value) ||
-    value.version !== 13 ||
+    value.version !== 14 ||
     typeof value.gold !== "number" ||
     !isRecord(value.progression) ||
     !isRecord(value.inventory) ||
@@ -63,8 +65,8 @@ export function isGameSave(value: unknown): value is GameSaveV13 {
     })
   )
     return false;
-  const inventory = value.inventory as unknown as GameSaveV13["inventory"];
-  const equipment = value.equipment as unknown as GameSaveV13["equipment"];
+  const inventory = value.inventory as unknown as GameSaveV14["inventory"];
+  const equipment = value.equipment as unknown as GameSaveV14["equipment"];
   const collection = value.collection;
   const settings = value.settings;
   const spellbook = value.spellbook;
@@ -105,8 +107,7 @@ export function isGameSave(value: unknown): value is GameSaveV13 {
   }
   if (
     !Array.isArray(spellbook.knownSpellIds) ||
-    !Array.isArray(spellbook.equippedSpellSlots) ||
-    spellbook.equippedSpellSlots.length !== COMBAT_SPELL_SLOT_COUNT
+    spellbook.knownSpellIds.some((id) => typeof id !== "string" || !spellDefinitions.some((spell) => spell.id === id))
   )
     return false;
   if (
@@ -114,10 +115,24 @@ export function isGameSave(value: unknown): value is GameSaveV13 {
     !Array.isArray(automation.rules) ||
     !Array.isArray(automation.targetPriorityRules) ||
     !Array.isArray(automationPresets.slots) ||
-    !Array.isArray(combatAbilities.activeSlots) ||
-    !Array.isArray(combatAbilities.techniqueSlots)
+    !Array.isArray(combatAbilities.slots) ||
+    combatAbilities.slots.length !== COMBAT_ABILITY_SLOT_COUNT ||
+    "activeSlots" in combatAbilities ||
+    "techniqueSlots" in combatAbilities
   )
     return false;
+  const knownSpellIds = new Set(spellbook.knownSpellIds as string[]);
+  const validActionIds = new Set([
+    ...getActiveAbilityActionDefinitions().map((action) => action.id),
+    ...spellDefinitions.map((spell) => spell.id),
+  ]);
+  const usedActionIds = new Set<string>();
+  for (const actionId of combatAbilities.slots) {
+    if (actionId === null) continue;
+    if (typeof actionId !== "string" || !validActionIds.has(actionId) || usedActionIds.has(actionId)) return false;
+    if (spellDefinitions.some((spell) => spell.id === actionId) && !knownSpellIds.has(actionId)) return false;
+    usedActionIds.add(actionId);
+  }
   return (
     typeof settings.reducedMotion === "boolean" &&
     typeof settings.showInspectorButton === "boolean"

@@ -12,6 +12,7 @@ import { normalizeCombatStats } from '../game/combat/combatStats'
 
 const stats: CombatStats = normalizeCombatStats({ maxLife: 100, attackDamage: 40, accuracyRating: 100, baseAttackTime: 2, armour: 10, evasionRating: 0, criticalStrikeChance: 0, criticalStrikeMultiplier: 1.5, maxStamina: 100, staminaRegen: 5, maxMana: 100, manaRegenFlat: 5, resistances: {} })
 const fixedContext = createCombatContext({ next: () => .5 })
+const withSpells = (game: ReturnType<typeof createInitialGameState>, spells: string[]) => ({ ...game, combatAbilities: { ...game.combatAbilities, slots: ['defense.guard', 'defense.evasive-step', 'defense.brace', ...spells] } })
 
 describe('Magic Schools V5', () => {
   it('contains exactly the five canonical 40-node Magic trees', () => {
@@ -50,7 +51,7 @@ describe('Magic Schools V5', () => {
 
   it('trains Water, Earth, and Darkness through meaningful starter outcomes', () => {
     const game = createInitialGameState()
-    const started = startHunt({ ...game, combat: { ...game.combat, playerHp: 1000 } }, 'location.wolf-den', { ...stats, maxLife: 1000, attackDamage: 40 }, fixedContext)
+    const started = startHunt(withSpells({ ...game, combat: { ...game.combat, playerHp: 1000 } }, ['spell.ice-shard', 'spell.stone-spike', 'spell.shadow-bolt']), 'location.wolf-den', { ...stats, maxLife: 1000, attackDamage: 40 }, fixedContext)
     const target = started.combat.enemies[0]
     const water = castSpell({ ...started, combat: { ...started.combat, selectedEnemyInstanceId: target.instanceId, mana: 100 } }, 'spell.ice-shard', stats as never, fixedContext)
     expect(water.progression.proficiencies['water-magic']?.totalXp).toBeGreaterThan(0)
@@ -58,7 +59,7 @@ describe('Magic Schools V5', () => {
     const earth = castSpell({ ...started, combat: { ...started.combat, selectedEnemyInstanceId: target.instanceId, mana: 100 } }, 'spell.stone-spike', stats as never, createCombatContext({ next: () => .1 }))
     expect(earth.progression.proficiencies['earth-magic']?.totalXp).toBeGreaterThan(0)
     expect(earth.combat.enemies[0].effects.some((effect) => effect.effectId === 'effect.crushed')).toBe(true)
-    const darkness = castSpell({ ...started, spellbook: { ...started.spellbook, equippedSpellSlots: ['spell.shadow-bolt', ...started.spellbook.equippedSpellSlots.slice(1)] }, combat: { ...started.combat, selectedEnemyInstanceId: target.instanceId, mana: 100 } }, 'spell.shadow-bolt', stats as never, fixedContext)
+    const darkness = castSpell({ ...started, combat: { ...started.combat, selectedEnemyInstanceId: target.instanceId, mana: 100 } }, 'spell.shadow-bolt', stats as never, fixedContext)
     expect(darkness.progression.proficiencies['darkness-magic']?.totalXp).toBeGreaterThan(0)
     expect(darkness.combat.enemies[0].effects.find((effect) => effect.effectId === 'effect.withered')?.sourceProficiencyId).toBe('darkness-magic')
   })

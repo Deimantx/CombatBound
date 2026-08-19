@@ -1,4 +1,4 @@
-import { Bot, Shield, Sparkles, Zap } from "lucide-react";
+import { Bot, Shield, Zap } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { buildEquipmentPreviewState } from "../../../game/equipment/equipmentPreview";
 import { getActiveWeaponProficiency } from "../../../game/progression/progressionSelectors";
@@ -70,11 +70,11 @@ export function HeroScreen() {
 }
 
 function windowTitle(id: Exclude<HeroWindowId, null>) {
-  return id === "spellbook" ? "SPELLBOOK & MAGIC LOADOUT" : id === "abilities" ? "COMBAT ABILITIES" : "COMBAT AUTOMATION";
+  return id === "abilities" ? "COMBAT ABILITIES" : "COMBAT AUTOMATION";
 }
 function windowSubtitle(id: Exclude<HeroWindowId, null>) {
-  return id === "spellbook" ? "Known spells and the five slots brought into Combat." : id === "abilities" ? "Choose the non-magic actions and techniques available in Combat." : "Define exactly how the Hunter fights automatically.";
+  return id === "abilities" ? "Weapon skills, defenses and known Magic share one five-slot Combat loadout." : "Define exactly how the Hunter fights automatically.";
 }
 function windowIcon(id: Exclude<HeroWindowId, null>) {
-  return id === "spellbook" ? Sparkles : id === "abilities" ? Zap : Bot;
+  return id === "abilities" ? Zap : Bot;
 }

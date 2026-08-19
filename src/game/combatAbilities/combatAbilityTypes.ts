@@ -1,21 +1,13 @@
-import type { PlayerActionKind, TechniqueId } from "../combat/combatTypes";
+import type { PlayerActionKind } from "../combat/combatTypes";
 
 export const COMBAT_ABILITY_SLOT_COUNT = 5;
-export const TECHNIQUE_SLOT_COUNT = 2;
 
 export interface CombatAbilityLoadoutState {
-  activeSlots: Array<string | null>;
-  techniqueSlots: Array<TechniqueId | null>;
+  slots: Array<string | null>;
 }
 
 export type CombatAbilityCatalogueEntry =
-  | {
-      kind: "core";
-      id: string;
-      name: string;
-      description: string;
-      icon: string;
-    }
+  | { kind: "core"; id: string; name: string; description: string; icon: string }
   | {
       kind: "active-action";
       actionId: string;
@@ -27,13 +19,15 @@ export type CombatAbilityCatalogueEntry =
       plannedUnlockLevel?: number;
     }
   | {
-      kind: "technique";
-      techniqueId: TechniqueId;
+      kind: "spell";
+      actionId: string;
+      category: "magic";
       name: string;
       description: string;
       icon: string;
+      magicProficiencyId?: string;
     };
 
 export function isCombatAbilityLoadoutActionKind(kind: PlayerActionKind) {
-  return kind === "defensive" || kind === "weapon-skill";
+  return kind === "defensive" || kind === "weapon-skill" || kind === "spell";
 }

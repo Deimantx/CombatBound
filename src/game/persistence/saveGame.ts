@@ -1,5 +1,5 @@
-import type { GameSaveV13 } from "./saveTypes";
 import type { GameState } from "../gameState";
+import type { GameSaveV14 } from "./saveTypes";
 import {
   migrateCurrentSave,
   migrateLegacySave,
@@ -13,6 +13,7 @@ import {
   migrateV10Save,
   migrateV11Save,
   migrateV12Save,
+  migrateV13Save,
   normalizeProgressionPerkIds,
 } from "./saveMigration";
 import { isGameSave } from "./saveValidation";
@@ -25,8 +26,9 @@ import { normalizeEquipmentState } from "../equipment/equipmentRules";
 import { itemById } from "../data/items";
 import { validateItemInstance } from "../items/itemInstanceValidation";
 
-export const CURRENT_SAVE_VERSION = 13;
-export const GAME_SAVE_KEY = "combatbound-idle-save-v13";
+export const CURRENT_SAVE_VERSION = 14;
+export const GAME_SAVE_KEY = "combatbound-idle-save-v14";
+export const LEGACY_V13_GAME_SAVE_KEY = "combatbound-idle-save-v13";
 export const LEGACY_V12_GAME_SAVE_KEY = "combatbound-idle-save-v12";
 export const LEGACY_V11_GAME_SAVE_KEY = "combatbound-idle-save-v11";
 export const LEGACY_V10_GAME_SAVE_KEY = "combatbound-idle-save-v10";
@@ -40,12 +42,12 @@ export const LEGACY_V3_GAME_SAVE_KEY = "combatbound-idle-save-v3";
 export const LEGACY_CURRENT_GAME_SAVE_KEY = "combatbound-idle-save-v2";
 export const LEGACY_GAME_SAVE_KEY = "combatbound-idle-save-v1";
 
-export function gameStateToSaveV13(
+export function gameStateToSaveV14(
   game: GameState,
   settings: { reducedMotion: boolean; showInspectorButton: boolean },
-): GameSaveV13 {
+): GameSaveV14 {
   return {
-    version: 13,
+    version: 14,
     progression: game.progression,
     inventory: game.inventory,
     equipment: game.equipment,
@@ -59,30 +61,9 @@ export function gameStateToSaveV13(
   };
 }
 
-function migrateV8ToCurrent(value: unknown): GameSaveV13 | null {
-  const v9 = migrateV8Save(value);
-  const v10 = v9 ? migrateV9Save(v9) : null;
-  const v11 = v10 ? migrateV10Save(v10) : null;
-  const v12 = v11 ? migrateV11Save(v11) : null;
-  return v12 ? migrateV12Save(v12) : null;
-}
-
-function migrateV9ToCurrent(value: unknown): GameSaveV13 | null {
-  const v10 = migrateV9Save(value);
-  const v11 = v10 ? migrateV10Save(v10) : null;
-  const v12 = v11 ? migrateV11Save(v11) : null;
-  return v12 ? migrateV12Save(v12) : null;
-}
-
-function migrateV10ToCurrent(value: unknown): GameSaveV13 | null {
-  const v11 = migrateV10Save(value);
-  const v12 = v11 ? migrateV11Save(v11) : null;
-  return v12 ? migrateV12Save(v12) : null;
-}
-
-function normalizeCurrentSave(value: unknown): GameSaveV13 | null {
-  if (!value || typeof value !== "object" || Array.isArray(value) || (value as { version?: unknown }).version !== 13) return null;
-  const raw = value as GameSaveV13;
+function normalizeCurrentSave(value: unknown): GameSaveV14 | null {
+  if (!value || typeof value !== "object" || Array.isArray(value) || (value as { version?: unknown }).version !== 14) return null;
+  const raw = value as GameSaveV14;
   if (!raw.inventory || !raw.equipment || !raw.inventory.instances || !raw.inventory.stackables) return null;
   for (const [definitionId, quantity] of Object.entries(raw.inventory.stackables)) {
     if (!itemById[definitionId] || itemById[definitionId].inventoryMode !== "stackable" || typeof quantity !== "number" || !Number.isInteger(quantity) || quantity < 0) return null;
@@ -90,80 +71,79 @@ function normalizeCurrentSave(value: unknown): GameSaveV13 | null {
   for (const [key, instance] of Object.entries(raw.inventory.instances)) {
     if (!instance || typeof instance !== "object" || instance.id !== key || !validateItemInstance(instance).valid) return null;
   }
-  const inventory = normalizeInventoryState(raw.inventory);
-  const equipment = normalizeEquipmentState(raw.equipment, inventory);
-  const normalized: GameSaveV13 = { ...raw, progression: normalizeProgressionPerkIds(raw.progression), inventory, equipment, spellbook: normalizeSpellbook(raw.spellbook), combatAutomation: normalizeCombatAutomation(raw.combatAutomation), combatAutomationPresets: normalizeCombatAutomationPresets(raw.combatAutomationPresets), combatAbilities: normalizeCombatAbilityLoadout(raw.combatAbilities) };
+  const spellbook = normalizeSpellbook(raw.spellbook);
+  const normalized: GameSaveV14 = {
+    ...raw,
+    progression: normalizeProgressionPerkIds(raw.progression),
+    inventory: normalizeInventoryState(raw.inventory),
+    equipment: normalizeEquipmentState(raw.equipment, raw.inventory),
+    spellbook,
+    combatAutomation: normalizeCombatAutomation(raw.combatAutomation),
+    combatAutomationPresets: normalizeCombatAutomationPresets(raw.combatAutomationPresets),
+    combatAbilities: normalizeCombatAbilityLoadout(raw.combatAbilities, spellbook.knownSpellIds),
+  };
   return isGameSave(normalized) ? normalized : null;
 }
 
-export function parseGameSaveJson(raw: string): GameSaveV13 | null {
+function migrateToV14(value: unknown): GameSaveV14 | null {
+  let current = value;
+  for (let guard = 0; guard < 20; guard += 1) {
+    if (!current || typeof current !== "object" || Array.isArray(current)) return null;
+    const version = (current as { version?: unknown }).version;
+    if (version === 14) return normalizeCurrentSave(current);
+    current = version === 13 ? migrateV13Save(current)
+      : version === 12 ? migrateV12Save(current)
+        : version === 11 ? migrateV11Save(current)
+          : version === 10 ? migrateV10Save(current)
+            : version === 9 ? migrateV9Save(current)
+              : version === 8 ? migrateV8Save(current)
+                : version === 7 ? migrateV7Save(current)
+                  : version === 6 ? migrateV6Save(current)
+                    : version === 5 ? migrateV5Save(current)
+                      : version === 4 ? migrateV4Save(current)
+                        : version === 3 ? migrateV3Save(current)
+                          : version === 2 ? migrateCurrentSave(current)
+                            : version === 1 ? migrateLegacySave(current)
+                              : null;
+    if (!current) return null;
+  }
+  return null;
+}
+
+export function parseGameSaveJson(raw: string): GameSaveV14 | null {
   try {
-    const value = JSON.parse(raw) as unknown;
-    if (value && typeof value === "object") {
-      const version = (value as { version?: unknown }).version;
-      if (version === 13) return normalizeCurrentSave(value);
-      if (version === 12) { const migrated = migrateV12Save(value); return migrated ? normalizeCurrentSave(migrated) : null; }
-      if (version === 11) { const migrated = migrateV11Save(value); return migrated ? migrateV12Save(migrated) : null; }
-      if (version === 10) return migrateV10ToCurrent(value);
-      if (version === 9) return migrateV9ToCurrent(value);
-      if (version === 8) return migrateV8ToCurrent(value);
-    }
-    return null;
+    return migrateToV14(JSON.parse(raw) as unknown);
   } catch {
     return null;
   }
 }
 
 /** Reads the pre-profile global save chain for the one-time Profile 1 migration only. */
-export function loadLegacySingleGameSaveForProfileMigration(): GameSaveV13 | null {
+export function loadLegacySingleGameSaveForProfileMigration(): GameSaveV14 | null {
   if (typeof localStorage === "undefined") return null;
+  const keys = [GAME_SAVE_KEY, LEGACY_V13_GAME_SAVE_KEY, LEGACY_V12_GAME_SAVE_KEY, LEGACY_V11_GAME_SAVE_KEY, LEGACY_V10_GAME_SAVE_KEY, LEGACY_V9_GAME_SAVE_KEY, LEGACY_V8_GAME_SAVE_KEY, LEGACY_V7_GAME_SAVE_KEY, LEGACY_V6_GAME_SAVE_KEY, LEGACY_V5_GAME_SAVE_KEY, LEGACY_V4_GAME_SAVE_KEY, LEGACY_V3_GAME_SAVE_KEY, LEGACY_CURRENT_GAME_SAVE_KEY, LEGACY_GAME_SAVE_KEY];
   try {
-    const currentRaw = localStorage.getItem(GAME_SAVE_KEY);
-    if (currentRaw) {
-      const currentSave = parseGameSaveJson(currentRaw);
-      if (currentSave) {
-        const migrated = { ...currentSave, spellbook: normalizeSpellbook(currentSave.spellbook), combatAutomation: normalizeCombatAutomation(currentSave.combatAutomation), combatAutomationPresets: normalizeCombatAutomationPresets(currentSave.combatAutomationPresets), combatAbilities: normalizeCombatAbilityLoadout(currentSave.combatAbilities) };
-        if (JSON.stringify(migrated) !== JSON.stringify(currentSave)) saveLegacySingleGameSave(migrated);
-        return migrated;
+    for (const key of keys) {
+      const raw = localStorage.getItem(key);
+      if (!raw) continue;
+      const save = parseGameSaveJson(raw);
+      if (save) {
+        saveLegacySingleGameSave(save);
+        return save;
       }
     }
-    const v12Raw = localStorage.getItem(LEGACY_V12_GAME_SAVE_KEY);
-    const v11Raw = localStorage.getItem(LEGACY_V11_GAME_SAVE_KEY);
-    const v10Raw = localStorage.getItem(LEGACY_V10_GAME_SAVE_KEY);
-    const v9Raw = localStorage.getItem(LEGACY_V9_GAME_SAVE_KEY);
-    const v8Raw = localStorage.getItem(LEGACY_V8_GAME_SAVE_KEY);
-    const v7Raw = localStorage.getItem(LEGACY_V7_GAME_SAVE_KEY);
-    const v6Raw = localStorage.getItem(LEGACY_V6_GAME_SAVE_KEY);
-    const v5Raw = localStorage.getItem(LEGACY_V5_GAME_SAVE_KEY);
-    const v4Raw = localStorage.getItem(LEGACY_V4_GAME_SAVE_KEY);
-    const v3Raw = localStorage.getItem(LEGACY_V3_GAME_SAVE_KEY);
-    const currentLegacyRaw = localStorage.getItem(LEGACY_CURRENT_GAME_SAVE_KEY);
-    const legacyRaw = localStorage.getItem(LEGACY_GAME_SAVE_KEY);
-    const migratedV12 = v12Raw ? migrateV12Save(JSON.parse(v12Raw) as unknown) : null;
-    const migratedV11 = !migratedV12 && v11Raw ? migrateV11Save(JSON.parse(v11Raw) as unknown) : null;
-    const migratedV10 = !migratedV11 && v10Raw ? migrateV10ToCurrent(JSON.parse(v10Raw) as unknown) : null;
-    const migratedV9 = !migratedV11 && !migratedV10 && v9Raw ? migrateV9ToCurrent(JSON.parse(v9Raw) as unknown) : null;
-    const migratedV8 = !migratedV11 && !migratedV10 && !migratedV9 && v8Raw ? migrateV8ToCurrent(JSON.parse(v8Raw) as unknown) : null;
-    const migratedV7 = !migratedV11 && !migratedV10 && !migratedV9 && !migratedV8 && v7Raw ? migrateV7Save(JSON.parse(v7Raw) as unknown) : null;
-    const migratedV6 = !migratedV7 && v6Raw ? migrateV6Save(JSON.parse(v6Raw) as unknown) : null;
-    const migratedV5 = !migratedV7 && !migratedV6 && v5Raw ? migrateV5Save(JSON.parse(v5Raw) as unknown) : null;
-    const migratedV4 = !migratedV7 && !migratedV6 && !migratedV5 && v4Raw ? migrateV4Save(JSON.parse(v4Raw) as unknown) : null;
-    const migratedV3 = !migratedV7 && !migratedV6 && !migratedV5 && !migratedV4 && v3Raw ? migrateV3Save(JSON.parse(v3Raw) as unknown) : null;
-    const migratedV2 = !migratedV7 && !migratedV6 && !migratedV5 && !migratedV4 && !migratedV3 && currentLegacyRaw ? migrateCurrentSave(JSON.parse(currentLegacyRaw) as unknown) : null;
-    const migratedV1 = !migratedV7 && !migratedV6 && !migratedV5 && !migratedV4 && !migratedV3 && !migratedV2 && legacyRaw ? migrateLegacySave(JSON.parse(legacyRaw) as unknown) : null;
-    const migratedV11Current = migratedV11 ? migrateV12Save(migratedV11) : null;
-    const migrated = migratedV12 ?? migratedV11Current ?? migratedV10 ?? migratedV9 ?? migratedV8 ?? (migratedV7 ? migrateV8ToCurrent(migratedV7) : null) ?? (migratedV6 ? migrateV8ToCurrent(migrateV7Save(migratedV6)) : null) ?? (migratedV5 ? migrateV8ToCurrent(migrateV7Save(migrateV6Save(migratedV5))) : null) ?? (migratedV4 ? migrateV8ToCurrent(migrateV7Save(migrateV6Save(migrateV5Save(migratedV4)))) : null) ?? (migratedV3 ? migrateV8ToCurrent(migrateV7Save(migrateV6Save(migrateV5Save(migrateV4Save(migratedV3))))) : null) ?? (migratedV2 ? migrateV8ToCurrent(migrateV7Save(migrateV6Save(migrateV5Save(migrateV4Save(migrateV3Save(migratedV2)))))) : null) ?? (migratedV1 ? migrateV8ToCurrent(migrateV7Save(migrateV6Save(migrateV5Save(migrateV4Save(migrateV3Save(migratedV1)))))) : null);
-    if (migrated) saveLegacySingleGameSave(migrated);
-    return migrated;
   } catch {
     return null;
   }
+  return null;
 }
 
-export function saveLegacySingleGameSave(save: GameSaveV13) {
+export function saveLegacySingleGameSave(save: GameSaveV14) {
   if (typeof localStorage !== "undefined") localStorage.setItem(GAME_SAVE_KEY, JSON.stringify(save));
 }
 
 export function clearLegacySingleGameSave() {
-  if (typeof localStorage !== "undefined") for (const key of [GAME_SAVE_KEY, LEGACY_V12_GAME_SAVE_KEY, LEGACY_V11_GAME_SAVE_KEY, LEGACY_V10_GAME_SAVE_KEY, LEGACY_V9_GAME_SAVE_KEY, LEGACY_V8_GAME_SAVE_KEY, LEGACY_V7_GAME_SAVE_KEY, LEGACY_V6_GAME_SAVE_KEY, LEGACY_V5_GAME_SAVE_KEY, LEGACY_V4_GAME_SAVE_KEY, LEGACY_V3_GAME_SAVE_KEY, LEGACY_CURRENT_GAME_SAVE_KEY, LEGACY_GAME_SAVE_KEY]) localStorage.removeItem(key);
+  if (typeof localStorage !== "undefined") {
+    for (const key of [GAME_SAVE_KEY, LEGACY_V13_GAME_SAVE_KEY, LEGACY_V12_GAME_SAVE_KEY, LEGACY_V11_GAME_SAVE_KEY, LEGACY_V10_GAME_SAVE_KEY, LEGACY_V9_GAME_SAVE_KEY, LEGACY_V8_GAME_SAVE_KEY, LEGACY_V7_GAME_SAVE_KEY, LEGACY_V6_GAME_SAVE_KEY, LEGACY_V5_GAME_SAVE_KEY, LEGACY_V4_GAME_SAVE_KEY, LEGACY_V3_GAME_SAVE_KEY, LEGACY_CURRENT_GAME_SAVE_KEY, LEGACY_GAME_SAVE_KEY]) localStorage.removeItem(key);
+  }
 }

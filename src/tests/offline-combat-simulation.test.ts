@@ -18,7 +18,7 @@ import type { AutomationCondition } from "../game/automation/automationTypes";
 function activeHunt(): GameState {
   const game = createInitialGameState();
   const context = createCombatContext(createDeterministicOfflineRng(1234));
-  const stats = calculateHunterCombatStats(game.equipment, game.inventory, game.progression, game.combat.techniques);
+  const stats = calculateHunterCombatStats(game.equipment, game.inventory, game.progression);
   return startHunt(game, "location.wolf-den", stats, context);
 }
 
@@ -27,7 +27,7 @@ function liveReference(snapshot: GameState, seconds: number): GameState {
   const context = createCombatContext(createDeterministicOfflineRng(991));
   const steps = Math.round(seconds * 10);
   for (let index = 0; index < steps; index += 1) {
-    const stats = calculateHunterCombatStats(game.equipment, game.inventory, game.progression, game.combat.techniques);
+    const stats = calculateHunterCombatStats(game.equipment, game.inventory, game.progression);
     game = advanceCombatStep(game, 0.1, context, stats);
     if (game.combat.phase !== "active" && game.combat.phase !== "recovery") break;
   }
@@ -67,7 +67,7 @@ function thresholdHunt(
     },
     combatAbilities: {
       ...base.combatAbilities,
-      activeSlots: ["weapon-skill.one-handed-sword.swift-cut", ...base.combatAbilities.activeSlots.slice(1)],
+      slots: ["weapon-skill.one-handed-sword.swift-cut", ...base.combatAbilities.slots.slice(1)],
     },
   };
 }
@@ -91,7 +91,6 @@ function addRegenerationGear(snapshot: GameState): GameState {
     equipment,
     inventory,
     snapshot.progression,
-    snapshot.combat.techniques,
   );
   return {
     ...snapshot,
@@ -125,7 +124,7 @@ describe("Offline Combat Simulation 1.0", () => {
       },
     };
     const context = createCombatContext(createDeterministicOfflineRng(991));
-    const stats = calculateHunterCombatStats(lowHealth.equipment, lowHealth.inventory, lowHealth.progression, lowHealth.combat.techniques);
+    const stats = calculateHunterCombatStats(lowHealth.equipment, lowHealth.inventory, lowHealth.progression);
     const recovery = advanceCombatStep(lowHealth, 0.1, context, stats);
     expect(recovery.combat.phase).toBe("recovery");
     const nextGroup = advanceCombatStep(recovery, 3, context, stats);
@@ -170,7 +169,7 @@ describe("Offline Combat Simulation 1.0", () => {
     expect(lowHealth.bankSpentSeconds).toBe(60);
   });
 
-  it("preserves periodic effects, Enemy Actions, automation, and Technique depletion", () => {
+  it("preserves periodic effects, Enemy Actions, and automation", () => {
     const snapshot = activeHunt();
     const source = snapshot.combat.enemies[0];
     const withEffect = {
@@ -195,16 +194,8 @@ describe("Offline Combat Simulation 1.0", () => {
     expect(combatResult.state.combat.events.some((event) => event.type === "actionStarted" || event.type === "actionResolved")).toBe(true);
     expect(combatResult.state.combat.events.some((event) => event.type === "automationActionUsed")).toBe(true);
 
-    const technique = simulateCombatHuntOffline({
-      ...snapshot,
-      combat: {
-        ...snapshot.combat,
-        stamina: 1,
-        techniques: { "careful-positioning": true, "heightened-reflexes": true },
-      },
-    }, { requestedSeconds: 5 }, createDeterministicOfflineRng(991));
-    expect(technique.state.combat.techniques["careful-positioning"]).toBe(false);
-    expect(technique.state.combat.techniques["heightened-reflexes"]).toBe(false);
+    const noTechniqueState = simulateCombatHuntOffline({ ...snapshot, combat: { ...snapshot.combat, stamina: 1 } }, { requestedSeconds: 5 }, createDeterministicOfflineRng(991));
+    expect(noTechniqueState.state.combat).not.toHaveProperty("techniques");
   });
 
   it("allows active and recovery Hunts and completes requested time without a fixed tick loop", () => {
@@ -259,7 +250,7 @@ describe("Offline Combat Simulation 1.0", () => {
         snapshot: thresholdHunt(
           { type: "stamina-below", fraction: 0.5 },
           "weapon-skill.one-handed-sword.swift-cut",
-          { stamina: 100, techniques: { "careful-positioning": true, "heightened-reflexes": true } },
+          { stamina: 100 },
         ),
         actionId: "weapon-skill.one-handed-sword.swift-cut",
         seconds: 55,

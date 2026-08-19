@@ -1,6 +1,6 @@
 export type ScreenId = 'home' | 'combat' | 'hero' | 'proficiencies' | 'inventory' | 'collection' | 'settings' | 'info'
 export interface HeroWindowRequest {
-  window: 'spellbook' | 'abilities' | 'automation'
+  window: 'abilities' | 'automation'
   actionId?: string
   createRule?: boolean
 }

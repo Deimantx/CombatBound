@@ -59,7 +59,7 @@ describe('Defensive Proficiencies V6', () => {
   it('aggregates all defensive gear while keeping attack interval weapon-controlled', () => {
     const equipment = { slots: { weapon: 'item.training-sword', head: 'test.light-head', armor: 'test.medium-armor', gloves: 'test.heavy-gloves', boots: 'test.heavy-boots', offhand: 'test.shield' } }
     const build = inventoryFor(equipment)
-    const stats = calculateHunterCombatStats(build.equipment, build.inventory, createInitialGameState().progression, { 'careful-positioning': false, 'heightened-reflexes': false }, items)
+    const stats = calculateHunterCombatStats(build.equipment, build.inventory, createInitialGameState().progression, items)
     expect(stats.armour).toBe(35 + 4)
     expect(stats.blockChance).toBeCloseTo(.1)
     expect(stats.attackInterval).toBeCloseTo(2.4)
@@ -68,7 +68,7 @@ describe('Defensive Proficiencies V6', () => {
   it('keeps active-combat Health Regen capped and frame-independent', () => {
     const equipment = { slots: { weapon: 'item.training-sword', armor: 'test.heavy-gloves' } }
     const build = inventoryFor(equipment)
-    const stats = calculateHunterCombatStats(build.equipment, build.inventory, createInitialGameState().progression, { 'careful-positioning': false, 'heightened-reflexes': false }, { ...items, 'test.heavy-gloves': piece('test.heavy-gloves', 'armor', 'heavy-armor', { lifeRegenFlat: 2 }) })
+    const stats = calculateHunterCombatStats(build.equipment, build.inventory, createInitialGameState().progression, { ...items, 'test.heavy-gloves': piece('test.heavy-gloves', 'armor', 'heavy-armor', { lifeRegenFlat: 2 }) })
     const base = createInitialGameState()
     const active = { ...base, equipment, combat: { ...base.combat, phase: 'active' as const, playerHp: (stats.maxLife ?? 0) - 1, maxPlayerHp: stats.maxLife ?? 0, enemies: [] } } as ReturnType<typeof createInitialGameState>
     const one = advanceCombat(active, 1, createInitialGameContext(), stats)

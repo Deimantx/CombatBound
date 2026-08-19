@@ -23,7 +23,6 @@ function statsFor(game: ReturnType<typeof createInitialGameState>) {
     game.equipment,
     game.inventory,
     game.progression,
-    game.combat.techniques,
   );
 }
 
@@ -34,7 +33,7 @@ function activeGame(actionId: string) {
       ...game,
       combatAbilities: {
         ...game.combatAbilities,
-        activeSlots: [actionId, null, null, null, null],
+        slots: [actionId, null, null, null, null],
       },
     },
     "location.wolf-den",
@@ -181,7 +180,7 @@ describe("One-Handed Sword Weapon Skills V8.3", () => {
       },
     };
     expect(evaluateAutomation(configured, stats, context).actionId).toBe("weapon-skill.one-handed-sword.opening-feint");
-    const unequipped = { ...configured, combatAbilities: { ...configured.combatAbilities, activeSlots: [null, null, null, null, null] } };
+    const unequipped = { ...configured, combatAbilities: { ...configured.combatAbilities, slots: [null, null, null, null, null] } };
     expect(evaluateAutomation(unequipped, stats, context).invalid?.reason).toBe("ability-not-equipped");
   });
 });

@@ -146,7 +146,7 @@ export type ProficiencyPerkEffect =
       stat: ModifiableCombatStatKey
       operation: StatModifier['operation']
       valuePerRank: number
-      condition: { type: 'active-barrier' | 'active-technique' | 'stamina-above' | 'player-hp-below'; fraction?: number }
+      condition: { type: 'active-barrier' | 'stamina-above' | 'player-hp-below'; fraction?: number }
     }
   | { type: 'weaponDamageModifier' | 'weaponAttackSpeedModifier'; valuePerRank: number }
   | { type: 'weaponArmorPenetrationModifier'; mode: 'flat' | 'percent'; valuePerRank: number }
@@ -167,9 +167,7 @@ export type ProficiencyPerkEffect =
   | { type: 'appliedEffectPeriodicDamageModifier'; effectId: string; valuePerRank: number }
   | { type: 'appliedEffectMaxStacksModifier'; effectId: string; valuePerRank: number }
   | { type: 'barrierAbsorbResourceRestore'; resource: 'stamina' | 'mana'; amountPerRank: number }
-  | { type: 'techniqueStaminaDrainModifier'; valuePerRank: number }
   | { type: 'weaponOnHitAdvanceAttack'; chancePerRank: number; fraction: number }
-  | { type: 'activeTechniqueStatModifier'; stat: ModifiableCombatStatKey; operation: StatModifier['operation']; valuePerRank: number }
   | { type: 'appliedEffectRefreshOnMaxStacks'; effectId: string; fraction: number }
   | { type: 'spellConditionalCooldownModifier'; valuePerRank: number; condition: { type: 'targetHasEffect'; effectId: string } }
   | { type: 'spellConditionalManaCostModifier'; valuePerRank: number; condition: { type: 'manaAbove'; fraction: number } }

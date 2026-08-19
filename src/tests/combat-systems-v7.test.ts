@@ -20,8 +20,11 @@ const statsFor = (game: ReturnType<typeof createInitialGameState>) =>
     game.equipment,
     game.inventory,
     game.progression,
-    game.combat.techniques,
   );
+const withSpells = (game: ReturnType<typeof createInitialGameState>, spells: string[]) => ({
+  ...game,
+  combatAbilities: { ...game.combatAbilities, slots: ["defense.guard", "defense.evasive-step", "defense.brace", ...spells] },
+});
 
 describe("Combat Systems V7", () => {
   it("uses the canonical accuracy versus evasion formula", () => {
@@ -47,7 +50,7 @@ describe("Combat Systems V7", () => {
   it("blocks a second standard-GCD spell until the GCD expires", () => {
     const game = createInitialGameState();
     const stats = statsFor(game);
-    const started = startHunt(game, "location.wolf-den", stats, context);
+    const started = startHunt(withSpells(game, ["spell.flame-blast", "spell.ice-shard"]), "location.wolf-den", stats, context);
     const first = castSpell(
       { ...started, combat: { ...started.combat, mana: 100 } },
       "spell.flame-blast",
@@ -61,24 +64,14 @@ describe("Combat Systems V7", () => {
     expect(second.combat.mana).toBeLessThan(ready.combat.mana);
   });
 
-  it("requires an equipped spell slot for combat spell actions", () => {
+  it("requires a shared equipped ability slot for combat spell actions", () => {
     const game = createInitialGameState();
     const stats = statsFor(game);
     const started = startHunt(game, "location.wolf-den", stats, context);
-    const unequipped = {
-      ...started,
-      spellbook: {
-        ...started.spellbook,
-        equippedSpellSlots: [
-          null,
-          ...started.spellbook.equippedSpellSlots.slice(1),
-        ],
-      },
-    };
+    const unequipped = started;
     expect(
-      validatePlayerAction(unequipped, "spell.flame-blast", stats, context)
-        .reason,
-    ).toBe("spell-not-equipped");
+      validatePlayerAction(unequipped, "spell.shadow-bolt", stats, context).reason,
+    ).toBe("ability-not-equipped");
   });
 
   it("does not resurrect the retired Protective Sign automation", () => {
@@ -97,7 +90,7 @@ describe("Combat Systems V7", () => {
   it("keeps Chilled when Flame Blast is cast and does not trigger a reaction", () => {
     const game = createInitialGameState();
     const stats = statsFor(game);
-    const started = startHunt(game, "location.wolf-den", stats, context);
+    const started = startHunt(withSpells(game, ["spell.flame-blast", "spell.ice-shard"]), "location.wolf-den", stats, context);
     const chilled = castSpell(
       { ...started, combat: { ...started.combat, mana: 100 } },
       "spell.ice-shard",
@@ -116,7 +109,7 @@ describe("Combat Systems V7", () => {
   it("resolves the same Flame Blast damage on a normal and Chilled target", () => {
     const game = createInitialGameState();
     const stats = statsFor(game);
-    const started = startHunt(game, "location.wolf-den", stats, context);
+    const started = startHunt(withSpells(game, ["spell.flame-blast", "spell.ice-shard"]), "location.wolf-den", stats, context);
     const normal = castSpell(
       { ...started, combat: { ...started.combat, mana: 100 } },
       "spell.flame-blast",
@@ -147,7 +140,7 @@ describe("Combat Systems V7", () => {
   it("does not consume Ignite or add a reaction when Ice Shard hits", () => {
     const game = createInitialGameState();
     const stats = statsFor(game);
-    const started = startHunt(game, "location.wolf-den", stats, context);
+    const started = startHunt(withSpells(game, ["spell.flame-blast", "spell.ice-shard"]), "location.wolf-den", stats, context);
     const burning = castSpell(
       { ...started, combat: { ...started.combat, mana: 100 } },
       "spell.flame-blast",

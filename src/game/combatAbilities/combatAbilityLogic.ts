@@ -1,11 +1,7 @@
 import { getActiveAbilityActionDefinitions } from "../combat/playerActions";
-import { techniqueDefinitions } from "../data/techniques";
-import {
-  COMBAT_ABILITY_SLOT_COUNT,
-  TECHNIQUE_SLOT_COUNT,
-  type CombatAbilityLoadoutState,
-} from "./combatAbilityTypes";
-import type { TechniqueId } from "../combat/combatTypes";
+import { spellDefinitions } from "../data/spells";
+import { normalizeSpellId } from "../spellbook/spellbookLogic";
+import { COMBAT_ABILITY_SLOT_COUNT, type CombatAbilityLoadoutState } from "./combatAbilityTypes";
 
 const defaultActiveSlots = [
   "defense.guard",
@@ -14,92 +10,65 @@ const defaultActiveSlots = [
   null,
   null,
 ] as Array<string | null>;
-const defaultTechniqueSlots = [
-  "careful-positioning",
-  "heightened-reflexes",
-] as Array<TechniqueId | null>;
 
-const activeAbilityIds = new Set(
-  getActiveAbilityActionDefinitions().map((action) => action.id),
-);
-const techniqueIds = new Set<TechniqueId>(
-  Object.keys(techniqueDefinitions) as TechniqueId[],
-);
+const slottableActionIds = new Set([
+  ...getActiveAbilityActionDefinitions().map((action) => action.id),
+  ...spellDefinitions.map((spell) => spell.id),
+]);
 
-export function createInitialCombatAbilityLoadout(): CombatAbilityLoadoutState {
-  return {
-    activeSlots: [...defaultActiveSlots],
-    techniqueSlots: [...defaultTechniqueSlots],
-  };
+function validSlot(slot: number) {
+  return Number.isInteger(slot) && slot >= 0 && slot < COMBAT_ABILITY_SLOT_COUNT;
+}
+
+function knownAction(id: string, knownSpellIds: readonly string[]) {
+  if (!slottableActionIds.has(id)) return false;
+  const isSpell = spellDefinitions.some((spell) => spell.id === id);
+  return !isSpell || knownSpellIds.includes(id);
+}
+
+export function createInitialCombatAbilityLoadout(
+  knownSpellIds: readonly string[] = spellDefinitions.map((spell) => spell.id),
+): CombatAbilityLoadoutState {
+  const slots = [...defaultActiveSlots];
+  for (const spellId of spellDefinitions.map((spell) => spell.id)) {
+    if (!knownSpellIds.includes(spellId)) continue;
+    const emptySlot = slots.findIndex((slot) => slot === null);
+    if (emptySlot < 0) break;
+    slots[emptySlot] = spellId;
+  }
+  return { slots };
 }
 
 export function normalizeCombatAbilityLoadout(
   value: unknown,
+  knownSpellIds: readonly string[] = spellDefinitions.map((spell) => spell.id),
 ): CombatAbilityLoadoutState {
-  const raw = value && typeof value === "object"
-    ? value as Partial<CombatAbilityLoadoutState>
-    : {};
-  const usedActions = new Set<string>();
-  const usedTechniques = new Set<TechniqueId>();
-  const activeSlots = Array.from(
-    { length: COMBAT_ABILITY_SLOT_COUNT },
-    (_, index) => {
-      const id = raw.activeSlots?.[index];
-      if (
-        typeof id !== "string" ||
-        !activeAbilityIds.has(id) ||
-        usedActions.has(id)
-      )
-        return null;
-      usedActions.add(id);
-      return id;
-    },
-  );
-  const techniqueSlots = Array.from(
-    { length: TECHNIQUE_SLOT_COUNT },
-    (_, index) => {
-      const id = raw.techniqueSlots?.[index];
-      if (
-        typeof id !== "string" ||
-        !techniqueIds.has(id as TechniqueId) ||
-        usedTechniques.has(id as TechniqueId)
-      )
-        return null;
-      usedTechniques.add(id as TechniqueId);
-      return id as TechniqueId;
-    },
-  );
-  return { activeSlots, techniqueSlots };
-}
-
-function validActiveSlot(slot: number) {
-  return Number.isInteger(slot) && slot >= 0 && slot < COMBAT_ABILITY_SLOT_COUNT;
-}
-
-function validTechniqueSlot(slot: number) {
-  return Number.isInteger(slot) && slot >= 0 && slot < TECHNIQUE_SLOT_COUNT;
-}
-
-function knownActiveAction(id: string) {
-  return activeAbilityIds.has(id);
-}
-
-function knownTechnique(id: string): id is TechniqueId {
-  return techniqueIds.has(id as TechniqueId);
+  const raw = value && typeof value === "object" ? value as { slots?: unknown } : {};
+  const rawSlots = Array.isArray(raw.slots) ? raw.slots : [];
+  const used = new Set<string>();
+  const slots = Array.from({ length: COMBAT_ABILITY_SLOT_COUNT }, (_, index) => {
+    const rawId = rawSlots[index];
+    const id = typeof rawId === "string" ? normalizeSpellId(rawId) ?? rawId : null;
+    if (!id || !knownAction(id, knownSpellIds) || used.has(id)) return null;
+    used.add(id);
+    return id;
+  });
+  return { slots };
 }
 
 export function equipCombatAbility(
   value: CombatAbilityLoadoutState,
   actionId: string,
   targetSlot: number,
+  knownSpellIds: readonly string[] = spellDefinitions.map((spell) => spell.id),
 ): CombatAbilityLoadoutState {
-  if (!validActiveSlot(targetSlot) || !knownActiveAction(actionId)) return value;
-  const sourceSlot = value.activeSlots.findIndex((id) => id === actionId);
+  if (!validSlot(targetSlot) || !knownAction(actionId, knownSpellIds)) return value;
+  const sourceSlot = value.slots.findIndex((id) => id === actionId);
   if (sourceSlot === targetSlot) return value;
-  const activeSlots = [...value.activeSlots];
-  if (sourceSlot >= 0) activeSlots[sourceSlot] = null;
-  activeSlots[targetSlot] = actionId;
-  return { ...value, activeSlots };
+  const slots = [...value.slots];
+  if (sourceSlot >= 0) slots[sourceSlot] = null;
+  slots[targetSlot] = actionId;
+  return { ...value, slots };
 }
 
 export function moveCombatAbility(
@@ -108,84 +77,17 @@ export function moveCombatAbility(
   targetSlot: number,
   expectedActionId?: string,
 ): CombatAbilityLoadoutState {
-  if (
-    !validActiveSlot(sourceSlot) ||
-    !validActiveSlot(targetSlot) ||
-    sourceSlot === targetSlot
-  )
-    return value;
-  const sourceActionId = value.activeSlots[sourceSlot];
-  if (
-    !sourceActionId ||
-    !knownActiveAction(sourceActionId) ||
-    (expectedActionId && sourceActionId !== expectedActionId)
-  )
-    return value;
-  const activeSlots = [...value.activeSlots];
-  [activeSlots[sourceSlot], activeSlots[targetSlot]] = [
-    activeSlots[targetSlot] ?? null,
-    activeSlots[sourceSlot] ?? null,
-  ];
-  return { ...value, activeSlots };
+  if (!validSlot(sourceSlot) || !validSlot(targetSlot) || sourceSlot === targetSlot) return value;
+  const sourceActionId = value.slots[sourceSlot];
+  if (!sourceActionId || (expectedActionId && sourceActionId !== expectedActionId)) return value;
+  const slots = [...value.slots];
+  [slots[sourceSlot], slots[targetSlot]] = [slots[targetSlot] ?? null, slots[sourceSlot] ?? null];
+  return { ...value, slots };
 }
 
-export function unequipCombatAbility(
-  value: CombatAbilityLoadoutState,
-  slot: number,
-): CombatAbilityLoadoutState {
-  if (!validActiveSlot(slot) || !value.activeSlots[slot]) return value;
-  const activeSlots = [...value.activeSlots];
-  activeSlots[slot] = null;
-  return { ...value, activeSlots };
-}
-
-export function equipTechnique(
-  value: CombatAbilityLoadoutState,
-  techniqueId: TechniqueId,
-  targetSlot: number,
-): CombatAbilityLoadoutState {
-  if (!validTechniqueSlot(targetSlot) || !knownTechnique(techniqueId)) return value;
-  const sourceSlot = value.techniqueSlots.findIndex((id) => id === techniqueId);
-  if (sourceSlot === targetSlot) return value;
-  const techniqueSlots = [...value.techniqueSlots];
-  if (sourceSlot >= 0) techniqueSlots[sourceSlot] = null;
-  techniqueSlots[targetSlot] = techniqueId;
-  return { ...value, techniqueSlots };
-}
-
-export function moveTechnique(
-  value: CombatAbilityLoadoutState,
-  sourceSlot: number,
-  targetSlot: number,
-  expectedTechniqueId?: TechniqueId,
-): CombatAbilityLoadoutState {
-  if (
-    !validTechniqueSlot(sourceSlot) ||
-    !validTechniqueSlot(targetSlot) ||
-    sourceSlot === targetSlot
-  )
-    return value;
-  const sourceTechniqueId = value.techniqueSlots[sourceSlot];
-  if (
-    !sourceTechniqueId ||
-    !knownTechnique(sourceTechniqueId) ||
-    (expectedTechniqueId && sourceTechniqueId !== expectedTechniqueId)
-  )
-    return value;
-  const techniqueSlots = [...value.techniqueSlots];
-  [techniqueSlots[sourceSlot], techniqueSlots[targetSlot]] = [
-    techniqueSlots[targetSlot] ?? null,
-    techniqueSlots[sourceSlot] ?? null,
-  ];
-  return { ...value, techniqueSlots };
-}
-
-export function unequipTechnique(
-  value: CombatAbilityLoadoutState,
-  slot: number,
-): CombatAbilityLoadoutState {
-  if (!validTechniqueSlot(slot) || !value.techniqueSlots[slot]) return value;
-  const techniqueSlots = [...value.techniqueSlots];
-  techniqueSlots[slot] = null;
-  return { ...value, techniqueSlots };
+export function unequipCombatAbility(value: CombatAbilityLoadoutState, slot: number): CombatAbilityLoadoutState {
+  if (!validSlot(slot) || !value.slots[slot]) return value;
+  const slots = [...value.slots];
+  slots[slot] = null;
+  return { ...value, slots };
 }

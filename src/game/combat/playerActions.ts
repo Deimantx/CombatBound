@@ -210,9 +210,11 @@ export function validatePlayerAction(
   if (combat.phase !== "active")
     return { valid: false, reason: "combat-inactive", action };
   if (!action) return { valid: false, reason: "combat-inactive" };
+  if (action.kind === "spell" && !game.spellbook.knownSpellIds.includes(action.id))
+    return { valid: false, reason: "spell-not-known", action };
   if (
     isCombatAbilityLoadoutAction(action) &&
-    !game.combatAbilities.activeSlots.includes(action.id)
+    !game.combatAbilities.slots.includes(action.id)
   )
     return { valid: false, reason: "ability-not-equipped", action };
   if (action.sourceWeaponSkillId) {
@@ -232,12 +234,6 @@ export function validatePlayerAction(
         reason: "proficiency-level-requirement",
         action,
       };
-  }
-  if (action.kind === "spell") {
-    if (!game.spellbook.knownSpellIds.includes(action.id))
-      return { valid: false, reason: "spell-not-known", action };
-    if (!game.spellbook.equippedSpellSlots.includes(action.id))
-      return { valid: false, reason: "spell-not-equipped", action };
   }
   if (combat.globalCooldownRemaining > 0 && action.globalCooldown !== "none")
     return { valid: false, reason: "global-cooldown", action };

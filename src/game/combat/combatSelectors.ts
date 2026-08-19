@@ -70,15 +70,11 @@ export function getPlayerEffectiveCombatStats(
   if (!progression) return base;
   const barrierActive =
     getBarrierAmount(combat.playerEffects, effectDefinitions) > 0;
-  const activeTechniqueCount = Object.values(combat.techniques).filter(
-    Boolean,
-  ).length;
   const weapon = stats.weaponProficiencyId ?? null;
   const dynamicWeapon = getConditionalProficiencyStatModifiers(
     progression,
     weapon,
     {
-      activeTechniqueCount,
       staminaFraction:
         combat.maxStamina > 0 ? combat.stamina / combat.maxStamina : 0,
       playerHpFraction:

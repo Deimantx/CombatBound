@@ -108,7 +108,6 @@ describe("Equipment V8.6 domain", () => {
       { slots: {} },
       { stackables: {}, instances: {}, nextInstanceSequence: 1 },
       initial.progression,
-      { "careful-positioning": false, "heightened-reflexes": false },
       testItems,
     );
     const allAccessoriesEquipment = {
@@ -126,7 +125,6 @@ describe("Equipment V8.6 domain", () => {
       allAccessoriesEquipment,
       inventoryFor(["test.belt", "test.cape", "test.necklace", "test.ring", "test.ring", "test.earring", "test.earring"]),
       initial.progression,
-      { "careful-positioning": false, "heightened-reflexes": false },
       testItems,
     );
     const context = getDefensiveEquipmentContext({ slots: { belt: "item-instance-00000001", cape: "item-instance-00000002" } }, inventoryFor(["test.belt", "test.cape"]), testItems);

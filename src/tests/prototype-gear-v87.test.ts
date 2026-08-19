@@ -123,9 +123,9 @@ describe("CombatBound V8.7 prototype gear", () => {
 
   it("applies representative accessory, armor, resource and precision stats", () => {
     const game = createInitialGameState();
-    const empty = calculateHunterCombatStats({ slots: {} }, { stackables: {}, instances: {}, nextInstanceSequence: 1 }, game.progression, game.combat.techniques);
+    const empty = calculateHunterCombatStats({ slots: {} }, { stackables: {}, instances: {}, nextInstanceSequence: 1 }, game.progression);
     const build = ownedEquipment(game, [["belt", "item.war-belt"], ["necklace", "item.arcane-necklace"], ["armor", "item.vanguard-plate"], ["ring1", "item.duelist-ring"]]);
-    const stats = calculateHunterCombatStats(build.equipment, build.inventory, game.progression, game.combat.techniques);
+    const stats = calculateHunterCombatStats(build.equipment, build.inventory, game.progression);
 
     expect((stats.maxLife ?? 0) - (empty.maxLife ?? 0)).toBe(85);
     expect((stats.armour ?? 0) - (empty.armour ?? 0)).toBe(24);
@@ -185,7 +185,7 @@ describe("CombatBound V8.7 prototype gear", () => {
 
   it("uses canonical effects, defeat rewards, cooldown reset and revive paths", () => {
     const initial = createInitialGameState();
-    const stats = calculateHunterCombatStats(initial.equipment, initial.inventory, initial.progression, initial.combat.techniques);
+    const stats = calculateHunterCombatStats(initial.equipment, initial.inventory, initial.progression);
     const active = startHunt(initial, "location.wolf-den", stats, context);
     const withIgnite = debugApplyEffect(active, "effect.ignite", "selected-enemy");
     const selected = withIgnite.combat.enemies.find((enemy) => enemy.instanceId === withIgnite.combat.selectedEnemyInstanceId);
@@ -211,7 +211,7 @@ describe("CombatBound V8.7 prototype gear", () => {
   });
 
   it("uses the V11 persistent instance-ownership schema", () => {
-    expect(CURRENT_SAVE_VERSION).toBe(13);
+    expect(CURRENT_SAVE_VERSION).toBe(14);
     expect(itemDefinitions.every((item) => item.requiredHunterRank === undefined || item.requiredHunterRank > 0)).toBe(true);
     expect(enemyDefinitions.length).toBeGreaterThan(0);
   });

@@ -43,7 +43,7 @@ const branchData: Record<DefensiveId, { name: string; icon: string; root: string
     branches: [
       { name: 'Stamina Discipline', icon: 'wind', names: ['Balanced Breathing', 'Stamina Reserve', 'Efficient Motion', 'Second Wind', 'Combat Rhythm', 'Enduring Pace', 'Unbroken Stamina'] },
       { name: 'Mobile Defense', icon: 'shield', names: ['Moving Guard', 'Reactive Step', 'Skirmisher Pace', 'Deflecting Path', 'Mobile Bulwark', 'Dancing Defense', 'Uncatchable'] },
-      { name: 'Weapon Tempo', icon: 'sword', names: ['Ready Grip', 'Tempo Study', 'Measured Strikes', 'Swift Recovery', 'Battle Cadence', 'Rapid Technique', 'Perfect Tempo'] },
+      { name: 'Weapon Tempo', icon: 'sword', names: ['Ready Grip', 'Tempo Study', 'Measured Strikes', 'Swift Recovery', 'Battle Cadence', 'Rapid Tempo', 'Perfect Tempo'] },
       { name: 'Balanced Guard', icon: 'shield', names: ['Practical Armor', 'Guarded Center', 'Firm Footing', 'Flexible Guard', 'Reinforced Frame', 'Adaptive Defense', 'Balanced Training'] },
       { name: 'General Resilience', icon: 'spark', names: ["Hunter's Resolve", 'Pain Tolerance', 'Status Awareness', 'Hardy Constitution', 'Elemental Balance', 'Relentless Survivor', 'Versatile Resilience'] },
     ],

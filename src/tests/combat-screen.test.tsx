@@ -45,7 +45,7 @@ describe('combat screen dashboard', () => {
     expect(screen.queryByText('RETURN TO COMBAT')).not.toBeInTheDocument()
   })
 
-  it('keeps live hunt controls explicit and techniques toggleable', () => {
+  it('keeps live hunt controls explicit with one shared ability row', () => {
     openCombat()
     fireEvent.click(screen.getByRole('button', { name: 'Start hunt' }))
     expect(screen.getByText('ENEMY GROUP')).toBeInTheDocument()
@@ -64,10 +64,8 @@ describe('combat screen dashboard', () => {
     expect(screen.queryByText(/Net Stamina:/)).not.toBeInTheDocument()
     expect(screen.queryByText(/regen/)).not.toBeInTheDocument()
 
-    const technique = screen.getByRole('button', { name: /Careful Positioning/ })
-    expect(technique).toHaveAttribute('aria-pressed', 'false')
-    fireEvent.click(technique)
-    expect(technique).toHaveAttribute('aria-pressed', 'true')
+    expect(document.querySelectorAll('[data-debug-kind="combat-ability"], [data-debug-kind="weapon-skill"], [data-debug-kind="spell"], [data-debug-kind="combat-ability-empty-slot"]')).toHaveLength(5)
+    expect(screen.queryByText(/Careful Positioning/)).not.toBeInTheDocument()
     expect(screen.queryByText(/Net Stamina:/)).not.toBeInTheDocument()
   })
 

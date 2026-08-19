@@ -171,7 +171,6 @@ export function getActiveDefensiveStatModifiers(progression: ProgressionState, e
 }
 
 export interface ActiveStatContext {
-  activeTechniqueCount?: number
   staminaFraction?: number
   playerHpFraction?: number
   barrierActive?: boolean
@@ -192,11 +191,9 @@ export function getActiveProficiencyStatModifiers(
       const matches = effect.condition.type === 'active-barrier' ? context.barrierActive === true
         : effect.condition.type === 'stamina-above' ? (context.staminaFraction ?? 0) >= (effect.condition.fraction ?? 0)
           : effect.condition.type === 'player-hp-below' ? (context.playerHpFraction ?? 1) < (effect.condition.fraction ?? 1)
-            : effect.condition.type === 'active-technique' ? (context.activeTechniqueCount ?? 0) > 0
-              : false
+            : false
       if (matches) modifiers.push({ stat: effect.stat, operation: effect.operation, value: effect.valuePerRank * rank })
     }
-    if (effect.type === 'activeTechniqueStatModifier' && (context.activeTechniqueCount ?? 0) > 0) modifiers.push({ stat: effect.stat, operation: effect.operation, value: effect.valuePerRank * rank * Math.max(1, context.activeTechniqueCount ?? 0) })
   }
   return modifiers
 }
@@ -213,8 +210,7 @@ export function getConditionalProficiencyStatModifiers(
     const matches = effect.condition.type === 'active-barrier' ? context.barrierActive === true
       : effect.condition.type === 'stamina-above' ? (context.staminaFraction ?? 0) >= (effect.condition.fraction ?? 0)
         : effect.condition.type === 'player-hp-below' ? (context.playerHpFraction ?? 1) < (effect.condition.fraction ?? 1)
-          : effect.condition.type === 'active-technique' ? (context.activeTechniqueCount ?? 0) > 0
-            : false
+          : false
     return matches ? [{ stat: effect.stat, operation: effect.operation, value: effect.valuePerRank * rank }] : []
   })
 }
@@ -265,11 +261,6 @@ export function getWeaponAttackModifiers(progression: ProgressionState, proficie
 export function getWeaponBlockEffectHooks(progression: ProgressionState, proficiencyId: WeaponProficiencyId | null, definitions: Record<string, ProficiencyPerkDefinition> = perkById) {
   if (!proficiencyId) return [] as Array<{ effectId: string; durationSeconds?: number }>
   return activeEffects(progression, proficiencyId, definitions).flatMap(({ effect, rank }) => effect.type === 'onBlockApplyEffect' ? Array.from({ length: rank }, () => ({ effectId: effect.effectId, durationSeconds: effect.durationSeconds })) : [])
-}
-
-export function getTechniqueStaminaDrainMultiplier(progression: ProgressionState, proficiencyId: WeaponProficiencyId | null, definitions: Record<string, ProficiencyPerkDefinition> = perkById) {
-  if (!proficiencyId) return 1
-  return Math.max(0, 1 + activeEffects(progression, proficiencyId, definitions).reduce((sum, { effect, rank }) => sum + (effect.type === 'techniqueStaminaDrainModifier' ? effect.valuePerRank * rank : 0), 0))
 }
 
 function matchesCondition(condition: { type: 'targetHpAbove' | 'targetHpBelow' | 'targetHasEffect' | 'targetHasEffectAndHpBelow' | 'manaAbove'; fraction?: number; effectId?: string }, targetHpFraction: number, targetEffectIds: string[]) {

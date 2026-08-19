@@ -1,7 +1,7 @@
 import { X } from "lucide-react";
 import { useEffect, useRef, type ReactNode } from "react";
 
-export type HeroWindowId = "spellbook" | "abilities" | "automation" | null;
+export type HeroWindowId = "abilities" | "automation" | null;
 
 export function HeroWindow({
   title,

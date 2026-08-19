@@ -7,7 +7,7 @@ const profile: WeaponTreeProfile = {
     { name: 'Bleed', kind: 'bleed', names: ['Jagged Greatblade', 'Deep Wound', 'Rivers of Blood', 'Bleeding Ruin', 'Persistent Trauma', 'Bloodstorm', 'Red Harvest'] },
     { name: 'Armour Break', kind: 'armour', names: ['Split Iron', 'Crush Plate', 'Sunder Deep', 'Open the Shell', 'Shatter Guard', 'No Armour Left', 'Siegebreaker'] },
     { name: 'Execution', kind: 'execution', names: ['Hunter of the Weak', 'Savage Finish', "Death's Approach", 'Execution Weight', 'No Escape', 'Marked for Ruin', 'Decapitation'] },
-    { name: 'Stamina / Tempo', kind: 'tempo', names: ['Heavy Conditioning', 'Recovery Step', 'Ruthless Breathing', 'Efficient Technique', 'Full Reserve', "Reaver's Rhythm", 'Unending Reaver'] },
+    { name: 'Stamina / Tempo', kind: 'tempo', names: ['Heavy Conditioning', 'Recovery Step', 'Ruthless Breathing', 'Efficient Tempo', 'Full Reserve', "Reaver's Rhythm", 'Unending Reaver'] },
   ],
   crossNodes: [
     { name: 'Blood and Iron', links: [[1, 6], [2, 6]], effects: [{ type: 'weaponConditionalDamageModifier', operation: 'increased', valuePerRank: .12, condition: { type: 'targetHasEffect', effectId: 'effect.bleed' } }, { type: 'weaponArmorPenetrationModifier', mode: 'flat', valuePerRank: 10 }] },

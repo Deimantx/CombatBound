@@ -11,10 +11,8 @@ import type { ResolvedItemInstance } from "../items/itemTypes";
 import { combatStatReferenceById } from "../data/combatGlossary";
 import { effectById } from "../data/effects";
 import type { SpellDefinition } from "../data/spells";
-import type { TechniqueId } from "../combat/combatTypes";
 import type { ProgressionState } from "../progression/progressionTypes";
 import { calculateEffectiveSpell, type SpellCalculationContext } from "../progression/spellProgression";
-import { techniqueDefinitions } from "../data/techniques";
 import { proficiencyById } from "../data/proficiencies";
 import { equipmentSlotKindLabel, getEquipmentSlotDefinition, type EquipmentSlotId } from "../equipment/equipmentTypes";
 import { weaponSkillById } from "../data/weaponSkills";
@@ -477,38 +475,6 @@ export function buildSpellTooltip(
   };
 }
 
-export function buildTechniqueTooltip(id: TechniqueId): TooltipModel {
-  const technique = techniqueDefinitions[id];
-  const rows: TooltipRow[] = [
-    {
-      label: "Stamina drain",
-      value: `${technique.staminaDrainPerSecond.toFixed(1)} / sec`,
-      tone: "blue",
-    },
-  ];
-  if (technique.accuracyRating)
-    rows.push({
-      label: "Accuracy Rating",
-      value: formatSignedNumber(technique.accuracyRating),
-      tone: "gold",
-    });
-  if (technique.evasionRating)
-    rows.push({
-      label: "Evasion Rating",
-      value: formatSignedNumber(technique.evasionRating),
-      tone: "green",
-    });
-  return {
-    id: `technique.${id}`,
-    icon: "spark",
-    title: technique.name,
-    subtitle: "Sustained Technique",
-    description: technique.description,
-    rows,
-    notes: ["Automatically deactivates when Stamina reaches zero."],
-  };
-}
-
 export function buildCombatAbilityTooltip(
   entry: CombatAbilityCatalogueEntry,
   options: {
@@ -518,6 +484,7 @@ export function buildCombatAbilityTooltip(
     currentStaminaRegen?: number;
   },
 ): TooltipModel {
+  const action = options.action;
   if (entry.kind === "core")
     return {
       id: `combat-ability.${entry.id}`,
@@ -530,23 +497,20 @@ export function buildCombatAbilityTooltip(
         { label: "Loadout", value: "Does not use a slot", tone: "gold" },
       ],
     };
-  if (entry.kind === "technique") {
-    const technique = techniqueDefinitions[entry.techniqueId];
+  if (entry.kind === "spell") {
     return {
-      id: `combat-ability.${entry.techniqueId}`,
+      id: `combat-ability.${entry.actionId}`,
       icon: entry.icon,
       title: entry.name,
-      subtitle: "Sustained Technique",
+      subtitle: "Magic Spell",
       description: entry.description,
       rows: [
-        { label: "Stamina drain", value: `${technique.staminaDrainPerSecond.toFixed(1)} / sec`, tone: "blue" },
-        { label: "Equipped slot", value: options.equippedSlot >= 0 ? `Technique ${options.equippedSlot + 1}` : "Not equipped" },
-        ...(options.currentStaminaRegen !== undefined ? [{ label: "Current Regen", value: `${options.currentStaminaRegen.toFixed(1)} / sec`, tone: "gold" as const }] : []),
+        { label: "Mana cost", value: `${action?.resourceCost?.mana ?? 0}`, tone: "blue" },
+        { label: "Cooldown", value: `${action?.cooldown.toFixed(1) ?? "0.0"}s`, tone: "gold" },
+        { label: "Equipped slot", value: options.equippedSlot >= 0 ? `Ability ${options.equippedSlot + 1}` : "Not equipped" },
       ],
-      notes: ["Toggle during Combat. Automatically shuts down at zero Stamina."],
     };
   }
-  const action = options.action;
   const skill = action?.sourceWeaponSkillId
     ? weaponSkillById[action.sourceWeaponSkillId]
     : undefined;

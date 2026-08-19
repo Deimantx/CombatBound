@@ -6,7 +6,6 @@ export type CombatStopReason =
   | "consumablesDepleted"
   | "victoryLimit"
   | "completed";
-export type TechniqueId = "careful-positioning" | "heightened-reflexes";
 export type SpellTargetMode = "self" | "selectedEnemy" | "allEnemies";
 export type DamageType =
   | "physical"
@@ -117,7 +116,7 @@ export type ModifierOperation =
 
 export interface CombatStatContribution {
   stat: CombatStatKey | `resistance:${DamageType}`;
-  sourceType: "base" | "equipment" | "perk" | "technique" | "effect" | "other";
+  sourceType: "base" | "equipment" | "perk" | "effect" | "other";
   sourceId: string;
   sourceLabel: string;
   operation: ModifierOperation;
@@ -182,7 +181,6 @@ export type ActionValidationReason =
   | "no-target"
   | "target-defeated"
   | "spell-not-known"
-  | "spell-not-equipped"
   | "ability-not-equipped"
   | "weapon-requirement"
   | "proficiency-level-requirement"
@@ -401,7 +399,6 @@ export interface CombatState {
   maxStamina: number;
   mana: number;
   maxMana: number;
-  techniques: Record<TechniqueId, boolean>;
   actionCooldowns: Record<string, number>;
   globalCooldownRemaining: number;
   enemyActionsStartedThisStep?: string[];

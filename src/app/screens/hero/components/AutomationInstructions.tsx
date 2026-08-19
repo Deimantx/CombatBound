@@ -41,7 +41,7 @@ export function AutomationInstructions({ onBack }: { onBack: () => void }) {
         <section id="automation-presets" data-debug-help-section="automation-presets">
           <h4>Automation Presets</h4>
           <p>Automation Presets save the current Rules, their priorities and enabled states, Conditions, Target Priority order and enabled states, and Auto Target Override. There are ten persistent slots, and each slot stores an independent snapshot.</p>
-          <p>Use <strong>SAVE CURRENT</strong> for an empty slot, <strong>OVERWRITE</strong> to replace an existing slot, <strong>RENAME</strong> to give it a clear name, and <strong>LOAD</strong> to apply it. Loading keeps the Master Automation switch, equipment, spellbook, combat abilities, techniques, inventory, stats, resources, cooldowns, and live combat target unchanged.</p>
+          <p>Use <strong>SAVE CURRENT</strong> for an empty slot, <strong>OVERWRITE</strong> to replace an existing slot, <strong>RENAME</strong> to give it a clear name, and <strong>LOAD</strong> to apply it. Loading keeps the Master Automation switch, equipment, the unified combat ability loadout, inventory, stats, resources, cooldowns, and live combat target unchanged.</p>
           <div className="instruction-callout important"><strong>IMPORTANT</strong><span>Presets are configuration snapshots, not live links. Missing or unequipped actions remain saved in the preset and are shown as unavailable until the required loadout or equipment is restored.</span></div>
           <p>Presets can be saved, overwritten, renamed, or loaded while a Hunt is active. Loading changes future automation decisions without resetting combat runtime or action cooldowns.</p>
         </section>

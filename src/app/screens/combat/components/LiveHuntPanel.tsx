@@ -22,14 +22,13 @@ interface LiveHuntPanelProps {
   selectedEnemy?: EnemyCombatInstance;
   selectedDefinition?: (typeof enemyById)[keyof typeof enemyById];
   onSelectTarget: (instanceId: string) => void;
-  onCastSpell: (spellId: string) => void;
   onUseAction: (actionId: string) => void;
   onUsePotion: () => void;
   onStartHunt: () => void;
   onStopHunt: () => void;
 }
 
-export function LiveHuntPanel({ game, stats, location, selectedEnemy, selectedDefinition, onSelectTarget, onCastSpell, onUseAction, onUsePotion, onStartHunt, onStopHunt }: LiveHuntPanelProps) {
+export function LiveHuntPanel({ game, stats, location, selectedEnemy, selectedDefinition, onSelectTarget, onUseAction, onUsePotion, onStartHunt, onStopHunt }: LiveHuntPanelProps) {
   const combat = game.combat;
   const active = combat.phase === "active" || combat.phase === "recovery";
   const alive = combat.enemies.filter((enemy) => !enemy.defeated).length;
@@ -42,7 +41,7 @@ export function LiveHuntPanel({ game, stats, location, selectedEnemy, selectedDe
     <PlayerAttackTimeline phase={combat.phase} timer={combat.playerAttackTimer} interval={combat.playerAttackInterval} selectedEnemy={selectedEnemy} matchup={matchup} stats={stats} />
     {combat.phase === "recovery" && <div className="combat-recovery-banner"><strong>GROUP CLEARED</strong><span>Recovering · next group in {combat.recoveryRemaining.toFixed(1)}s</span></div>}
     <EnemyRoster enemies={combat.enemies} selectedId={combat.selectedEnemyInstanceId} onSelect={onSelectTarget} />
-    <CombatActionWorkspace game={game} stats={stats} selectedEnemy={selectedEnemy} selectedDefinition={selectedDefinition} actionContext={actionContext} onCastSpell={onCastSpell} onUseAction={onUseAction} onUsePotion={onUsePotion} />
+    <CombatActionWorkspace game={game} stats={stats} selectedEnemy={selectedEnemy} selectedDefinition={selectedDefinition} actionContext={actionContext} onUseAction={onUseAction} onUsePotion={onUsePotion} />
     <div className="hunt-control-row"><div><span className="tiny-label">HUNT CONTROL</span><small>{active ? "∞ New groups continue automatically" : "Ready to generate a random group"}</small></div><button type="button" aria-label={active ? "Stop hunt" : "Start hunt"} className="button button-primary fight-button" onClick={active ? onStopHunt : onStartHunt} data-debug-kind="combat-control" data-debug-label={active ? "Stop hunt" : "Start hunt"}>{active ? <><Pause size={15} /> Stop Hunt</> : <><Play size={15} /> Start Hunt</>}</button></div>
     <CombatEventStrip log={combat.log} />
     <CombatLog log={combat.log} />

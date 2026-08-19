@@ -18,7 +18,7 @@ describe("Hero Build Workspace V11", () => {
     localStorage.removeItem("combatbound-hero-stats-v1");
   });
 
-  it("renders inline canonical equipment, live stats, and exactly three build-system launchers", () => {
+  it("renders inline canonical equipment, live stats, and exactly two build-system launchers", () => {
     render(<App />);
     fireEvent.click(screen.getByRole("button", { name: "Hero" }));
 
@@ -26,7 +26,7 @@ describe("Hero Build Workspace V11", () => {
     expect(document.querySelector('[data-debug-kind="hero-equipment"]')).toBeInTheDocument();
     expect(document.querySelectorAll('[data-debug-kind="equipment-slot"]')).toHaveLength(EQUIPMENT_SLOT_IDS.length);
     expect(document.querySelectorAll('[data-debug-kind="hero-stat-category"]')).toHaveLength(4);
-    expect(document.querySelectorAll('[data-debug-kind="hero-build-system"]')).toHaveLength(3);
+    expect(document.querySelectorAll('[data-debug-kind="hero-build-system"]')).toHaveLength(2);
     expect(document.querySelector('[data-debug-system="equipment"]')).not.toBeInTheDocument();
     expect(document.querySelector('[data-debug-system="stats"]')).not.toBeInTheDocument();
   });
@@ -114,13 +114,13 @@ describe("Hero Build Workspace V11", () => {
     expect(document.querySelector('[data-debug-stat="armour"]')).not.toBeVisible();
   });
 
-  it("keeps deep links to the three full build-system windows", () => {
+  it("keeps deep links to the two full build-system windows", () => {
     render(<App />);
     fireEvent.click(screen.getByRole("button", { name: "Hero" }));
     fireEvent.click(screen.getByRole("button", { name: /COMBAT ABILITIES/ }));
     expect(document.querySelector('[data-debug-kind="hero-window"][data-debug-window="abilities"]')).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: /Close COMBAT ABILITIES/ }));
-    fireEvent.click(screen.getByRole("button", { name: /SPELLBOOK/ }));
-    expect(document.querySelector('[data-debug-kind="hero-window"][data-debug-window="spellbook"]')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: /COMBAT AUTOMATION/ }));
+    expect(document.querySelector('[data-debug-kind="hero-window"][data-debug-window="automation"]')).toBeInTheDocument();
   });
 });

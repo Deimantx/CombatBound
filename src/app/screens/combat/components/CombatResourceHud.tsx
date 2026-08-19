@@ -10,16 +10,14 @@ import { GameTooltip } from "../../../components/tooltip/GameTooltip";
 import { ProgressBar } from "../../../components/ProgressBar";
 import { LayeredHealthBar } from "./LayeredHealthBar";
 import { CombatMatchupReadout } from "./CombatMatchupReadout";
-import { techniqueStaminaDrain } from "./combatUi";
 
 export function CombatResourceHud({ game, stats, selectedEnemy }: { game: GameState; stats: HunterCombatStats; selectedEnemy?: GameState["combat"]["enemies"][number] }) {
   const combat = game.combat;
   const absorbShield = getBarrierAmount(combat.playerEffects, effectById);
-  const netStamina = stats.staminaRegen - techniqueStaminaDrain(combat);
   return <div className="combat-resource-hud" data-debug-kind="combat-resource-hud" data-debug-layout="vertical">
     <div className="combat-resource-stack" data-debug-kind="combat-resource-stack">
       <Resource label="HP" value={combat.playerHp} max={stats.maxLife ?? 0} shield={absorbShield} icon={<Heart size={13} />} variant="health" resource="currentHealth" />
-      <Resource label="Stamina" value={combat.stamina} max={combat.maxStamina} icon={<Zap size={13} />} variant="resource" resource="stamina" net={netStamina} />
+      <Resource label="Stamina" value={combat.stamina} max={combat.maxStamina} icon={<Zap size={13} />} variant="resource" resource="stamina" net={stats.staminaRegen} />
       <Resource label="Mana" value={combat.mana} max={combat.maxMana} icon={<Sparkles size={13} />} variant="experience" resource="mana" />
     </div>
     <CombatMatchupReadout game={game} stats={stats} selectedEnemy={selectedEnemy} />

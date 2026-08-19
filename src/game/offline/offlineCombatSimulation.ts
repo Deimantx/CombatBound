@@ -181,7 +181,6 @@ export function simulateCombatHuntOffline(
       game.equipment,
       game.inventory,
       game.progression,
-      game.combat.techniques,
     );
     const rawBoundary = getNextOfflineCombatBoundary(game, stats, context, wakeAutomationNextQuantum);
     const boundarySeconds = quantizeOfflineCombatBoundary(rawBoundary);

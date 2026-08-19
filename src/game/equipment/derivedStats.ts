@@ -1,12 +1,11 @@
 import { combatBalance } from "../combat/combatBalance";
-import { techniqueDefinitions } from "../data/techniques";
 import { itemById } from "../data/items";
 import { normalizeCombatStats } from "../combat/combatStats";
 import { applyProficiencyStatModifiers, getActiveGlobalMagicStatModifiers, getActiveProficiencyStatModifiers, getActiveDefensiveEquipmentModifiers } from "../progression/perkProgression";
 import { getEquippedWeaponProficiency } from "../progression/progressionSelectors";
 import { perkById } from "../data/proficiencyPerks";
 import { getDefensiveEquipmentContext, getResolvedEquippedItems } from "./defensiveEquipment";
-import type { CombatStats, TechniqueId, StatModifier, CombatStatContributionCollector, CombatStatKey } from "../combat/combatTypes";
+import type { CombatStats, StatModifier, CombatStatContributionCollector, CombatStatKey } from "../combat/combatTypes";
 import type { EquipmentState } from "./equipmentTypes";
 import type { InventoryState } from "../inventory/inventoryTypes";
 import type { ItemDefinition } from "../data/items";
@@ -21,7 +20,6 @@ export function calculateHunterCombatStats(
   equipment: EquipmentState,
   inventory: InventoryState,
   progression: ProgressionState,
-  techniques: Record<TechniqueId, boolean>,
   items?: Record<string, ItemDefinition>,
   collector?: CombatStatContributionCollector,
 ): HunterCombatStats {
@@ -33,14 +31,13 @@ export function calculateHunterCombatStats(
   const total = (key: keyof ItemStats) => equipmentStats.reduce((sum, stats) => sum + (stats[key] ?? 0), 0);
   const weaponDamageMin = weaponStats.baseDamageMin ?? combatBalance.baseAttackDamage;
   const weaponDamageMax = weaponStats.baseDamageMax ?? combatBalance.baseAttackDamage;
-  const carefulEvasion = techniques["careful-positioning"] ? techniqueDefinitions["careful-positioning"].evasionRating : 0;
   const base = normalizeCombatStats({
     maxLife: combatBalance.baseMaxLife + total("maxLife"),
     attackDamageMin: weaponDamageMin,
     attackDamageMax: weaponDamageMax,
-    accuracyRating: combatBalance.baseAccuracy + total("accuracyRating") + (techniques["heightened-reflexes"] ? techniqueDefinitions["heightened-reflexes"].accuracyRating : 0),
+    accuracyRating: combatBalance.baseAccuracy + total("accuracyRating"),
     armour: combatBalance.baseArmour + total("armour"),
-    evasionRating: combatBalance.baseEvasion + total("evasionRating") + carefulEvasion,
+    evasionRating: combatBalance.baseEvasion + total("evasionRating"),
     baseAttackTime: weaponStats.baseAttackTime ?? combatBalance.baseAttackInterval,
     criticalStrikeChance: combatBalance.baseCriticalStrikeChance + total("criticalStrikeChance"),
     criticalStrikeMultiplier: combatBalance.baseCriticalStrikeMultiplier + total("criticalStrikeMultiplier"),
@@ -60,7 +57,6 @@ export function calculateHunterCombatStats(
   });
 
   const canonical = normalizeCombatStats(base as CombatStats & Record<string, unknown>);
-  const activeTechniqueCount = Object.values(techniques).filter(Boolean).length;
   const weaponProficiencyId = getEquippedWeaponProficiency(equipment, inventory);
   const defensivePerks = getActiveDefensiveEquipmentModifiers(progression, getDefensiveEquipmentContext(equipment, inventory, resolvedItems), perkById);
   const weaponScopedStats: StatModifier[] = [];
@@ -69,7 +65,7 @@ export function calculateHunterCombatStats(
     if (modifier.modifier === "attackSpeed") weaponScopedStats.push({ stat: "moreAttackSpeed", operation: "more", value: modifier.value });
   }
   const withPerks = applyProficiencyStatModifiers(canonical, [
-    ...getActiveProficiencyStatModifiers(progression, weaponProficiencyId, perkById, { activeTechniqueCount }),
+    ...getActiveProficiencyStatModifiers(progression, weaponProficiencyId, perkById),
     ...getActiveGlobalMagicStatModifiers(progression, perkById),
     ...defensivePerks.statModifiers,
     ...weaponScopedStats,

@@ -8,8 +8,8 @@ import {
   writeProfileIndex,
   slotMetadata,
 } from "../../game/profiles/profileStorage";
-import { gameStateToSaveV13 } from "../../game/persistence/saveGame";
-import type { GameSaveV13 } from "../../game/persistence/saveTypes";
+import { gameStateToSaveV14 } from "../../game/persistence/saveGame";
+import type { GameSaveV14 } from "../../game/persistence/saveTypes";
 import type { GameState } from "../../game/gameState";
 import { hasValidOwnedProfileSessionLease } from "../../game/profiles/profileSessionLease";
 import { useGameStore } from "../../state/gameStore";
@@ -32,7 +32,7 @@ function sameActiveProfile(profileId: ProfileId): boolean {
 function restoreStorage(
   profileId: ProfileId,
   previousIndex: ProfileIndexV1,
-  previousStoredSave: GameSaveV13,
+  previousStoredSave: GameSaveV14,
   gameSaveWasWritten: boolean,
 ) {
   // Rollback is deliberately best-effort: a storage failure can prevent even
@@ -83,7 +83,7 @@ export function commitOfflineActivitySimulation(
         : entry,
     ) as ProfileIndexV1["slots"],
   };
-  const nextSave = gameStateToSaveV13(input.nextGame, {
+  const nextSave = gameStateToSaveV14(input.nextGame, {
     reducedMotion: input.reducedMotion,
     showInspectorButton: input.showInspectorButton,
   });

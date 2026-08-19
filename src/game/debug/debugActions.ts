@@ -8,14 +8,12 @@ import { effectById } from "../data/effects";
 import { spellDefinitions } from "../data/spells";
 import { proficiencyDefinitions, proficiencyById } from "../data/proficiencies";
 import { perkById } from "../data/proficiencyPerks";
-import { techniqueDefinitions } from "../data/techniques";
 import { weaponSkillDefinitions } from "../data/weaponSkills";
 import { applyEffectById } from "../combat/combatEffects";
 import { createCombatContext, forceDefeatEnemiesForDebug, forceDefeatPlayerForDebug, syncCombatStats } from "../combat/combatEngine";
-import { normalizeCombatAbilityLoadout, equipCombatAbility, equipTechnique } from "../combatAbilities/combatAbilityLogic";
+import { normalizeCombatAbilityLoadout, equipCombatAbility } from "../combatAbilities/combatAbilityLogic";
 import { COMBAT_ABILITY_SLOT_COUNT } from "../combatAbilities/combatAbilityTypes";
 import { createInitialSpellbook, normalizeSpellbook } from "../spellbook/spellbookLogic";
-import { COMBAT_SPELL_SLOT_COUNT } from "../spellbook/spellbookTypes";
 import { allProficiencyDefinitions, discoverProficiency, proficiencyXpForLevel } from "../progression/proficiencyProgression";
 import { MAX_PROFICIENCY_LEVEL } from "../progression/progressionBalance";
 import { awardHunterRankPoints, MAX_HUNTER_RANK, totalHunterRankPointsForRank } from "../progression/hunterRankProgression";
@@ -411,20 +409,15 @@ export function debugResetSpellbook(game: GameState): GameState {
 
 export function debugFillSpellLoadout(game: GameState): GameState {
   const knownSpellIds = game.spellbook.knownSpellIds;
-  return { ...game, spellbook: normalizeSpellbook({ ...game.spellbook, equippedSpellSlots: knownSpellIds.slice(0, COMBAT_SPELL_SLOT_COUNT) }) };
+  let loadout = normalizeCombatAbilityLoadout(game.combatAbilities, knownSpellIds);
+  for (const [slot, spellId] of knownSpellIds.slice(0, COMBAT_ABILITY_SLOT_COUNT).entries()) loadout = equipCombatAbility(loadout, spellId, slot, knownSpellIds);
+  return { ...game, combatAbilities: loadout };
 }
 
 export function debugEquipSwordSkills(game: GameState): GameState {
   const skills = weaponSkillDefinitions.filter((skill) => skill.proficiencyId === "one-handed-sword").slice(0, COMBAT_ABILITY_SLOT_COUNT);
-  let loadout = normalizeCombatAbilityLoadout(game.combatAbilities);
-  skills.forEach((skill, slot) => { loadout = equipCombatAbility(loadout, skill.id, slot); });
-  return { ...game, combatAbilities: loadout };
-}
-
-export function debugEquipBothTechniques(game: GameState): GameState {
-  const ids = Object.keys(techniqueDefinitions) as Array<keyof typeof techniqueDefinitions>;
-  let loadout = normalizeCombatAbilityLoadout(game.combatAbilities);
-  ids.slice(0, 2).forEach((id, slot) => { loadout = equipTechnique(loadout, id, slot); });
+  let loadout = normalizeCombatAbilityLoadout(game.combatAbilities, game.spellbook.knownSpellIds);
+  skills.forEach((skill, slot) => { loadout = equipCombatAbility(loadout, skill.id, slot, game.spellbook.knownSpellIds); });
   return { ...game, combatAbilities: loadout };
 }
 

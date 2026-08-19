@@ -9,7 +9,7 @@ import { calculateHunterCombatStats } from '../game/equipment/derivedStats'
 import { awardProficiencyXp, proficiencyLevelForXp, proficiencyXpForLevel } from '../game/progression/proficiencyProgression'
 
 const fixedContext = createCombatContext({ next: () => 0.5 })
-const statsFor = (game: ReturnType<typeof createInitialGameState>) => calculateHunterCombatStats(game.equipment, game.inventory, game.progression, game.combat.techniques)
+const statsFor = (game: ReturnType<typeof createInitialGameState>) => calculateHunterCombatStats(game.equipment, game.inventory, game.progression)
 const sequenceContext = (values: number[]) => { let index = 0; return createCombatContext({ next: () => values[index++ % values.length] }) }
 
 describe('gameplay domain', () => {
@@ -105,25 +105,24 @@ describe('gameplay domain', () => {
     expect(advanced.combat.mana).toBeCloseTo(51, 5)
   })
 
-  it('applies sustained Technique Stamina drain to net regeneration', () => {
+  it('regenerates Stamina without an active-technique drain', () => {
     const game = createInitialGameState()
     const stats = { ...statsFor(game), staminaRegen: 5, manaRegenFlat: 1 }
     const started = startHunt(game, 'location.wolf-den', stats, fixedContext)
-    const activeTechnique = { ...started, combat: { ...started.combat, stamina: 50, mana: 50, techniques: { ...started.combat.techniques, 'careful-positioning': true } } }
-    const advanced = advanceCombat(activeTechnique, 1, fixedContext, stats)
-    expect(advanced.combat.stamina).toBeCloseTo(52, 5)
+    const active = { ...started, combat: { ...started.combat, stamina: 50, mana: 50 } }
+    const advanced = advanceCombat(active, 1, fixedContext, stats)
+    expect(advanced.combat.stamina).toBeCloseTo(55, 5)
     expect(advanced.combat.mana).toBeCloseTo(51, 5)
   })
 
-  it('deactivates sustained Techniques when Stamina is depleted', () => {
+  it('does not create technique state when Stamina is depleted', () => {
     const game = createInitialGameState()
     const stats = { ...statsFor(game), staminaRegen: 0 }
     const started = startHunt(game, 'location.wolf-den', stats, fixedContext)
-    const activeTechnique = { ...started, combat: { ...started.combat, stamina: 1, techniques: { ...started.combat.techniques, 'careful-positioning': true } } }
-    const advanced = advanceCombat(activeTechnique, 1, fixedContext, stats)
-    expect(advanced.combat.stamina).toBe(0)
-    expect(advanced.combat.techniques['careful-positioning']).toBe(false)
-    expect(advanced.combat.log[0]?.text).toBe('Techniques deactivated: Stamina depleted.')
+    const active = { ...started, combat: { ...started.combat, stamina: 1 } }
+    const advanced = advanceCombat(active, 1, fixedContext, stats)
+    expect(advanced.combat.stamina).toBe(1)
+    expect(advanced.combat).not.toHaveProperty('techniques')
   })
 
   it('doubles Stamina and Mana regeneration during group recovery', () => {

@@ -175,7 +175,6 @@ describe("Combat effect runtime", () => {
       game.equipment,
       game.inventory,
       game.progression,
-      game.combat.techniques,
     );
     const context = createCombatContext(rng(0.5));
     const started = startHunt(

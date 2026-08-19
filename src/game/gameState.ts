@@ -44,6 +44,7 @@ export interface GameState {
 
 export function createInitialGameState(): GameState {
   const inventory = createInitialInventory();
+  const spellbook = createInitialSpellbook();
   return {
     combat: createCombatState(),
     progression: createInitialProgression(),
@@ -62,9 +63,9 @@ export function createInitialGameState(): GameState {
       ],
     },
     gold: 0,
-    spellbook: createInitialSpellbook(),
+    spellbook,
     combatAutomation: createInitialCombatAutomation(),
     combatAutomationPresets: createInitialCombatAutomationPresets(),
-    combatAbilities: createInitialCombatAbilityLoadout(),
+    combatAbilities: createInitialCombatAbilityLoadout(spellbook.knownSpellIds),
   };
 }

@@ -13,7 +13,7 @@ export function TopStatusBar({ onInspect, onDebug }: { onInspect: () => void; on
   const setScreen = useGameStore((state) => state.setScreen)
   const showInspectorButton = useGameStore((state) => state.showInspectorButton)
   const game = useGameStore((state) => state.game)
-  const stats = calculateHunterCombatStats(game.equipment, game.inventory, game.progression, game.combat.techniques)
+  const stats = calculateHunterCombatStats(game.equipment, game.inventory, game.progression)
   const hunterRankProgress = getHunterRankProgress(game.progression.hunterRankPoints)
   const playerHp = game.combat.playerHp
   const absorbShield = getBarrierAmount(game.combat.playerEffects, effectById)
