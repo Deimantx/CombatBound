@@ -34,12 +34,13 @@ import {
   loadProfileGameSave,
 } from "../game/profiles/profileStorage";
 import { getProfileSessionOwnerId, isProfileSessionOwner } from "../game/profiles/profileSessionLease";
-import { gameStateToSaveV14, parseGameSaveJson } from "../game/persistence/saveGame";
+import { gameStateToSaveV15, parseGameSaveJson } from "../game/persistence/saveGame";
 import type { ProfileId } from "../game/profiles/profileTypes";
 import type { InventoryEntryRef } from "../game/items/itemTypes";
 import {
   normalizeSpellbook,
 } from "../game/spellbook/spellbookLogic";
+import { normalizeMagicArts } from "../game/magicArts/magicArtLogic";
 import {
   createInitialCombatAbilityLoadout,
   equipCombatAbility as equipCombatAbilityState,
@@ -103,6 +104,12 @@ import {
   debugKillSelectedEnemy,
   debugHealSelectedEnemyToFull,
   debugLearnAllSpells,
+  debugLearnAllMagicArts,
+  debugResetMagicArts,
+  debugEquipEarthShield,
+  debugSetMagicArtsXp,
+  debugAddMagicArtsXp,
+  debugResetMagicArtsXp,
   debugResetCollection,
   debugResetEnemyCooldowns,
   debugResetPlayerCooldowns,
@@ -270,6 +277,12 @@ export interface DebugStoreApi {
   learnAllSpells: () => void;
   resetSpellbook: () => void;
   fillSpellLoadout: () => void;
+  learnAllMagicArts: () => void;
+  resetMagicArts: () => void;
+  equipEarthShield: () => void;
+  setMagicArtsXp: (amount: number) => void;
+  addMagicArtsXp: (amount: number) => void;
+  resetMagicArtsXp: () => void;
   equipSwordSkills: () => void;
   setGold: (amount: number) => void;
   addGold: (amount: number) => void;
@@ -303,7 +316,8 @@ function gameFromSave(saved: NonNullable<ReturnType<typeof loadProfileGameSave>>
       equipment: normalizeEquipmentState(saved.equipment, inventory),
       collection: saved.collection,
       gold: saved.gold,
-      spellbook: normalizeSpellbook(saved.spellbook),
+      spellbook: normalizeSpellbook(undefined),
+      magicArts: normalizeMagicArts(saved.magicArts),
       combatAutomation: normalizeCombatAutomation(
         saved.combatAutomation ?? createInitialCombatAutomation(),
       ),
@@ -312,7 +326,8 @@ function gameFromSave(saved: NonNullable<ReturnType<typeof loadProfileGameSave>>
       ),
       combatAbilities: normalizeCombatAbilityLoadout(
         saved.combatAbilities ?? createInitialCombatAbilityLoadout(),
-        normalizeSpellbook(saved.spellbook).knownSpellIds,
+        [],
+        normalizeMagicArts(saved.magicArts).knownArtIds,
       ),
     });
 }
@@ -408,7 +423,7 @@ function savePermanent(
   const profileId = activeProfileIdForPersistence();
   // A lease check here protects every gameplay save path, including debug and combat mutations.
   if (!profileId || !isProfileSessionOwner(profileId, getProfileSessionOwnerId())) return false;
-  return saveProfileGameSave(profileId, gameStateToSaveV14(game, settings));
+  return saveProfileGameSave(profileId, gameStateToSaveV15(game, settings));
 }
 
 function captureDebugCombatEvents(previous: GameState, next: GameState) {
@@ -585,6 +600,12 @@ export const useGameStore = create<GameStoreState>((set, get) => {
     learnAllSpells: () => commitDebug(debugLearnAllSpells, true),
     resetSpellbook: () => commitDebug(debugResetSpellbook, true),
     fillSpellLoadout: () => commitDebug(debugFillSpellLoadout, true),
+    learnAllMagicArts: () => commitDebug(debugLearnAllMagicArts, true),
+    resetMagicArts: () => commitDebug(debugResetMagicArts, true),
+    equipEarthShield: () => commitDebug(debugEquipEarthShield, true),
+    setMagicArtsXp: (amount) => commitDebug((game) => debugSetMagicArtsXp(game, amount), true),
+    addMagicArtsXp: (amount) => commitDebug((game) => debugAddMagicArtsXp(game, amount), true),
+    resetMagicArtsXp: () => commitDebug(debugResetMagicArtsXp, true),
     equipSwordSkills: () => commitDebug(debugEquipSwordSkills, true),
     setGold: (amount) => commitDebug((game) => debugSetGold(game, amount), true),
     addGold: (amount) => commitDebug((game) => debugAddGold(game, amount), true),
@@ -722,7 +743,7 @@ export const useGameStore = create<GameStoreState>((set, get) => {
         if (state.game.combat.phase === "active" || state.game.combat.phase === "recovery") return state;
         const combatAbilities = actionId === null
           ? unequipCombatAbilityState(state.game.combatAbilities, slot)
-          : equipCombatAbilityState(state.game.combatAbilities, actionId, slot, state.game.spellbook.knownSpellIds);
+          : equipCombatAbilityState(state.game.combatAbilities, actionId, slot, [], state.game.magicArts?.knownArtIds ?? []);
         if (combatAbilities === state.game.combatAbilities) return state;
         const game = { ...state.game, combatAbilities };
         savePermanent(game, { reducedMotion: state.reducedMotion, showInspectorButton: state.showInspectorButton });
@@ -731,7 +752,7 @@ export const useGameStore = create<GameStoreState>((set, get) => {
     equipCombatAbility: (actionId, slot) =>
       set((state) => {
         if (state.game.combat.phase === "active" || state.game.combat.phase === "recovery") return state;
-        const combatAbilities = equipCombatAbilityState(state.game.combatAbilities, actionId, slot, state.game.spellbook.knownSpellIds);
+        const combatAbilities = equipCombatAbilityState(state.game.combatAbilities, actionId, slot, [], state.game.magicArts?.knownArtIds ?? []);
         if (combatAbilities === state.game.combatAbilities) return state;
         const game = { ...state.game, combatAbilities };
         savePermanent(game, { reducedMotion: state.reducedMotion, showInspectorButton: state.showInspectorButton });

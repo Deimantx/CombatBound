@@ -32,6 +32,7 @@ import type { TooltipModel, TooltipRow, TooltipTone } from "./tooltipTypes";
 import type { CombatAbilityCatalogueEntry } from "../combatAbilities/combatAbilityTypes";
 import type { CombatAbilityAvailability } from "../combatAbilities/combatAbilitySelectors";
 import { buildItemPresentation } from "./itemPresentation";
+import type { MagicArtDefinition } from "../magicArts/magicArtTypes";
 
 const damageLabels: Record<DamageType, string> = {
   physical: "Physical",
@@ -472,6 +473,27 @@ export function buildSpellTooltip(
           : "gold",
     description: spell.description,
     rows,
+  };
+}
+
+export function buildMagicArtTooltip(art: MagicArtDefinition): TooltipModel {
+  return {
+    id: art.id,
+    icon: art.icon,
+    title: art.name,
+    subtitle: "Magic Art",
+    tone: "blue",
+    description: art.description,
+    rows: [
+      { label: "Type", value: "Magic Art", tone: "blue" },
+      { label: "Target", value: art.targetMode === "self" ? "Self" : "Selected enemy", tone: "default" },
+      { label: "Mana", value: `${art.manaCost}`, tone: "gold" },
+      { label: "Cooldown", value: formatSeconds(art.cooldownSeconds), tone: "blue" },
+      { label: "Duration", value: formatSeconds(art.durationSeconds), tone: "blue" },
+      ...(art.barrier ? [{ label: "Absorb", value: `${art.barrier.absorbAmount}`, tone: "blue" as const }] : []),
+      { label: "XP", value: `${art.manaCost} + effective HP damage`, tone: "gold" },
+    ],
+    notes: ["Magic Arts XP uses actual mana spent plus effective enemy HP damage."],
   };
 }
 

@@ -95,6 +95,17 @@ export function getPlayerActionGroupingMetadata(
     };
   }
 
+  if (action.kind === "magic-art") {
+    return {
+      rootId: "magic",
+      rootLabel: "MAGIC",
+      rootIcon: "sparkles",
+      subgroupId: "magic-arts",
+      subgroupLabel: "Magic Arts",
+      subgroupIcon: "sparkles",
+    };
+  }
+
   if (action.kind === "weapon-skill") {
     const skill = action.sourceWeaponSkillId ? weaponSkillById[action.sourceWeaponSkillId] : undefined;
     const proficiencyId = skill?.proficiencyId;

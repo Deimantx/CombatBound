@@ -45,7 +45,7 @@ describe("Combat Abilities V14 domain", () => {
     expect(result.reason).toBe("ability-not-equipped");
   });
 
-  it("migrates V13 active and spell slots into one V14 loadout and discards techniques", () => {
+  it("migrates V13 active and spell slots into one V14 loadout", () => {
     const game = createInitialGameState();
     const old = {
       ...gameStateToSaveV14(game, { reducedMotion: false, showInspectorButton: true }),
@@ -74,7 +74,6 @@ describe("Combat Abilities V14 UI", () => {
   it("shows one shared five-slot loadout and the canonical library", () => {
     openAbilities();
     expect(document.querySelectorAll('[data-debug-kind="combat-ability-slot"]')).toHaveLength(5);
-    expect(document.querySelectorAll('[data-debug-kind="technique-loadout-slot"]')).toHaveLength(0);
     expect(screen.getByRole("button", { name: /Weapon Attack/ })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /Swift Cut/ })).toBeInTheDocument();
     expect(document.querySelector('[data-debug-kind="combat-ability-library-entry"][data-debug-ability-kind="weapon-skill"][data-debug-proficiency-id="one-handed-sword"]')).toBeInTheDocument();

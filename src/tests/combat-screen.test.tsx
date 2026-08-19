@@ -65,7 +65,6 @@ describe('combat screen dashboard', () => {
     expect(screen.queryByText(/regen/)).not.toBeInTheDocument()
 
     expect(document.querySelectorAll('[data-debug-kind="combat-ability"], [data-debug-kind="weapon-skill"], [data-debug-kind="spell"], [data-debug-kind="combat-ability-empty-slot"]')).toHaveLength(5)
-    expect(screen.queryByText(/Careful Positioning/)).not.toBeInTheDocument()
     expect(screen.queryByText(/Net Stamina:/)).not.toBeInTheDocument()
   })
 

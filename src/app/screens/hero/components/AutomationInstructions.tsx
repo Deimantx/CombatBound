@@ -87,7 +87,7 @@ export function AutomationInstructions({ onBack }: { onBack: () => void }) {
         <section id="skipped" data-debug-help-section="skipped">
           <h4>Why a Rule Can Be Skipped</h4>
           <p>A Rule can be skipped because a condition is false, the Master Automation switch is disabled, Combat is not active, or its Action is invalid right now.</p>
-          <p>Common invalid reasons include: the Spell is not equipped in the five-slot loadout, Mana or Stamina is too low, the Action is on cooldown, the Global Cooldown is active, there is no valid target, a potion is unavailable, or required equipment is missing.</p>
+          <p>Common invalid reasons include: the Magic Art is not equipped in the five-slot loadout, Mana or Stamina is too low, the Action is on cooldown, the Global Cooldown is active, there is no valid target, a potion is unavailable, or required equipment is missing.</p>
           <p>When a higher-priority Rule is invalid, Automation continues checking lower-priority Rules. When a higher-priority Rule is valid and available, it gets the first attempt.</p>
         </section>
 
@@ -100,10 +100,10 @@ export function AutomationInstructions({ onBack }: { onBack: () => void }) {
           <div className="instruction-callout why"><strong>WHY?</strong><span>Rule Priority answers “what should I do?” Target Priority answers “who should receive it?”</span></div>
         </section>
 
-        <section id="spells" data-debug-help-section="spells">
-          <h4>Spells and the Five-Slot Loadout</h4>
-          <p>Knowing a Spell is not enough for Automation to cast it. A Spell Rule is active only when that Spell is in one of the five Combat loadout slots. The Spellbook keeps every known Spell, while the loadout determines what is available during Combat.</p>
-          <p>Loadout editing is locked during active and recovery Combat. You can still inspect known Spells and edit Automation while a Hunt continues.</p>
+        <section id="magic-arts" data-debug-help-section="magic-arts">
+          <h4>Magic Arts and the Five-Slot Loadout</h4>
+          <p>Knowing a Magic Art is not enough for Automation to cast it. A Magic Art Rule is active only when that Art is in one of the five Combat loadout slots. The loadout determines what is available during Combat.</p>
+          <p>Loadout editing is locked during active and recovery Combat. You can still inspect authored Magic Arts and edit Automation while a Hunt continues.</p>
         </section>
 
         <section id="weapon-skills" data-debug-help-section="weapon-skills">
@@ -115,8 +115,8 @@ export function AutomationInstructions({ onBack }: { onBack: () => void }) {
 
         <section id="choosing-an-action" data-debug-help-section="choosing-an-action">
           <h4>Choosing an Action</h4>
-          <p>Actions are organized by type. Magic is grouped by Magic School, Weapon Skills by Weapon Proficiency, and defensive or consumable actions by their root category.</p>
-          <p>Expand a category to browse it, or use <strong>Search actions...</strong> to find a name, effect, resource, tag, Magic School, or weapon directly. A known action may still show <strong>NOT EQUIPPED</strong>; you can create the Rule now, but it will not execute until the action is equipped and otherwise usable.</p>
+          <p>Actions are organized by type. Magic Arts share one Magic Arts group, Weapon Skills group by Weapon Proficiency, and defensive or consumable actions keep their root categories.</p>
+          <p>Expand a category to browse it, or use <strong>Search actions...</strong> to find a name, effect, resource, tag, Magic Art, or weapon directly. A known action may still show <strong>NOT EQUIPPED</strong>; you can create the Rule now, but it will not execute until the action is equipped and otherwise usable.</p>
         </section>
 
         <section id="resources" data-debug-help-section="resources">

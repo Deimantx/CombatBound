@@ -101,7 +101,9 @@ const firePerks: ProficiencyPerkDefinition[] = [
   make(fire, 'Apex', 'master-of-flame', 'Master of Flame', 100, 1, 3, '+15% Fire damage, -10% Mana Cost, -10% cooldown, and +20% Ignite damage.', [{ type: 'spellDamageModifier', valuePerRank: .15 }, { type: 'spellManaCostModifier', valuePerRank: -.1 }, { type: 'spellCooldownModifier', valuePerRank: -.1 }, { type: 'appliedEffectPeriodicDamageModifier', effectId: 'effect.ignite', valuePerRank: .2 }], all([fireId('fire-magic-foundations'), 5], ...[]).concat(any([[fireId('sunfire'), 1], [fireId('living-inferno'), 1], [fireId('endless-cinder'), 1], [fireId('wildfire-cadence'), 1], [fireId('world-aflame'), 1]], 3)), pos(4, 10, 'capstone', 'crown')),
 ]
 
-export const proficiencyPerkDefinitions = deepFreeze<ProficiencyPerkDefinition[]>([...swordPerks, ...oneHandedAxePerks, ...oneHandedMacePerks, ...daggerPerks, ...twoHandedSwordPerks, ...twoHandedAxePerks, ...twoHandedHammerPerks, ...spearPerks, ...shortbowPerks, ...longbowPerks, ...crossbowPerks, ...firePerks, ...waterMagicPerks, ...airMagicPerks, ...earthMagicPerks, ...darknessMagicPerks, ...lightArmorPerks, ...mediumArmorPerks, ...heavyArmorPerks, ...shieldPerks])
+const authoredDefinitions = [...swordPerks, ...oneHandedAxePerks, ...oneHandedMacePerks, ...daggerPerks, ...twoHandedSwordPerks, ...twoHandedAxePerks, ...twoHandedHammerPerks, ...spearPerks, ...shortbowPerks, ...longbowPerks, ...crossbowPerks, ...firePerks, ...waterMagicPerks, ...airMagicPerks, ...earthMagicPerks, ...darknessMagicPerks, ...lightArmorPerks, ...mediumArmorPerks, ...heavyArmorPerks, ...shieldPerks]
+const retiredMagicIds = new Set(['fire-magic', 'water-magic', 'air-magic', 'earth-magic', 'darkness-magic'])
+export const proficiencyPerkDefinitions = deepFreeze<ProficiencyPerkDefinition[]>(authoredDefinitions.filter((perk) => !retiredMagicIds.has(perk.proficiencyId)))
 
 for (const proficiencyId of [...new Set(proficiencyPerkDefinitions.map((perk) => perk.proficiencyId))]) assertValidPerkGraph(proficiencyPerkDefinitions, proficiencyId)
 
@@ -125,5 +127,6 @@ const legacyPerks = [
   legacyFor('fire-magic', 'persistent-flame', 'Persistent Flame', 50, 2, [{ type: 'appliedEffectDurationModifier', effectId: 'effect.ignite', valuePerRank: .5 }]),
   legacyFor('fire-magic', 'scorching-off-balance', 'Scorching Off-Balance', 70, 1, [{ type: 'spellConditionalDamageModifier', operation: 'increased', valuePerRank: .1, condition: { type: 'targetHasEffect', effectId: 'effect.off-balance' } }]),
 ]
+void legacyPerks
 
-export const perkById = Object.fromEntries([...legacyPerks, ...proficiencyPerkDefinitions].map((definition) => [definition.id, definition])) as Record<string, ProficiencyPerkDefinition>
+export const perkById = Object.fromEntries(proficiencyPerkDefinitions.map((definition) => [definition.id, definition])) as Record<string, ProficiencyPerkDefinition>

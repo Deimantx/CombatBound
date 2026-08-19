@@ -18,6 +18,7 @@ import { Panel } from '../../components/Panel'
 import { PlaceholderArt } from '../../components/PlaceholderArt'
 import { ProgressBar } from '../../components/ProgressBar'
 import { ScreenHeading } from '../../shell/ScreenHeading'
+import { MagicArtsWorkspace } from './magicArts/MagicArtsWorkspace'
 
 const GRAPH_COLUMNS = 9
 const GRAPH_ROWS = 11
@@ -70,19 +71,20 @@ export function ProficienciesScreen() {
   const selectedPerks = selected.perkIds.map((perkId) => perkById[perkId]).filter((perk): perk is ProficiencyPerkDefinition => Boolean(perk))
   const selectedPerk = selectedPerks.find((perk) => perk.id === selectedPerkId) ?? selectedPerks[0]
 
+  const magicSelected = selected.category === 'magic'
   return <div className="screen proficiencies-screen" data-debug-screen="proficiencies">
     <ScreenHeading screen="proficiencies" />
-    <div className="proficiencies-layout">
+    <div className={`proficiencies-layout ${magicSelected ? 'is-magic-arts' : ''}`}>
       <Panel title="Proficiencies" subtitle="Select a combat path" icon={Swords} panelId="proficiencyList" screen="proficiencies" className="proficiency-list-panel proficiencies-selector">
         {PROFICIENCY_GROUPS.map((group) => <ProficiencyGroup key={group.category} category={group.category} label={group.label} definitions={proficiencyDefinitions.filter((definition) => definition.category === group.category)} selectedId={selected.id} equippedId={group.category === 'melee' || group.category === 'ranged' ? equippedProficiency : null} progression={game.progression} defensiveContext={group.category === 'defense' ? defensiveContext : undefined} onSelect={setSelectedId} />)}
       </Panel>
-      <Panel title={`${selected.name} Proficiency`} subtitle={selected.description} icon={Sparkles} panelId="selectedProficiency" screen="proficiencies" className="selected-proficiency-panel">
+      {magicSelected ? <Panel title="Magic Arts" subtitle={selected.description} icon={Sparkles} panelId="selectedMagicArts" screen="proficiencies" className="selected-proficiency-panel magic-arts-panel"><SelectedHeader definition={selected} progression={game.progression} equipped={false} activeWeapon={activeWeapon} defensiveContext={defensiveContext} /><MagicArtsWorkspace game={game} /></Panel> : <Panel title={`${selected.name} Proficiency`} subtitle={selected.description} icon={Sparkles} panelId="selectedProficiency" screen="proficiencies" className="selected-proficiency-panel">
         <SelectedHeader definition={selected} progression={game.progression} equipped={selected.category === 'defense' ? defensivePiecesFor(selected.id, defensiveContext) > 0 : selected.category !== 'magic' && selected.id === equippedProficiency} activeWeapon={activeWeapon} defensiveContext={defensiveContext} />
         {selected.category === 'defense' && <DefensiveProgressionContext proficiencyId={selected.id} context={defensiveContext} />}
         <div className="perk-tree-heading"><span className="tiny-label">PERK TREE</span><small>{available} available point{available === 1 ? '' : 's'} · grows from root to apex</small></div>
         {selectedPerks.length > 0 ? <PerkTree definition={selected} perks={selectedPerks} progression={game.progression} selectedPerkId={selectedPerk?.id ?? ''} onSelectPerk={setSelectedPerkId} pan={treePanByProficiency[selected.id]} onPanChange={(next) => setTreePanByProficiency((current) => ({ ...current, [selected.id]: next }))} /> : <div className="proficiency-empty"><Sparkles size={18} /><strong>Tree not authored yet</strong><span>Future perks for this proficiency will appear here.</span></div>}
-      </Panel>
-      {selectedPerk ? <PerkDetailsPanel perk={selectedPerk} progression={game.progression} availablePoints={available} onPurchase={purchasePerk} /> : <div className="perk-tree-details perk-details-empty"><MousePointer2 size={16} /><span>Select an authored Proficiency to view Perk details.</span></div>}
+      </Panel>}
+      {!magicSelected && (selectedPerk ? <PerkDetailsPanel perk={selectedPerk} progression={game.progression} availablePoints={available} onPurchase={purchasePerk} /> : <div className="perk-tree-details perk-details-empty"><MousePointer2 size={16} /><span>Select an authored Proficiency to view Perk details.</span></div>)}
     </div>
   </div>
 }
@@ -109,7 +111,7 @@ function ProficiencyTile({ definition, selected, active, progression, onSelect }
   const percent = levelProgress.progressFraction * 100
   const levelLabel = levelProgress.level > 0 ? `Lv ${levelProgress.level} / ${definition.maxLevel}` : 'UNTRAINED'
   const tooltipXp = levelProgress.isMaxLevel ? `${Math.floor(xp).toLocaleString()} XP` : levelProgress.level === 0 ? `${Math.floor(xp).toLocaleString()} XP` : `${Math.floor(xp).toLocaleString()} / ${levelProgress.nextLevelXp.toLocaleString()} XP`
-  const tooltip = { id: `proficiency.${definition.id}`, title: definition.name, subtitle: `${definition.category === 'magic' ? 'Magic' : definition.category === 'melee' ? 'Melee' : definition.category === 'ranged' ? 'Ranged' : 'Defense'} proficiency`, description: definition.description, rows: [{ label: 'Level', value: levelLabel, tone: levelProgress.level > 0 ? 'blue' as const : 'default' as const }, { label: 'XP', value: tooltipXp, tone: 'gold' as const }], notes: [active ? definition.category === 'defense' ? 'Active defensive equipment training' : 'Active Weapon Proficiency' : '', definition.category === 'magic' ? 'Spell Available' : ''].filter(Boolean) }
+  const tooltip = { id: `proficiency.${definition.id}`, title: definition.name, subtitle: `${definition.category === 'magic' ? 'Magic' : definition.category === 'melee' ? 'Melee' : definition.category === 'ranged' ? 'Ranged' : 'Defense'} proficiency`, description: definition.description, rows: [{ label: 'Level', value: levelLabel, tone: levelProgress.level > 0 ? 'blue' as const : 'default' as const }, { label: 'XP', value: tooltipXp, tone: 'gold' as const }], notes: [active ? definition.category === 'defense' ? 'Active defensive equipment training' : 'Active Weapon Proficiency' : '', definition.category === 'magic' ? 'Magic Arts Available' : ''].filter(Boolean) }
   const content = <button type="button" className={`proficiency-tile ${selected ? 'is-selected' : ''} ${active ? 'is-active' : ''}`} onClick={() => onSelect(definition.id)} aria-pressed={selected} data-debug-kind="proficiency-tile" data-debug-legacy-kind="proficiency-row" data-debug-proficiency-id={definition.id} data-debug-label={definition.name}><span className="proficiency-tile-top"><PlaceholderArt icon={definition.icon} size="small" variant={active ? 'gold' : selected ? 'blue' : 'muted'} />{(active || definition.category === 'magic') && <span className={`proficiency-tile-indicator ${active ? 'is-active' : 'is-spell'}`} aria-label={active ? definition.category === 'defense' ? 'Active defensive proficiency' : 'Active weapon proficiency' : 'Spell available'}>{active ? 'A' : '—'}</span>}</span><strong className="proficiency-tile-name">{definition.name}</strong><small>{levelLabel}</small><ProgressBar value={Math.max(0, Math.min(100, percent))} variant="experience" ariaLabel={`${definition.name} XP progress`} /></button>
   return <GameTooltip content={tooltip}>{content}</GameTooltip>
 }

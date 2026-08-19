@@ -14,6 +14,8 @@ import { calculateEffectiveSpell } from "../progression/spellProgression";
 import { getEquippedWeaponProficiency } from "../progression/progressionSelectors";
 import { perkById } from "../data/proficiencyPerks";
 import { proficiencyById } from "../data/proficiencies";
+import { getMagicArt } from "../magicArts/magicArtLogic";
+import { calculateMagicArtsXp } from "../magicArts/magicArtProgression";
 import {
   getEffectiveMagicModifiers,
   getMagicCleanseEffectHooks,
@@ -185,7 +187,10 @@ export function damageEnemy(
     packet.progressionSource?.type === "spell" &&
     packet.progressionSource.proficiencyEligible
       ? packet.progressionSource.proficiencyId
-      : weaponProficiencyId;
+      : packet.progressionSource?.type === "magic-art" &&
+          packet.progressionSource.proficiencyEligible
+        ? "magic-arts"
+        : weaponProficiencyId;
   const equipmentContext = getDefensiveEquipmentContext(game.equipment, game.inventory);
   const conditionalMultiplier =
     packet.progressionSource?.proficiencyEligible &&
@@ -529,6 +534,8 @@ export function executePlayerAction(
   dependencies: PlayerActionRuntimeDependencies,
   source: "manual" | "automation" = "manual",
 ): GameState {
+  if (actionId.startsWith("magic-art."))
+    return castMagicArt(game, actionId, stats, context, dependencies, source);
   if (actionId.startsWith("spell."))
     return castSpell(game, actionId, stats, context, dependencies, source);
   if (actionId === potionAction.id)
@@ -591,6 +598,86 @@ export function executePlayerAction(
     target: { kind: "player" },
     data: { actionId: action.id, manaCost },
   });
+  return next;
+}
+
+/**
+ * Current Magic Arts execution authority. Earth Shield deliberately has no
+ * dependency on the retired Spell/Magic School modifier pipeline.
+ */
+export function castMagicArt(
+  game: GameState,
+  artId: string,
+  stats: HunterCombatStats,
+  context: CombatContext,
+  dependencies: PlayerActionRuntimeDependencies,
+  actionSource: "manual" | "automation" = "manual",
+): GameState {
+  const art = context.magicArts?.[artId] ?? getMagicArt(artId);
+  if (!art) return game;
+  const validation = validatePlayerAction(game, artId, stats, context);
+  if (!validation.valid || !validation.action) return game;
+
+  const action = validation.action;
+  const cost = getEffectivePlayerActionCost(game, action, stats, context);
+  if (game.combat.mana < cost.mana) return game;
+  const source: CombatantRef = { kind: "player" };
+  let next: GameState = {
+    ...game,
+    combat: {
+      ...game.combat,
+      mana: game.combat.mana - cost.mana,
+      actionCooldowns: {
+        ...game.combat.actionCooldowns,
+        [art.id]: art.cooldownSeconds,
+      },
+      globalCooldownRemaining: combatBalance.standardGlobalCooldown,
+    },
+  };
+  next.combat = event(next.combat, {
+    text: `${art.name} used.`,
+    type: "player",
+    eventType: actionSource === "automation" ? "automationActionUsed" : "playerActionUsed",
+    source,
+    target: source,
+    data: { actionId: art.id, manaCost: cost.mana },
+  });
+
+  if (art.barrier) {
+    next = applyEffectToGame(next, art.barrier.effectId, source, source, context, {
+      absorbAmount: art.barrier.absorbAmount,
+      power: art.barrier.absorbAmount,
+    });
+  }
+  if (art.damage) {
+    const target = next.combat.enemies.find((enemy) => enemy.instanceId === next.combat.selectedEnemyInstanceId && !enemy.defeated);
+    if (target) {
+      const targetRef: CombatantRef = { kind: "enemy", instanceId: target.instanceId };
+      next = damageEnemy(
+        next,
+        target,
+        {
+          ...componentFromAttack(art.damage.damageType, 0, art.damage.canCrit ?? false),
+          sourceKind: "spell",
+          source,
+          target: targetRef,
+          sourceActionId: art.id,
+          minDamage: art.damage.min,
+          maxDamage: art.damage.max,
+          defensiveEligibility: { canMiss: false, canBeEvaded: false, blockable: art.damage.blockable ?? false },
+          progressionSource: { type: "magic-art", proficiencyEligible: true },
+        },
+        getPlayerStats(next.combat, stats, context, next.progression),
+        context,
+        `You use ${art.name} on ${target.displayName}`,
+        [],
+        dependencies,
+      );
+    }
+  }
+  next = dependencies.discoverCombatProficiency(next, "magic-arts");
+  const xp = calculateMagicArtsXp(cost.mana, 0);
+  if (xp > 0) next = awardCombatXp(next, "magic-arts", xp).game;
   return next;
 }
 

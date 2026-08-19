@@ -194,8 +194,6 @@ describe("Offline Combat Simulation 1.0", () => {
     expect(combatResult.state.combat.events.some((event) => event.type === "actionStarted" || event.type === "actionResolved")).toBe(true);
     expect(combatResult.state.combat.events.some((event) => event.type === "automationActionUsed")).toBe(true);
 
-    const noTechniqueState = simulateCombatHuntOffline({ ...snapshot, combat: { ...snapshot.combat, stamina: 1 } }, { requestedSeconds: 5 }, createDeterministicOfflineRng(991));
-    expect(noTechniqueState.state.combat).not.toHaveProperty("techniques");
   });
 
   it("allows active and recovery Hunts and completes requested time without a fixed tick loop", () => {

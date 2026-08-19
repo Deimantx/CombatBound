@@ -9,12 +9,9 @@ import type {
   CombatProficiencyId,
   ProgressionState,
 } from "../progression/progressionTypes";
-import type { GameSaveV3, GameSaveV4, GameSaveV5, GameSaveV6, GameSaveV7, GameSaveV8, GameSaveV9, GameSaveV10, GameSaveV11, GameSaveV12, GameSaveV13, GameSaveV14, LegacyEquipmentStateV10, LegacyInventoryStateV10, LegacyInventoryStateV11, LegacyProgressionState, LegacySpellbookStateV13, LegacyCombatAbilityLoadoutStateV13 } from "./saveTypes";
+import type { GameSaveV3, GameSaveV4, GameSaveV5, GameSaveV6, GameSaveV7, GameSaveV8, GameSaveV9, GameSaveV10, GameSaveV11, GameSaveV12, GameSaveV13, GameSaveV14, GameSaveV15, LegacyCombatProficiencyIdV14, LegacyEquipmentStateV10, LegacyInventoryStateV10, LegacyInventoryStateV11, LegacyProgressionState, LegacyProgressionStateV14, LegacySpellbookStateV13, LegacyCombatAbilityLoadoutStateV13 } from "./saveTypes";
 import { createInitialCombatAutomation } from "../automation/automationTypes";
-import { normalizeSpellbook, normalizeSpellId } from "../spellbook/spellbookLogic";
-import { spellDefinitions } from "../data/spells";
 import { normalizeCombatAutomation } from "../automation/automationLogic";
-import { normalizeCombatAbilityLoadout } from "../combatAbilities/combatAbilityLogic";
 import { getActiveAbilityActionDefinitions } from "../combat/playerActions";
 import { createInitialCombatAutomationPresets, normalizeCombatAutomationPresets } from "../automation/automationPresets";
 import { EQUIPMENT_SLOT_IDS } from "../equipment/equipmentTypes";
@@ -59,13 +56,38 @@ function xp(value: unknown) {
     : 0;
 }
 
+export const LEGACY_V14_PROFICIENCY_IDS = new Set<LegacyCombatProficiencyIdV14>([
+  'one-handed-sword', 'one-handed-axe', 'one-handed-mace', 'dagger',
+  'two-handed-sword', 'two-handed-axe', 'two-handed-hammer', 'spear',
+  'shortbow', 'longbow', 'crossbow', 'fire-magic', 'water-magic',
+  'air-magic', 'earth-magic', 'darkness-magic', 'light-armor',
+  'medium-armor', 'heavy-armor', 'shield',
+]);
+
+export const LEGACY_V14_SPELL_IDS = new Set([
+  'spell.flame-blast', 'spell.lightning-pulse', 'spell.ice-shard',
+  'spell.stone-spike', 'spell.shadow-bolt',
+]);
+
+export function isLegacyCombatProficiencyIdV14(value: string): value is LegacyCombatProficiencyIdV14 {
+  return LEGACY_V14_PROFICIENCY_IDS.has(value as LegacyCombatProficiencyIdV14);
+}
+
+export function normalizeLegacySpellIdV14(value: unknown): string | null {
+  if (typeof value !== 'string') return null;
+  const normalized = value === 'spell.disrupting-pulse' ? 'spell.lightning-pulse' : value;
+  return LEGACY_V14_SPELL_IDS.has(normalized) ? normalized : null;
+}
+
 function normalizeLegacySpellbook(value: unknown): LegacySpellbookStateV13 {
   const raw = isRecord(value) ? value : {};
-  const knownSpellIds = normalizeSpellbook({ knownSpellIds: Array.isArray(raw.knownSpellIds) ? raw.knownSpellIds.filter((id): id is string => typeof id === "string") : [] }).knownSpellIds;
+  const knownSpellIds = Array.from(new Set((Array.isArray(raw.knownSpellIds) ? raw.knownSpellIds : [])
+    .map(normalizeLegacySpellIdV14)
+    .filter((id): id is string => Boolean(id))));
   const used = new Set<string>();
   const equippedSpellSlots = Array.from({ length: 5 }, (_, index) => {
     const rawSlots = Array.isArray(raw.equippedSpellSlots) ? raw.equippedSpellSlots : [];
-    const id = normalizeSpellId(rawSlots[index]);
+    const id = normalizeLegacySpellIdV14(rawSlots[index]);
     if (!id || !knownSpellIds.includes(id) || used.has(id)) return null;
     used.add(id);
     return id;
@@ -92,12 +114,26 @@ function normalizeLegacyCombatAbility(value: unknown): LegacyCombatAbilityLoadou
   return { activeSlots, techniqueSlots };
 }
 
+function normalizeLegacyV14CombatAbilitySlots(value: unknown, knownSpellIds: readonly string[]): Array<string | null> {
+  const rawSlots = Array.isArray(value) ? value : [];
+  const used = new Set<string>();
+  return Array.from({ length: 5 }, (_, index) => {
+    const rawId = rawSlots[index];
+    const spellId = normalizeLegacySpellIdV14(rawId);
+    const id = spellId && knownSpellIds.includes(spellId) ? spellId : typeof rawId === "string" ? rawId : null;
+    const validActive = typeof id === "string" && getActiveAbilityActionDefinitions().some((action) => action.id === id);
+    if (!id || (!validActive && !spellId) || used.has(id)) return null;
+    used.add(id);
+    return id;
+  });
+}
+
 function legacyCombatAbilityDefaults(): LegacyCombatAbilityLoadoutStateV13 {
   return { activeSlots: ["defense.guard", "defense.evasive-step", "defense.brace", null, null], techniqueSlots: ["careful-positioning", "heightened-reflexes"] };
 }
 
-// V12 boundary compatibility for renamed technique perk IDs. Runtime content
-// uses the canonical Technique names while old saves retain their purchased ranks.
+// V12 boundary compatibility for historical perk IDs. Runtime content keeps
+// only valid current perks while old saves retain their purchased ranks.
 const legacyPerkIdAliases: Record<string, string> = {
   "perk.one-handed-sword.one-handed-mastery": "perk.one-handed-sword.one-handed-foundations",
   "perk.fire-magic.fire-magic-mastery": "perk.fire-magic.fire-magic-foundations",
@@ -212,8 +248,8 @@ export function migrateV3Save(value: unknown): GameSaveV4 | null {
     version: 4,
     equipment: migrateEquipment(old.equipment),
     spellbook: {
-      knownSpellIds: spellDefinitions.map((spell) => spell.id),
-      equippedSpellSlots: spellDefinitions.map((spell) => spell.id),
+      knownSpellIds: [...LEGACY_V14_SPELL_IDS],
+      equippedSpellSlots: [...LEGACY_V14_SPELL_IDS],
     },
     combatAutomation: createInitialCombatAutomation(),
   };
@@ -493,12 +529,12 @@ export function migrateV11Save(value: unknown): GameSaveV12 | null {
   return migrated;
 }
 
-function migrateV12Progression(value: unknown): ProgressionState | null {
+function migrateV12Progression(value: unknown): LegacyProgressionStateV14 | null {
   if (!isRecord(value) || !isRecord(value.proficiencies)) return null;
-  const proficiencies: ProgressionState["proficiencies"] = {};
+  const proficiencies: LegacyProgressionStateV14["proficiencies"] = {};
   for (const [id, rawProgress] of Object.entries(value.proficiencies)) {
-    if (!proficiencyById[id] || !isRecord(rawProgress) || rawProgress.proficiencyId !== id || typeof rawProgress.totalXp !== "number" || !Number.isFinite(rawProgress.totalXp) || rawProgress.totalXp < 0) return null;
-    proficiencies[id as CombatProficiencyId] = { proficiencyId: id as CombatProficiencyId, totalXp: rawProgress.totalXp };
+    if (!isLegacyCombatProficiencyIdV14(id) || !isRecord(rawProgress) || rawProgress.proficiencyId !== id || typeof rawProgress.totalXp !== "number" || !Number.isFinite(rawProgress.totalXp) || rawProgress.totalXp < 0) return null;
+    proficiencies[id] = { proficiencyId: id, totalXp: rawProgress.totalXp };
   }
   const bonusPerkPoints = typeof value.bonusPerkPoints === "number" && Number.isFinite(value.bonusPerkPoints) ? Math.max(0, Math.floor(value.bonusPerkPoints)) : 0;
   return { proficiencies, hunterRankPoints: 0, bonusPerkPoints, purchasedPerks: normalizePurchasedPerks(value.purchasedPerks) };
@@ -531,7 +567,61 @@ export function migrateV13Save(value: unknown): GameSaveV14 | null {
     ...old,
     version: 14,
     spellbook: { knownSpellIds: spellbook.knownSpellIds },
-    combatAbilities: normalizeCombatAbilityLoadout({ slots: mergedSlots }, spellbook.knownSpellIds),
+    combatAbilities: { slots: normalizeLegacyV14CombatAbilitySlots(mergedSlots, spellbook.knownSpellIds) },
+  };
+}
+
+/** V14 → V15 is the only boundary that discards the retired Magic Schools. */
+export function migrateV14Save(value: unknown): GameSaveV15 | null {
+  if (!isRecord(value) || value.version !== 14 || !sharedSaveShape(value)) return null;
+  const rawProgression = isRecord(value.progression) ? value.progression : {};
+  const proficiencies: ProgressionState["proficiencies"] = {};
+  if (isRecord(rawProgression.proficiencies)) {
+    for (const [id, raw] of Object.entries(rawProgression.proficiencies)) {
+      if (!proficiencyById[id] || !isRecord(raw) || typeof raw.totalXp !== "number" || !Number.isFinite(raw.totalXp) || raw.totalXp < 0) continue;
+      proficiencies[id as CombatProficiencyId] = { proficiencyId: id as CombatProficiencyId, totalXp: raw.totalXp };
+    }
+  }
+  const progression: ProgressionState = {
+    proficiencies,
+    hunterRankPoints: typeof rawProgression.hunterRankPoints === "number" && Number.isFinite(rawProgression.hunterRankPoints) ? Math.max(0, rawProgression.hunterRankPoints) : 0,
+    bonusPerkPoints: typeof rawProgression.bonusPerkPoints === "number" && Number.isFinite(rawProgression.bonusPerkPoints) ? Math.max(0, Math.floor(rawProgression.bonusPerkPoints)) : 0,
+    purchasedPerks: normalizePurchasedPerks(rawProgression.purchasedPerks),
+  };
+
+  const activeActionIds = new Set(getActiveAbilityActionDefinitions().map((action) => action.id));
+  const rawSlots = isRecord(value.combatAbilities) && Array.isArray(value.combatAbilities.slots) ? value.combatAbilities.slots : [];
+  const used = new Set<string>();
+  const slots = Array.from({ length: 5 }, (_, index) => {
+    const id = rawSlots[index];
+    if (typeof id !== "string" || id.startsWith("spell.") || !activeActionIds.has(id) || used.has(id)) return null;
+    used.add(id);
+    return id;
+  });
+
+  const stripRetiredMagicRules = (automation: ReturnType<typeof normalizeCombatAutomation>) => ({
+    ...automation,
+    rules: automation.rules.filter((rule) => !rule.actionId.startsWith("spell.")),
+  });
+  const automation = stripRetiredMagicRules(normalizeCombatAutomation(value.combatAutomation));
+  const presets = normalizeCombatAutomationPresets(value.combatAutomationPresets);
+  const combatAutomationPresets = {
+    slots: presets.slots.map((preset) => preset ? { ...preset, config: { ...preset.config, rules: preset.config.rules.filter((rule) => !rule.actionId.startsWith("spell.")) } } : null),
+  };
+
+  const old = value as unknown as GameSaveV14;
+  return {
+    version: 15,
+    progression,
+    inventory: old.inventory,
+    equipment: old.equipment,
+    collection: old.collection,
+    gold: typeof old.gold === "number" && Number.isFinite(old.gold) ? old.gold : 0,
+    settings: old.settings,
+    magicArts: { knownArtIds: ["magic-art.earth-shield"] },
+    combatAbilities: { slots },
+    combatAutomation: automation,
+    combatAutomationPresets,
   };
 }
 

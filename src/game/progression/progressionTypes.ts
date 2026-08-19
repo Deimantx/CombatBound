@@ -13,9 +13,12 @@ export type WeaponProficiencyId =
   | 'longbow'
   | 'crossbow'
 
+/** Historical school IDs remain available only to legacy persistence/runtime adapters. */
 export type MagicProficiencyId = 'fire-magic' | 'water-magic' | 'air-magic' | 'earth-magic' | 'darkness-magic'
+export type MagicArtsProficiencyId = 'magic-arts'
 export type DefensiveProficiencyId = 'light-armor' | 'medium-armor' | 'heavy-armor' | 'shield'
-export type CombatProficiencyId = WeaponProficiencyId | MagicProficiencyId | DefensiveProficiencyId
+/** Legacy IDs stay type-compatible for migration adapters; current catalogues expose only Magic Arts. */
+export type CombatProficiencyId = WeaponProficiencyId | MagicArtsProficiencyId | MagicProficiencyId | DefensiveProficiencyId
 export type ProficiencyCategory = 'melee' | 'ranged' | 'magic' | 'defense'
 export type ProgressionCreditMode = 'hp-damage' | 'barrier-absorb' | 'effective-healing' | 'successful-cleanse'
 
@@ -24,6 +27,8 @@ export type ProficiencyXpReason =
   | { type: 'barrier-absorption'; amount: number }
   | { type: 'effective-healing'; amount: number }
   | { type: 'successful-cleanse'; weight: number }
+  | { type: 'magic-art-mana-spent'; amount: number }
+  | { type: 'magic-art-effective-hp-damage'; amount: number }
 
 export interface ProgressionCredit {
   proficiencyId: CombatProficiencyId

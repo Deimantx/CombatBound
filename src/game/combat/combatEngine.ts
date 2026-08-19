@@ -3,6 +3,7 @@ import {
   type HunterCombatStats,
 } from "../equipment/derivedStats";
 import { spellById } from "../data/spells";
+import { magicArtById } from "../data/magicArts";
 import { effectById } from "../data/effects";
 import { enemyById } from "../data/enemies";
 import { combatLocationById } from "../data/world/combatLocations";
@@ -25,6 +26,7 @@ import { advanceCombatEffects as runPeriodicRuntime } from "./combatPeriodicRunt
 import { advanceEnemyNormalAttacks as runEnemyNormalAttacks, advanceEnemySpecials as runEnemyRuntime } from "./combatEnemyRuntime";
 import {
   castSpell as runPlayerCastSpell,
+  castMagicArt as runPlayerCastMagicArt,
   damageEnemy as runPlayerDamageEnemy,
   executePlayerAction as runPlayerExecuteAction,
   useHealingPotion as runPlayerUseHealingPotion,
@@ -80,6 +82,7 @@ export function createCombatContext(rng: CombatContext["rng"]): CombatContext {
     spells: Object.fromEntries(
       Object.values(spellById).map((spell) => [spell.id, spell]),
     ),
+    magicArts: magicArtById,
     items: itemById,
     effects: effectById,
     rng,
@@ -355,6 +358,16 @@ export function castSpell(
   actionSource: "manual" | "automation" = "manual",
 ): GameState {
   return runPlayerCastSpell(game, spellId, stats, context, playerActionRuntimeDependencies, actionSource);
+}
+
+export function castMagicArt(
+  game: GameState,
+  artId: string,
+  stats: HunterCombatStats,
+  context: CombatContext,
+  actionSource: "manual" | "automation" = "manual",
+): GameState {
+  return runPlayerCastMagicArt(game, artId, stats, context, playerActionRuntimeDependencies, actionSource);
 }
 
 function damageEnemy(

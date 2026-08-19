@@ -26,8 +26,16 @@ export type CombatAbilityCatalogueEntry =
       description: string;
       icon: string;
       magicProficiencyId?: string;
+    }
+  | {
+      kind: "magic-art";
+      actionId: string;
+      category: "magic-arts";
+      name: string;
+      description: string;
+      icon: string;
     };
 
 export function isCombatAbilityLoadoutActionKind(kind: PlayerActionKind) {
-  return kind === "defensive" || kind === "weapon-skill" || kind === "spell";
+  return kind === "defensive" || kind === "weapon-skill" || kind === "spell" || kind === "magic-art";
 }

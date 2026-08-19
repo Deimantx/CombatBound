@@ -105,7 +105,7 @@ describe('gameplay domain', () => {
     expect(advanced.combat.mana).toBeCloseTo(51, 5)
   })
 
-  it('regenerates Stamina without an active-technique drain', () => {
+  it('regenerates Stamina at the effective combat rate', () => {
     const game = createInitialGameState()
     const stats = { ...statsFor(game), staminaRegen: 5, manaRegenFlat: 1 }
     const started = startHunt(game, 'location.wolf-den', stats, fixedContext)
@@ -113,16 +113,6 @@ describe('gameplay domain', () => {
     const advanced = advanceCombat(active, 1, fixedContext, stats)
     expect(advanced.combat.stamina).toBeCloseTo(55, 5)
     expect(advanced.combat.mana).toBeCloseTo(51, 5)
-  })
-
-  it('does not create technique state when Stamina is depleted', () => {
-    const game = createInitialGameState()
-    const stats = { ...statsFor(game), staminaRegen: 0 }
-    const started = startHunt(game, 'location.wolf-den', stats, fixedContext)
-    const active = { ...started, combat: { ...started.combat, stamina: 1 } }
-    const advanced = advanceCombat(active, 1, fixedContext, stats)
-    expect(advanced.combat.stamina).toBe(1)
-    expect(advanced.combat).not.toHaveProperty('techniques')
   })
 
   it('doubles Stamina and Mana regeneration during group recovery', () => {

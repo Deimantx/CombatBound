@@ -31,7 +31,7 @@ The correct direction is to keep the systems that create clear build choices:
 - Weapon Skills
 - Spells
 - Combat Abilities
-- Sustained Techniques
+- Shared Combat Abilities
 - Enemy Actions
 - Proficiencies
 
@@ -88,7 +88,7 @@ PLAYER COMBAT SYSTEMS
 ├─ Weapon Skills
 ├─ Combat Abilities
 ├─ Spells
-├─ Sustained Techniques
+├─ Shared Combat Abilities
 ├─ Consumables
 ├─ Cooldowns
 └─ one simple Global Cooldown
@@ -496,7 +496,7 @@ Health
 → survival
 
 Stamina
-→ martial / physical active actions and sustained techniques
+→ martial / physical active actions and shared combat abilities
 
 Mana
 → spells and magical actions
@@ -747,32 +747,24 @@ Delete the system instead of merely hiding the three stance buttons.
 
 ---
 
-# 17. Sustained Techniques
+# 17. Shared Combat Abilities
 
 ## Decision
 
-**KEEP.**
+**USE ONE FIVE-SLOT LOADOUT.**
 
-The current system is simple:
-
-```text
-toggle technique
-↓
-gain one clear benefit
-↓
-pay Stamina drain over time
-```
-
-The two current prototype techniques are essentially:
+The active combat ability system is simple:
 
 ```text
-Careful Positioning → Evasion
-Heightened Reflexes → Accuracy
+equip a combat ability
+↓
+use a weapon skill, defense, or spell
+↓
+follow the shared action validation rules
 ```
 
-That is understandable and provides a useful Stamina trade-off.
-
-No major redesign is required now.
+All slottable combat actions compete for the same five slots. Basic Attack and
+consumables remain outside that loadout.
 
 ---
 
@@ -1568,7 +1560,7 @@ Barrier
 Health / Stamina / Mana
 Regeneration
 Bleed / Ignite / Poison / Chill / Shock / Crushed / Withered
-Sustained Techniques
+Shared Combat Abilities
 Weapon Skills
 Combat Abilities
 Spells

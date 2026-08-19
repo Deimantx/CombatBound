@@ -17,7 +17,7 @@ export type DamageSourceKind = "attack" | "spell" | "secondary";
 export type DamageDeliveryKind = "hit" | "damage-over-time";
 export type ResistanceDamageType = Exclude<DamageType, "physical">;
 export type PlayerActionKind =
-  "basic-attack" | "spell" | "defensive" | "consumable" | "weapon-skill";
+  "basic-attack" | "spell" | "magic-art" | "defensive" | "consumable" | "weapon-skill";
 export type PlayerActionTargetMode = "self" | "selected-enemy";
 export type GlobalCooldownMode = "standard" | "none" | number;
 import type { ItemDefinition } from "../data/items";
@@ -168,6 +168,7 @@ export interface PlayerActionDefinition {
     minimumHeavyArmorPieces?: number;
   };
   sourceSpellId?: string;
+  sourceMagicArtId?: string;
   sourceItemId?: string;
   sourceWeaponSkillId?: string;
 }
@@ -181,6 +182,7 @@ export type ActionValidationReason =
   | "no-target"
   | "target-defeated"
   | "spell-not-known"
+  | "magic-art-not-known"
   | "ability-not-equipped"
   | "weapon-requirement"
   | "proficiency-level-requirement"
@@ -198,6 +200,10 @@ export type DamageProgressionSource =
   | {
       type: "spell";
       proficiencyId: MagicProficiencyId;
+      proficiencyEligible: boolean;
+    }
+  | {
+      type: "magic-art";
       proficiencyEligible: boolean;
     };
 
@@ -427,6 +433,7 @@ export interface CombatContext {
     import("../world/worldTypes").CombatLocationDefinition
   >;
   spells: Record<string, import("../data/spells").SpellDefinition>;
+  magicArts?: Record<string, import("../magicArts/magicArtTypes").MagicArtDefinition>;
   items: Record<string, ItemDefinition>;
   effects: Record<string, import("./combatEffectTypes").EffectDefinition>;
   rng: CombatRng;

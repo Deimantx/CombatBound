@@ -20,7 +20,7 @@ import {
 import { effectDefinitions } from "../../../game/data/effects";
 import { proficiencyDefinitions } from "../../../game/data/proficiencies";
 import { proficiencyPerkDefinitions } from "../../../game/data/proficiencyPerks";
-import { spellDefinitions } from "../../../game/data/spells";
+import { magicArtDefinitions } from "../../../game/data/magicArts";
 import { weaponSkillDefinitions } from "../../../game/data/weaponSkills";
 import { CollapsiblePanel } from "../../components/CollapsiblePanel";
 import { Panel } from "../../components/Panel";
@@ -271,7 +271,7 @@ export function InfoScreen() {
         </Panel>
         <Panel
           title="Combat Proficiencies"
-          subtitle="Use equipped weapons and authored spells to improve their trees"
+          subtitle="Use equipped weapons and authored Magic Arts to improve their tracks"
           icon={BookOpen}
           panelId="infoProficiencies"
           screen="info"
@@ -334,8 +334,8 @@ export function InfoScreen() {
           </div>
         </Panel>
         <CollapsiblePanel
-          title="Spells"
-          subtitle="Current Magic choices"
+          title="Magic Arts"
+          subtitle="Current authored Magic choices"
           icon={Sparkles}
           panelId="infoActions"
           screen="info"
@@ -344,12 +344,12 @@ export function InfoScreen() {
         >
           <div className="info-action-columns">
             <div>
-              <h3>Spells</h3>
-              {spellDefinitions.map((spell) => (
+                <h3>Magic Arts</h3>
+              {magicArtDefinitions.map((art) => (
                 <GuideRow
-                  key={spell.id}
-                  title={spell.name}
-                  copy={`${spell.description} Costs ${spell.manaCost} Mana; ${spell.cooldownSeconds}s cooldown. Proficiency: ${spell.magicProficiencyId}.`}
+                  key={art.id}
+                  title={art.name}
+                  copy={`${art.description} Costs ${art.manaCost} Mana; ${art.cooldownSeconds}s cooldown; ${art.durationSeconds}s duration; ${art.barrier?.absorbAmount ?? 0} absorb. Proficiency: Magic Arts.`}
                 />
               ))}
             </div>
@@ -367,7 +367,7 @@ export function InfoScreen() {
             <div className="skill-reference-card">
               <strong>Unified actions</strong>
               <p>
-                Spells, Active Defense and consumables share validation,
+                Magic Arts, Active Defense and consumables share validation,
                 cooldowns and a 0.75s standard Global Cooldown. Basic weapon
                 attacks remain background actions and are never blocked by GCD.
               </p>
@@ -386,7 +386,7 @@ export function InfoScreen() {
             <GuideRow
               icon={Sparkles}
               title="Effects remain independent"
-              copy="Spells can apply their own effects and barriers. Cross-spell elemental reactions are intentionally not part of the current prototype."
+              copy="Magic Arts can apply authored effects and barriers. Specialization effects are intentionally not authored in this phase."
             />
           </div>
         </Panel>

@@ -6,7 +6,7 @@ import { validateAllPerkGraphs, validatePerkGraph } from '../game/progression/pe
 import { proficiencyXpForLevel } from '../game/progression/proficiencyProgression'
 
 describe('proficiency perk graphs', () => {
-  it('contains the current perk tree for every proficiency after retired technique perks are removed', () => {
+  it('contains the current perk tree for every proficiency after retired branches are removed', () => {
     for (const proficiencyId of ['one-handed-sword', 'one-handed-axe', 'one-handed-mace', 'dagger', 'two-handed-sword', 'two-handed-axe', 'two-handed-hammer', 'spear', 'shortbow', 'longbow', 'crossbow', 'fire-magic', 'water-magic', 'air-magic', 'earth-magic', 'darkness-magic', 'light-armor', 'medium-armor', 'heavy-armor', 'shield'] as const) expect(proficiencyPerkDefinitions.filter((perk) => perk.proficiencyId === proficiencyId)).toHaveLength(proficiencyId === 'one-handed-sword' ? 31 : 40)
   })
 

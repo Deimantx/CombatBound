@@ -1,5 +1,5 @@
 import type { LucideIcon } from "lucide-react";
-import { Bug, Clock3, Crosshair, Heart, Package, Shield, Sparkles, Swords, WandSparkles } from "lucide-react";
+import { Bug, Clock3, Crosshair, Heart, Package, Shield, Sparkles, Swords } from "lucide-react";
 
 export const DEFAULT_DEBUG_TAB_ORDER = [
   "overview",
@@ -9,7 +9,7 @@ export const DEFAULT_DEBUG_TAB_ORDER = [
   "items",
   "collection",
   "combat",
-  "spellbook",
+  "magic-arts",
   "state",
   "scenarios",
   "stats",
@@ -34,7 +34,7 @@ export const DEBUG_TAB_DEFINITIONS: DebugTabDefinition[] = [
   { id: "items", label: "Items", icon: Package },
   { id: "collection", label: "Collection", icon: Crosshair },
   { id: "combat", label: "Combat", icon: Swords },
-  { id: "spellbook", label: "Spellbook", icon: WandSparkles },
+  { id: "magic-arts", label: "Magic Arts", icon: Sparkles },
   { id: "state", label: "State", icon: Shield },
   { id: "scenarios", label: "Scenarios", icon: Bug },
   { id: "stats", label: "Stats", icon: Sparkles },

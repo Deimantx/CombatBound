@@ -44,7 +44,7 @@ const conditionOptions: Array<{ value: AutomationCondition["type"]; label: strin
 export function AutomationWindow({ game, initialActionId, createRule = false }: { game: GameState; initialActionId?: string; createRule?: boolean }) {
   const context = useMemo(() => createCombatPreviewContext(), []);
   const stats = useMemo(() => calculateHunterCombatStats(game.equipment, game.inventory, game.progression), [game.equipment, game.inventory, game.progression]);
-  const actions = useMemo(() => getPlayerActionDefinitions(game, context).filter((action) => action.kind !== "basic-attack" && (action.kind !== "spell" || game.spellbook.knownSpellIds.includes(action.id))), [context, game.spellbook.knownSpellIds]);
+  const actions = useMemo(() => getPlayerActionDefinitions(game, context).filter((action) => action.kind !== "basic-attack" && (action.kind !== "magic-art" || game.magicArts.knownArtIds.includes(action.id as never))), [context, game.magicArts.knownArtIds, game]);
   const actionCatalogue = useMemo(() => buildPlayerActionCatalogue(actions, {
     getItemState: (action) => getActionCatalogueItemState(game, action),
     getSubtitle: (action, grouping) => {

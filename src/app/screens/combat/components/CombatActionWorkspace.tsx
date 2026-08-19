@@ -1,8 +1,7 @@
 import { useMemo } from "react";
 import { enemyById } from "../../../../game/data/enemies";
-import { spellDefinitions } from "../../../../game/data/spells";
-import { buildCombatAbilityTooltip, buildSpellTooltip } from "../../../../game/presentation/tooltipBuilders";
-import { buildEffectiveSpellContext, getSpellActionView, getActionById, reasonLabel, validatePlayerAction } from "../../../../game/combat/playerActions";
+import { buildCombatAbilityTooltip, buildMagicArtTooltip } from "../../../../game/presentation/tooltipBuilders";
+import { getActionById, reasonLabel, validatePlayerAction } from "../../../../game/combat/playerActions";
 import { COMBAT_ABILITY_SLOT_COUNT } from "../../../../game/combatAbilities/combatAbilityTypes";
 import { getCombatAbilityAvailability, getKnownCombatAbilities } from "../../../../game/combatAbilities/combatAbilitySelectors";
 import type { CombatContext, EnemyCombatInstance } from "../../../../game/combat/combatTypes";
@@ -11,7 +10,7 @@ import type { HunterCombatStats } from "../../../../game/equipment/derivedStats"
 import { GameTooltip } from "../../../components/tooltip/GameTooltip";
 import { PlaceholderArt } from "../../../components/PlaceholderArt";
 import { CombatActionButton } from "./CombatActionButton";
-import { getSpellUiState } from "./combatUi";
+import { getMagicArt } from "../../../../game/magicArts/magicArtLogic";
 
 export function CombatActionWorkspace({ game, stats, selectedEnemy, selectedDefinition, actionContext, onUseAction, onUsePotion }: { game: GameState; stats: HunterCombatStats; selectedEnemy?: EnemyCombatInstance; selectedDefinition?: (typeof enemyById)[keyof typeof enemyById]; actionContext: CombatContext; onUseAction: (actionId: string) => void; onUsePotion: () => void }) {
   const combat = game.combat;
@@ -30,15 +29,12 @@ export function CombatActionWorkspace({ game, stats, selectedEnemy, selectedDefi
         if (!action) return <CombatActionButton key={`empty-ability-slot-${slot}`} icon={<PlaceholderArt icon="shield" size="small" variant="muted" />} title="Empty Ability Slot" detail="Configure in Hero" disabled className="is-invalid" debugKind="combat-ability-empty-slot" debugId={`${slot}`} />;
         const validation = validatePlayerAction(game, action.id, stats, actionContext);
         const enabled = validation.valid;
-        if (action.kind === "spell") {
-          const spell = spellDefinitions.find((candidate) => candidate.id === action.id);
-          const spellView = getSpellActionView(game, action.id, stats, actionContext);
-          const effectiveSpell = spellView.effectiveSpell;
-          const runtime = combat.actionCooldowns[action.id];
-          const spellState = spell && effectiveSpell ? getSpellUiState(spell, runtime, combat, selectedAction, effectiveSpell) : { enabled: false, status: reasonLabel(validation.reason), tone: "invalid" as const };
-          const ready = enabled && spellState.enabled;
-          const button = <CombatActionButton icon={<PlaceholderArt icon={action.icon ?? "sparkles"} size="small" variant={ready ? "gold" : "muted"} />} title={action.name} detail={`${effectiveSpell?.manaCost ?? action.resourceCost?.mana ?? 0} MANA · ${ready ? spellState.status : reasonLabel(validation.reason)}`} disabled={!ready} className={`is-${ready ? "ready" : "invalid"}`} onClick={() => onUseAction(action.id)} debugKind="spell" debugId={action.id} debugLabel={action.name} cooldown={runtime} cooldownTotal={action.cooldown} />;
-          return spell ? <GameTooltip key={action.id} content={buildSpellTooltip(spell, game.progression, buildEffectiveSpellContext(game, spell, stats))}>{ready ? button : <span className="spell-tooltip-host">{button}</span>}</GameTooltip> : button;
+        if (action.kind === "magic-art") {
+          const art = getMagicArt(action.id);
+          const runtime = combat.actionCooldowns[action.id] ?? 0;
+          const ready = enabled && runtime <= 0;
+          const tooltip = art ? buildMagicArtTooltip(art) : { id: action.id, title: action.name, subtitle: "Magic Art", description: action.description, rows: [] };
+          return <GameTooltip key={action.id} content={tooltip}><CombatActionButton icon={<PlaceholderArt icon={action.icon ?? "shield"} size="small" variant={ready ? "gold" : "muted"} />} title={action.name} detail={`${action.resourceCost?.mana ?? 35} MANA · ${ready ? "READY" : runtime > 0 ? `COOLDOWN ${runtime.toFixed(1)}s` : reasonLabel(validation.reason)}`} disabled={!ready} className="magic-art-button" onClick={() => onUseAction(action.id)} debugKind="magic-art" debugId={action.id} debugLabel={action.name} cooldown={runtime} cooldownTotal={action.cooldown} /></GameTooltip>;
         }
         const entry = catalogue.find((candidate) => candidate.kind === "active-action" && candidate.actionId === action.id);
         const button = <CombatActionButton icon={<PlaceholderArt icon={action.icon ?? "shield"} size="small" variant={enabled ? "blue" : "muted"} />} title={action.name} detail={`${action.resourceCost?.stamina ?? 0} STAMINA · ${enabled ? "READY" : reasonLabel(validation.reason)}`} disabled={!enabled} className={`defense-button is-${enabled ? "ready" : "invalid"}`} onClick={() => onUseAction(action.id)} debugKind={action.kind === "weapon-skill" ? "weapon-skill" : "combat-ability"} debugId={action.id} debugLabel={action.name} cooldown={combat.actionCooldowns[action.id]} cooldownTotal={action.cooldown} />;

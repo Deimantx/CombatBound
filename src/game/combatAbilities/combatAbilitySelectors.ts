@@ -2,6 +2,7 @@ import { basicAttackAction, getActiveAbilityActionDefinitions } from "../combat/
 import { combatBalance } from "../combat/combatBalance";
 import { getDefensiveEquipmentContext } from "../equipment/defensiveEquipment";
 import { spellDefinitions } from "../data/spells";
+import { magicArtDefinitions } from "../data/magicArts";
 import { weaponSkillById } from "../data/weaponSkills";
 import type { GameState } from "../gameState";
 import { getEquippedWeaponProficiency } from "../progression/progressionSelectors";
@@ -30,16 +31,15 @@ export function getKnownCombatAbilities(game: GameState): CombatAbilityCatalogue
         plannedUnlockLevel: skill?.unlock.level,
       };
     }),
-    ...spellDefinitions
-      .filter((spell) => game.spellbook.knownSpellIds.includes(spell.id))
-      .map((spell) => ({
-        kind: "spell" as const,
-        actionId: spell.id,
-        category: "magic" as const,
-        name: spell.name,
-        description: spell.description,
-        icon: spell.icon,
-        magicProficiencyId: spell.magicProficiencyId,
+    ...magicArtDefinitions
+      .filter((art) => game.magicArts?.knownArtIds.includes(art.id))
+      .map((art) => ({
+        kind: "magic-art" as const,
+        actionId: art.id,
+        category: "magic-arts" as const,
+        name: art.name,
+        description: art.description,
+        icon: art.icon,
       })),
   ];
 }
@@ -61,6 +61,8 @@ export interface CombatAbilityAvailability {
 export function getCombatAbilityAvailability(game: GameState, actionId: string): CombatAbilityAvailability {
   const action = getActiveAbilityActionDefinitions().find((candidate) => candidate.id === actionId);
   if (!action) {
+    const art = magicArtDefinitions.find((candidate) => candidate.id === actionId);
+    if (art && game.magicArts?.knownArtIds.includes(actionId as never)) return { usable: true, label: "READY WITH CURRENT BUILD" };
     const spell = spellDefinitions.find((candidate) => candidate.id === actionId);
     return spell && game.spellbook.knownSpellIds.includes(actionId)
       ? { usable: true, label: "READY WITH CURRENT BUILD" }

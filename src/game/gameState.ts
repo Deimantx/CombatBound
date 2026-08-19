@@ -28,6 +28,8 @@ import {
   createInitialCombatAbilityLoadout,
 } from "./combatAbilities/combatAbilityLogic";
 import type { CombatAbilityLoadoutState } from "./combatAbilities/combatAbilityTypes";
+import { createInitialMagicArts } from "./magicArts/magicArtLogic";
+import type { MagicArtsState } from "./magicArts/magicArtTypes";
 
 export interface GameState {
   combat: CombatState;
@@ -37,6 +39,8 @@ export interface GameState {
   collection: ReturnType<typeof createInitialCollection>;
   gold: number;
   spellbook: SpellbookState;
+  /** Current authored Magic Arts knowledge. The legacy spellbook is compatibility-only. */
+  magicArts: MagicArtsState;
   combatAutomation: CombatAutomationState;
   combatAutomationPresets: CombatAutomationPresetsState;
   combatAbilities: CombatAbilityLoadoutState;
@@ -64,8 +68,9 @@ export function createInitialGameState(): GameState {
     },
     gold: 0,
     spellbook,
+    magicArts: createInitialMagicArts(),
     combatAutomation: createInitialCombatAutomation(),
     combatAutomationPresets: createInitialCombatAutomationPresets(),
-    combatAbilities: createInitialCombatAbilityLoadout(spellbook.knownSpellIds),
+    combatAbilities: createInitialCombatAbilityLoadout([], ["magic-art.earth-shield"]),
   };
 }

@@ -6,6 +6,7 @@ import { itemById, itemDefinitions, prototypeEquipmentDefinitions } from "../dat
 import { enemyDefinitions } from "../data/enemies";
 import { effectById } from "../data/effects";
 import { spellDefinitions } from "../data/spells";
+import { magicArtDefinitions } from "../data/magicArts";
 import { proficiencyDefinitions, proficiencyById } from "../data/proficiencies";
 import { perkById } from "../data/proficiencyPerks";
 import { weaponSkillDefinitions } from "../data/weaponSkills";
@@ -401,6 +402,47 @@ export function debugResetSessionMetrics(game: GameState): GameState {
 
 export function debugLearnAllSpells(game: GameState): GameState {
   return { ...game, spellbook: normalizeSpellbook({ ...game.spellbook, knownSpellIds: spellDefinitions.map((spell) => spell.id) }) };
+}
+
+export function debugLearnAllMagicArts(game: GameState): GameState {
+  return { ...game, magicArts: { knownArtIds: magicArtDefinitions.map((art) => art.id) } };
+}
+
+export function debugResetMagicArts(game: GameState): GameState {
+  return { ...game, magicArts: { knownArtIds: [] }, combatAbilities: { slots: game.combatAbilities.slots.map((id) => id?.startsWith("magic-art.") ? null : id) } };
+}
+
+export function debugEquipEarthShield(game: GameState): GameState {
+  const knownArtIds = game.magicArts.knownArtIds.includes("magic-art.earth-shield")
+    ? game.magicArts.knownArtIds
+    : ["magic-art.earth-shield" as const, ...game.magicArts.knownArtIds];
+  let combatAbilities = normalizeCombatAbilityLoadout(game.combatAbilities, [], knownArtIds);
+  combatAbilities = equipCombatAbility(combatAbilities, "magic-art.earth-shield", 3, [], knownArtIds);
+  return { ...game, magicArts: { knownArtIds }, combatAbilities };
+}
+
+export function debugSetMagicArtsXp(game: GameState, totalXp: number): GameState {
+  const safeXp = Math.max(0, Number.isFinite(totalXp) ? totalXp : 0);
+  return syncCombatStats({
+    ...game,
+    progression: {
+      ...game.progression,
+      proficiencies: {
+        ...game.progression.proficiencies,
+        "magic-arts": { proficiencyId: "magic-arts", totalXp: safeXp },
+      },
+    },
+  });
+}
+
+export function debugAddMagicArtsXp(game: GameState, amount: number): GameState {
+  return debugSetMagicArtsXp(game, (game.progression.proficiencies["magic-arts"]?.totalXp ?? 0) + Math.max(0, Number.isFinite(amount) ? amount : 0));
+}
+
+export function debugResetMagicArtsXp(game: GameState): GameState {
+  const proficiencies = { ...game.progression.proficiencies };
+  delete proficiencies["magic-arts"];
+  return syncCombatStats({ ...game, progression: { ...game.progression, proficiencies } });
 }
 
 export function debugResetSpellbook(game: GameState): GameState {

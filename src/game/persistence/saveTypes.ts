@@ -2,10 +2,30 @@ import type { CollectionState } from "../collection/collectionTypes";
 import type { EquipmentSlotId, EquipmentState } from "../equipment/equipmentTypes";
 import type { InventoryState } from "../inventory/inventoryTypes";
 import type { CombatProficiencyId, ProgressionState, ProficiencyProgress } from "../progression/progressionTypes";
-import type { SpellbookState } from "../spellbook/spellbookTypes";
 import type { CombatAutomationState } from "../automation/automationTypes";
 import type { CombatAutomationPresetsState } from "../automation/automationPresets";
 import type { CombatAbilityLoadoutState } from "../combatAbilities/combatAbilityTypes";
+import type { MagicArtsState } from "../magicArts/magicArtTypes";
+
+/** Frozen V14 proficiency IDs. Never derive historical parsing from current content. */
+export type LegacyCombatProficiencyIdV14 =
+  | 'one-handed-sword' | 'one-handed-axe' | 'one-handed-mace' | 'dagger'
+  | 'two-handed-sword' | 'two-handed-axe' | 'two-handed-hammer' | 'spear'
+  | 'shortbow' | 'longbow' | 'crossbow'
+  | 'fire-magic' | 'water-magic' | 'air-magic' | 'earth-magic' | 'darkness-magic'
+  | 'light-armor' | 'medium-armor' | 'heavy-armor' | 'shield';
+
+export interface LegacyProficiencyProgressV14 {
+  proficiencyId: LegacyCombatProficiencyIdV14;
+  totalXp: number;
+}
+
+export interface LegacyProgressionStateV14 {
+  proficiencies: Partial<Record<LegacyCombatProficiencyIdV14, LegacyProficiencyProgressV14>>;
+  hunterRankPoints: number;
+  bonusPerkPoints: number;
+  purchasedPerks: Record<string, number>;
+}
 
 export interface LegacyInventoryStateV10 { quantities: Record<string, number> }
 export interface LegacyEquipmentStateV10 { slots: Partial<Record<EquipmentSlotId, string>> }
@@ -23,6 +43,15 @@ export interface LegacyProgressionState {
 export interface LegacySpellbookStateV13 {
   knownSpellIds: string[];
   equippedSpellSlots: Array<string | null>;
+}
+
+/** Frozen final pre-Magic-Arts save fields. These must not import current runtime unions. */
+export interface LegacySpellbookStateV14 {
+  knownSpellIds: string[];
+}
+
+export interface LegacyCombatAbilityLoadoutStateV14 {
+  slots: Array<string | null>;
 }
 
 /** Frozen pre-V14 combat ability shape, including retired techniques. */
@@ -61,10 +90,25 @@ export interface GameSaveV9 {
 export interface GameSaveV10 extends Omit<GameSaveV9, "version"> { version: 10 }
 export interface GameSaveV11 extends Omit<GameSaveV9, "version" | "inventory" | "equipment"> { version: 11; inventory: LegacyInventoryStateV11; equipment: LegacyEquipmentStateV11 }
 export interface GameSaveV12 extends Omit<GameSaveV11, "version" | "inventory" | "equipment"> { version: 12; inventory: InventoryState; equipment: EquipmentState }
-export interface GameSaveV13 extends Omit<GameSaveV12, "version" | "progression"> { version: 13; progression: ProgressionState }
-export interface GameSaveV14 extends Omit<GameSaveV13, "version" | "spellbook" | "combatAbilities"> {
+export interface GameSaveV13 extends Omit<GameSaveV12, "version" | "progression"> { version: 13; progression: LegacyProgressionStateV14 }
+export interface GameSaveV14 extends Omit<GameSaveV13, "version" | "progression" | "spellbook" | "combatAbilities"> {
   version: 14;
-  spellbook: SpellbookState;
+  progression: LegacyProgressionStateV14;
+  spellbook: LegacySpellbookStateV14;
+  combatAbilities: LegacyCombatAbilityLoadoutStateV14;
+}
+
+export interface GameSaveV15 {
+  version: 15;
+  progression: ProgressionState;
+  inventory: InventoryState;
+  equipment: EquipmentState;
+  collection: CollectionState;
+  gold: number;
+  settings: { reducedMotion: boolean; showInspectorButton: boolean };
+  magicArts: MagicArtsState;
   combatAbilities: CombatAbilityLoadoutState;
+  combatAutomation: CombatAutomationState;
+  combatAutomationPresets: CombatAutomationPresetsState;
 }
 export type GameSaveV2 = GameSaveV3;

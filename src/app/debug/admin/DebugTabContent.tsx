@@ -9,7 +9,7 @@ import { DebugPlayerTab } from "./tabs/DebugPlayerTab";
 import { DebugProgressionTab } from "./tabs/DebugProgressionTab";
 import { DebugSaveToolsTab } from "./tabs/DebugSaveToolsTab";
 import { DebugScenariosTab } from "./tabs/DebugScenariosTab";
-import { DebugSpellbookTab } from "./tabs/DebugSpellbookTab";
+import { DebugMagicArtsTab } from "./tabs/DebugMagicArtsTab";
 import { DebugStateTab } from "./tabs/DebugStateTab";
 import { DebugStatsTab } from "./tabs/DebugStatsTab";
 import { DebugValidationTab } from "./tabs/DebugValidationTab";
@@ -24,7 +24,7 @@ export function DebugTabContent({ tab, run, setTab, setConfirmCollection }: { ta
   if (tab === "items") return <DebugItemsTab debug={debug} run={run} />;
   if (tab === "collection") return <DebugCollectionTab debug={debug} run={run} onConfirm={() => setConfirmCollection(true)} />;
   if (tab === "combat") return <DebugCombatTab debug={debug} run={run} />;
-  if (tab === "spellbook") return <DebugSpellbookTab debug={debug} run={run} />;
+  if (tab === "magic-arts") return <DebugMagicArtsTab debug={debug} run={run} />;
   if (tab === "state") return <DebugStateTab debug={debug} run={run} />;
   if (tab === "scenarios") return <DebugScenariosTab debug={debug} run={run} />;
   if (tab === "stats") return <DebugStatsTab debug={debug} run={run} />;

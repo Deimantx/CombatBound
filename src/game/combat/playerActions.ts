@@ -13,6 +13,7 @@ import { isCombatAbilityLoadoutActionKind } from "../combatAbilities/combatAbili
 import { weaponSkillDefinitions } from "../data/weaponSkills";
 import { getEquippedWeaponProficiency } from "../progression/progressionSelectors";
 import { getProficiencyLevel } from "../progression/proficiencyProgression";
+import { isMagicArtKnown } from "../magicArts/magicArtLogic";
 
 export const defensiveActionDefinitions: PlayerActionDefinition[] = [
   {
@@ -99,24 +100,21 @@ export function getPlayerActionDefinitions(
   game: GameState,
   context: CombatContext,
 ): PlayerActionDefinition[] {
-  const spells = Object.values(context.spells).map((spell) => ({
-    id: spell.id,
-    kind: "spell" as const,
-    name: spell.name,
-    description: spell.description,
-    icon: spell.icon,
-    targetMode:
-      spell.targetMode === "self"
-        ? ("self" as const)
-        : ("selected-enemy" as const),
-    cooldown: spell.cooldownSeconds,
+  const magicArts = Object.values(context.magicArts ?? {}).map((art) => ({
+    id: art.id,
+    kind: "magic-art" as const,
+    name: art.name,
+    description: art.description,
+    icon: art.icon,
+    targetMode: art.targetMode,
+    cooldown: art.cooldownSeconds,
     globalCooldown: "standard" as const,
-    resourceCost: { mana: spell.manaCost },
-    sourceSpellId: spell.id,
+    resourceCost: { mana: art.manaCost },
+    sourceMagicArtId: art.id,
   }));
   return [
     basicAttackAction,
-    ...spells,
+    ...magicArts,
     ...getActiveAbilityActionDefinitions(),
     potionAction,
   ];
@@ -180,12 +178,16 @@ export function getEffectivePlayerActionCost(
   _stats: HunterCombatStats,
   context: CombatContext,
 ): EffectiveActionCost {
-  if (!action.sourceSpellId)
+  if (!action.sourceSpellId && !action.sourceMagicArtId)
     return {
       mana: action.resourceCost?.mana ?? 0,
       stamina: action.resourceCost?.stamina ?? 0,
     };
-  const spell = context.spells[action.sourceSpellId];
+  if (action.sourceMagicArtId) {
+    const art = context.magicArts?.[action.sourceMagicArtId];
+    return { mana: art?.manaCost ?? action.resourceCost?.mana ?? 0, stamina: 0 };
+  }
+  const spell = context.spells[action.sourceSpellId!];
   if (!spell)
     return {
       mana: action.resourceCost?.mana ?? 0,
@@ -210,6 +212,8 @@ export function validatePlayerAction(
   if (combat.phase !== "active")
     return { valid: false, reason: "combat-inactive", action };
   if (!action) return { valid: false, reason: "combat-inactive" };
+  if (action.kind === "magic-art" && !isMagicArtKnown(game.magicArts ?? { knownArtIds: [] }, action.id))
+    return { valid: false, reason: "magic-art-not-known", action };
   if (action.kind === "spell" && !game.spellbook.knownSpellIds.includes(action.id))
     return { valid: false, reason: "spell-not-known", action };
   if (
