@@ -105,8 +105,15 @@ html[data-reduced-motion="true"] .danger-high.has-special { animation: none; tra
 @keyframes atlas-route-flow { to { stroke-dashoffset: -16; } }
 @keyframes atlas-active-ring { to { transform: rotate(360deg); } }
 @keyframes atlas-focus-burst { 0% { opacity: .46; transform: scale(.78); } 100% { opacity: 0; transform: scale(1.12); } }
+@keyframes atlas-card-trace { to { transform: rotate(360deg); } }
+@keyframes atlas-card-activate { 0% { transform: translate3d(0, var(--card-lift), 0) rotateX(var(--card-tilt-y)) rotateY(var(--card-tilt-x)) scale(1); } 55% { transform: translate3d(0, var(--card-lift), 0) rotateX(var(--card-tilt-y)) rotateY(var(--card-tilt-x)) scale(1.035); } 100% { transform: translate3d(0, var(--card-lift), 0) rotateX(var(--card-tilt-y)) rotateY(var(--card-tilt-x)) scale(1); } }
+@keyframes atlas-node-activate { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.08); } }
+@keyframes atlas-hunt-breathe { 0%, 100% { opacity: .4; transform: scale(1); } 50% { opacity: .72; transform: scale(1.08); } }
+@keyframes atlas-stage-exit { from { opacity: 1; transform: scale(1); } to { opacity: .18; transform: scale(.985); } }
 
 .combat-atlas-stage { --atlas-accent-rgb: var(--atlas-focus-rgb); --atlas-x: 50%; --atlas-y: 50%; --atlas-shift-x: 0px; --atlas-shift-y: 0px; background: #121619; border-radius: 7px; isolation: isolate; min-height: clamp(420px, 46vw, 550px); overflow: hidden; position: relative; animation: atlas-stage-enter 350ms cubic-bezier(.2,.75,.25,1) both; }
+.combat-atlas-stage.combat-atlas-transition-exit { animation: atlas-stage-exit 170ms ease-out both; }
+.combat-atlas-stage.combat-atlas-transition-enter { animation: atlas-stage-enter 220ms cubic-bezier(.2,.75,.25,1) both; }
 .combat-atlas-stage::before { background: radial-gradient(circle at var(--atlas-transition-x) var(--atlas-transition-y), rgba(var(--atlas-transition-rgb), .38), transparent 19%); border: 1px solid rgba(var(--atlas-transition-rgb), .22); border-radius: 50%; content: ''; inset: -16%; opacity: 0; pointer-events: none; position: absolute; z-index: 4; }
 .combat-atlas-stage.is-transitioning::before { animation: atlas-focus-burst 350ms ease-out both; }
 .is-area-level .combat-atlas-stage { min-height: clamp(390px, 42vw, 490px); }
@@ -123,9 +130,12 @@ html[data-reduced-motion="true"] .danger-high.has-special { animation: none; tra
 .combat-atlas-connection.is-highlighted { opacity: .78; stroke: var(--gold); stroke-width: .42; }
 .combat-atlas-connection.is-selected { opacity: .72; stroke: var(--gold); stroke-width: .34; }
 .combat-atlas-connection.is-active { opacity: .76; stroke: var(--green); stroke-width: .36; }
+.combat-atlas-connection.is-hunt-path { opacity: .38; stroke: rgba(123,177,139,.72); stroke-width: .28; }
+.combat-atlas-connection.is-activating { opacity: .9; stroke: var(--gold); stroke-width: .48; }
 .combat-atlas-connection.is-dimmed { opacity: .14; }
 .combat-atlas-mode-territories .combat-atlas-connection.is-dimmed { opacity: .22; }
 .combat-atlas-connection.is-highlighted, .combat-atlas-connection.is-selected { animation: atlas-line-enter 280ms ease both, atlas-route-flow 2.8s linear 280ms infinite; }
+.combat-atlas-connection.is-hunt-path.is-highlighted { opacity: .78; stroke: var(--gold); stroke-width: .42; }
 .combat-atlas-decoration-route { fill: none; opacity: .28; stroke-dasharray: 1 2.8; stroke-linecap: round; stroke-width: .45; vector-effect: non-scaling-stroke; }
 .combat-atlas-decoration-route.is-forest { stroke: rgba(116,171,135,.7); }
 .combat-atlas-decoration-route.is-road { stroke: rgba(207,168,92,.72); stroke-dasharray: 2 2; }
@@ -142,13 +152,29 @@ html[data-reduced-motion="true"] .danger-high.has-special { animation: none; tra
 
 .combat-atlas-territory { --atlas-accent-rgb: var(--atlas-node-rgb, var(--atlas-focus-rgb)); --card-pointer-x: 50%; --card-pointer-y: 50%; --card-lift: 0px; --card-tilt-x: 0deg; --card-tilt-y: 0deg; --card-icon-shift-x: 0px; --card-icon-shift-y: 0px; background: transparent; border: 0; color: var(--text); cursor: pointer; display: block; font: inherit; min-height: 132px; padding: 0; perspective: 620px; position: absolute; text-align: left; transform: translate(-50%, -50%); transition: opacity .24s ease, filter .24s ease; width: min(260px, 30%); z-index: 2; animation: atlas-node-enter 270ms cubic-bezier(.2,.75,.25,1) both; }
 .combat-atlas-territory-surface { align-items: flex-start; background: radial-gradient(circle at var(--card-pointer-x) var(--card-pointer-y), rgba(var(--atlas-accent-rgb), .2), transparent 47%), linear-gradient(135deg, rgba(24,38,39,.98), rgba(12,20,23,.96)); border: 1px solid rgba(var(--atlas-accent-rgb), .42); border-radius: 9px; box-shadow: 0 11px 24px rgba(0,0,0,.2), inset 0 1px rgba(255,255,255,.035); display: flex; gap: 12px; min-height: inherit; padding: 15px 16px; position: relative; transform: translate3d(0, var(--card-lift), 0) rotateX(var(--card-tilt-y)) rotateY(var(--card-tilt-x)); transform-style: preserve-3d; transition: border-color .2s ease, box-shadow .2s ease, transform .24s ease, background .2s ease; width: 100%; }
-.combat-atlas-territory-surface::before { background: repeating-radial-gradient(ellipse at 15% 10%, transparent 0, transparent 18px, rgba(var(--atlas-accent-rgb), .07) 19px, transparent 20px); content: ''; inset: 0; opacity: .5; pointer-events: none; position: absolute; }
-.combat-atlas-territory-surface::after { background: linear-gradient(116deg, transparent 26%, rgba(255,255,255,.055) 48%, transparent 70%); content: ''; inset: 0; opacity: 0; pointer-events: none; position: absolute; transform: translateX(-35%); transition: opacity .2s ease, transform .4s ease; }
+.combat-atlas-territory-surface { isolation: isolate; overflow: hidden; }
+.combat-atlas-territory-surface::before { background: repeating-radial-gradient(ellipse at 15% 10%, transparent 0, transparent 18px, rgba(var(--atlas-accent-rgb), .07) 19px, transparent 20px); content: ''; inset: 0; opacity: .5; pointer-events: none; position: absolute; z-index: 0; }
+.combat-atlas-territory-surface::after { background: linear-gradient(116deg, transparent 26%, rgba(255,255,255,.055) 48%, transparent 70%); content: ''; inset: 0; opacity: 0; pointer-events: none; position: absolute; transform: translateX(-35%); transition: opacity .2s ease, transform .4s ease; z-index: 2; }
+.combat-atlas-territory-ghost { bottom: -17px; color: rgba(var(--atlas-accent-rgb), .06); pointer-events: none; position: absolute; right: -8px; transform: translate3d(0, 0, 0) rotate(-9deg); transition: color .22s ease, transform .3s ease; z-index: 0; }
+.combat-atlas-territory-border-trace { background: conic-gradient(from 25deg, transparent 0 72%, rgba(var(--atlas-accent-rgb), .78) 82%, transparent 91%); inset: -1px; opacity: 0; padding: 1px; pointer-events: none; position: absolute; transform: rotate(0deg); -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0); -webkit-mask-composite: xor; mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0); mask-composite: exclude; z-index: 1; }
+.combat-atlas-territory-corners { inset: 0; pointer-events: none; position: absolute; z-index: 2; }
+.combat-atlas-territory-corners i { border-color: rgba(var(--atlas-accent-rgb), .34); border-style: solid; height: 9px; position: absolute; transition: border-color .2s ease, height .2s ease, width .2s ease; width: 9px; }
+.combat-atlas-territory-corners i:nth-child(1) { border-width: 1px 0 0 1px; left: 7px; top: 7px; }
+.combat-atlas-territory-corners i:nth-child(2) { border-width: 1px 1px 0 0; right: 7px; top: 7px; }
+.combat-atlas-territory-corners i:nth-child(3) { border-width: 0 0 1px 1px; bottom: 7px; left: 7px; }
+.combat-atlas-territory-corners i:nth-child(4) { border-width: 0 1px 1px 0; bottom: 7px; right: 7px; }
 .combat-atlas-territory:not(.is-locked):hover, .combat-atlas-territory:not(.is-locked):focus-visible { transform: translate(-50%, -50%); }
 .combat-atlas-territory:not(.is-locked):hover { --card-lift: -4px; }
 .combat-atlas-territory:not(.is-locked):hover .combat-atlas-territory-surface, .combat-atlas-territory:not(.is-locked):focus-visible .combat-atlas-territory-surface { border-color: rgba(var(--atlas-accent-rgb), .82); box-shadow: 0 16px 30px rgba(0,0,0,.3), 0 0 22px rgba(var(--atlas-accent-rgb), .13), inset 0 1px rgba(255,255,255,.07); }
 .combat-atlas-territory:not(.is-locked):hover .combat-atlas-territory-surface::after, .combat-atlas-territory:not(.is-locked):focus-visible .combat-atlas-territory-surface::after { opacity: 1; transform: translateX(35%); }
+.combat-atlas-territory:not(.is-locked):is(:hover, :focus-visible) .combat-atlas-territory-border-trace, .combat-atlas-territory.is-selected:not(.is-locked) .combat-atlas-territory-border-trace { animation: atlas-card-trace 2.3s linear infinite; opacity: 1; }
+.combat-atlas-territory:not(.is-locked):is(:hover, :focus-visible) .combat-atlas-territory-ghost { color: rgba(var(--atlas-accent-rgb), .1); transform: translate3d(-3px, -2px, 0) rotate(-9deg); }
+.combat-atlas-territory:not(.is-locked):is(:hover, :focus-visible) .combat-atlas-territory-corners i { border-color: rgba(var(--atlas-accent-rgb), .7); }
 .combat-atlas-territory.is-selected .combat-atlas-territory-surface { border-color: var(--gold); box-shadow: 0 0 0 2px rgba(213,170,98,.13), 0 14px 28px rgba(0,0,0,.28); }
+.combat-atlas-territory.is-selected .combat-atlas-territory-surface { box-shadow: inset 0 0 0 1px rgba(213,170,98,.42), 0 0 0 2px rgba(213,170,98,.13), 0 14px 28px rgba(0,0,0,.28); }
+.combat-atlas-territory.is-hunt-path .combat-atlas-territory-surface { box-shadow: inset 2px 0 rgba(123,177,139,.88), inset 0 0 22px rgba(123,177,139,.08), 0 11px 24px rgba(0,0,0,.2); }
+.combat-atlas-territory.is-selected.is-hunt-path .combat-atlas-territory-surface { box-shadow: inset 2px 0 rgba(123,177,139,.88), inset 0 0 0 1px rgba(213,170,98,.42), 0 0 0 2px rgba(213,170,98,.13), 0 14px 28px rgba(0,0,0,.28); }
+.combat-atlas-territory.is-activating .combat-atlas-territory-surface { animation: atlas-card-activate 170ms ease-out both; }
 .combat-atlas-territory.is-locked { cursor: not-allowed; filter: saturate(.68); }
 .combat-atlas-territory-icon { align-items: center; background: rgba(var(--atlas-accent-rgb), .1); border: 1px solid rgba(var(--atlas-accent-rgb), .3); border-radius: 50%; color: rgba(var(--atlas-accent-rgb), .95); display: inline-flex; flex: 0 0 auto; height: 43px; justify-content: center; position: relative; transform: translate3d(var(--card-icon-shift-x), var(--card-icon-shift-y), 0); transition: transform .24s ease; width: 43px; z-index: 1; }
 .combat-atlas-territory-body { display: flex; flex: 1; flex-direction: column; gap: 3px; min-width: 0; position: relative; z-index: 1; }
@@ -162,9 +188,12 @@ html[data-reduced-motion="true"] .danger-high.has-special { animation: none; tra
 .combat-atlas-level-continent .combat-atlas-territory { min-height: 116px; width: min(232px, 28%); }
 .combat-atlas-level-continent .combat-atlas-territory-body strong { font-size: 12px; }
 .combat-atlas-territory.is-dimmed { opacity: .72; }
+.combat-atlas-hunt-path-label { align-items: center; color: var(--green); display: inline-flex; font-size: 7px; font-style: normal; font-weight: 800; gap: 4px; letter-spacing: .14em; margin-top: 4px; }
+.combat-atlas-hunt-path-label i { background: var(--green); border-radius: 50%; box-shadow: 0 0 9px rgba(123,177,139,.55); display: inline-block; height: 5px; width: 5px; }
 
 .combat-atlas-node { --atlas-accent-rgb: var(--atlas-node-rgb, var(--atlas-focus-rgb)); align-items: center; background: transparent; border: 0; color: var(--text); cursor: pointer; display: flex; flex-direction: column; font: inherit; gap: 8px; padding: 5px; position: absolute; text-align: center; transform: translate(-50%, -50%); width: 170px; z-index: 2; animation: atlas-node-enter 270ms cubic-bezier(.2,.75,.25,1) both; transition: color .18s ease, opacity .24s ease, transform .18s ease; }
 .combat-atlas-node.is-dimmed { opacity: .58; }
+.combat-atlas-node.is-activating .combat-atlas-node-orb { animation: atlas-node-activate 170ms ease-out both; }
 .combat-atlas-node:not(.is-locked):hover, .combat-atlas-node:not(.is-locked):focus-visible { color: var(--text); transform: translate(-50%, calc(-50% - 2px)); }
 .combat-atlas-node.is-locked { color: var(--muted); cursor: not-allowed; }
 .combat-atlas-node-orb { align-items: center; background: rgba(13,25,28,.94); border: 1px solid rgba(var(--atlas-accent-rgb), .62); border-radius: 50%; color: rgba(var(--atlas-accent-rgb), .95); display: inline-flex; height: 48px; justify-content: center; position: relative; transition: background .18s ease, border-color .18s ease, box-shadow .18s ease, transform .18s ease; width: 48px; }
@@ -175,6 +204,7 @@ html[data-reduced-motion="true"] .danger-high.has-special { animation: none; tra
 .combat-atlas-node:not(.is-locked):hover .combat-atlas-node-halo, .combat-atlas-node:not(.is-locked):focus-visible .combat-atlas-node-halo { opacity: .5; transform: scale(1.09); }
 .combat-atlas-node.is-selected .combat-atlas-node-orb { border-color: var(--gold); box-shadow: 0 0 0 3px rgba(213,170,98,.13), 0 0 20px rgba(213,170,98,.16); color: var(--gold); }
 .combat-atlas-node.is-selected .combat-atlas-node-halo { border-color: rgba(213,170,98,.72); opacity: .46; }
+.combat-atlas-node.is-hunt-path .combat-atlas-node-orb::after { border: 1px solid rgba(123,177,139,.8); border-radius: 50%; content: ''; inset: -10px; opacity: .5; position: absolute; animation: atlas-hunt-breathe 4.6s ease-in-out infinite; }
 .combat-atlas-node.is-locked .combat-atlas-node-orb { border-style: dashed; color: var(--muted); opacity: .72; }
 .combat-atlas-node-label { display: flex; flex-direction: column; gap: 2px; max-width: 170px; }
 .combat-atlas-node-label strong { font-size: 11px; letter-spacing: .1em; }
@@ -210,18 +240,22 @@ html[data-reduced-motion="true"] .danger-high.has-special { animation: none; tra
 .location-preview-marker.is-active { border-color: var(--green); color: var(--green); }
 .location-preview-heading { min-width: 0; }
 .location-preview-heading h3 { font-size: 16px; margin-top: 3px; }
+.location-preview-family { color: var(--gold); display: block; font-size: 9px; letter-spacing: .08em; margin-top: 3px; }
 .location-preview-heading > .game-tooltip-trigger, .location-preview-heading > p { min-width: 0; }
 .location-preview-heading p { -webkit-box-orient: vertical; -webkit-line-clamp: 3; color: var(--muted); display: -webkit-box; font-size: 10px; line-height: 1.35; margin-top: 4px; overflow: hidden; }
-.location-meta-grid { border-bottom: 1px solid var(--line-soft); border-top: 1px solid var(--line-soft); display: grid; gap: 10px; grid-template-columns: repeat(3, 1fr); margin: 12px 0 11px; padding: 9px 0; }
+.location-meta-grid { border-bottom: 1px solid var(--line-soft); border-top: 1px solid var(--line-soft); display: grid; gap: 10px; grid-template-columns: repeat(2, 1fr); margin: 12px 0 11px; padding: 9px 0; }
 .location-meta-grid div { display: flex; flex-direction: column; gap: 3px; }
 .location-meta-grid span { color: var(--muted); font-size: 8px; letter-spacing: .08em; }
 .location-meta-grid strong { font-size: 11px; }
 .location-pool { display: flex; flex-direction: column; gap: 6px; }
-.location-pool > div { display: flex; flex-wrap: wrap; gap: 5px; }
-.location-pool > div span { background: var(--blue-soft); border: 1px solid rgba(140,169,195,.22); border-radius: 99px; color: var(--blue); font-size: 9px; padding: 3px 6px; }
+.location-pool > div { display: flex; flex-wrap: wrap; gap: 6px; }
+.location-enemy-icon { align-items: center; background: rgba(9,17,20,.72); border: 1px solid rgba(140,169,195,.24); border-radius: 7px; cursor: help; display: inline-flex; height: 42px; justify-content: center; outline: none; transition: border-color .18s ease, box-shadow .18s ease, transform .18s ease; width: 42px; }
+.location-enemy-icon:hover, .location-enemy-icon:focus-visible { border-color: var(--gold); box-shadow: 0 0 14px rgba(213,170,98,.18); transform: translateY(-2px); }
+.location-enemy-icon .placeholder-art { border: 0; height: 30px; width: 30px; }
+.location-loot-list { display: flex; flex-wrap: wrap; gap: 5px; }
+.location-loot-list span { background: var(--gold-soft); border: 1px solid rgba(213,170,98,.24); border-radius: 99px; color: var(--gold); font-size: 9px; padding: 3px 6px; }
 .location-preview-footer { align-items: flex-end; border-top: 1px solid var(--line-soft); display: flex; gap: 12px; justify-content: space-between; margin-top: auto; padding-top: 10px; }
 .location-shared-loot { display: flex; flex: 1; flex-direction: column; gap: 3px; min-width: 0; }
-.location-shared-loot small { color: var(--gold); font-size: 10px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .location-preview-action { align-items: flex-end; display: flex; flex-direction: column; gap: 4px; }
 .location-preview-action .button { min-width: 124px; }
 .locked-copy { color: var(--gold); font-size: 9px; margin-top: 4px; text-align: right; }
@@ -581,16 +615,25 @@ html[data-reduced-motion="true"] .combat-atlas-arena-halo,
 html[data-reduced-motion="true"] .combat-atlas-arena.is-active .combat-atlas-arena-orb::after { animation: none; }
 html[data-reduced-motion="true"] .combat-atlas-stage::before,
 html[data-reduced-motion="true"] .combat-atlas-connection.is-highlighted,
-html[data-reduced-motion="true"] .combat-atlas-connection.is-selected { animation: none; }
+html[data-reduced-motion="true"] .combat-atlas-connection.is-selected,
+html[data-reduced-motion="true"] .combat-atlas-territory-border-trace,
+html[data-reduced-motion="true"] .combat-atlas-territory.is-activating .combat-atlas-territory-surface,
+html[data-reduced-motion="true"] .combat-atlas-node.is-activating .combat-atlas-node-orb,
+html[data-reduced-motion="true"] .combat-atlas-node.is-hunt-path .combat-atlas-node-orb::after,
+html[data-reduced-motion="true"] .combat-atlas-connection.is-activating,
+html[data-reduced-motion="true"] .combat-atlas-stage.combat-atlas-transition-exit,
+html[data-reduced-motion="true"] .combat-atlas-stage.combat-atlas-transition-enter { animation: none; }
 html[data-reduced-motion="true"] .combat-atlas-contours,
 html[data-reduced-motion="true"] .combat-atlas-backdrop,
 html[data-reduced-motion="true"] .combat-atlas-constellation-canvas,
 html[data-reduced-motion="true"] .combat-atlas-territory-surface,
 html[data-reduced-motion="true"] .combat-atlas-territory-icon { transition: none; }
+html[data-reduced-motion="true"] .combat-atlas-territory-surface::after { opacity: 0; transform: none; transition: none; }
 html[data-reduced-motion="true"] .combat-atlas-territory-surface { --card-lift: 0px; --card-tilt-x: 0deg; --card-tilt-y: 0deg; --card-icon-shift-x: 0px; --card-icon-shift-y: 0px; }
 @media (prefers-reduced-motion: reduce) {
   .combat-atlas-panel, .combat-atlas-stage, .combat-atlas-fog, .combat-atlas-node-halo, .combat-atlas-arena-halo, .combat-atlas-arena.is-active .combat-atlas-arena-orb::after { animation: none; }
-  .combat-atlas-stage::before, .combat-atlas-connection.is-highlighted, .combat-atlas-connection.is-selected { animation: none; }
+  .combat-atlas-stage::before, .combat-atlas-connection.is-highlighted, .combat-atlas-connection.is-selected, .combat-atlas-territory-border-trace, .combat-atlas-territory.is-activating .combat-atlas-territory-surface, .combat-atlas-node.is-activating .combat-atlas-node-orb, .combat-atlas-node.is-hunt-path .combat-atlas-node-orb::after, .combat-atlas-connection.is-activating, .combat-atlas-stage.combat-atlas-transition-exit, .combat-atlas-stage.combat-atlas-transition-enter { animation: none; }
   .combat-atlas-contours, .combat-atlas-backdrop, .combat-atlas-constellation-canvas, .combat-atlas-territory-surface, .combat-atlas-territory-icon { transition: none; }
+  .combat-atlas-territory-surface::after { opacity: 0; transform: none; transition: none; }
   .combat-atlas-territory-surface { --card-lift: 0px; --card-tilt-x: 0deg; --card-tilt-y: 0deg; --card-icon-shift-x: 0px; --card-icon-shift-y: 0px; }
 }

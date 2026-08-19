@@ -5,6 +5,7 @@ import { masteryXpForLevel } from '../game/progression/masteryProgression'
 import { useGameStore } from '../state/gameStore'
 
 beforeEach(() => {
+  vi.useFakeTimers()
   useGameStore.getState().resetGameplay()
 })
 
@@ -28,10 +29,15 @@ function debugElement(kind: string) {
   return element as HTMLElement
 }
 
+function clickAtlas(name: string) {
+  fireEvent.click(screen.getByRole('button', { name }))
+  act(() => vi.advanceTimersByTime(190))
+}
+
 function openDeepWoods() {
-  fireEvent.click(screen.getByRole('button', { name: 'Open Greenvale' }))
-  fireEvent.click(screen.getByRole('button', { name: 'Open Northwood' }))
-  fireEvent.click(screen.getByRole('button', { name: 'Open Deep Woods' }))
+  clickAtlas('Open Greenvale')
+  clickAtlas('Open Northwood')
+  clickAtlas('Open Deep Woods')
 }
 
 describe('combat world atlas browser', () => {
@@ -50,16 +56,19 @@ describe('combat world atlas browser', () => {
     expect(wolfDen).toHaveAttribute('data-debug-tooltip-id', 'combat-arena:location.wolf-den')
     expect(wolfDen).not.toHaveAttribute('title')
     expect(screen.queryByRole('button', { name: /^Bandit Camp/ })).not.toBeInTheDocument()
+    expect(screen.getByText('LOOT')).toBeInTheDocument()
+    expect(screen.queryByText('KNOWN SHARED LOOT')).not.toBeInTheDocument()
+    expect(document.querySelector('[data-debug-kind="combat-enemy-preview"][data-debug-enemy-id="enemy.grey-wolf"]')).toHaveAttribute('aria-label', 'Inspect Grey Wolf')
     expect(debugElement('combat-atlas-stage')).toHaveAttribute('data-debug-atlas-mode', 'arenas')
     expect(debugElement('combat-atlas-stage')).toHaveAttribute('data-debug-atlas-view-id', 'area.deep-woods')
   })
 
   it('shows only child geography before the arena level', () => {
     openCombatBrowser()
-    fireEvent.click(screen.getByRole('button', { name: 'Open Greenvale' }))
+    clickAtlas('Open Greenvale')
     expect(screen.getByRole('button', { name: 'Open Northwood' })).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: /^Wolf Den/ })).not.toBeInTheDocument()
-    fireEvent.click(screen.getByRole('button', { name: 'Open Northwood' }))
+    clickAtlas('Open Northwood')
     expect(screen.getByRole('button', { name: 'Open Deep Woods' })).toBeInTheDocument()
     const lockedOldRoad = screen.getByRole('button', { name: 'LOCKED Old Road' })
     expect(lockedOldRoad).toHaveAttribute('aria-disabled', 'true')
@@ -85,8 +94,8 @@ describe('combat world atlas browser', () => {
     expect(screen.getByRole('button', { name: 'Back one map level' })).toBeDisabled()
     expect(screen.getByRole('button', { name: 'Return to World Map' })).toBeDisabled()
 
-    fireEvent.click(screen.getByRole('button', { name: 'Open Greenvale' }))
-    fireEvent.click(screen.getByRole('button', { name: 'Open Northwood' }))
+    clickAtlas('Open Greenvale')
+    clickAtlas('Open Northwood')
     fireEvent.click(screen.getByRole('button', { name: 'Return to World Map' }))
     expect(debugElement('combat-atlas-stage')).toHaveAttribute('data-debug-atlas-view-id', 'world')
   })
@@ -118,10 +127,11 @@ describe('combat world atlas browser', () => {
     const activeBeforeBrowsing = useGameStore.getState().activeCombatLocationId
     fireEvent.click(screen.getByRole('button', { name: 'Expand' }))
     fireEvent.click(screen.getByRole('button', { name: 'Return to World Map' }))
-    fireEvent.click(screen.getByRole('button', { name: 'Open Greenvale' }))
-    fireEvent.click(screen.getByRole('button', { name: 'Open Northwood' }))
+    expect(document.querySelector('[data-debug-source-id="continent.greenvale"]')).toHaveClass('is-hunt-path')
+    clickAtlas('Open Greenvale')
+    clickAtlas('Open Northwood')
     act(unlockBanditCamp)
-    fireEvent.click(screen.getByRole('button', { name: 'Open Old Road' }))
+    clickAtlas('Open Old Road')
     fireEvent.click(screen.getByRole('button', { name: /^Bandit Camp/ }))
     expect(screen.getAllByText('CURRENT HUNT').length).toBeGreaterThan(0)
     expect(useGameStore.getState().activeCombatLocationId).toBe(activeBeforeBrowsing)
@@ -136,10 +146,10 @@ describe('combat world atlas browser', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Start selected location hunt' }))
     fireEvent.click(screen.getByRole('button', { name: 'Expand' }))
     fireEvent.click(screen.getByRole('button', { name: 'Return to World Map' }))
-    fireEvent.click(screen.getByRole('button', { name: 'Open Greenvale' }))
-    fireEvent.click(screen.getByRole('button', { name: 'Open Northwood' }))
+    clickAtlas('Open Greenvale')
+    clickAtlas('Open Northwood')
     act(unlockBanditCamp)
-    fireEvent.click(screen.getByRole('button', { name: 'Open Old Road' }))
+    clickAtlas('Open Old Road')
     fireEvent.click(screen.getByRole('button', { name: /^Bandit Camp/ }))
     expect(useGameStore.getState().activeCombatLocationId).toBe('location.wolf-den')
     fireEvent.click(screen.getByRole('button', { name: 'Switch hunt' }))
@@ -151,11 +161,11 @@ describe('combat world atlas browser', () => {
     openCombatBrowser()
     expect(debugElement('combat-atlas-stage')).toHaveAttribute('data-debug-atlas-mode', 'territories')
     expect(screen.queryByLabelText('Map zoom')).not.toBeInTheDocument()
-    fireEvent.click(screen.getByRole('button', { name: 'Open Greenvale' }))
+    clickAtlas('Open Greenvale')
     expect(debugElement('combat-atlas-stage')).toHaveAttribute('data-debug-atlas-mode', 'territories')
-    fireEvent.click(screen.getByRole('button', { name: 'Open Northwood' }))
+    clickAtlas('Open Northwood')
     expect(debugElement('combat-atlas-stage')).toHaveAttribute('data-debug-atlas-mode', 'constellation')
-    fireEvent.click(screen.getByRole('button', { name: 'Open Deep Woods' }))
+    clickAtlas('Open Deep Woods')
     expect(debugElement('combat-atlas-stage')).toHaveAttribute('data-debug-atlas-mode', 'arenas')
   })
 })

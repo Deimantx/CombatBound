@@ -8,6 +8,8 @@ interface CombatAtlasConstellationViewportProps {
   view: CombatAtlasViewDefinition
   selectedNodeId?: string
   activeLocationId: string | null
+  activeHuntPathNodeId?: string
+  activatingNodeId?: string
   hoveredNodeId?: string
   renderNode: (node: CombatAtlasNodeLayout, index: number, dimmed: boolean) => ReactNode
 }
@@ -26,7 +28,7 @@ interface DragState extends PanPoint {
 
 const DRAG_THRESHOLD = 6
 
-export function CombatAtlasConstellationViewport({ view, selectedNodeId, activeLocationId, hoveredNodeId, renderNode }: CombatAtlasConstellationViewportProps) {
+export function CombatAtlasConstellationViewport({ view, selectedNodeId, activeLocationId, activeHuntPathNodeId, activatingNodeId, hoveredNodeId, renderNode }: CombatAtlasConstellationViewportProps) {
   const viewportRef = useRef<HTMLDivElement>(null)
   const dragRef = useRef<DragState | undefined>(undefined)
   const suppressClickRef = useRef(false)
@@ -120,7 +122,7 @@ export function CombatAtlasConstellationViewport({ view, selectedNodeId, activeL
       className="combat-atlas-constellation-canvas"
       style={{ width: `${scale.x * 100}%`, height: `${scale.y * 100}%`, transform: `translate3d(calc(-50% + ${pan.x}px), calc(-50% + ${pan.y}px), 0)` } as CSSProperties}
     >
-      <CombatAtlasConnections view={view} hoveredNodeId={hoveredNodeId} selectedNodeId={selectedNodeId} activeLocationId={activeLocationId} />
+      <CombatAtlasConnections view={view} hoveredNodeId={hoveredNodeId} selectedNodeId={selectedNodeId} activeLocationId={activeLocationId} activeHuntPathNodeId={activeHuntPathNodeId} activatingNodeId={activatingNodeId} />
       {view.nodes.map((node, index) => renderNode(node, index, Boolean(hoveredNodeId && !connectedNodeIds.has(node.sourceId))))}
     </div>
   </div>

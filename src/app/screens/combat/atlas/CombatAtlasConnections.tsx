@@ -5,9 +5,11 @@ interface CombatAtlasConnectionsProps {
   hoveredNodeId?: string
   selectedNodeId?: string
   activeLocationId: string | null
+  activeHuntPathNodeId?: string
+  activatingNodeId?: string
 }
 
-export function CombatAtlasConnections({ view, hoveredNodeId, selectedNodeId, activeLocationId }: CombatAtlasConnectionsProps) {
+export function CombatAtlasConnections({ view, hoveredNodeId, selectedNodeId, activeLocationId, activeHuntPathNodeId, activatingNodeId }: CombatAtlasConnectionsProps) {
   const points = new Map(view.nodes.map((node) => [node.sourceId, node]))
   return <svg className="combat-atlas-connections" data-debug-kind="combat-atlas-connections" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
     {view.decorations?.map((decoration, index) => <Decoration key={`decoration-${index}`} decoration={decoration} />)}
@@ -18,10 +20,12 @@ export function CombatAtlasConnections({ view, hoveredNodeId, selectedNodeId, ac
       const relatedToHover = Boolean(hoveredNodeId && (connection.from === hoveredNodeId || connection.to === hoveredNodeId))
       const relatedToSelection = Boolean(selectedNodeId && (connection.from === selectedNodeId || connection.to === selectedNodeId))
       const relatedToActive = Boolean(activeLocationId && (connection.from === activeLocationId || connection.to === activeLocationId))
+      const relatedToHuntPath = Boolean(activeHuntPathNodeId && (connection.from === activeHuntPathNodeId || connection.to === activeHuntPathNodeId))
+      const relatedToActivation = Boolean(activatingNodeId && (connection.from === activatingNodeId || connection.to === activatingNodeId))
       const unrelatedToHover = Boolean(hoveredNodeId && !relatedToHover)
       return <path
         key={`${connection.from}-${connection.to}`}
-        className={`combat-atlas-connection ${connection.emphasis === 'subtle' ? 'is-subtle' : ''} ${relatedToHover ? 'is-highlighted' : ''} ${relatedToSelection ? 'is-selected' : ''} ${relatedToActive ? 'is-active' : ''} ${unrelatedToHover ? 'is-dimmed' : ''}`}
+        className={`combat-atlas-connection ${connection.emphasis === 'subtle' ? 'is-subtle' : ''} ${relatedToHover ? 'is-highlighted' : ''} ${relatedToSelection ? 'is-selected' : ''} ${relatedToActive ? 'is-active' : ''} ${relatedToHuntPath ? 'is-hunt-path' : ''} ${relatedToActivation ? 'is-activating' : ''} ${unrelatedToHover ? 'is-dimmed' : ''}`}
         d={connectionPath(from, to, connection.curve)}
       />
     })}

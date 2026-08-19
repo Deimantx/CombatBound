@@ -17,18 +17,23 @@ export interface CombatAtlasTransitionOrigin {
   rgb: string
 }
 
+export type CombatAtlasTransitionPhase = 'idle' | 'exit' | 'enter'
+
 interface CombatAtlasStageProps {
   view: CombatAtlasViewDefinition
   masteryLevel: number
   selectedNodeId?: string
   activeLocationId: string | null
+  activeHuntPathNodeId?: string
+  activatingNodeId?: string
+  transitionPhase?: CombatAtlasTransitionPhase
   transitionOrigin?: CombatAtlasTransitionOrigin
   onNodeSelect: (node: CombatAtlasNodeLayout) => void
   onBack: () => void
   onReturnToWorld: () => void
 }
 
-export function CombatAtlasStage({ view, masteryLevel, selectedNodeId, activeLocationId, transitionOrigin, onNodeSelect, onBack, onReturnToWorld }: CombatAtlasStageProps) {
+export function CombatAtlasStage({ view, masteryLevel, selectedNodeId, activeLocationId, activeHuntPathNodeId, activatingNodeId, transitionOrigin, transitionPhase = 'idle', onNodeSelect, onBack, onReturnToWorld }: CombatAtlasStageProps) {
   const stageRef = useRef<HTMLDivElement>(null)
   const [hoveredNodeId, setHoveredNodeId] = useState<string>()
   const defaultAccent = atlasAtmosphereAccent[view.atmosphere]
@@ -75,27 +80,30 @@ export function CombatAtlasStage({ view, masteryLevel, selectedNodeId, activeLoc
 
   const renderNode = (node: CombatAtlasNodeLayout, index: number, dimmed: boolean): ReactNode => {
     const details = combatAtlasNodeDetails(node, masteryLevel)
-    if (view.mode === 'territories') return <CombatAtlasTerritoryCard key={node.sourceId} node={node} details={details} selected={selectedNodeId === node.sourceId} dimmed={dimmed} index={index} onSelect={onNodeSelect} onHover={setHoveredNodeId} />
-    if (view.mode === 'constellation') return <CombatAtlasConstellationNode key={node.sourceId} node={node} details={details} selected={selectedNodeId === node.sourceId} dimmed={dimmed} index={index} onSelect={onNodeSelect} onHover={setHoveredNodeId} />
+    const huntPath = activeHuntPathNodeId === node.sourceId
+    const activating = activatingNodeId === node.sourceId
+    if (view.mode === 'territories') return <CombatAtlasTerritoryCard key={node.sourceId} node={node} details={details} selected={selectedNodeId === node.sourceId} dimmed={dimmed} huntPath={huntPath} activating={activating} index={index} onSelect={onNodeSelect} onHover={setHoveredNodeId} />
+    if (view.mode === 'constellation') return <CombatAtlasConstellationNode key={node.sourceId} node={node} details={details} selected={selectedNodeId === node.sourceId} dimmed={dimmed} huntPath={huntPath} activating={activating} index={index} onSelect={onNodeSelect} onHover={setHoveredNodeId} />
     return <CombatAtlasArenaNode key={node.sourceId} node={node} details={details} selected={selectedNodeId === node.sourceId} active={activeLocationId === node.sourceId} index={index} onSelect={onNodeSelect} onHover={setHoveredNodeId} />
   }
 
   return <div
     ref={stageRef}
-    className={`combat-atlas-stage combat-atlas-level-${view.level} combat-atlas-mode-${view.mode} combat-atlas-atmosphere-${view.atmosphere} ${transitionOrigin ? 'is-transitioning' : ''}`}
+    className={`combat-atlas-stage combat-atlas-level-${view.level} combat-atlas-mode-${view.mode} combat-atlas-atmosphere-${view.atmosphere} ${transitionOrigin ? 'is-transitioning' : ''} combat-atlas-transition-${transitionPhase}`}
     style={stageStyle}
     data-debug-kind="combat-atlas-stage"
     data-debug-atlas-mode={view.mode}
     data-debug-atlas-view-id={view.id}
+    data-debug-activating-node-id={activatingNodeId}
     data-debug-label={`${view.level} atlas`}
     onPointerMove={handlePointerMove}
     onPointerLeave={resetPointer}
   >
     <CombatAtlasBackdrop atmosphere={view.atmosphere} />
     {view.mode === 'constellation'
-      ? <CombatAtlasConstellationViewport view={view} selectedNodeId={selectedNodeId} activeLocationId={activeLocationId} hoveredNodeId={hoveredNodeId} renderNode={renderNode} />
+      ? <CombatAtlasConstellationViewport view={view} selectedNodeId={selectedNodeId} activeLocationId={activeLocationId} activeHuntPathNodeId={activeHuntPathNodeId} activatingNodeId={activatingNodeId} hoveredNodeId={hoveredNodeId} renderNode={renderNode} />
       : <>
-        <CombatAtlasConnections view={view} hoveredNodeId={hoveredNodeId} selectedNodeId={selectedNodeId} activeLocationId={activeLocationId} />
+        <CombatAtlasConnections view={view} hoveredNodeId={hoveredNodeId} selectedNodeId={selectedNodeId} activeLocationId={activeLocationId} activeHuntPathNodeId={activeHuntPathNodeId} activatingNodeId={activatingNodeId} />
         {view.nodes.map((node, index) => renderNode(node, index, Boolean(hoveredNodeId && !connectedNodeIds.has(node.sourceId))))}
       </>}
     <div className="combat-atlas-nav-controls" data-debug-kind="combat-atlas-nav-controls" data-debug-label="Atlas navigation controls">

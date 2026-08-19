@@ -2,7 +2,7 @@ import { Map, Play, Swords, Target } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import { combatLocationById } from '../../../game/data/world/combatLocations'
 import { masteryLevelForXp } from '../../../game/progression/masteryProgression'
-import { isCombatLocationAvailable, locationBreadcrumb } from '../../../game/world/worldSelectors'
+import { isCombatLocationAvailable, locationBreadcrumb, selectionForLocation } from '../../../game/world/worldSelectors'
 import type { CombatLocationDefinition } from '../../../game/world/worldTypes'
 import { useGameStore } from '../../../state/gameStore'
 import { Panel } from '../../components/Panel'
@@ -12,8 +12,10 @@ import { CombatAtlasStage } from './atlas/CombatAtlasStage'
 import { atlasAccentRgb } from './atlas/combatAtlasLayout'
 import { combatAtlasViewFor, combatAtlasViewId, combatAtlasViewTitle, combatAtlasViewDescription } from './atlas/combatAtlasRegistry'
 import { combatLocationPresentation } from './combatLocationPresentation'
+import { enemyTooltipModel } from './enemyPresentation'
+import { EnemyPreviewIcon } from './components/EnemyPreviewIcon'
 import type { CombatAtlasLevel, CombatAtlasNodeLayout } from './atlas/combatAtlasTypes'
-import type { CombatAtlasTransitionOrigin } from './atlas/CombatAtlasStage'
+import type { CombatAtlasTransitionOrigin, CombatAtlasTransitionPhase } from './atlas/CombatAtlasStage'
 
 const activePhases = new Set(['active', 'recovery'])
 
@@ -34,7 +36,12 @@ export function CombatWorldBrowser() {
   const [level, setLevel] = useState<CombatAtlasLevel>('world')
   const [open, setOpen] = useState(() => !activePhases.has(phase))
   const [transitionOrigin, setTransitionOrigin] = useState<CombatAtlasTransitionOrigin>()
+  const [transitionPhase, setTransitionPhase] = useState<CombatAtlasTransitionPhase>('idle')
+  const [activatingNodeId, setActivatingNodeId] = useState<string>()
   const transitionTimerRef = useRef<number | undefined>(undefined)
+  const parentNavigationTimerRef = useRef<number | undefined>(undefined)
+  const transitionPhaseTimerRef = useRef<number | undefined>(undefined)
+  const pendingNavigationRef = useRef<CombatAtlasNodeLayout | undefined>(undefined)
   const lastTransitionNodeRef = useRef<{ id: string; at: number } | undefined>(undefined)
   const previousCombatRef = useRef({ active: activePhases.has(phase), locationId: activeLocationId })
 
@@ -50,6 +57,14 @@ export function CombatWorldBrowser() {
   const sameLocation = Boolean(areaLevel && activeLocation && activeLocation.id === location?.id && isCombatActive)
   const canHunt = Boolean(areaLevel && location && isCombatLocationAvailable(location.id, masteryLevel))
   const selectedNodeId = level === 'world' ? selectedContinentId : level === 'continent' ? selectedRegionId : level === 'region' ? selectedAreaId : selectedLocationId
+  const activeHuntSelection = activeLocationId ? selectionForLocation(activeLocationId) : undefined
+  const activeHuntPathNodeId = level === 'world'
+    ? activeHuntSelection?.continentId
+    : level === 'continent'
+      ? activeHuntSelection?.regionId
+      : level === 'region'
+        ? activeHuntSelection?.areaId
+        : activeHuntSelection?.combatLocationId
 
   useEffect(() => {
     const previous = previousCombatRef.current
@@ -61,20 +76,16 @@ export function CombatWorldBrowser() {
 
   useEffect(() => () => {
     if (transitionTimerRef.current !== undefined) window.clearTimeout(transitionTimerRef.current)
+    if (parentNavigationTimerRef.current !== undefined) window.clearTimeout(parentNavigationTimerRef.current)
+    if (transitionPhaseTimerRef.current !== undefined) window.clearTimeout(transitionPhaseTimerRef.current)
   }, [])
 
-  const showTransition = (origin: CombatAtlasTransitionOrigin) => {
-    setTransitionOrigin(origin)
+  const clearTransitionTimers = () => {
     if (transitionTimerRef.current !== undefined) window.clearTimeout(transitionTimerRef.current)
-    transitionTimerRef.current = window.setTimeout(() => setTransitionOrigin(undefined), 380)
+    if (transitionPhaseTimerRef.current !== undefined) window.clearTimeout(transitionPhaseTimerRef.current)
   }
 
-  const handleNodeSelect = (node: CombatAtlasNodeLayout) => {
-    const now = Date.now()
-    const last = lastTransitionNodeRef.current
-    if (last?.id === node.sourceId && now - last.at < 350) return
-    lastTransitionNodeRef.current = { id: node.sourceId, at: now }
-    showTransition({ x: node.x, y: node.y, rgb: atlasAccentRgb[node.accent] })
+  const applyNodeSelection = (node: CombatAtlasNodeLayout) => {
     if (node.kind === 'continent') {
       selectContinent(node.sourceId)
       setLevel('continent')
@@ -89,19 +100,58 @@ export function CombatWorldBrowser() {
     }
   }
 
+  const beginSimpleTransition = (origin?: CombatAtlasTransitionOrigin, duration = 320) => {
+    clearTransitionTimers()
+    setTransitionOrigin(origin)
+    setTransitionPhase('enter')
+    transitionTimerRef.current = window.setTimeout(() => {
+      setTransitionOrigin(undefined)
+      setTransitionPhase('idle')
+    }, duration)
+  }
+
+  const handleNodeSelect = (node: CombatAtlasNodeLayout) => {
+    if (node.kind === 'arena') {
+      applyNodeSelection(node)
+      return
+    }
+    if (pendingNavigationRef.current) return
+    const now = Date.now()
+    const last = lastTransitionNodeRef.current
+    if (last?.id === node.sourceId && now - last.at < 350) return
+    lastTransitionNodeRef.current = { id: node.sourceId, at: now }
+    pendingNavigationRef.current = node
+    clearTransitionTimers()
+    setActivatingNodeId(node.sourceId)
+    setTransitionOrigin({ x: node.x, y: node.y, rgb: atlasAccentRgb[node.accent] })
+    setTransitionPhase('exit')
+    parentNavigationTimerRef.current = window.setTimeout(() => {
+      if (pendingNavigationRef.current !== node) return
+      pendingNavigationRef.current = undefined
+      applyNodeSelection(node)
+      setActivatingNodeId(undefined)
+      setTransitionOrigin(undefined)
+      setTransitionPhase('enter')
+      transitionPhaseTimerRef.current = window.setTimeout(() => setTransitionPhase('idle'), 220)
+    }, 170)
+  }
+
   const handleBack = () => {
-    showTransition({ x: 50, y: 50, rgb: atlasAccentRgb.gold })
+    if (pendingNavigationRef.current) return
+    beginSimpleTransition()
     if (level === 'area') setLevel('region')
     else if (level === 'region') setLevel('continent')
     else if (level === 'continent') setLevel('world')
   }
   const handleReturnToWorld = () => {
-    showTransition({ x: 50, y: 50, rgb: atlasAccentRgb.gold })
+    if (pendingNavigationRef.current) return
+    beginSimpleTransition()
     setLevel('world')
   }
   const viewCurrentHunt = () => {
     if (!activeLocationId) return
-    showTransition({ x: 50, y: 50, rgb: atlasAccentRgb.gold })
+    if (pendingNavigationRef.current) return
+    beginSimpleTransition({ x: 50, y: 50, rgb: atlasAccentRgb.gold }, 340)
     selectLocation(activeLocationId)
     setLevel('area')
   }
@@ -147,6 +197,9 @@ export function CombatWorldBrowser() {
               masteryLevel={masteryLevel}
               selectedNodeId={selectedNodeId}
               activeLocationId={activeLocationId}
+              activeHuntPathNodeId={activeHuntPathNodeId}
+              activatingNodeId={activatingNodeId}
+              transitionPhase={transitionPhase}
               transitionOrigin={transitionOrigin}
               onNodeSelect={handleNodeSelect}
               onBack={handleBack}
@@ -182,9 +235,9 @@ function LocationPreview({ location, active, activeLocation, available, onStart 
   const buttonLabel = !available ? 'Locked' : active ? 'Hunt active' : browsingAnotherLocation ? 'Switch hunt' : 'Start hunt'
   return <section className="combat-location-preview" data-debug-kind="combat-location-preview" data-debug-location-id={location.id} data-debug-label={`Preview ${location.name}`}>
     <div className="location-preview-context"><span className="tiny-label">{browsingAnotherLocation ? 'SELECTED ARENA' : active ? 'CURRENT HUNT' : 'SELECTED ARENA'}</span>{browsingAnotherLocation && <small>Current hunt: <strong>{activeLocation?.name}</strong></small>}</div>
-    <div className="location-preview-top"><div className={`location-preview-marker ${active ? 'is-active' : ''}`}><Swords size={20} /></div><div className="location-preview-heading"><h3>{location.name}</h3><GameTooltip content={{ id: location.id, icon: 'target', title: location.name, subtitle: presentation.familyName, description: location.description }}><p>{location.description}</p></GameTooltip></div></div>
-    <div className="location-meta-grid"><div><span>FAMILY</span><strong>{presentation.familyName}</strong></div><div><span>GROUP SIZE</span><strong>{presentation.groupSizeLabel}</strong></div><div><span>RECOMMENDED</span><strong>{presentation.recommendedMasteryLabel}</strong></div></div>
-    <div className="location-pool"><span className="tiny-label">POSSIBLE ENEMIES</span><div>{presentation.enemyNames.map((name) => <span key={name}>{name}</span>)}</div></div>
-    <div className="location-preview-footer"><div className="location-shared-loot">{lootNames.length > 0 && <><span className="tiny-label">KNOWN SHARED LOOT</span><small>{lootNames.join(' · ')}</small></>}</div><div className="location-preview-action"><button aria-label={active ? 'Hunt active' : browsingAnotherLocation ? 'Switch hunt' : 'Start selected location hunt'} className="button button-primary" onClick={onStart} disabled={!available || active}>{buttonLabel}<Play size={14} /></button>{!available && <small className="locked-copy">{location.availability === 'coming-soon' ? 'Coming soon' : `Requires Mastery Level ${location.requiredMasteryLevel}`}</small>}</div></div>
+    <div className="location-preview-top"><div className={`location-preview-marker ${active ? 'is-active' : ''}`}><Swords size={20} /></div><div className="location-preview-heading"><h3>{location.name}</h3><span className="location-preview-family">{presentation.familyName}</span><GameTooltip content={{ id: location.id, icon: 'target', title: location.name, subtitle: presentation.familyName, description: location.description }}><p>{location.description}</p></GameTooltip></div></div>
+    <div className="location-meta-grid"><div><span>GROUP SIZE</span><strong>{presentation.groupSizeLabel}</strong></div><div><span>RECOMMENDED</span><strong>{presentation.recommendedMasteryLabel}</strong></div></div>
+    <div className="location-pool"><span className="tiny-label">POSSIBLE ENEMIES</span><div className="location-enemy-icons">{presentation.enemies.map((enemy) => <GameTooltip key={enemy.enemyId} content={enemyTooltipModel(enemy.enemyId)}><span className="location-enemy-icon" tabIndex={0} role="img" aria-label={`Inspect ${enemy.name}`} data-debug-kind="combat-enemy-preview" data-debug-enemy-id={enemy.enemyId}><EnemyPreviewIcon enemy={enemy.enemy} /></span></GameTooltip>)}</div></div>
+    <div className="location-preview-footer"><div className="location-shared-loot">{lootNames.length > 0 && <><span className="tiny-label">LOOT</span><div className="location-loot-list">{lootNames.map((name) => <span key={name}>{name}</span>)}</div></>}</div><div className="location-preview-action"><button aria-label={active ? 'Hunt active' : browsingAnotherLocation ? 'Switch hunt' : 'Start selected location hunt'} className="button button-primary" onClick={onStart} disabled={!available || active}>{buttonLabel}<Play size={14} /></button>{!available && <small className="locked-copy">{location.availability === 'coming-soon' ? 'Coming soon' : `Requires Mastery Level ${location.requiredMasteryLevel}`}</small>}</div></div>
   </section>
 }
