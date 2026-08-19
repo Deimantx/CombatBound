@@ -12,7 +12,7 @@ export interface NavigationItem {
 export const navigationItems: NavigationItem[] = [
   { id: 'home', label: 'Home', icon: House, description: 'Combat overview' },
   { id: 'combat', label: 'Combat', icon: Swords, description: 'Fight and select targets' },
-  { id: 'hero', label: 'Hero', icon: ShieldCheck, description: 'Equipment, spells and combat setup' },
+  { id: 'hero', label: 'Hero', icon: ShieldCheck, description: 'Equipment, Magic Arts and combat setup' },
   { id: 'proficiencies', label: 'Proficiencies', icon: Sparkles, description: 'Train weapons and spend Perks' },
   { id: 'inventory', label: 'Inventory', icon: Backpack, description: 'Review carried items' },
   { id: 'collection', label: 'Collection Log', icon: BookOpen, description: 'Track discoveries' },

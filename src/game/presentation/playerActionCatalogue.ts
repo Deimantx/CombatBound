@@ -1,6 +1,5 @@
 import type { PlayerActionDefinition, PlayerActionKind } from "../combat/combatTypes";
 import { proficiencyById, proficiencyDefinitions } from "../data/proficiencies";
-import { spellById } from "../data/spells";
 import { weaponSkillById } from "../data/weaponSkills";
 
 export type ActionCatalogueRootId =
@@ -81,20 +80,6 @@ function resourceLabel(action: PlayerActionDefinition) {
 export function getPlayerActionGroupingMetadata(
   action: PlayerActionDefinition,
 ): PlayerActionGroupingMetadata {
-  if (action.kind === "spell") {
-    const spell = action.sourceSpellId ? spellById[action.sourceSpellId] : undefined;
-    const proficiencyId = spell?.magicProficiencyId;
-    const proficiency = proficiencyId ? proficiencyById[proficiencyId] : undefined;
-    return {
-      rootId: "magic",
-      rootLabel: rootPresentation.magic.label,
-      rootIcon: rootPresentation.magic.icon,
-      subgroupId: `magic.${proficiencyId ?? "unknown"}`,
-      subgroupLabel: proficiency?.name ?? "Unknown Magic",
-      subgroupIcon: proficiency?.icon ?? "spark",
-    };
-  }
-
   if (action.kind === "magic-art") {
     return {
       rootId: "magic",

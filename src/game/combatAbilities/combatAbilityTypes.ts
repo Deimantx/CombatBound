@@ -19,15 +19,6 @@ export type CombatAbilityCatalogueEntry =
       plannedUnlockLevel?: number;
     }
   | {
-      kind: "spell";
-      actionId: string;
-      category: "magic";
-      name: string;
-      description: string;
-      icon: string;
-      magicProficiencyId?: string;
-    }
-  | {
       kind: "magic-art";
       actionId: string;
       category: "magic-arts";
@@ -37,5 +28,5 @@ export type CombatAbilityCatalogueEntry =
     };
 
 export function isCombatAbilityLoadoutActionKind(kind: PlayerActionKind) {
-  return kind === "defensive" || kind === "weapon-skill" || kind === "spell" || kind === "magic-art";
+  return kind === "defensive" || kind === "weapon-skill" || kind === "magic-art";
 }

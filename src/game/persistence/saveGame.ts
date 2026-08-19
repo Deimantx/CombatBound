@@ -107,7 +107,7 @@ function normalizeCurrentSaveV15(value: unknown): GameSaveV15 | null {
     magicArts,
     combatAutomation: { ...automation, rules: stripRetiredSpellRules(automation.rules) },
     combatAutomationPresets: { slots: presets.slots.map((preset) => preset ? { ...preset, config: { ...preset.config, rules: stripRetiredSpellRules(preset.config.rules) } } : null) },
-    combatAbilities: normalizeCombatAbilityLoadout(raw.combatAbilities, [], magicArts.knownArtIds),
+    combatAbilities: normalizeCombatAbilityLoadout(raw.combatAbilities, magicArts.knownArtIds),
   };
   return isGameSaveV15(normalized) ? normalized : null;
 }

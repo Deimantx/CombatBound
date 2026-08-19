@@ -2,7 +2,7 @@ import { effectDefinitions, effectById } from "../data/effects";
 import { enemyDefinitions, enemyById } from "../data/enemies";
 import { itemDefinitions } from "../data/items";
 import { perkById, proficiencyPerkDefinitions } from "../data/proficiencyPerks";
-import { spellDefinitions } from "../data/spells";
+import { magicArtDefinitions } from "../data/magicArts";
 import { weaponSkillDefinitions } from "../data/weaponSkills";
 import { proficiencyDefinitions } from "../data/proficiencies";
 import { combatLocationDefinitions } from "../data/world/combatLocations";
@@ -60,7 +60,7 @@ export function validateContent(): ContentValidationIssue[] {
       if (!value.id || !value.id.trim()) issues.push({ severity: "error", code: "MISSING_ID", entityType, entityId: value.id, message: "Definition has no id." });
     }
   };
-  ids(itemDefinitions, "item"); ids(itemAffixDefinitions, "itemAffix"); ids(spellDefinitions, "spell"); ids(effectDefinitions, "effect"); ids(weaponSkillDefinitions, "weaponSkill"); ids(enemyDefinitions, "enemy"); ids(combatLocationDefinitions, "location");
+  ids(itemDefinitions, "item"); ids(itemAffixDefinitions, "itemAffix"); ids(magicArtDefinitions, "magicArt"); ids(effectDefinitions, "effect"); ids(weaponSkillDefinitions, "weaponSkill"); ids(enemyDefinitions, "enemy"); ids(combatLocationDefinitions, "location");
   for (const message of validateEquipmentDefinitions(itemDefinitions).errors) {
     const separator = message.indexOf(": ");
     const entityId = separator > 0 ? message.slice(0, separator) : "catalogue";
@@ -69,9 +69,7 @@ export function validateContent(): ContentValidationIssue[] {
   for (const message of validateItemAffixDefinitions(itemAffixDefinitions).errors)
     addIssue(issues, "itemAffix", "catalogue", "INVALID_ITEM_AFFIX", message);
   for (const item of itemDefinitions) if (!item.icon) issues.push({ severity: "warning", code: "UNKNOWN_ICON", entityType: "item", entityId: item.id, message: "Item has no icon key." });
-  for (const spell of spellDefinitions) {
-    for (const reference of [...(spell.applyEffects ?? []).map((entry) => entry.effectId), ...(spell.barrierEffectId ? [spell.barrierEffectId] : [])]) if (!effectById[reference]) issues.push({ severity: "error", code: "MISSING_EFFECT_REFERENCE", entityType: "spell", entityId: spell.id, message: `Missing effect reference: ${reference}` });
-  }
+  for (const art of magicArtDefinitions) if (art.barrier && !effectById[art.barrier.effectId]) addIssue(issues, "magicArt", art.id, "MISSING_EFFECT_REFERENCE", `Missing effect reference: ${art.barrier.effectId}`);
   for (const location of combatLocationDefinitions) for (const entry of location.enemyPool) if (!enemyById[entry.enemyId]) issues.push({ severity: "error", code: "MISSING_ENEMY_REFERENCE", entityType: "location", entityId: location.id, message: `Missing enemy in location: ${entry.enemyId}` });
   for (const enemy of enemyDefinitions) {
     if (!Number.isFinite(enemy.baseAttackDamageMin) || !Number.isFinite(enemy.baseAttackDamageMax) || enemy.baseAttackDamageMin > enemy.baseAttackDamageMax)
@@ -81,16 +79,6 @@ export function validateContent(): ContentValidationIssue[] {
   for (const enemy of enemyDefinitions) visitEffectReferences(enemy.phases, (effectId) => { if (!effectById[effectId]) addIssue(issues, "enemy", enemy.id, "MISSING_EFFECT_REFERENCE", `Missing effect reference: ${effectId}`); });
   for (const skill of weaponSkillDefinitions) visitEffectReferences(skill, (effectId) => { if (!effectById[effectId]) addIssue(issues, "weaponSkill", skill.id, "MISSING_EFFECT_REFERENCE", `Missing effect reference: ${effectId}`); });
   for (const perk of proficiencyPerkDefinitions) for (const rule of perk.prerequisiteRules ?? []) for (const requirement of rule.requirements) if (!perkById[requirement.perkId]) issues.push({ severity: "error", code: "MISSING_PERK_PREREQUISITE", entityType: "perk", entityId: perk.id, message: `Missing prerequisite: ${requirement.perkId}` });
-
-  for (const spell of spellDefinitions) {
-    if (spell.damageType && !canonicalDamageTypes.has(spell.damageType)) addIssue(issues, "spell", spell.id, "NON_CANONICAL_DAMAGE_TYPE", `Unknown damage type: ${spell.damageType}`);
-    if (!Number.isFinite(spell.baseDamageMin) || !Number.isFinite(spell.baseDamageMax) || spell.baseDamageMin < 0 || spell.baseDamageMax < 0 || spell.baseDamageMin > spell.baseDamageMax)
-      addIssue(issues, "spell", spell.id, "INVALID_DAMAGE_RANGE", "Spell baseDamageMin/baseDamageMax must be finite and ordered.");
-    if (spell.baseDamageMin > 0 && !spell.damageType)
-      addIssue(issues, "spell", spell.id, "MISSING_DAMAGE_TYPE", "Damaging spells must declare a canonical damage type.");
-    if (spell.baseDamageMin === 0 && spell.baseDamageMax !== 0)
-      addIssue(issues, "spell", spell.id, "INVALID_DAMAGE_RANGE", "A zero-minimum utility spell must also have a zero maximum.");
-  }
 
   for (const effect of effectDefinitions) {
     for (const modifier of effect.statModifiers ?? []) {
@@ -125,7 +113,7 @@ export function validateContent(): ContentValidationIssue[] {
   }
   const liveContent: Array<{ entityType: string; values: unknown[] }> = [
     { entityType: "item", values: itemDefinitions },
-    { entityType: "spell", values: spellDefinitions },
+    { entityType: "magicArt", values: magicArtDefinitions },
     { entityType: "effect", values: effectDefinitions },
     { entityType: "weaponSkill", values: weaponSkillDefinitions },
     { entityType: "enemy", values: enemyDefinitions },

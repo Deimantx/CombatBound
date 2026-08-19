@@ -29,34 +29,27 @@ export const magicArtsBrowserLayout: MagicArtsBrowserNodeLayout[] = [
   { id: "magic-art-placeholder-16", kind: "placeholder", label: "Future Magic Art", x: 92, y: 88, accent: "blue" },
 ];
 
-export const magicArtsBrowserConnections = [
-  ["magic-art.earth-shield", "magic-art-placeholder-06"],
-  ["magic-art-placeholder-02", "magic-art-placeholder-06"],
-  ["magic-art-placeholder-03", "magic-art-placeholder-06"],
-  ["magic-art-placeholder-03", "magic-art-placeholder-07"],
-  ["magic-art-placeholder-04", "magic-art-placeholder-08"],
-  ["magic-art-placeholder-05", "magic-art-placeholder-06"],
-  ["magic-art-placeholder-06", "magic-art-placeholder-07"],
-  ["magic-art-placeholder-07", "magic-art-placeholder-08"],
-  ["magic-art-placeholder-05", "magic-art-placeholder-10"],
-  ["magic-art-placeholder-07", "magic-art-placeholder-11"],
-  ["magic-art-placeholder-08", "magic-art-placeholder-12"],
-  ["magic-art-placeholder-09", "magic-art-placeholder-10"],
-  ["magic-art-placeholder-10", "magic-art-placeholder-11"],
-  ["magic-art-placeholder-11", "magic-art-placeholder-12"],
-  ["magic-art-placeholder-09", "magic-art-placeholder-13"],
-  ["magic-art-placeholder-10", "magic-art-placeholder-14"],
-  ["magic-art-placeholder-11", "magic-art-placeholder-15"],
-  ["magic-art-placeholder-12", "magic-art-placeholder-16"],
-] as const;
-
 export const earthShieldSpecializationNodes = Array.from({ length: 22 }, (_, index) => {
-  const angle = (Math.PI * 2 * index) / 22;
-  const radius = index % 3 === 0 ? 29 : index % 3 === 1 ? 41 : 52;
+  const positions = [
+    [31, 34], [39, 27], [50, 25], [61, 28], [69, 35],
+    [25, 46], [36, 43], [48, 42], [61, 43], [75, 47],
+    [29, 58], [42, 57], [55, 58], [68, 60], [79, 65],
+    [35, 72], [48, 70], [61, 73], [72, 77], [46, 84], [60, 85], [77, 84],
+  ] as const;
+  const prerequisites = [
+    ["earth-shield.root"], ["earth-shield.root"], ["earth-shield.root"], ["earth-shield.root"], ["earth-shield.root"],
+    ["earth-shield.preview.01"], ["earth-shield.preview.02"], ["earth-shield.preview.03"], ["earth-shield.preview.03"], ["earth-shield.preview.05"],
+    ["earth-shield.preview.06"], ["earth-shield.preview.07"], ["earth-shield.preview.08"], ["earth-shield.preview.09"], ["earth-shield.preview.10"],
+    ["earth-shield.preview.11"], ["earth-shield.preview.12"], ["earth-shield.preview.13"], ["earth-shield.preview.14"], ["earth-shield.preview.16"], ["earth-shield.preview.17"], ["earth-shield.preview.19"],
+  ] as const;
+  const [x, y] = positions[index];
   return {
     id: `earth-shield.preview.${String(index + 1).padStart(2, "0")}`,
-    x: 50 + Math.cos(angle) * radius,
-    y: 50 + Math.sin(angle) * radius * 0.72,
-    label: "Design Placeholder",
+    x,
+    y,
+    label: "Future Perk",
+    prerequisiteIds: prerequisites[index],
   };
 });
+
+export const earthShieldSpecializationEdges = earthShieldSpecializationNodes.flatMap((node) => node.prerequisiteIds.map((from) => ({ from, to: node.id })));

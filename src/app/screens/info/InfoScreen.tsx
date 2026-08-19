@@ -125,7 +125,7 @@ export function InfoScreen() {
           screen="info"
           className="info-guide"
         >
-          <GuideRow icon={Zap} title="Five-slot Combat Ability Loadout" copy="Known spells, weapon skills, and active defenses share five Hero slots. Only equipped abilities appear in Combat." />
+          <GuideRow icon={Zap} title="Five-slot Combat Ability Loadout" copy="Magic Arts, weapon skills, and active defenses share five Hero slots. Only equipped abilities appear in Combat." />
           <GuideRow icon={Swords} title="Equipment requirements" copy="Known abilities remain visible even when unavailable. Hero shows whether the current equipment satisfies each requirement." />
         </Panel>
         <Panel

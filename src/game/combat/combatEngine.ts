@@ -2,7 +2,6 @@ import {
   calculateHunterCombatStats,
   type HunterCombatStats,
 } from "../equipment/derivedStats";
-import { spellById } from "../data/spells";
 import { magicArtById } from "../data/magicArts";
 import { effectById } from "../data/effects";
 import { enemyById } from "../data/enemies";
@@ -25,7 +24,6 @@ import {
 import { advanceCombatEffects as runPeriodicRuntime } from "./combatPeriodicRuntime";
 import { advanceEnemyNormalAttacks as runEnemyNormalAttacks, advanceEnemySpecials as runEnemyRuntime } from "./combatEnemyRuntime";
 import {
-  castSpell as runPlayerCastSpell,
   castMagicArt as runPlayerCastMagicArt,
   damageEnemy as runPlayerDamageEnemy,
   executePlayerAction as runPlayerExecuteAction,
@@ -79,9 +77,6 @@ export function createCombatContext(rng: CombatContext["rng"]): CombatContext {
   return {
     enemies: enemyById,
     locations: combatLocationById,
-    spells: Object.fromEntries(
-      Object.values(spellById).map((spell) => [spell.id, spell]),
-    ),
     magicArts: magicArtById,
     items: itemById,
     effects: effectById,
@@ -350,14 +345,9 @@ export function executePlayerAction(
   return runPlayerExecuteAction(game, actionId, stats, context, playerActionRuntimeDependencies, source);
 }
 
-export function castSpell(
-  game: GameState,
-  spellId: string,
-  stats: HunterCombatStats,
-  context: CombatContext,
-  actionSource: "manual" | "automation" = "manual",
-): GameState {
-  return runPlayerCastSpell(game, spellId, stats, context, playerActionRuntimeDependencies, actionSource);
+/** @deprecated Retired Spell actions are no longer part of the current combat dispatcher. */
+export function castSpell(game: GameState, ..._legacyArguments: unknown[]): GameState {
+  return game;
 }
 
 export function castMagicArt(

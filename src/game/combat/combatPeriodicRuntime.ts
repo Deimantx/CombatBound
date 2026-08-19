@@ -155,7 +155,7 @@ export function resolvePeriodicEffect(
     : getEnemyStats(game.combat, targetEnemy!, context);
   const packet: DamagePacket = {
     ...componentFromAttack(operation.damageType, 0, operation.canCrit ?? false),
-    sourceKind: effect.source.kind === "player" ? "spell" : "secondary",
+    sourceKind: effect.source.kind === "player" && effect.sourceProficiencyId === "magic-arts" ? "magic-art" : "secondary",
     deliveryKind: "damage-over-time",
     source: effect.source,
     target: effect.target,

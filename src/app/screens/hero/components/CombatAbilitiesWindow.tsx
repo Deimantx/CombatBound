@@ -1,14 +1,12 @@
 import { Search, X } from "lucide-react";
 import { useMemo, useState } from "react";
 import { createCombatPreviewContext } from "../../../../game/combat/combatEngine";
-import { getActionById, getEffectivePlayerActionCost, getSpellActionView } from "../../../../game/combat/playerActions";
+import { getActionById, getEffectivePlayerActionCost } from "../../../../game/combat/playerActions";
 import { calculateHitChance } from "../../../../game/combat/combatMath";
 import { getEnemyEffectiveCombatStats, getPlayerEffectiveCombatStats } from "../../../../game/combat/combatSelectors";
 import { getCombatAbilityAvailability, getCombatAbilityEquippedSlot, getKnownCombatAbilities } from "../../../../game/combatAbilities/combatAbilitySelectors";
 import { COMBAT_ABILITY_SLOT_COUNT, type CombatAbilityCatalogueEntry } from "../../../../game/combatAbilities/combatAbilityTypes";
-import { spellDefinitions } from "../../../../game/data/spells";
 import { getMagicArt } from "../../../../game/magicArts/magicArtLogic";
-import { getMagicSchoolPresentation } from "../../../../game/presentation/magicSchool";
 import { weaponSkillById } from "../../../../game/data/weaponSkills";
 import { calculateHunterCombatStats } from "../../../../game/equipment/derivedStats";
 import type { GameState } from "../../../../game/gameState";
@@ -41,7 +39,7 @@ export function CombatAbilitiesWindow({ game, onOpenAutomation }: { game: GameSt
     if (filter === "weapon-skills") return entry.kind === "active-action" && entry.category === "weapon-skill";
     if (filter === "magic") return entry.kind === "magic-art";
     return true;
-  }).filter((entry) => !normalized || `${entry.kind} ${entry.name} ${entry.description} ${entry.kind === "spell" ? entry.magicProficiencyId : entry.kind === "active-action" ? entry.proficiencyId : entry.kind === "magic-art" ? entry.actionId : entry.id}`.toLowerCase().includes(normalized));
+  }).filter((entry) => !normalized || `${entry.kind} ${entry.name} ${entry.description} ${entry.kind === "active-action" ? entry.proficiencyId : entry.kind === "magic-art" ? entry.actionId : entry.id}`.toLowerCase().includes(normalized));
   const selected = entries.find((entry) => entryKey(entry) === selectedId);
   const setGroup = (id: string) => setExpanded((current) => { const next = new Set(current); if (next.has(id)) next.delete(id); else next.add(id); return next; });
   const validTarget = (target: string) => {
@@ -94,13 +92,13 @@ function LibraryEntry({ entry, game, selected, locked, drag, onSelect, onDragSta
   const equippedSlot = getCombatAbilityEquippedSlot(game, actionId);
   const availability = entry.kind === "core" ? undefined : getCombatAbilityAvailability(game, actionId);
   const dragging = drag.payload?.actionId === actionId;
-  const subtitle = entry.kind === "core" ? "CORE COMBAT · ALWAYS AVAILABLE" : entry.kind === "magic-art" ? "MAGIC ARTS · 35 Mana" : entry.kind === "spell" ? `MAGIC · ${entry.magicProficiencyId ?? "legacy spell"}` : `${entry.category === "active-defense" ? "ACTIVE DEFENSE" : "WEAPON SKILL"} · ${getActionById(game, actionId, createCombatPreviewContext())?.resourceCost?.stamina ?? 0} Stamina`;
-  return <button className={`combat-ability-library-entry ${selected ? "is-selected" : ""} ${dragging ? "is-dragging" : ""}`} onClick={onSelect} draggable={entry.kind !== "core" && !locked} onDragStart={(event) => { if (entry.kind !== "core") onDragStart(event, { actionId }); }} onDragEnd={onDragEnd} data-debug-kind="combat-ability-library-entry" data-debug-ability-id={actionId} data-debug-ability-kind={entry.kind === "active-action" ? entry.category : entry.kind} data-debug-magic-art-id={entry.kind === "magic-art" ? actionId : undefined} data-debug-proficiency-id={entry.kind === "active-action" ? entry.proficiencyId : entry.kind === "spell" ? entry.magicProficiencyId : undefined}><PlaceholderArt icon={entry.icon} size="small" variant={entry.kind === "spell" || entry.kind === "magic-art" ? "gold" : "blue"} /><span><strong>{entry.name}</strong><small>{subtitle}</small></span><em className={availability && !availability.usable ? "is-invalid" : equippedSlot >= 0 ? "is-equipped" : ""}>{entry.kind === "core" ? "ALWAYS AVAILABLE" : equippedSlot >= 0 ? `EQUIPPED ${equippedSlot + 1}` : availability && !availability.usable ? availability.label : "KNOWN"}</em></button>;
+  const subtitle = entry.kind === "core" ? "CORE COMBAT · ALWAYS AVAILABLE" : entry.kind === "magic-art" ? "MAGIC ARTS · 35 Mana" : `${entry.category === "active-defense" ? "ACTIVE DEFENSE" : "WEAPON SKILL"} · ${getActionById(game, actionId, createCombatPreviewContext())?.resourceCost?.stamina ?? 0} Stamina`;
+  return <button className={`combat-ability-library-entry ${selected ? "is-selected" : ""} ${dragging ? "is-dragging" : ""}`} onClick={onSelect} draggable={entry.kind !== "core" && !locked} onDragStart={(event) => { if (entry.kind !== "core") onDragStart(event, { actionId }); }} onDragEnd={onDragEnd} data-debug-kind="combat-ability-library-entry" data-debug-ability-id={actionId} data-debug-ability-kind={entry.kind === "active-action" ? entry.category : entry.kind} data-debug-magic-art-id={entry.kind === "magic-art" ? actionId : undefined} data-debug-proficiency-id={entry.kind === "active-action" ? entry.proficiencyId : undefined}><PlaceholderArt icon={entry.icon} size="small" variant={entry.kind === "magic-art" ? "gold" : "blue"} /><span><strong>{entry.name}</strong><small>{subtitle}</small></span><em className={availability && !availability.usable ? "is-invalid" : equippedSlot >= 0 ? "is-equipped" : ""}>{entry.kind === "core" ? "ALWAYS AVAILABLE" : equippedSlot >= 0 ? `EQUIPPED ${equippedSlot + 1}` : availability && !availability.usable ? availability.label : "KNOWN"}</em></button>;
 }
 
 function LoadoutSlot({ slot, actionId, entry, selected, locked, drag, onSelect, onDragStart, onDragOver, onDrop, onDragEnd }: { slot: number; actionId: string | null; entry?: CombatAbilityCatalogueEntry; selected: boolean; locked: boolean; drag: DragState; onSelect: () => void; onDragStart: (event: React.DragEvent) => void; onDragOver: (event: React.DragEvent) => void; onDrop: () => void; onDragEnd: () => void }) {
   const target = drag.target === `slot-${slot}`;
-  const category = entry?.kind === "magic-art" ? "MAGIC ARTS" : entry?.kind === "spell" ? "MAGIC" : entry?.kind === "active-action" ? entry.category === "weapon-skill" ? "WEAPON SKILL" : "ACTIVE DEFENSE" : "CORE";
+  const category = entry?.kind === "magic-art" ? "MAGIC ARTS" : entry?.kind === "active-action" ? entry.category === "weapon-skill" ? "WEAPON SKILL" : "ACTIVE DEFENSE" : "CORE";
   return <button className={`combat-ability-slot ${selected ? "is-selected" : ""} ${target ? "is-drop-target" : ""} ${target && drag.state === "valid" ? "is-drop-valid" : ""} ${target && drag.state === "invalid" ? "is-drop-invalid" : ""}`} onClick={onSelect} draggable={Boolean(actionId) && !locked} onDragStart={onDragStart} onDragOver={onDragOver} onDrop={(event) => { event.preventDefault(); onDrop(); }} onDragEnd={onDragEnd} data-debug-kind="combat-ability-slot" data-debug-slot={slot} data-debug-action-id={actionId ?? undefined} data-debug-drop-state={target ? drag.state : "idle"}><span className="combat-ability-slot-number">{slot + 1}</span><PlaceholderArt icon={entry?.icon ?? "shield"} size="small" variant={actionId ? "gold" : "muted"} /><strong>{entry?.name ?? "EMPTY ABILITY SLOT"}</strong><small>{actionId ? category : "Configure in Hero"}</small>{!actionId && drag.payload && <em>DROP HERE</em>}</button>;
 }
 
@@ -113,11 +111,6 @@ function CombatAbilityDetails({ game, entry, stats, context, selectedSlot, locke
   const availability = getCombatAbilityAvailability(game, entry.actionId);
   if (entry.kind === "magic-art") {
     return <section className="combat-ability-details" data-debug-kind="magic-art-details" data-debug-ability-id={entry.actionId}><DetailHeading icon={entry.icon} title={entry.name} subtitle="Magic Art" /><div className="combat-ability-detail-grid"><DetailRow label="Mana Cost" value={`${magicArt?.manaCost ?? action?.resourceCost?.mana ?? 0}`} /><DetailRow label="Cooldown" value={`${(magicArt?.cooldownSeconds ?? action?.cooldown ?? 0).toFixed(1)}s`} /><DetailRow label="Duration" value={`${magicArt?.durationSeconds ?? 0}s`} /><DetailRow label="Absorb" value={`${magicArt?.barrier?.absorbAmount ?? 0}`} /><DetailRow label="Target" value={magicArt?.targetMode === "selected-enemy" ? "Selected enemy" : "Self"} /></div><DetailCopy label="MAGIC ARTS XP" value={`Mana spent + effective HP damage. ${magicArt?.name ?? "This Art"} awards ${magicArt?.manaCost ?? 0} XP before damage XP per successful cast.`} /><div className="combat-ability-status is-ready"><strong>{slot >= 0 ? "READY WITH CURRENT BUILD" : "NOT EQUIPPED"}</strong><span>Magic Arts Proficiency</span></div><EquipActions locked={locked} slot={slot} selectedSlot={selectedSlot} actionId={entry.actionId} onEquip={onEquip} onUnequip={onUnequip} /></section>;
-  }
-  if (entry.kind === "spell") {
-    const spell = spellDefinitions.find((candidate) => candidate.id === entry.actionId);
-    const view = spell ? getSpellActionView(game, entry.actionId, stats, context).effectiveSpell : undefined;
-    return <section className="combat-ability-details" data-debug-kind="magic-ability-details" data-debug-ability-id={entry.actionId}><DetailHeading icon={entry.icon} title={entry.name} subtitle={getMagicSchoolPresentation(entry.magicProficiencyId as never).fullLabel} />{view && <div className="combat-ability-detail-grid"><DetailRow label="Mana Cost" value={`${view.manaCost}`} /><DetailRow label="Cooldown" value={`${view.cooldownSeconds.toFixed(1)}s`} /><DetailRow label="Target" value={spell?.targetMode === "self" ? "Self" : "Selected Enemy"} /></div>}<DetailCopy label="DESCRIPTION" value={entry.description} /><EquipActions locked={locked} slot={slot} selectedSlot={selectedSlot} actionId={entry.actionId} onEquip={onEquip} onUnequip={onUnequip} /></section>;
   }
   const skill = action?.sourceWeaponSkillId ? weaponSkillById[action.sourceWeaponSkillId] : undefined;
   const cost = action ? getEffectivePlayerActionCost(game, action, stats, context) : { stamina: 0, mana: 0 };

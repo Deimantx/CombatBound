@@ -1,7 +1,6 @@
 import { basicAttackAction, getActiveAbilityActionDefinitions } from "../combat/playerActions";
 import { combatBalance } from "../combat/combatBalance";
 import { getDefensiveEquipmentContext } from "../equipment/defensiveEquipment";
-import { spellDefinitions } from "../data/spells";
 import { magicArtDefinitions } from "../data/magicArts";
 import { weaponSkillById } from "../data/weaponSkills";
 import type { GameState } from "../gameState";
@@ -63,10 +62,7 @@ export function getCombatAbilityAvailability(game: GameState, actionId: string):
   if (!action) {
     const art = magicArtDefinitions.find((candidate) => candidate.id === actionId);
     if (art && game.magicArts?.knownArtIds.includes(actionId as never)) return { usable: true, label: "READY WITH CURRENT BUILD" };
-    const spell = spellDefinitions.find((candidate) => candidate.id === actionId);
-    return spell && game.spellbook.knownSpellIds.includes(actionId)
-      ? { usable: true, label: "READY WITH CURRENT BUILD" }
-      : { usable: false, label: "UNKNOWN ABILITY" };
+    return { usable: false, label: "UNKNOWN ABILITY" };
   }
   const skill = action.sourceWeaponSkillId ? weaponSkillById[action.sourceWeaponSkillId] : undefined;
   if (skill) {

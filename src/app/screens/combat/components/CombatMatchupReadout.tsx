@@ -11,7 +11,7 @@ export function CombatMatchupReadout({ game, stats, selectedEnemy }: { game: Gam
     <span className="tiny-label">TARGETING</span>
     {matchup ? <>
       <strong className="combat-matchup-target">{matchup.targetName}</strong>
-      <MatchupMetric label="Hit Chance" value={formatPercent(matchup.playerHitChance)} tone="gold" tooltip={{ id: 'combat.matchup-hit-chance', title: 'Hit Chance', description: 'Your Accuracy Rating is compared against the target Evasion Rating. Blocks are resolved separately and spells bypass Accuracy.', rows: [{ label: 'Your Accuracy Rating', value: `${Math.round(matchup.playerAccuracy)}`, tone: 'blue' }, { label: 'Target Evasion Rating', value: `${Math.round(matchup.targetEvasion)}`, tone: 'blue' }, { label: 'Result', value: formatPercent(matchup.playerHitChance), tone: 'gold' }] }} />
+      <MatchupMetric label="Hit Chance" value={formatPercent(matchup.playerHitChance)} tone="gold" tooltip={{ id: 'combat.matchup-hit-chance', title: 'Hit Chance', description: 'Your Accuracy Rating is compared against the target Evasion Rating. Blocks are resolved separately and Magic Arts bypass Accuracy.', rows: [{ label: 'Your Accuracy Rating', value: `${Math.round(matchup.playerAccuracy)}`, tone: 'blue' }, { label: 'Target Evasion Rating', value: `${Math.round(matchup.targetEvasion)}`, tone: 'blue' }, { label: 'Result', value: formatPercent(matchup.playerHitChance), tone: 'gold' }] }} />
       <MatchupMetric label="Target Evasion" value={`${Math.round(matchup.targetEvasion)}`} />
       <MatchupMetric label="Block Chance" value={formatPercent(matchup.targetBlockChance)} />
       <MatchupMetric label="Block Effect" value={formatPercent(matchup.targetBlockEffect)} />

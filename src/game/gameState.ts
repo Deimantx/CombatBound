@@ -12,10 +12,7 @@ import {
 } from "./inventory/inventoryTypes";
 import { createInitialProgression } from "./progression/proficiencyProgression";
 import type { ProgressionState } from "./progression/progressionTypes";
-import {
-  createInitialSpellbook,
-  type SpellbookState,
-} from "./spellbook/spellbookLogic";
+import type { SpellbookState } from "./spellbook/spellbookTypes";
 import {
   createInitialCombatAutomation,
   type CombatAutomationState,
@@ -48,7 +45,7 @@ export interface GameState {
 
 export function createInitialGameState(): GameState {
   const inventory = createInitialInventory();
-  const spellbook = createInitialSpellbook();
+  const spellbook: SpellbookState = { knownSpellIds: [] };
   return {
     combat: createCombatState(),
     progression: createInitialProgression(),
@@ -71,6 +68,6 @@ export function createInitialGameState(): GameState {
     magicArts: createInitialMagicArts(),
     combatAutomation: createInitialCombatAutomation(),
     combatAutomationPresets: createInitialCombatAutomationPresets(),
-    combatAbilities: createInitialCombatAbilityLoadout([], ["magic-art.earth-shield"]),
+    combatAbilities: createInitialCombatAbilityLoadout(["magic-art.earth-shield"]),
   };
 }

@@ -1,6 +1,8 @@
-import type { DamageType, SpellTargetMode } from '../combat/combatTypes'
+import type { DamageType } from '../combat/combatTypes'
 import type { MagicProficiencyId } from '../progression/progressionTypes'
 import { deepFreeze } from './freeze'
+
+export type SpellTargetMode = "self" | "selectedEnemy" | "allEnemies";
 
 export interface SpellDefinition {
   id: string

@@ -64,7 +64,9 @@ export function rollDamage(component: DamageComponent & { baseDamage?: number },
 }
 
 export function resolveDamage(packet: DamagePacket, attacker: CombatStats, defender: CombatStats, rng: CombatRng): DamageResolution {
-  const sourceKind = packet.sourceKind ?? (packet.progressionSource?.type === "spell" ? "spell" : "attack");
+  const sourceKind = packet.sourceKind === "spell"
+    ? "magic-art"
+    : packet.sourceKind ?? (packet.progressionSource?.type === "magic-art" ? "magic-art" : "attack");
   const deliveryKind = packet.deliveryKind ?? "hit";
   const damageType = packet.damageType;
   const eligibility = packet.defensiveEligibility ?? { canMiss: true, canBeEvaded: true, blockable: true };

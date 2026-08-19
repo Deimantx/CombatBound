@@ -59,7 +59,6 @@ export function AutomationPresetsPanel({
     preset.config.rules.filter((rule) => {
       const action = actions.find((candidate) => candidate.id === rule.actionId);
       if (!action) return true;
-      if (action.kind === "spell") return !game.combatAbilities.slots.includes(action.id);
       if (isCombatAbilityLoadoutAction(action)) {
         const availability = getCombatAbilityAvailability(game, action.id);
         return !game.combatAbilities.slots.includes(action.id) || !availability.usable;

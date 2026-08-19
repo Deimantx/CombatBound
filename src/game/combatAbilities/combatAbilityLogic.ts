@@ -1,7 +1,5 @@
 import { getActiveAbilityActionDefinitions } from "../combat/playerActions";
-import { spellDefinitions } from "../data/spells";
 import { magicArtDefinitions } from "../data/magicArts";
-import { normalizeSpellId } from "../spellbook/spellbookLogic";
 import { COMBAT_ABILITY_SLOT_COUNT, type CombatAbilityLoadoutState } from "./combatAbilityTypes";
 
 const defaultActiveSlots = [
@@ -14,7 +12,6 @@ const defaultActiveSlots = [
 
 const slottableActionIds = new Set([
   ...getActiveAbilityActionDefinitions().map((action) => action.id),
-  ...spellDefinitions.map((spell) => spell.id),
   ...magicArtDefinitions.map((art) => art.id),
 ]);
 
@@ -22,40 +19,29 @@ function validSlot(slot: number) {
   return Number.isInteger(slot) && slot >= 0 && slot < COMBAT_ABILITY_SLOT_COUNT;
 }
 
-function knownAction(id: string, knownSpellIds: readonly string[], knownArtIds: readonly string[] = []) {
+function knownAction(id: string, knownArtIds: readonly string[] = []) {
   if (!slottableActionIds.has(id)) return false;
-  const isSpell = spellDefinitions.some((spell) => spell.id === id);
   const isMagicArt = magicArtDefinitions.some((art) => art.id === id);
-  return (!isSpell || knownSpellIds.includes(id)) && (!isMagicArt || knownArtIds.includes(id));
+  return !isMagicArt || knownArtIds.includes(id);
 }
 
 export function createInitialCombatAbilityLoadout(
-  knownSpellIds: readonly string[] = spellDefinitions.map((spell) => spell.id),
   knownArtIds: readonly string[] = [],
 ): CombatAbilityLoadoutState {
-  if (knownArtIds.length > 0) return { slots: [...defaultActiveSlots] };
-  const slots = [...defaultActiveSlots];
-  for (const spellId of spellDefinitions.map((spell) => spell.id)) {
-    if (!knownSpellIds.includes(spellId)) continue;
-    const emptySlot = slots.findIndex((slot) => slot === null);
-    if (emptySlot < 0) break;
-    slots[emptySlot] = spellId;
-  }
-  return { slots };
+  return knownArtIds.length > 0 ? { slots: [...defaultActiveSlots] } : { slots: defaultActiveSlots.map((id) => id?.startsWith("magic-art.") ? null : id) };
 }
 
 export function normalizeCombatAbilityLoadout(
   value: unknown,
-  knownSpellIds: readonly string[] = spellDefinitions.map((spell) => spell.id),
-  knownArtIds: readonly string[] = knownSpellIds.filter((id) => id.startsWith("magic-art.")),
+  knownArtIds: readonly string[] = [],
 ): CombatAbilityLoadoutState {
   const raw = value && typeof value === "object" ? value as { slots?: unknown } : {};
   const rawSlots = Array.isArray(raw.slots) ? raw.slots : [];
   const used = new Set<string>();
   const slots = Array.from({ length: COMBAT_ABILITY_SLOT_COUNT }, (_, index) => {
     const rawId = rawSlots[index];
-    const id = typeof rawId === "string" ? normalizeSpellId(rawId) ?? rawId : null;
-    if (!id || !knownAction(id, knownSpellIds, knownArtIds) || used.has(id)) return null;
+    const id = typeof rawId === "string" ? rawId : null;
+    if (!id || !knownAction(id, knownArtIds) || used.has(id)) return null;
     used.add(id);
     return id;
   });
@@ -66,10 +52,9 @@ export function equipCombatAbility(
   value: CombatAbilityLoadoutState,
   actionId: string,
   targetSlot: number,
-  knownSpellIds: readonly string[] = spellDefinitions.map((spell) => spell.id),
-  knownArtIds: readonly string[] = knownSpellIds.filter((id) => id.startsWith("magic-art.")),
+  knownArtIds: readonly string[] = [],
 ): CombatAbilityLoadoutState {
-  if (!validSlot(targetSlot) || !knownAction(actionId, knownSpellIds, knownArtIds)) return value;
+  if (!validSlot(targetSlot) || !knownAction(actionId, knownArtIds)) return value;
   const sourceSlot = value.slots.findIndex((id) => id === actionId);
   if (sourceSlot === targetSlot) return value;
   const slots = [...value.slots];

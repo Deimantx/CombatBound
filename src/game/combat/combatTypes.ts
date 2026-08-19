@@ -6,18 +6,19 @@ export type CombatStopReason =
   | "consumablesDepleted"
   | "victoryLimit"
   | "completed";
-export type SpellTargetMode = "self" | "selectedEnemy" | "allEnemies";
 export type DamageType =
   | "physical"
   | "fire"
   | "cold"
   | "lightning"
   | "chaos";
-export type DamageSourceKind = "attack" | "spell" | "secondary";
+export type DamageSourceKind = "attack" | "magic-art" | "secondary";
+/** Historical packet spelling accepted only when decoding old combat fixtures. */
+export type LegacyDamageSourceKind = "spell";
 export type DamageDeliveryKind = "hit" | "damage-over-time";
 export type ResistanceDamageType = Exclude<DamageType, "physical">;
 export type PlayerActionKind =
-  "basic-attack" | "spell" | "magic-art" | "defensive" | "consumable" | "weapon-skill";
+  "basic-attack" | "magic-art" | "defensive" | "consumable" | "weapon-skill";
 export type PlayerActionTargetMode = "self" | "selected-enemy";
 export type GlobalCooldownMode = "standard" | "none" | number;
 import type { ItemDefinition } from "../data/items";
@@ -137,7 +138,7 @@ export interface DefensiveEligibility {
 
 export interface DamageComponent {
   damageType: DamageType;
-  sourceKind?: DamageSourceKind;
+  sourceKind?: DamageSourceKind | LegacyDamageSourceKind;
   deliveryKind?: DamageDeliveryKind;
   scaling?: { sourceStat: "attackDamage"; multiplier: number };
   flatDamage?: number;
@@ -167,7 +168,6 @@ export interface PlayerActionDefinition {
     minimumLightMediumArmorPieces?: number;
     minimumHeavyArmorPieces?: number;
   };
-  sourceSpellId?: string;
   sourceMagicArtId?: string;
   sourceItemId?: string;
   sourceWeaponSkillId?: string;
@@ -181,7 +181,6 @@ export type ActionValidationReason =
   | "insufficient-stamina"
   | "no-target"
   | "target-defeated"
-  | "spell-not-known"
   | "magic-art-not-known"
   | "ability-not-equipped"
   | "weapon-requirement"
@@ -192,16 +191,10 @@ export type ActionValidationReason =
 
 import type {
   CombatProficiencyId,
-  MagicProficiencyId,
 } from "../progression/progressionTypes";
 
 export type DamageProgressionSource =
   | { type: "equippedWeapon"; proficiencyEligible: boolean }
-  | {
-      type: "spell";
-      proficiencyId: MagicProficiencyId;
-      proficiencyEligible: boolean;
-    }
   | {
       type: "magic-art";
       proficiencyEligible: boolean;
@@ -432,7 +425,6 @@ export interface CombatContext {
     string,
     import("../world/worldTypes").CombatLocationDefinition
   >;
-  spells: Record<string, import("../data/spells").SpellDefinition>;
   magicArts?: Record<string, import("../magicArts/magicArtTypes").MagicArtDefinition>;
   items: Record<string, ItemDefinition>;
   effects: Record<string, import("./combatEffectTypes").EffectDefinition>;

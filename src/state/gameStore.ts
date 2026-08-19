@@ -37,9 +37,7 @@ import { getProfileSessionOwnerId, isProfileSessionOwner } from "../game/profile
 import { gameStateToSaveV15, parseGameSaveJson } from "../game/persistence/saveGame";
 import type { ProfileId } from "../game/profiles/profileTypes";
 import type { InventoryEntryRef } from "../game/items/itemTypes";
-import {
-  normalizeSpellbook,
-} from "../game/spellbook/spellbookLogic";
+import type { SpellbookState } from "../game/spellbook/spellbookTypes";
 import { normalizeMagicArts } from "../game/magicArts/magicArtLogic";
 import {
   createInitialCombatAbilityLoadout,
@@ -91,7 +89,6 @@ import {
   debugFillAllResources,
   debugFillHealth,
   debugFillMana,
-  debugFillSpellLoadout,
   debugFillStamina,
   debugGrantAllEquipment,
   debugGrantEquipmentTier,
@@ -103,7 +100,6 @@ import {
   debugKillCurrentGroup,
   debugKillSelectedEnemy,
   debugHealSelectedEnemyToFull,
-  debugLearnAllSpells,
   debugLearnAllMagicArts,
   debugResetMagicArts,
   debugEquipEarthShield,
@@ -114,7 +110,6 @@ import {
   debugResetEnemyCooldowns,
   debugResetPlayerCooldowns,
   debugResetSessionMetrics,
-  debugResetSpellbook,
   debugRevivePlayer,
   debugSetAllProficiencyLevels,
   debugSetAllTargetDefeatsToOne,
@@ -274,9 +269,6 @@ export interface DebugStoreApi {
   damagePlayer: (amount: number) => void;
   healPlayer: (amount: number) => void;
   resetSessionMetrics: () => void;
-  learnAllSpells: () => void;
-  resetSpellbook: () => void;
-  fillSpellLoadout: () => void;
   learnAllMagicArts: () => void;
   resetMagicArts: () => void;
   equipEarthShield: () => void;
@@ -316,7 +308,7 @@ function gameFromSave(saved: NonNullable<ReturnType<typeof loadProfileGameSave>>
       equipment: normalizeEquipmentState(saved.equipment, inventory),
       collection: saved.collection,
       gold: saved.gold,
-      spellbook: normalizeSpellbook(undefined),
+      spellbook: { knownSpellIds: [] } satisfies SpellbookState,
       magicArts: normalizeMagicArts(saved.magicArts),
       combatAutomation: normalizeCombatAutomation(
         saved.combatAutomation ?? createInitialCombatAutomation(),
@@ -326,7 +318,6 @@ function gameFromSave(saved: NonNullable<ReturnType<typeof loadProfileGameSave>>
       ),
       combatAbilities: normalizeCombatAbilityLoadout(
         saved.combatAbilities ?? createInitialCombatAbilityLoadout(),
-        [],
         normalizeMagicArts(saved.magicArts).knownArtIds,
       ),
     });
@@ -597,9 +588,6 @@ export const useGameStore = create<GameStoreState>((set, get) => {
     damagePlayer: (amount) => commitDebug((game) => debugDamagePlayer(game, amount)),
     healPlayer: (amount) => commitDebug((game) => debugHealPlayer(game, amount)),
     resetSessionMetrics: () => commitDebug(debugResetSessionMetrics),
-    learnAllSpells: () => commitDebug(debugLearnAllSpells, true),
-    resetSpellbook: () => commitDebug(debugResetSpellbook, true),
-    fillSpellLoadout: () => commitDebug(debugFillSpellLoadout, true),
     learnAllMagicArts: () => commitDebug(debugLearnAllMagicArts, true),
     resetMagicArts: () => commitDebug(debugResetMagicArts, true),
     equipEarthShield: () => commitDebug(debugEquipEarthShield, true),
@@ -743,7 +731,7 @@ export const useGameStore = create<GameStoreState>((set, get) => {
         if (state.game.combat.phase === "active" || state.game.combat.phase === "recovery") return state;
         const combatAbilities = actionId === null
           ? unequipCombatAbilityState(state.game.combatAbilities, slot)
-          : equipCombatAbilityState(state.game.combatAbilities, actionId, slot, [], state.game.magicArts?.knownArtIds ?? []);
+          : equipCombatAbilityState(state.game.combatAbilities, actionId, slot, state.game.magicArts?.knownArtIds ?? []);
         if (combatAbilities === state.game.combatAbilities) return state;
         const game = { ...state.game, combatAbilities };
         savePermanent(game, { reducedMotion: state.reducedMotion, showInspectorButton: state.showInspectorButton });
@@ -752,7 +740,7 @@ export const useGameStore = create<GameStoreState>((set, get) => {
     equipCombatAbility: (actionId, slot) =>
       set((state) => {
         if (state.game.combat.phase === "active" || state.game.combat.phase === "recovery") return state;
-        const combatAbilities = equipCombatAbilityState(state.game.combatAbilities, actionId, slot, [], state.game.magicArts?.knownArtIds ?? []);
+        const combatAbilities = equipCombatAbilityState(state.game.combatAbilities, actionId, slot, state.game.magicArts?.knownArtIds ?? []);
         if (combatAbilities === state.game.combatAbilities) return state;
         const game = { ...state.game, combatAbilities };
         savePermanent(game, { reducedMotion: state.reducedMotion, showInspectorButton: state.showInspectorButton });

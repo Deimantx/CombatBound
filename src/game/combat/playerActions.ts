@@ -1,7 +1,5 @@
 import type { HunterCombatStats } from "../equipment/derivedStats";
-import { getDefensiveEquipmentContext } from "../equipment/defensiveEquipment";
 import type { GameState } from "../gameState";
-import { calculateEffectiveSpell } from "../progression/spellProgression";
 import { combatBalance } from "./combatBalance";
 import type {
   CombatContext,
@@ -9,6 +7,7 @@ import type {
   PlayerActionDefinition,
 } from "./combatTypes";
 import { getBarrierAmount } from "./combatEffects";
+import { getDefensiveEquipmentContext } from "../equipment/defensiveEquipment";
 import { isCombatAbilityLoadoutActionKind } from "../combatAbilities/combatAbilityTypes";
 import { weaponSkillDefinitions } from "../data/weaponSkills";
 import { getEquippedWeaponProficiency } from "../progression/progressionSelectors";
@@ -146,39 +145,13 @@ export interface EffectiveActionCost {
   stamina: number;
 }
 
-/** The one target/build context used by spell validation, execution and UI. */
-export function buildEffectiveSpellContext(
-  game: GameState,
-  _spell: NonNullable<CombatContext["spells"][string]>,
-  stats?: Pick<HunterCombatStats, "criticalStrikeChance" | "criticalStrikeMultiplier">,
-): Parameters<typeof calculateEffectiveSpell>[2] {
-  const target = _spell.targetMode === "selectedEnemy"
-    ? game.combat.enemies.find(
-        (enemy) =>
-          enemy.instanceId === game.combat.selectedEnemyInstanceId &&
-          !enemy.defeated,
-      )
-    : undefined;
-  return {
-    targetHpFraction: target
-      ? target.currentHealth / Math.max(1, target.maxHealth)
-      : undefined,
-    targetEffects: target?.effects,
-    manaFraction:
-      game.combat.maxMana > 0 ? game.combat.mana / game.combat.maxMana : 1,
-    equipmentContext: getDefensiveEquipmentContext(game.equipment, game.inventory),
-    globalCriticalStrikeChance: stats?.criticalStrikeChance,
-    globalCriticalStrikeMultiplier: stats?.criticalStrikeMultiplier,
-  };
-}
-
 export function getEffectivePlayerActionCost(
   game: GameState,
   action: PlayerActionDefinition,
   _stats: HunterCombatStats,
   context: CombatContext,
 ): EffectiveActionCost {
-  if (!action.sourceSpellId && !action.sourceMagicArtId)
+  if (!action.sourceMagicArtId)
     return {
       mana: action.resourceCost?.mana ?? 0,
       stamina: action.resourceCost?.stamina ?? 0,
@@ -187,18 +160,7 @@ export function getEffectivePlayerActionCost(
     const art = context.magicArts?.[action.sourceMagicArtId];
     return { mana: art?.manaCost ?? action.resourceCost?.mana ?? 0, stamina: 0 };
   }
-  const spell = context.spells[action.sourceSpellId!];
-  if (!spell)
-    return {
-      mana: action.resourceCost?.mana ?? 0,
-      stamina: action.resourceCost?.stamina ?? 0,
-    };
-  const effectiveSpell = calculateEffectiveSpell(
-    spell,
-    game.progression,
-    buildEffectiveSpellContext(game, spell, _stats),
-  );
-  return { mana: effectiveSpell.manaCost, stamina: 0 };
+  return { mana: action.resourceCost?.mana ?? 0, stamina: action.resourceCost?.stamina ?? 0 };
 }
 
 export function validatePlayerAction(
@@ -214,8 +176,6 @@ export function validatePlayerAction(
   if (!action) return { valid: false, reason: "combat-inactive" };
   if (action.kind === "magic-art" && !isMagicArtKnown(game.magicArts ?? { knownArtIds: [] }, action.id))
     return { valid: false, reason: "magic-art-not-known", action };
-  if (action.kind === "spell" && !game.spellbook.knownSpellIds.includes(action.id))
-    return { valid: false, reason: "spell-not-known", action };
   if (
     isCombatAbilityLoadoutAction(action) &&
     !game.combatAbilities.slots.includes(action.id)
@@ -297,32 +257,6 @@ export function getActionManaCost(
     {} as HunterCombatStats,
     context,
   ).mana;
-}
-
-export function getSpellActionView(
-  game: GameState,
-  spellId: string,
-  stats: HunterCombatStats,
-  context: CombatContext,
-) {
-  const spell = context.spells[spellId];
-  const action = spell ? getActionById(game, spellId, context) : undefined;
-  const effectiveSpell = spell
-    ? calculateEffectiveSpell(
-        spell,
-        game.progression,
-        buildEffectiveSpellContext(game, spell, stats),
-      )
-    : undefined;
-  return {
-    spell,
-    effectiveSpell,
-    effectiveManaCost: effectiveSpell?.manaCost ?? 0,
-    cooldownRemaining: game.combat.actionCooldowns[spellId] ?? 0,
-    validation: action
-      ? validatePlayerAction(game, action.id, stats, context)
-      : { valid: false as const, reason: "combat-inactive" as const },
-  };
 }
 
 export const standardGlobalCooldown = combatBalance.standardGlobalCooldown;

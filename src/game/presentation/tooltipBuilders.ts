@@ -312,7 +312,7 @@ export function buildEffectTooltip(
     });
   for (const modifier of definition.outgoingDamageModifiers ?? []) {
     const damageLabel = modifier.damageType ? damageLabels[modifier.damageType] : "All";
-    const sourceLabel = modifier.sourceKind === "spell" ? " Spell" : modifier.sourceKind === "attack" ? " Attack" : "";
+    const sourceLabel = modifier.sourceKind === "magic-art" ? " Magic Art" : modifier.sourceKind === "attack" ? " Attack" : "";
     const value = modifier.value * instance.stacks;
     rows.push({
       label: `${damageLabel}${sourceLabel} Damage`,
@@ -364,7 +364,7 @@ export function buildEffectDefinitionTooltip(definition: EffectDefinition): Tool
   for (const modifier of definition.statModifiers ?? []) rows.push({ label: labelForStatKey(modifier.stat), value: modifier.operation === "flat" ? formatSignedNumber(modifier.value) : `${modifier.value > 0 ? "+" : ""}${Math.round(modifier.value * 100)}%`, tone: toneForValue(modifier.value) });
   for (const modifier of definition.outgoingDamageModifiers ?? []) {
     const damageLabel = modifier.damageType ? damageLabels[modifier.damageType] : "All";
-    const sourceLabel = modifier.sourceKind === "spell" ? " Spell" : modifier.sourceKind === "attack" ? " Attack" : "";
+    const sourceLabel = modifier.sourceKind === "magic-art" ? " Magic Art" : modifier.sourceKind === "attack" ? " Attack" : "";
     rows.push({ label: `${damageLabel}${sourceLabel} Damage`, value: modifier.operation === "increased" ? formatPercent(modifier.value, true) : `×${formatCompactDecimal(1 + modifier.value, 2)}`, tone: toneForValue(modifier.value) });
   }
   for (const modifier of definition.resistanceModifiers ?? []) rows.push({ label: `${damageLabels[modifier.damageType]} resistance`, value: modifier.operation === "flat" ? formatSignedNumber(modifier.value) : `${modifier.value > 0 ? "+" : ""}${Math.round(modifier.value * 100)}%`, tone: toneForValue(modifier.value) });
@@ -491,9 +491,7 @@ export function buildMagicArtTooltip(art: MagicArtDefinition): TooltipModel {
       { label: "Cooldown", value: formatSeconds(art.cooldownSeconds), tone: "blue" },
       { label: "Duration", value: formatSeconds(art.durationSeconds), tone: "blue" },
       ...(art.barrier ? [{ label: "Absorb", value: `${art.barrier.absorbAmount}`, tone: "blue" as const }] : []),
-      { label: "XP", value: `${art.manaCost} + effective HP damage`, tone: "gold" },
     ],
-    notes: ["Magic Arts XP uses actual mana spent plus effective enemy HP damage."],
   };
 }
 
@@ -519,20 +517,6 @@ export function buildCombatAbilityTooltip(
         { label: "Loadout", value: "Does not use a slot", tone: "gold" },
       ],
     };
-  if (entry.kind === "spell") {
-    return {
-      id: `combat-ability.${entry.actionId}`,
-      icon: entry.icon,
-      title: entry.name,
-      subtitle: "Magic Spell",
-      description: entry.description,
-      rows: [
-        { label: "Mana cost", value: `${action?.resourceCost?.mana ?? 0}`, tone: "blue" },
-        { label: "Cooldown", value: `${action?.cooldown.toFixed(1) ?? "0.0"}s`, tone: "gold" },
-        { label: "Equipped slot", value: options.equippedSlot >= 0 ? `Ability ${options.equippedSlot + 1}` : "Not equipped" },
-      ],
-    };
-  }
   const skill = action?.sourceWeaponSkillId
     ? weaponSkillById[action.sourceWeaponSkillId]
     : undefined;

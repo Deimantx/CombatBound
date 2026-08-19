@@ -5,7 +5,6 @@ import { createInitialCollection } from "../collection/collectionTypes";
 import { itemById, itemDefinitions, prototypeEquipmentDefinitions } from "../data/items";
 import { enemyDefinitions } from "../data/enemies";
 import { effectById } from "../data/effects";
-import { spellDefinitions } from "../data/spells";
 import { magicArtDefinitions } from "../data/magicArts";
 import { proficiencyDefinitions, proficiencyById } from "../data/proficiencies";
 import { perkById } from "../data/proficiencyPerks";
@@ -14,7 +13,6 @@ import { applyEffectById } from "../combat/combatEffects";
 import { createCombatContext, forceDefeatEnemiesForDebug, forceDefeatPlayerForDebug, syncCombatStats } from "../combat/combatEngine";
 import { normalizeCombatAbilityLoadout, equipCombatAbility } from "../combatAbilities/combatAbilityLogic";
 import { COMBAT_ABILITY_SLOT_COUNT } from "../combatAbilities/combatAbilityTypes";
-import { createInitialSpellbook, normalizeSpellbook } from "../spellbook/spellbookLogic";
 import { allProficiencyDefinitions, discoverProficiency, proficiencyXpForLevel } from "../progression/proficiencyProgression";
 import { MAX_PROFICIENCY_LEVEL } from "../progression/progressionBalance";
 import { awardHunterRankPoints, MAX_HUNTER_RANK, totalHunterRankPointsForRank } from "../progression/hunterRankProgression";
@@ -400,10 +398,6 @@ export function debugResetSessionMetrics(game: GameState): GameState {
   };
 }
 
-export function debugLearnAllSpells(game: GameState): GameState {
-  return { ...game, spellbook: normalizeSpellbook({ ...game.spellbook, knownSpellIds: spellDefinitions.map((spell) => spell.id) }) };
-}
-
 export function debugLearnAllMagicArts(game: GameState): GameState {
   return { ...game, magicArts: { knownArtIds: magicArtDefinitions.map((art) => art.id) } };
 }
@@ -416,8 +410,8 @@ export function debugEquipEarthShield(game: GameState): GameState {
   const knownArtIds = game.magicArts.knownArtIds.includes("magic-art.earth-shield")
     ? game.magicArts.knownArtIds
     : ["magic-art.earth-shield" as const, ...game.magicArts.knownArtIds];
-  let combatAbilities = normalizeCombatAbilityLoadout(game.combatAbilities, [], knownArtIds);
-  combatAbilities = equipCombatAbility(combatAbilities, "magic-art.earth-shield", 3, [], knownArtIds);
+  let combatAbilities = normalizeCombatAbilityLoadout(game.combatAbilities, knownArtIds);
+  combatAbilities = equipCombatAbility(combatAbilities, "magic-art.earth-shield", 3, knownArtIds);
   return { ...game, magicArts: { knownArtIds }, combatAbilities };
 }
 
@@ -445,21 +439,10 @@ export function debugResetMagicArtsXp(game: GameState): GameState {
   return syncCombatStats({ ...game, progression: { ...game.progression, proficiencies } });
 }
 
-export function debugResetSpellbook(game: GameState): GameState {
-  return { ...game, spellbook: createInitialSpellbook() };
-}
-
-export function debugFillSpellLoadout(game: GameState): GameState {
-  const knownSpellIds = game.spellbook.knownSpellIds;
-  let loadout = normalizeCombatAbilityLoadout(game.combatAbilities, knownSpellIds);
-  for (const [slot, spellId] of knownSpellIds.slice(0, COMBAT_ABILITY_SLOT_COUNT).entries()) loadout = equipCombatAbility(loadout, spellId, slot, knownSpellIds);
-  return { ...game, combatAbilities: loadout };
-}
-
 export function debugEquipSwordSkills(game: GameState): GameState {
   const skills = weaponSkillDefinitions.filter((skill) => skill.proficiencyId === "one-handed-sword").slice(0, COMBAT_ABILITY_SLOT_COUNT);
-  let loadout = normalizeCombatAbilityLoadout(game.combatAbilities, game.spellbook.knownSpellIds);
-  skills.forEach((skill, slot) => { loadout = equipCombatAbility(loadout, skill.id, slot, game.spellbook.knownSpellIds); });
+  let loadout = normalizeCombatAbilityLoadout(game.combatAbilities, game.magicArts.knownArtIds);
+  skills.forEach((skill, slot) => { loadout = equipCombatAbility(loadout, skill.id, slot, game.magicArts.knownArtIds); });
   return { ...game, combatAbilities: loadout };
 }
 
@@ -482,6 +465,5 @@ export const debugDefinitions = {
   proficiencies: proficiencyDefinitions,
   perks: Object.values(perkById),
   effects: Object.values(effectById),
-  spells: spellDefinitions,
   enemies: enemyDefinitions,
 };

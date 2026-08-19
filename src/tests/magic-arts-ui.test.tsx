@@ -14,13 +14,13 @@ describe("Magic Arts browser", () => {
     expect(document.querySelector('[data-debug-kind="magic-arts-browser"]')).toBeInTheDocument();
     expect(document.querySelectorAll('[data-debug-kind="magic-art-node"]')).toHaveLength(16);
     fireEvent.click(screen.getByRole("button", { name: "Earth Shield, Magic Art" }));
-    fireEvent.click(screen.getByRole("button", { name: "OPEN SPECIALIZATION" }));
+    fireEvent.click(screen.getByRole("button", { name: "OPEN SKILL TREE" }));
     expect(document.querySelector('[data-debug-kind="magic-art-specialization"]')).toBeInTheDocument();
     expect(document.querySelectorAll('[data-debug-kind="magic-art-specialization-node"]')).toHaveLength(23);
     const before = JSON.stringify(useGameStore.getState().game);
-    fireEvent.click(screen.getByRole("button", { name: /Specialization placeholder earth-shield.preview.01/ }));
+    fireEvent.click(screen.getByRole("button", { name: "Future Perk 1" }));
     expect(JSON.stringify(useGameStore.getState().game)).toBe(before);
-    fireEvent.click(screen.getByRole("button", { name: "BACK" }));
+    fireEvent.click(screen.getByRole("button", { name: "Back to Magic Arts" }));
     expect(document.querySelector('[data-debug-kind="magic-arts-browser"]')).toBeInTheDocument();
   });
 });

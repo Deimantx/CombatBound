@@ -132,14 +132,10 @@ export function AutomationWindow({ game, initialActionId, createRule = false }: 
             const abilityAvailability = action && isCombatAbilityLoadoutAction(action)
               ? getCombatAbilityAvailability(game, rule.actionId)
               : undefined;
-            const inactive = action?.kind === "spell"
-              ? !game.combatAbilities.slots.includes(rule.actionId)
-              : action && isCombatAbilityLoadoutAction(action)
+            const inactive = action && isCombatAbilityLoadoutAction(action)
                 ? !game.combatAbilities.slots.includes(rule.actionId) || !abilityAvailability?.usable
                 : false;
-            const inactiveLabel = action?.kind === "spell"
-              ? "INACTIVE · SPELL NOT EQUIPPED"
-              : abilityAvailability && !abilityAvailability.usable
+            const inactiveLabel = abilityAvailability && !abilityAvailability.usable
                 ? `INACTIVE · ${abilityAvailability.label}`
                 : "INACTIVE · ABILITY NOT EQUIPPED";
             return <button key={rule.id} className={`automation-rule-card ${selectedRuleId === rule.id && !draftRule ? "is-selected" : ""} ${rule.enabled ? "is-enabled" : "is-disabled"}`} onClick={() => { setDraftRule(null); setSelectedRuleId(rule.id); }} data-debug-kind="automation-rule" data-debug-rule-id={rule.id} data-debug-action-id={rule.actionId} data-debug-priority={rule.priority} data-debug-enabled={rule.enabled} data-debug-config-valid={Boolean(action)}>{(action?.name ?? rule.actionId) || "Missing action"}<small>{!action ? "INVALID CONFIG · MISSING ACTION" : inactive ? inactiveLabel : rule.enabled ? "READY" : "DISABLED"}</small></button>;
@@ -163,7 +159,7 @@ function RuleEditor({ rule, actions, catalogue, isDraft = false, onSave, onDelet
   const addCondition = () => setDraft((current) => ({ ...current, conditions: [...current.conditions, { type: "always" }] }));
   const removeCondition = (index: number) => setDraft((current) => ({ ...current, conditions: current.conditions.filter((_, entryIndex) => entryIndex !== index) }));
   return <div className="automation-rule-editor-content" data-debug-kind="automation-rule-editor">
-    <div className="editor-heading"><div><span className="tiny-label">RULE EDITOR</span><h3>{(actions.find((action) => action.id === draft.actionId)?.name ?? draft.actionId) || "Missing action"}</h3></div><span className={`automation-config-status ${actions.some((action) => action.id === draft.actionId) ? "is-ready" : "is-invalid"}`}>{actions.some((action) => action.id === draft.actionId) ? (draft.actionId.startsWith("spell.") ? "READY / LOADOUT STATUS SHOWN" : "READY") : "INVALID CONFIG · MISSING ACTION"}</span></div>
+    <div className="editor-heading"><div><span className="tiny-label">RULE EDITOR</span><h3>{(actions.find((action) => action.id === draft.actionId)?.name ?? draft.actionId) || "Missing action"}</h3></div><span className={`automation-config-status ${actions.some((action) => action.id === draft.actionId) ? "is-ready" : "is-invalid"}`}>{actions.some((action) => action.id === draft.actionId) ? "READY" : "INVALID CONFIG · MISSING ACTION"}</span></div>
     <div className="hero-field"><span>Action</span><ActionCataloguePicker value={draft.actionId} catalogue={catalogue} onChange={(actionId) => setDraft((current) => ({ ...current, actionId }))} /></div>
     <label className="hero-field"><span>Priority</span><input type="number" min="1" value={draft.priority} onChange={(event) => setDraft((current) => ({ ...current, priority: Number(event.target.value) }))} /></label>
     <div className="section-title"><span className="tiny-label">CONDITIONS · ALL MUST MATCH</span><button className="button button-ghost" onClick={addCondition}><Plus size={13} /> ADD CONDITION</button></div>
@@ -199,15 +195,6 @@ function targetCriterionLabel(criterion: string) {
 }
 
 function getActionCatalogueItemState(game: GameState, action: PlayerActionDefinition) {
-  if (action.kind === "spell") {
-    const slot = game.combatAbilities.slots.findIndex((id) => id === action.id);
-    return {
-      equipped: slot >= 0,
-      available: true,
-      statusLabel: slot >= 0 ? `EQUIPPED ${slot + 1}` : "NOT EQUIPPED",
-    };
-  }
-
   if (isCombatAbilityLoadoutAction(action)) {
     const slot = game.combatAbilities.slots.findIndex((id) => id === action.id);
     const availability = getCombatAbilityAvailability(game, action.id);
