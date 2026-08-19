@@ -1,3 +1,5 @@
+
+
 import { cleanup, render } from "@testing-library/react";
 import { afterEach, describe, expect, it } from "vitest";
 import { InventoryCard } from "../app/screens/inventory/InventoryCard";
@@ -39,7 +41,7 @@ describe("Phase 4.3 inventory information hierarchy", () => {
     const resolved = resolveItemInstance(granted.inventory, granted.createdInstanceIds[0])!;
     const player = buildPlayerItemInstanceTooltip(resolved, {
       equipped: true,
-      masteryLevel: 5,
+      hunterRank: 5,
       defensiveContext: { lightArmorPieces: 0, mediumArmorPieces: 1, heavyArmorPieces: 0, shieldEquipped: false },
     });
     const text = JSON.stringify(player);
@@ -54,7 +56,7 @@ describe("Phase 4.3 inventory information hierarchy", () => {
 
   it("offers only truthful sort options for each inventory context", () => {
     expect(inventorySortOptions("equipment").map((option) => option.label)).toEqual([
-      "Manual", "Name", "Rarity", "Mastery Level", "Quality", "Upgrade Level", "Affix Count", "Acquired",
+      "Manual", "Name", "Rarity", "Hunter Rank", "Quality", "Upgrade Level", "Affix Count", "Acquired",
     ]);
     expect(inventorySortOptions("materials").map((option) => option.label)).toEqual(["Manual", "Name", "Rarity", "Quantity"]);
     expect(inventorySortOptions("all").map((option) => option.label)).toEqual(["Manual", "Name", "Rarity", "Category"]);
@@ -63,37 +65,37 @@ describe("Phase 4.3 inventory information hierarchy", () => {
   it("sorts affix count in both directions with deterministic sequence ties", () => {
     const { game, ids } = buildModifiedInventory();
     let inventory = addItemAffix(game.inventory, ids.affixedId, "affix.swift", "affix.swift.t1", { next: () => 0 }).inventory;
-    const entries = selectInventoryEntries({ ...game.inventory, ...inventory }, game.equipment, equipmentFilters, "", { key: "affix-count", direction: "desc" }, { masteryLevel: 5 })
+    const entries = selectInventoryEntries({ ...game.inventory, ...inventory }, game.equipment, equipmentFilters, "", { key: "affix-count", direction: "desc" }, { hunterRank: 5 })
       .filter((entry) => entry.definition.id === "item.hunter-sword");
     expect(entries.map((entry) => entry.instanceId)).toEqual([ids.affixedId, ids.upgradedId, ids.qualityId]);
-    const ascending = selectInventoryEntries({ ...game.inventory, ...inventory }, game.equipment, equipmentFilters, "", { key: "affix-count", direction: "asc" }, { masteryLevel: 5 })
+    const ascending = selectInventoryEntries({ ...game.inventory, ...inventory }, game.equipment, equipmentFilters, "", { key: "affix-count", direction: "asc" }, { hunterRank: 5 })
       .filter((entry) => entry.definition.id === "item.hunter-sword");
     expect(ascending.map((entry) => entry.instanceId)).toEqual([ids.upgradedId, ids.qualityId, ids.affixedId]);
   });
 
-  it("filters equipment by mastery availability and each modification mode", () => {
+  it("filters equipment by Hunter Rank availability and each modification mode", () => {
     const { game, ids } = buildModifiedInventory();
-    const available = selectInventoryEntries(game.inventory, game.equipment, { ...equipmentFilters, availability: "usable" }, "", { key: "name", direction: "asc" }, { masteryLevel: 5 });
+    const available = selectInventoryEntries(game.inventory, game.equipment, { ...equipmentFilters, availability: "usable" }, "", { key: "name", direction: "asc" }, { hunterRank: 5 });
     expect(available.some((entry) => entry.definition.id === "item.hunter-sword")).toBe(true);
     expect(available.some((entry) => entry.definition.id === "item.vanguard-sword")).toBe(false);
-    const locked = selectInventoryEntries(game.inventory, game.equipment, { ...equipmentFilters, availability: "locked" }, "", { key: "name", direction: "asc" }, { masteryLevel: 5 });
-    expect(locked.every((entry) => (entry.definition.requiredMasteryLevel ?? 0) > 5)).toBe(true);
+    const locked = selectInventoryEntries(game.inventory, game.equipment, { ...equipmentFilters, availability: "locked" }, "", { key: "name", direction: "asc" }, { hunterRank: 5 });
+    expect(locked.every((entry) => (entry.definition.requiredHunterRank ?? 0) > 5)).toBe(true);
 
-    expect(selectInventoryEntries(game.inventory, game.equipment, { ...equipmentFilters, modification: "affixed" }, "", { key: "name", direction: "asc" }, { masteryLevel: 5 }).map((entry) => entry.instanceId)).toContain(ids.affixedId);
-    expect(selectInventoryEntries(game.inventory, game.equipment, { ...equipmentFilters, modification: "upgraded" }, "", { key: "name", direction: "asc" }, { masteryLevel: 5 }).map((entry) => entry.instanceId)).toContain(ids.upgradedId);
-    expect(selectInventoryEntries(game.inventory, game.equipment, { ...equipmentFilters, modification: "quality" }, "", { key: "name", direction: "asc" }, { masteryLevel: 5 }).map((entry) => entry.instanceId)).toContain(ids.qualityId);
-    expect(selectInventoryEntries(game.inventory, game.equipment, { ...equipmentFilters, modification: "unmodified" }, "", { key: "name", direction: "asc" }, { masteryLevel: 5 }).some((entry) => entry.instanceId === ids.affixedId || entry.instanceId === ids.upgradedId || entry.instanceId === ids.qualityId)).toBe(false);
+    expect(selectInventoryEntries(game.inventory, game.equipment, { ...equipmentFilters, modification: "affixed" }, "", { key: "name", direction: "asc" }, { hunterRank: 5 }).map((entry) => entry.instanceId)).toContain(ids.affixedId);
+    expect(selectInventoryEntries(game.inventory, game.equipment, { ...equipmentFilters, modification: "upgraded" }, "", { key: "name", direction: "asc" }, { hunterRank: 5 }).map((entry) => entry.instanceId)).toContain(ids.upgradedId);
+    expect(selectInventoryEntries(game.inventory, game.equipment, { ...equipmentFilters, modification: "quality" }, "", { key: "name", direction: "asc" }, { hunterRank: 5 }).map((entry) => entry.instanceId)).toContain(ids.qualityId);
+    expect(selectInventoryEntries(game.inventory, game.equipment, { ...equipmentFilters, modification: "unmodified" }, "", { key: "name", direction: "asc" }, { hunterRank: 5 }).some((entry) => entry.instanceId === ids.affixedId || entry.instanceId === ids.upgradedId || entry.instanceId === ids.qualityId)).toBe(false);
   });
 
-  it("uses an icon-only affix marker and a mastery lock on cards", () => {
+  it("uses an icon-only affix marker and a Hunter Rank lock on cards", () => {
     const { game, ids } = buildModifiedInventory();
-    const affixed = selectInventoryEntries(game.inventory, game.equipment, equipmentFilters, "", { key: "name", direction: "asc" }, { masteryLevel: 5 }).find((entry) => entry.instanceId === ids.affixedId)!;
+    const affixed = selectInventoryEntries(game.inventory, game.equipment, equipmentFilters, "", { key: "name", direction: "asc" }, { hunterRank: 5 }).find((entry) => entry.instanceId === ids.affixedId)!;
     const lockedInventory = grantItem(game.inventory, "item.vanguard-sword", 1).inventory;
     const lockedGame = { ...game, inventory: lockedInventory };
-    const locked = selectInventoryEntries(lockedGame.inventory, lockedGame.equipment, equipmentFilters, "", { key: "name", direction: "asc" }, { masteryLevel: 5 }).find((entry) => entry.definition.id === "item.vanguard-sword")!;
-    render(<TooltipProvider><><InventoryCard entry={affixed} masteryLevel={5} selected={false} onSelect={() => undefined} /><InventoryCard entry={locked} masteryLevel={5} selected={false} onSelect={() => undefined} /></></TooltipProvider>);
+    const locked = selectInventoryEntries(lockedGame.inventory, lockedGame.equipment, equipmentFilters, "", { key: "name", direction: "asc" }, { hunterRank: 5 }).find((entry) => entry.definition.id === "item.vanguard-sword")!;
+    render(<TooltipProvider><><InventoryCard entry={affixed} hunterRank={5} selected={false} onSelect={() => undefined} /><InventoryCard entry={locked} hunterRank={5} selected={false} onSelect={() => undefined} /></></TooltipProvider>);
     expect(document.querySelector('[data-debug-kind="item-affix-marker"]')).toBeInTheDocument();
     expect(document.body).not.toHaveTextContent(/\d+ Mods|\d+ Affixes/);
-    expect(document.querySelector(".item-mastery-lock")).toHaveAttribute("aria-label", "Requires Mastery 10; Current Mastery 5");
+    expect(document.querySelector(".item-hunter-rank-lock")).toHaveAttribute("aria-label", "Requires Hunter Rank 10; Current Hunter Rank 5");
   });
 });

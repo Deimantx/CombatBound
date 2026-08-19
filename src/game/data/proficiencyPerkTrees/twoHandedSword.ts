@@ -1,7 +1,7 @@
 import { createWeaponTree, conditional, damage, interval, type WeaponTreeProfile } from './helpers'
 
 const profile: WeaponTreeProfile = {
-  proficiencyId: 'two-handed-sword', weaponName: 'Two-Handed Sword', rootName: 'Greatsword Mastery', icon: 'sword', apexName: 'Greatsword Master',
+  proficiencyId: 'two-handed-sword', weaponName: 'Two-Handed Sword', rootName: 'Greatsword Foundations', icon: 'sword', apexName: 'Greatsword Master',
   branches: [
     { name: 'Heavy Power', kind: 'power', names: ['Broad Blade', 'Full Commitment', 'Massive Swing', 'Driving Force', 'Overwhelming Stroke', 'Titanic Blow', 'Catastrophic Strike'] },
     { name: 'Critical', kind: 'critical', names: ['Edge Control', 'Keen Greatblade', 'Heavy Criticals', 'Measured Impact', 'Decisive Blow', 'Perfect Commitment', 'Mortal Arc'] },

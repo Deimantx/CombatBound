@@ -1,3 +1,4 @@
+
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import App from "../../App";
@@ -55,7 +56,7 @@ describe("Equipment 2.0 Hero workspace", () => {
   it("filters exact compatible instances without equipping a candidate", () => {
     const store = useGameStore.getState();
     store.debug.setOwnedItemCount("item.hunter-sword", 2);
-    store.debug.setMasteryLevel(5);
+    store.debug.setHunterRank(5);
     render(<App />);
     fireEvent.click(screen.getByRole("button", { name: "Hero" }));
 
@@ -71,7 +72,7 @@ describe("Equipment 2.0 Hero workspace", () => {
   it("preserves a hovered preview after hover leaves when the candidate is pinned", () => {
     const store = useGameStore.getState();
     store.debug.setOwnedItemCount("item.hunter-sword", 1);
-    store.debug.setMasteryLevel(5);
+    store.debug.setHunterRank(5);
     render(<App />);
     fireEvent.click(screen.getByRole("button", { name: "Hero" }));
     const candidate = document.querySelector('[data-debug-kind="equipment-candidate"][data-debug-item-id="item.hunter-sword"]') as HTMLElement;

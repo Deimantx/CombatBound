@@ -3,7 +3,6 @@ import type { CombatStats, ResistanceDamageType, StatModifier } from '../combat/
 import { applyCombatStatModifiers } from '../combat/combatStats'
 import { perkById } from '../data/proficiencyPerks'
 import { proficiencyById } from '../data/proficiencies'
-import { calculateAvailablePerkPoints } from './masteryProgression'
 import { getProficiencyLevel } from './proficiencyProgression'
 import type { DefensiveEquipmentContext } from '../equipment/defensiveEquipment'
 import type {
@@ -18,6 +17,27 @@ import type {
 } from './progressionTypes'
 
 const scopedDefinitionCache = new WeakMap<object, Map<CombatProficiencyId, ProficiencyPerkDefinition[]>>()
+
+export function calculateSpentPerkPoints(progression: ProgressionState, perkDefinitions: Record<string, ProficiencyPerkDefinition>) {
+  return Object.entries(progression.purchasedPerks).reduce((total, [perkId, rank]) => total + (perkDefinitions[perkId]?.costPerRank ?? 0) * Math.max(0, rank), 0)
+}
+
+export interface PerkPointSummary {
+  bonus: number
+  totalGranted: number
+  spent: number
+  available: number
+}
+
+export function getPerkPointSummary(progression: ProgressionState, perkDefinitions: Record<string, ProficiencyPerkDefinition>): PerkPointSummary {
+  const bonus = Math.max(0, Number.isFinite(progression.bonusPerkPoints) ? Math.floor(progression.bonusPerkPoints) : 0)
+  const spent = calculateSpentPerkPoints(progression, perkDefinitions)
+  return { bonus, totalGranted: bonus, spent, available: Math.max(0, bonus - spent) }
+}
+
+export function calculateAvailablePerkPoints(progression: ProgressionState, perkDefinitions: Record<string, ProficiencyPerkDefinition>) {
+  return getPerkPointSummary(progression, perkDefinitions).available
+}
 
 export function getPurchasedPerkRank(progression: ProgressionState, perkId: string) {
   return Math.max(0, progression.purchasedPerks[perkId] ?? 0)

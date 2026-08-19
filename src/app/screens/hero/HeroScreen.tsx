@@ -3,7 +3,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { buildEquipmentPreviewState } from "../../../game/equipment/equipmentPreview";
 import { getActiveWeaponProficiency } from "../../../game/progression/progressionSelectors";
 import { getProficiencyLevel } from "../../../game/progression/proficiencyProgression";
-import { masteryLevelForXp } from "../../../game/progression/masteryProgression";
+import { hunterRankForPoints } from "../../../game/progression/hunterRankProgression";
 import { proficiencyById } from "../../../game/data/proficiencies";
 import { useGameStore } from "../../../state/gameStore";
 import type { HeroWindowRequest } from "../../../shared/types";
@@ -59,7 +59,7 @@ export function HeroScreen() {
       <ScreenHeading screen="hero" />
       <section className="hero-identity" data-debug-kind="hero-identity">
         <div className="hero-avatar"><Shield size={30} /></div>
-        <div><span className="tiny-label">HUNTER</span><h2>Vanguard</h2><p>{activeDefinition?.name ?? "No weapon proficiency"} · Lv {activeLevel} · Mastery Lv {masteryLevelForXp(progression.masteryXp)}</p></div>
+        <div><span className="tiny-label">HUNTER</span><h2>Vanguard</h2><p>{activeDefinition?.name ?? "No weapon proficiency"} · Lv {activeLevel} · Hunter Rank {hunterRankForPoints(progression.hunterRankPoints)}</p></div>
         <div className="hero-resource-summary"><span>HP <strong>{Math.round(stats.maxLife ?? 0)}</strong></span><span>Stamina <strong>{Math.round(stats.maxStamina)}</strong></span><span>Mana <strong>{Math.round(stats.maxMana)}</strong></span></div>
       </section>
       <HeroBuildWorkspace preview={equipmentPreview} hoveredPreview={hoveredEquipmentPreview} previewState={previewState} onPreviewChange={setEquipmentPreview} onHoverPreview={setHoveredEquipmentPreview} onSlotChange={() => { setEquipmentPreview(null); setHoveredEquipmentPreview(null); }} onEquipCommitted={() => { setEquipmentPreview(null); setHoveredEquipmentPreview(null); }} />

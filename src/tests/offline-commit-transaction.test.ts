@@ -1,7 +1,8 @@
+
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createAndEnterProfile, returnToProfileSelect } from "../app/profile/profileSessionController";
 import { commitOfflineActivitySimulation } from "../app/offline/commitOfflineActivitySimulation";
-import { gameStateToSaveV12 } from "../game/persistence/saveGame";
+import { gameStateToSaveV13 } from "../game/persistence/saveGame";
 import { loadProfileGameSave, saveProfileGameSave } from "../game/profiles/profileStorage";
 import { getProfileSessionOwnerId } from "../game/profiles/profileSessionLease";
 import { useGameStore } from "../state/gameStore";
@@ -41,7 +42,7 @@ describe("Offline Combat coordinated commit", () => {
 
   it("rolls back bank and live/stored gameplay when the gameplay save fails", () => {
     const current = useGameStore.getState();
-    const before = gameStateToSaveV12(current.game, { reducedMotion: current.reducedMotion, showInspectorButton: current.showInspectorButton });
+    const before = gameStateToSaveV13(current.game, { reducedMotion: current.reducedMotion, showInspectorButton: current.showInspectorButton });
     const originalSetItem = Storage.prototype.setItem;
     vi.spyOn(Storage.prototype, "setItem").mockImplementation(function (this: Storage, key, value) {
       if (key === "combatbound-profile-1-save") throw new Error("forced save failure");
@@ -58,7 +59,7 @@ describe("Offline Combat coordinated commit", () => {
     expect(commitOfflineActivitySimulation(input())).toBe(true);
     expect(useProfileStore.getState().index.slots[0]?.offlineBankSeconds).toBe(2700);
     expect(useGameStore.getState().game.gold).toBe(42);
-    expect(loadProfileGameSave("profile-1")?.version).toBe(12);
+    expect(loadProfileGameSave("profile-1")?.version).toBe(13);
     expect(loadProfileGameSave("profile-1")?.gold).toBe(42);
   });
 
@@ -67,7 +68,7 @@ describe("Offline Combat coordinated commit", () => {
     const liveGame = { ...current.game, gold: 10 };
     expect(useGameStore.getState().replaceGameStateForOfflineSimulation(liveGame)).toBe(true);
     const storedSave = {
-      ...gameStateToSaveV12(liveGame, {
+      ...gameStateToSaveV13(liveGame, {
         reducedMotion: current.reducedMotion,
         showInspectorButton: current.showInspectorButton,
       }),

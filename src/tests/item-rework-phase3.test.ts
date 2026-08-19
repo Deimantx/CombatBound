@@ -1,3 +1,4 @@
+
 import { describe, expect, it } from "vitest";
 import { itemById } from "../game/data/items";
 import { validateItemAffixDefinitions } from "../game/data/validation/itemAffixValidation";
@@ -66,9 +67,9 @@ describe("Phase 3 item cleanup contracts", () => {
       name: "Bad",
       kind: "invalid" as "prefix",
       appliesTo: {},
-      tiers: [{ id: "", tier: 0, requiredMasteryLevel: 0, modifiers: [{ id: "", scope: "global", stat: "attackInterval" as "maxLife", operation: "flat", roll: { min: 1.5, max: 4, step: 3, valueType: "integer" } }] }],
+      tiers: [{ id: "", tier: 0, requiredHunterRank: 0, modifiers: [{ id: "", scope: "global", stat: "attackInterval" as "maxLife", operation: "flat", roll: { min: 1.5, max: 4, step: 3, valueType: "integer" } }] }],
     } as ItemAffixDefinition]);
-    expect(result.errors.join(" ")).toMatch(/nonempty|kind|applicability|tier number|mastery|modifier id|derived|integer|legal/);
+    expect(result.errors.join(" ")).toMatch(/nonempty|kind|applicability|tier number|modifier id|derived|integer|legal/);
   });
 
   it("builds human inventory entries for exact copies, affix search, filters, and stacks", () => {

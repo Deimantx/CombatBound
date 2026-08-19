@@ -1,7 +1,7 @@
 import { createWeaponTree, conditional, damage, interval, type WeaponTreeProfile } from './helpers'
 
 const profile: WeaponTreeProfile = {
-  proficiencyId: 'one-handed-mace', weaponName: 'One-Handed Mace', rootName: 'Mace Mastery', icon: 'hammer', apexName: 'Mace Lord',
+  proficiencyId: 'one-handed-mace', weaponName: 'One-Handed Mace', rootName: 'Mace Foundations', icon: 'hammer', apexName: 'Mace Lord',
   branches: [
     { name: 'Crushing Force', kind: 'power', names: ['Weighted Head', 'Full Swing', 'Bone-Shaking Impact', 'Crushing Blow', 'Heavy Hand', 'Devastating Impact', 'Skullcracker'] },
     { name: 'Armour Crushing', kind: 'armour', names: ['Dent Plate', 'Crack the Shell', 'Crushing Geometry', 'Collapsed Defense', 'Pulverize', 'Nothing Left to Guard', 'Platebreaker'] },

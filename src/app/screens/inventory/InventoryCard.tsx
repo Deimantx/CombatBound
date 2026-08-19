@@ -20,7 +20,7 @@ export function formatCompactQuantity(quantity: number) {
 
 interface InventoryCardProps {
   entry: InventoryViewEntry;
-  masteryLevel: number;
+  hunterRank: number;
   selected: boolean;
   onSelect: () => void;
   manualMode?: boolean;
@@ -32,22 +32,22 @@ interface InventoryCardProps {
   onDragEnd?: () => void;
 }
 
-export function InventoryCard({ entry, masteryLevel, selected, onSelect, manualMode = false, dragging = false, dragTarget, onDragStart, onDragOver, onDrop, onDragEnd }: InventoryCardProps) {
+export function InventoryCard({ entry, hunterRank, selected, onSelect, manualMode = false, dragging = false, dragTarget, onDragStart, onDragOver, onDrop, onDragEnd }: InventoryCardProps) {
   const presentation = entry.resolved ? buildItemPresentation(entry.resolved, { equipped: entry.equipped }) : buildStackableItemPresentation(entry.definition, entry.quantity);
-  const tooltip = entry.resolved ? buildPlayerItemInstanceTooltip(entry.resolved, { equipped: entry.equipped, equippedSlot: entry.equippedSlot, masteryLevel }) : buildItemTooltip(entry.definition, { quantity: entry.quantity, masteryLevel });
+  const tooltip = entry.resolved ? buildPlayerItemInstanceTooltip(entry.resolved, { equipped: entry.equipped, equippedSlot: entry.equippedSlot, hunterRank }) : buildItemTooltip(entry.definition, { quantity: entry.quantity, hunterRank });
   const instance = entry.resolved?.instance;
   const upgradeLevel = instance?.upgradeLevel ?? 0;
   const quality = instance?.quality ?? 0;
   const equippedSlot = entry.equippedSlot;
-  const masteryLocked = Boolean(entry.definition.equipmentSlotKind && (entry.definition.requiredMasteryLevel ?? 0) > masteryLevel && !entry.equipped);
-  const lockLabel = masteryLocked ? `Requires Mastery ${entry.definition.requiredMasteryLevel}; Current Mastery ${masteryLevel}` : undefined;
+  const hunterRankLocked = Boolean(entry.definition.equipmentSlotKind && (entry.definition.requiredHunterRank ?? 0) > hunterRank && !entry.equipped);
+  const lockLabel = hunterRankLocked ? `Requires Hunter Rank ${entry.definition.requiredHunterRank}; Current Hunter Rank ${hunterRank}` : undefined;
   const affixLabel = instance && instance.affixes.length > 0 ? presentation.modifiers.filter((modifier) => modifier.source === "affix").map((modifier) => `${modifier.label} ${modifier.value}`).join("; ") : undefined;
   return <GameTooltip content={tooltip}><button type="button" className={`inventory-card ${itemRarityClass(entry.definition.rarity)} ${selected ? "is-selected" : ""} ${manualMode ? "is-manual" : ""} ${dragging ? "is-dragging" : ""} ${dragTarget ? `drag-target-${dragTarget}` : ""}`} draggable={manualMode} onClick={onSelect} onDragStart={(event) => onDragStart?.(event)} onDragOver={onDragOver} onDrop={onDrop} onDragEnd={onDragEnd} data-debug-kind="inventory-item" data-debug-target-id={entry.instanceId ?? entry.definition.id} data-debug-item-id={entry.definition.id} data-debug-instance-id={entry.instanceId} data-debug-label={entry.definition.name} aria-label={`Select ${entry.definition.name}${entry.equipped ? ", equipped" : ""}`}>
     <div className="inventory-card-art">
       <PlaceholderArt icon={entry.definition.icon} size="medium" variant={itemRarityArtVariant(entry.definition.rarity)} />
       {!entry.instanceId && <span className="item-quantity">×{formatCompactQuantity(entry.quantity)}</span>}
       {entry.equipped && <span className="item-equipped-marker" title={`Equipped${equippedSlot ? ` · ${getEquipmentSlotDefinition(equippedSlot).label}` : ""}`} aria-label={`Equipped${equippedSlot ? ` · ${getEquipmentSlotDefinition(equippedSlot).label}` : ""}`}>✓</span>}
-      {masteryLocked && <span className="item-mastery-lock" title={lockLabel} aria-label={lockLabel}><Lock size={11} aria-hidden="true" /></span>}
+      {hunterRankLocked && <span className="item-hunter-rank-lock" title={lockLabel} aria-label={lockLabel}><Lock size={11} aria-hidden="true" /></span>}
       {upgradeLevel > 0 && <em className="item-upgrade-marker" title={`Upgrade Level +${upgradeLevel}`} aria-label={`Upgrade Level +${upgradeLevel}`}>+{upgradeLevel}</em>}
       {quality > 0 && <em className="item-quality-marker" title={`Quality ${quality}%`} aria-label={`Quality ${quality}%`}>Q{quality}</em>}
       {instance && instance.affixes.length > 0 && <span className="item-affix-marker" data-debug-kind="item-affix-marker" data-debug-instance-id={instance.id} title={affixLabel ?? `${instance.affixes.length} Affixes`} aria-label={affixLabel ?? `${instance.affixes.length} Affixes`}><Sparkles size={11} aria-hidden="true" /></span>}

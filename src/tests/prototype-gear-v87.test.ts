@@ -1,3 +1,4 @@
+
 import { describe, expect, it } from "vitest";
 import { createCombatContext, startHunt } from "../game/combat/combatEngine";
 import { effectById } from "../game/data/effects";
@@ -25,12 +26,12 @@ import {
   debugResetPlayerCooldowns,
   debugRevivePlayer,
   debugSetOwnedItemCount,
-  debugSetMasteryLevel,
+  debugSetHunterRank,
   debugSetProficiencyLevel,
   debugSetResourcePercent,
 } from "../game/debug/debugActions";
 import { grantItem } from "../game/items/itemOwnership";
-import { masteryLevelForXp } from "../game/progression/masteryProgression";
+import { hunterRankForPoints } from "../game/progression/hunterRankProgression";
 import { proficiencyXpForLevel } from "../game/progression/proficiencyProgression";
 import { CURRENT_SAVE_VERSION } from "../game/persistence/saveGame";
 
@@ -73,7 +74,7 @@ describe("CombatBound V8.7 prototype gear", () => {
     ]);
     for (const items of byKind.values()) {
       expect(items).toHaveLength(3);
-      expect(items.map((item) => item.requiredMasteryLevel).sort((a, b) => (a ?? 0) - (b ?? 0))).toEqual([1, 5, 10]);
+      expect(items.map((item) => item.requiredHunterRank).sort((a, b) => (a ?? 0) - (b ?? 0))).toEqual([1, 5, 10]);
       expect(items.map((item) => item.rarity).sort()).toEqual(["common", "rare", "uncommon"]);
     }
 
@@ -83,7 +84,7 @@ describe("CombatBound V8.7 prototype gear", () => {
     );
   });
 
-  it("enforces mastery requirements while preserving exact owned instances", () => {
+  it("enforces Hunter Rank requirements while preserving exact owned instances", () => {
     const game = createInitialGameState();
     let inventory = game.inventory;
     inventory = grantItem(inventory, "item.vanguard-sword", 1).inventory;
@@ -97,14 +98,14 @@ describe("CombatBound V8.7 prototype gear", () => {
       slotId: "weapon",
       inventory,
       equipment,
-      masteryLevel: 1,
-    })).toEqual({ valid: false, reason: "mastery-level" });
+      hunterRank: 1,
+    })).toEqual({ valid: false, reason: "hunter-rank" });
     expect(validateEquipmentChange({
       instanceId: sword.id,
       slotId: "weapon",
       inventory,
       equipment,
-      masteryLevel: 10,
+      hunterRank: 10,
     })).toEqual({ valid: true });
 
     const oneRingEquipped = { slots: { ring1: rings[0].id } };
@@ -114,9 +115,9 @@ describe("CombatBound V8.7 prototype gear", () => {
       slotId: "ring2",
       inventory,
       equipment: oneRingEquipped,
-      masteryLevel: 10,
+      hunterRank: 10,
     })).toEqual({ valid: true });
-    expect(equipItemInstance({ inventory, equipment: oneRingEquipped, instanceId: rings[0].id, slotId: "ring2", masteryLevel: 10 }).equipment.slots).toEqual({ ring2: rings[0].id });
+    expect(equipItemInstance({ inventory, equipment: oneRingEquipped, instanceId: rings[0].id, slotId: "ring2", hunterRank: 10 }).equipment.slots).toEqual({ ring2: rings[0].id });
     expect(getEquipmentSlotDefinition("ring1").kind).toBe("ring");
   });
 
@@ -160,15 +161,15 @@ describe("CombatBound V8.7 prototype gear", () => {
     expect(reduced.equipment.slots).toEqual({ ring1: rings[0].id });
   });
 
-  it("keeps debug mastery, proficiency, collection and resource changes on canonical state", () => {
+  it("keeps debug Hunter Rank, proficiency, collection and resource changes on canonical state", () => {
     const initial = createInitialGameState();
-    const mastery = debugSetMasteryLevel(initial, 10);
-    expect(masteryLevelForXp(mastery.progression.masteryXp)).toBe(10);
-    expect(mastery.progression.proficiencies["one-handed-sword"]?.totalXp).toBe(0);
+    const hunterRankState = debugSetHunterRank(initial, 10);
+    expect(hunterRankForPoints(hunterRankState.progression.hunterRankPoints)).toBe(10);
+    expect(hunterRankState.progression.proficiencies["one-handed-sword"]?.totalXp).toBe(0);
 
     const proficiency = debugSetProficiencyLevel(initial, "one-handed-sword", 50);
     expect(proficiency.progression.proficiencies["one-handed-sword"]?.totalXp).toBe(proficiencyXpForLevel(50));
-    expect(proficiency.progression.masteryXp).toBe(initial.progression.masteryXp);
+    expect(proficiency.progression.hunterRankPoints).toBe(initial.progression.hunterRankPoints);
 
     const collection = debugDiscoverAllTargets(debugDiscoverAllItems(initial));
     expect(collection.collection.discoveredItems).toHaveLength(itemDefinitions.length);
@@ -210,8 +211,8 @@ describe("CombatBound V8.7 prototype gear", () => {
   });
 
   it("uses the V11 persistent instance-ownership schema", () => {
-    expect(CURRENT_SAVE_VERSION).toBe(12);
-    expect(itemDefinitions.every((item) => item.requiredMasteryLevel === undefined || item.requiredMasteryLevel > 0)).toBe(true);
+    expect(CURRENT_SAVE_VERSION).toBe(13);
+    expect(itemDefinitions.every((item) => item.requiredHunterRank === undefined || item.requiredHunterRank > 0)).toBe(true);
     expect(enemyDefinitions.length).toBeGreaterThan(0);
   });
 });

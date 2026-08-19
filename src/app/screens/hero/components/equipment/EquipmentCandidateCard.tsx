@@ -12,34 +12,34 @@ export interface EquipmentCandidateModel {
   validation: EquipmentChangeValidation;
   equipped: boolean;
   equippedSlot?: EquipmentSlotId;
-  masteryLocked: boolean;
+  hunterRankLocked: boolean;
   canEquip: boolean;
   combatLocked: boolean;
 }
 
-export function EquipmentCandidateCard({ model, slotId, selected, hovered, masteryLevel, onSelect, onHover, onLeave }: {
+export function EquipmentCandidateCard({ model, slotId, selected, hovered, hunterRank, onSelect, onHover, onLeave }: {
   model: EquipmentCandidateModel;
   slotId: EquipmentSlotId;
   selected: boolean;
   hovered: boolean;
-  masteryLevel: number;
+  hunterRank: number;
   onSelect: () => void;
   onHover: () => void;
   onLeave: () => void;
 }) {
-  const { entry, validation, equipped, equippedSlot, masteryLocked, combatLocked } = model;
+  const { entry, validation, equipped, equippedSlot, hunterRankLocked, combatLocked } = model;
   const equippedSlotLabel = equippedSlot ? getEquipmentSlotDefinition(equippedSlot).label : undefined;
-  const tooltip = buildPlayerItemInstanceTooltip(entry, { equipped, masteryLevel });
+  const tooltip = buildPlayerItemInstanceTooltip(entry, { equipped, hunterRank });
   const canEquip = validation.valid && !combatLocked && !equipped;
   return (
     <GameTooltip content={tooltip}>
       <button
         type="button"
-        className={`hero-equipment-candidate ${itemRarityClass(entry.definition.rarity)} ${selected ? "is-selected" : ""} ${hovered ? "is-hovered" : ""} ${masteryLocked ? "is-mastery-locked" : ""}`}
+        className={`hero-equipment-candidate ${itemRarityClass(entry.definition.rarity)} ${selected ? "is-selected" : ""} ${hovered ? "is-hovered" : ""} ${hunterRankLocked ? "is-hunter-rank-locked" : ""}`}
         onClick={onSelect}
         onMouseEnter={onHover}
         onMouseLeave={onLeave}
-        title={masteryLocked ? `Requires Mastery ${entry.definition.requiredMasteryLevel}` : equippedSlotLabel && !equipped ? `Equipped · ${equippedSlotLabel}` : combatLocked ? "Equipment changes are locked during combat. Preview remains available." : undefined}
+        title={hunterRankLocked ? `Requires Hunter Rank ${entry.definition.requiredHunterRank}` : equippedSlotLabel && !equipped ? `Equipped · ${equippedSlotLabel}` : combatLocked ? "Equipment changes are locked during combat. Preview remains available." : undefined}
         data-debug-kind="equipment-candidate"
         data-debug-target-id={entry.instance.id}
         data-debug-item-id={entry.definition.id}
@@ -53,9 +53,9 @@ export function EquipmentCandidateCard({ model, slotId, selected, hovered, maste
         <PlaceholderArt icon={entry.definition.icon} size="small" variant={itemRarityArtVariant(entry.definition.rarity)} />
         <span>
           <strong>{entry.definition.name}</strong>
-          {entry.definition.requiredMasteryLevel !== undefined && <small>Mastery {entry.definition.requiredMasteryLevel}</small>}
+          {entry.definition.requiredHunterRank !== undefined && <small>Hunter Rank {entry.definition.requiredHunterRank}</small>}
         </span>
-        {masteryLocked && <span className="equipment-candidate-state is-locked"><LockKeyhole size={13} aria-hidden="true" /><span className="sr-only">MASTERY {entry.definition.requiredMasteryLevel} REQUIRED</span></span>}
+        {hunterRankLocked && <span className="equipment-candidate-state is-locked"><LockKeyhole size={13} aria-hidden="true" /><span className="sr-only">HUNTER RANK {entry.definition.requiredHunterRank} REQUIRED</span></span>}
         {equippedSlotLabel && !equipped && <span className="equipment-candidate-state is-equipped" title={`Equipped · ${equippedSlotLabel}`} aria-label={`Equipped · ${equippedSlotLabel}`}><Check size={13} aria-hidden="true" /></span>}
       </button>
     </GameTooltip>

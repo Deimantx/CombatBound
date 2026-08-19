@@ -1,3 +1,4 @@
+
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import App from "../../App";
@@ -199,7 +200,7 @@ describe("Equipment stat integrity V11.2", () => {
 
   it("previews and equips Vanguard Helm without losing canonical status values in Hero", () => {
     useGameStore.getState().debug.setOwnedItemCount("item.vanguard-helm", 1);
-    useGameStore.getState().debug.setMasteryLevel(10);
+    useGameStore.getState().debug.setHunterRank(10);
     render(<App />);
     fireEvent.click(screen.getByRole("button", { name: "Hero" }));
     fireEvent.click(document.querySelector('[data-debug-kind="equipment-slot"][data-debug-slot-id="head"]') as HTMLElement);

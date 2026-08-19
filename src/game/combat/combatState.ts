@@ -66,7 +66,6 @@ export function createCombatState(): CombatState {
       damageTaken: 0,
       healing: 0,
       proficiencyXpGained: {},
-      masteryXpGained: 0,
       itemsGained: 0,
       lootGained: {},
       itemInstanceIdsGained: [],

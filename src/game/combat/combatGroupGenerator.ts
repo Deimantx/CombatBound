@@ -3,8 +3,8 @@ import { nextCombatRandom } from './combatRng'
 
 export interface RandomSource { next(): number }
 
-export function generateCombatGroup(location: CombatLocationDefinition, rng: RandomSource, masteryLevel = 1): string[] {
-  const eligible = location.enemyPool.filter((entry) => (entry.minMasteryLevel ?? 1) <= masteryLevel)
+export function generateCombatGroup(location: CombatLocationDefinition, rng: RandomSource, hunterRank = 1): string[] {
+  const eligible = location.enemyPool.filter((entry) => (entry.minHunterRank ?? 1) <= hunterRank)
   const pool = eligible.length > 0 ? eligible : location.enemyPool
   const generation = location.groupGeneration
   const size = generation.minGroupSize + Math.floor(nextCombatRandom(rng, 'groupSize') * (generation.maxGroupSize - generation.minGroupSize + 1))

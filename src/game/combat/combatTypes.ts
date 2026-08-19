@@ -379,7 +379,6 @@ export interface CombatSession {
   damageTaken: number;
   healing: number;
   proficiencyXpGained: Partial<Record<CombatProficiencyId, number>>;
-  masteryXpGained: number;
   itemsGained: number;
   lootGained: Record<string, number>;
   itemInstanceIdsGained: import("../items/itemTypes").ItemInstanceId[];

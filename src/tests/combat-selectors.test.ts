@@ -64,7 +64,7 @@ describe('combat presentation selectors', () => {
     expect(short.killsPerHour).toBe(0)
     expect(short.rateSampleReady).toBe(false)
 
-    const session = getHuntSessionRates({ ...initial, elapsedSeconds: 60, damageDealt: 1200, damageTaken: 300, healing: 60, enemiesDefeated: 2, groupClears: 1, masteryXpGained: 30, proficiencyXpGained: { 'one-handed-sword': 10, 'fire-magic': 20 }, goldGained: 15, itemsGained: 3 })
+    const session = getHuntSessionRates({ ...initial, elapsedSeconds: 60, damageDealt: 1200, damageTaken: 300, healing: 60, enemiesDefeated: 2, groupClears: 1, proficiencyXpGained: { 'one-handed-sword': 10, 'fire-magic': 20 }, goldGained: 15, itemsGained: 3 })
     expect(session.dps).toBe(20)
     expect(session.damageTakenPerSecond).toBe(5)
     expect(session.healingPerSecond).toBe(1)

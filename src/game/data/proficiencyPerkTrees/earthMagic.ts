@@ -1,7 +1,7 @@
 import { createMagicTree, type MagicTreeProfile } from './magicHelpers'
 
 const profile: MagicTreeProfile = {
-  proficiencyId: 'earth-magic', schoolName: 'Earth Magic', damageType: 'physical', rootName: 'Earth Magic Mastery', icon: 'mountain',
+  proficiencyId: 'earth-magic', schoolName: 'Earth Magic', damageType: 'physical', rootName: 'Earth Magic Foundations', icon: 'mountain',
   branches: [
     { name: 'Stone / Direct Damage', kind: 'stone', names: ['Stone Shard', 'Dense Projectile', 'Heavy Stone', 'Granite Impact', 'Mountain Force', 'Avalanche Force', "Mountain's Wrath"], icon: 'mountain' },
     { name: 'Armor Break / Penetration', kind: 'armor-penetration', names: ['Cracked Stone', 'Grinding Force', 'Fault Line', 'Fractured Defense', 'Deep Fracture', 'Shatter Plate', 'Worldbreaker'], icon: 'hammer' },

@@ -1123,7 +1123,7 @@ Shield
 Perk Trees
 ```
 
-Mastery may later be renamed or reworked into a Rank-like progression layer, but that is not required now.
+Hunter Rank is the global career progression layer; its broader reward structure remains future work.
 
 ---
 
@@ -1442,7 +1442,7 @@ Keep these for later:
 ```text
 Enemy Trait full overhaul
 structured wave/encounter overhaul
-Mastery/Rank overhaul
+Hunter Rank reward structure
 complete Proficiency perk-tree redesign
 flask/elixir overhaul
 item progression/crafting redesign
@@ -1580,7 +1580,7 @@ Enemy Traits
 Enemy Actions
 Group Combat
 Target Selection
-Mastery/Rank foundation
+Hunter Rank foundation
 Proficiencies
 Perk Trees
 

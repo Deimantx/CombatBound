@@ -13,7 +13,6 @@ export type WeaponProficiencyId =
   | 'longbow'
   | 'crossbow'
 
-/** Historical save/test boundary only; no runtime definition or progression tree exists. */
 export type MagicProficiencyId = 'fire-magic' | 'water-magic' | 'air-magic' | 'earth-magic' | 'darkness-magic'
 export type DefensiveProficiencyId = 'light-armor' | 'medium-armor' | 'heavy-armor' | 'shield'
 export type CombatProficiencyId = WeaponProficiencyId | MagicProficiencyId | DefensiveProficiencyId
@@ -38,12 +37,10 @@ export interface ProficiencyProgress {
 
 export interface ProgressionState {
   proficiencies: Partial<Record<CombatProficiencyId, ProficiencyProgress>>
-  masteryXp: number
+  hunterRankPoints: number
   bonusPerkPoints: number
   purchasedPerks: Record<string, number>
 }
-
-export type LegacyProgressionState = Omit<ProgressionState, 'bonusPerkPoints'> & { bonusPerkPoints?: number }
 
 export interface ProficiencyDefinition {
   id: CombatProficiencyId
@@ -221,9 +218,5 @@ export interface ProficiencyXpResult {
   proficiencyXpGained: number
   oldProficiencyLevel: number
   newProficiencyLevel: number
-  oldMasteryLevel: number
-  newMasteryLevel: number
-  oldEarnedPerkPoints: number
-  newEarnedPerkPoints: number
-  perkPointsEarned: number
+  levelsGained: number
 }

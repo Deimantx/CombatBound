@@ -1,7 +1,7 @@
 import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import App from '../../App'
-import { masteryXpForLevel } from '../game/progression/masteryProgression'
+import { totalHunterRankPointsForRank } from '../game/progression/hunterRankProgression'
 import { useGameStore } from '../state/gameStore'
 
 beforeEach(() => {
@@ -20,7 +20,7 @@ function openCombatBrowser() {
 }
 
 function unlockBanditCamp() {
-  useGameStore.setState((state) => ({ game: { ...state.game, progression: { ...state.game.progression, masteryXp: masteryXpForLevel(2) } } }))
+  useGameStore.setState((state) => ({ game: { ...state.game, progression: { ...state.game.progression, hunterRankPoints: totalHunterRankPointsForRank(2) } } }))
 }
 
 function debugElement(kind: string) {

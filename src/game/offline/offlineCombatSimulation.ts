@@ -1,7 +1,6 @@
 import { calculateHunterCombatStats } from "../equipment/derivedStats";
 import { advanceCombatStep, createCombatContext } from "../combat/combatEngine";
 import { proficiencyById } from "../data/proficiencies";
-import { masteryLevelForXp } from "../progression/masteryProgression";
 import { proficiencyLevelForXp } from "../progression/proficiencyProgression";
 import type { CombatProficiencyId } from "../progression/progressionTypes";
 import type { GameState } from "../gameState";
@@ -26,7 +25,6 @@ export interface CombatHuntOfflineSummary {
   damageTaken: number;
   healing: number;
   highestHit: number;
-  masteryXp: number;
   proficiencyXp: Partial<Record<CombatProficiencyId, number>>;
   progressionRows: OfflineProgressionResultRow[];
   gold: number;
@@ -74,18 +72,6 @@ function recordDelta(
 
 function progressionRows(initial: GameState, final: GameState, requestedSeconds: number): OfflineProgressionResultRow[] {
   const rows: OfflineProgressionResultRow[] = [];
-  const masteryBefore = initial.progression.masteryXp;
-  const masteryAfter = final.progression.masteryXp;
-  rows.push({
-    progressionId: "combat-mastery",
-    name: "Combat Mastery",
-    xpBefore: masteryBefore,
-    xpAfter: masteryAfter,
-    xpGained: delta(masteryAfter, masteryBefore),
-    levelBefore: masteryLevelForXp(masteryBefore),
-    levelAfter: masteryLevelForXp(masteryAfter),
-    xpPerHour: perHour(delta(masteryAfter, masteryBefore), requestedSeconds),
-  });
   const ids = new Set([
     ...Object.keys(initial.progression.proficiencies),
     ...Object.keys(final.progression.proficiencies),
@@ -135,7 +121,6 @@ function summaryFor(
     damageTaken: delta(finalSession.damageTaken, initialSession.damageTaken),
     healing: delta(finalSession.healing, initialSession.healing),
     highestHit: Math.max(0, finalSession.highestHit),
-    masteryXp: delta(finalSession.masteryXpGained, initialSession.masteryXpGained),
     proficiencyXp,
     progressionRows: progressionRows(initial, final, requestedSeconds),
     gold: delta(finalSession.goldGained, initialSession.goldGained),

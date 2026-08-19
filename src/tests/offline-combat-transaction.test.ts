@@ -30,7 +30,7 @@ describe("Offline Combat Time Bank transactions", () => {
     expect(useOfflineActivityRuntimeStore.getState().resultsOpen).toBe(true);
     expect(useProfileStore.getState().index.slots[0]?.offlineBankSeconds).toBe(10);
     expect(useGameStore.getState().game.combat.eventSequence).toBeGreaterThan(beforeSequence);
-    expect(loadProfileGameSave("profile-1")?.version).toBe(12);
+    expect(loadProfileGameSave("profile-1")?.version).toBe(13);
   });
 
   it("does not open results when the requested skip fails before simulation", () => {

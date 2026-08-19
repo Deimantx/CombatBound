@@ -19,7 +19,7 @@ export interface ItemPresentation {
   rarity: string;
   typeLabel: string;
   slotLabel?: string;
-  masteryRequirement?: number;
+  hunterRankRequirement?: number;
   equipped: boolean;
   quantity: number;
   modified: boolean;
@@ -103,7 +103,7 @@ export function buildItemPresentation(
     rarity: definition.rarity,
     typeLabel: definition.category[0].toUpperCase() + definition.category.slice(1),
     slotLabel: definition.equipmentSlotKind ? equipmentSlotKindLabel(definition.equipmentSlotKind) : undefined,
-    masteryRequirement: definition.requiredMasteryLevel,
+    hunterRankRequirement: definition.requiredHunterRank,
     equipped: Boolean(options.equipped),
     quantity: options.quantity ?? 1,
     modified: instance.quality > 0 || instance.upgradeLevel > 0 || instance.affixes.length > 0,
@@ -120,7 +120,7 @@ export function buildStackableItemPresentation(definition: ResolvedItemInstance[
     rarity: definition.rarity,
     typeLabel: definition.category[0].toUpperCase() + definition.category.slice(1),
     slotLabel: undefined,
-    masteryRequirement: undefined,
+    hunterRankRequirement: undefined,
     equipped: false,
     quantity,
     modified: false,

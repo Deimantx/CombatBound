@@ -1,7 +1,7 @@
 import { createWeaponTree, damage, interval, type WeaponTreeProfile } from './helpers'
 
 const profile: WeaponTreeProfile = {
-  proficiencyId: 'one-handed-axe', weaponName: 'One-Handed Axe', rootName: 'Axe Mastery', icon: 'axe', apexName: 'Axe Lord',
+  proficiencyId: 'one-handed-axe', weaponName: 'One-Handed Axe', rootName: 'Axe Foundations', icon: 'axe', apexName: 'Axe Lord',
   branches: [
     { name: 'Cleaving Power', kind: 'power', names: ['Heavy Edge', 'Committed Swing', 'Weight Behind the Blade', 'Brutal Arc', 'Splitting Force', 'Overhand Violence', "Headsman's Edge"] },
     { name: 'Bleed', kind: 'bleed', names: ['Notched Edge', 'Open the Wound', 'Deep Laceration', 'Blood Trail', 'Persistent Wounds', 'Red Momentum', "Butcher's Finish"] },

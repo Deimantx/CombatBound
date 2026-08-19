@@ -1,3 +1,4 @@
+
 import { describe, expect, it } from "vitest";
 import { itemAffixById } from "../game/data/itemAffixes";
 import { itemById } from "../game/data/items";
@@ -143,9 +144,9 @@ describe("ItemInstance V2 modification foundation", () => {
     const game = createInitialGameState();
     const granted = grantItem(game.inventory, "item.copper-signet", 2);
     const ids = granted.createdInstanceIds;
-    const firstEquip = equipItemInstance({ inventory: granted.inventory, equipment: game.equipment, instanceId: ids[0], slotId: "ring1", masteryLevel: 10 });
-    const bothEquip = equipItemInstance({ inventory: granted.inventory, equipment: firstEquip.equipment, instanceId: ids[1], slotId: "ring2", masteryLevel: 10 });
-    const preview = previewEquipmentChange({ inventory: granted.inventory, equipment: bothEquip.equipment, instanceId: ids[0], slotId: "ring2", masteryLevel: 10 });
+    const firstEquip = equipItemInstance({ inventory: granted.inventory, equipment: game.equipment, instanceId: ids[0], slotId: "ring1", hunterRank: 10 });
+    const bothEquip = equipItemInstance({ inventory: granted.inventory, equipment: firstEquip.equipment, instanceId: ids[1], slotId: "ring2", hunterRank: 10 });
+    const preview = previewEquipmentChange({ inventory: granted.inventory, equipment: bothEquip.equipment, instanceId: ids[0], slotId: "ring2", hunterRank: 10 });
     expect(preview.equipment.slots.ring1).toBeUndefined();
     expect(preview.equipment.slots.ring2).toBe(ids[0]);
     const stats = calculateHunterCombatStats(preview.equipment, granted.inventory, game.progression, game.combat.techniques);
@@ -164,7 +165,7 @@ describe("ItemInstance V2 modification foundation", () => {
     const game = createInitialGameState();
     const granted = debugGrantItem(game, "item.hunter-cap", 2);
     const ids = Object.values(granted.inventory.instances).filter((instance) => instance.definitionId === "item.hunter-cap").map((instance) => instance.id);
-    const equipped = equipItemInstance({ inventory: granted.inventory, equipment: granted.equipment, instanceId: ids[0], slotId: "head", masteryLevel: 10 });
+    const equipped = equipItemInstance({ inventory: granted.inventory, equipment: granted.equipment, instanceId: ids[0], slotId: "head", hunterRank: 10 });
     const reduced = debugSetOwnedItemCount({ ...granted, equipment: equipped.equipment }, "item.hunter-cap", 1);
     expect(reduced.inventory.instances[ids[0]]).toBeDefined();
     expect(Object.values(reduced.inventory.instances).filter((instance) => instance.definitionId === "item.hunter-cap")).toHaveLength(1);

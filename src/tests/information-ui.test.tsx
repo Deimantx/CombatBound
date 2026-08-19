@@ -42,7 +42,7 @@ describe('combat information surfaces', () => {
   it('renders the major Info reference sections from current data', () => {
     render(<App />)
     fireEvent.click(screen.getByRole('button', { name: 'Info' }))
-    for (const heading of ['Combat Basics', 'Combat Resolution', 'Combat Stats Reference', 'Damage Types & Resistances', 'Statuses & Effects', 'Combat Proficiencies', 'Combat Mastery & Perks', 'Techniques / Spells', 'World navigation', 'UI Inspector']) expect(screen.getByText(heading)).toBeInTheDocument()
+    for (const heading of ['Combat Basics', 'Combat Resolution', 'Combat Stats Reference', 'Damage Types & Resistances', 'Statuses & Effects', 'Combat Proficiencies', 'Hunter Rank & Perks', 'Techniques / Spells', 'World navigation', 'UI Inspector']) expect(screen.getByText(heading)).toBeInTheDocument()
     expect(screen.getByText('One-Handed Sword')).toBeInTheDocument()
     expect(screen.getAllByText('Earthen Ward').length).toBeGreaterThan(0)
   })

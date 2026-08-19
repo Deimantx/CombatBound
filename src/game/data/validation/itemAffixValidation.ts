@@ -45,7 +45,7 @@ export function validateItemAffixDefinitions(affixes: readonly ItemAffixDefiniti
       if (!Number.isInteger(tier.tier) || tier.tier <= 0) errors.push(`${affixId}/${tier.id}: tier number must be a positive integer`);
       if (tierNumbers.has(tier.tier)) errors.push(`${affixId}: duplicate tier number ${tier.tier}`);
       tierNumbers.add(tier.tier);
-      if (tier.requiredMasteryLevel !== undefined && (!Number.isInteger(tier.requiredMasteryLevel) || tier.requiredMasteryLevel <= 0)) errors.push(`${affixId}/${tier.id}: required mastery must be a positive integer`);
+      if (tier.requiredHunterRank !== undefined && (!Number.isInteger(tier.requiredHunterRank) || tier.requiredHunterRank <= 0)) errors.push(`${affixId}/${tier.id}: required Hunter Rank must be a positive integer`);
       if (!Array.isArray(tier.modifiers) || !tier.modifiers.length) errors.push(`${affixId}/${tier.id}: must define at least one modifier`);
       const modifierIds = new Set<string>();
       for (const modifier of Array.isArray(tier.modifiers) ? tier.modifiers : []) {

@@ -81,19 +81,19 @@ function matchesDefinition(definition: ItemDefinition, filters: InventoryFilters
 }
 
 export interface InventorySelectionContext {
-  masteryLevel?: number;
+  hunterRank?: number;
 }
 
 export interface InventorySelectionOptions extends InventorySelectionContext {
   instanceSource?: (inventory: InventoryState) => readonly ItemInstance[];
 }
 
-function matchesAvailability(definition: ItemDefinition, required: InventoryAvailabilityFilter, masteryLevel: number) {
+function matchesAvailability(definition: ItemDefinition, required: InventoryAvailabilityFilter, hunterRank: number) {
   if (required === "all") return true;
   const hasValidEquipmentTarget = Boolean(definition.equipmentSlotKind)
     && EQUIPMENT_SLOT_DEFINITIONS.some((slot) => slot.kind === definition.equipmentSlotKind);
   if (!hasValidEquipmentTarget) return false;
-  const locked = (definition.requiredMasteryLevel ?? 0) > masteryLevel;
+  const locked = (definition.requiredHunterRank ?? 0) > hunterRank;
   return required === "locked" ? locked : !locked;
 }
 
@@ -108,7 +108,7 @@ export function selectInventoryEntries(
   const normalizedQuery = query.trim().toLowerCase();
   const availability = filters.availability ?? "all";
   const instanceSource = options.instanceSource ?? getItemInstances;
-  const masteryLevel = options.masteryLevel ?? 0;
+  const hunterRank = options.hunterRank ?? 0;
   const equippedIds = new Set(Object.values(equipment.slots).filter((value): value is string => Boolean(value)));
   const instancesByDefinition = new Map<string, ReturnType<typeof getItemInstances>[number][]>();
   for (const instance of instanceSource(inventory)) {
@@ -139,7 +139,7 @@ export function selectInventoryEntries(
       if (filters.equipmentState === "equipped" && !equipped || filters.equipmentState === "unequipped" && equipped) continue;
       if (filters.modification === "modified" && !modified || filters.modification === "unmodified" && modified) continue;
       if (filters.modification === "affixed" && instance.affixes.length === 0 || filters.modification === "upgraded" && instance.upgradeLevel <= 0 || filters.modification === "quality" && instance.quality <= 0) continue;
-      if (!matchesAvailability(definition, availability, masteryLevel)) continue;
+      if (!matchesAvailability(definition, availability, hunterRank)) continue;
       const searchText = buildItemInstanceSearchText(resolved);
       if (normalizedQuery && !searchText.includes(normalizedQuery)) continue;
       entries.push({ ref: { kind: "instance", instanceId: instance.id }, definition, quantity: 1, instanceId: instance.id, resolved, equipped, equippedSlot: equippedSlotForInstance(equipment, instance.id), modified, sequence: itemInstanceSequence(instance.id), searchText });

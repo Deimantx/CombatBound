@@ -13,7 +13,7 @@ export interface ContinentDefinition {
   description: string
   regionIds: string[]
   availability: ContentAvailability
-  recommendedMasteryLevel?: [number, number]
+  recommendedHunterRank?: [number, number]
   presentation: WorldPresentation
 }
 
@@ -24,8 +24,8 @@ export interface RegionDefinition {
   description: string
   areaIds: string[]
   availability: ContentAvailability
-  requiredMasteryLevel?: number
-  recommendedMasteryLevel?: [number, number]
+  requiredHunterRank?: number
+  recommendedHunterRank?: [number, number]
   presentation: WorldPresentation
 }
 
@@ -36,8 +36,8 @@ export interface AreaDefinition {
   description: string
   combatLocationIds: string[]
   availability: ContentAvailability
-  requiredMasteryLevel?: number
-  recommendedMasteryLevel?: [number, number]
+  requiredHunterRank?: number
+  recommendedHunterRank?: [number, number]
   presentation: WorldPresentation
 }
 
@@ -46,7 +46,7 @@ export interface CombatLocationEnemyEntry {
   weight: number
   minCopiesPerGroup?: number
   maxCopiesPerGroup?: number
-  minMasteryLevel?: number
+  minHunterRank?: number
   role?: 'common' | 'support' | 'dangerous' | 'elite'
 }
 
@@ -68,8 +68,8 @@ export interface CombatLocationDefinition {
   enemyPool: CombatLocationEnemyEntry[]
   groupGeneration: CombatGroupGenerationDefinition
   availability: ContentAvailability
-  requiredMasteryLevel: number
-  recommendedMasteryLevel: [number, number]
+  requiredHunterRank: number
+  recommendedHunterRank: [number, number]
   sharedLoot?: Array<{ itemId: string; chance: number; minQuantity: number; maxQuantity: number }>
   presentation: WorldPresentation
 }

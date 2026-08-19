@@ -1,7 +1,7 @@
 import { createMagicTree, type MagicTreeProfile } from './magicHelpers'
 
 const profile: MagicTreeProfile = {
-  proficiencyId: 'air-magic', schoolName: 'Air Magic', damageType: 'lightning', rootName: 'Air Magic Mastery', icon: 'wind',
+  proficiencyId: 'air-magic', schoolName: 'Air Magic', damageType: 'lightning', rootName: 'Air Magic Foundations', icon: 'wind',
   branches: [
     { name: 'Lightning / Shock', kind: 'lightning', names: ['Static Charge', 'Conductive Target', 'Charged Strike', 'Voltage Spike', 'Overcharge', 'Thunderhead', "Stormcaller's Judgment"], icon: 'zap' },
     { name: 'Chain / Multi-Target', kind: 'chain', names: ['Forked Current', 'Conductive Arc', 'Chain Reaction', 'Storm Network', 'Charged Chain', 'Rolling Thunder', 'Tempest'], icon: 'zap' },

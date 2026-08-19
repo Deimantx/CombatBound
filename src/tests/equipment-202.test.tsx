@@ -1,3 +1,4 @@
+
 import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import App from "../../App";
@@ -28,7 +29,7 @@ describe("Equipment 2.0.2 comparison workspace", () => {
   it("pins Current separately and scopes search to Available", () => {
     const store = useGameStore.getState();
     store.debug.setOwnedItemCount("item.hunter-shield", 1);
-    store.debug.setMasteryLevel(5);
+    store.debug.setHunterRank(5);
     equipOwnedItem("item.training-shield", "offhand");
     render(<App />);
     fireEvent.click(screen.getByRole("button", { name: "Hero" }));
@@ -47,7 +48,7 @@ describe("Equipment 2.0.2 comparison workspace", () => {
   it("keeps rarity frame and selection state independent", () => {
     const store = useGameStore.getState();
     store.debug.setOwnedItemCount("item.vanguard-sword", 1);
-    store.debug.setMasteryLevel(10);
+    store.debug.setHunterRank(10);
     render(<App />);
     fireEvent.click(screen.getByRole("button", { name: "Hero" }));
     fireEvent.click(document.querySelector('[data-debug-kind="equipment-slot"][data-debug-slot-id="weapon"]') as HTMLElement);
@@ -62,7 +63,7 @@ describe("Equipment 2.0.2 comparison workspace", () => {
   it("updates and pins exact item plus build comparisons on hover and click", () => {
     const store = useGameStore.getState();
     store.debug.setOwnedItemCount("item.hunter-shield", 1);
-    store.debug.setMasteryLevel(5);
+    store.debug.setHunterRank(5);
     equipOwnedItem("item.training-shield", "offhand");
     render(<App />);
     fireEvent.click(screen.getByRole("button", { name: "Hero" }));

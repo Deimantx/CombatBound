@@ -518,11 +518,6 @@ export function damageEnemy(
         text: `${proficiencyById[progressionResult.proficiencyId].name} reached Proficiency Lv ${progressionResult.newProficiencyLevel}.`,
         type: "system",
       });
-    if (progressionResult.newMasteryLevel > progressionResult.oldMasteryLevel)
-      next.combat = event(next.combat, {
-        text: `Mastery Level increased to ${progressionResult.newMasteryLevel}.`,
-        type: "system",
-      });
   }
   return dependencies.resolveDefeatedEnemies(next, context);
 }
@@ -1060,4 +1055,3 @@ export function useHealingPotion(
     ),
   };
 }
-

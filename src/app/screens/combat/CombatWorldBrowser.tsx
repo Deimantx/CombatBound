@@ -1,7 +1,7 @@
 import { Map, Play, Swords, Target } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import { combatLocationById } from '../../../game/data/world/combatLocations'
-import { masteryLevelForXp } from '../../../game/progression/masteryProgression'
+import { hunterRankForPoints } from '../../../game/progression/hunterRankProgression'
 import { isCombatLocationAvailable, locationBreadcrumb, selectionForLocation } from '../../../game/world/worldSelectors'
 import type { CombatLocationDefinition } from '../../../game/world/worldTypes'
 import { useGameStore } from '../../../state/gameStore'
@@ -45,7 +45,7 @@ export function CombatWorldBrowser() {
   const lastTransitionNodeRef = useRef<{ id: string; at: number } | undefined>(undefined)
   const previousCombatRef = useRef({ active: activePhases.has(phase), locationId: activeLocationId })
 
-  const masteryLevel = masteryLevelForXp(game.progression.masteryXp)
+  const hunterRank = hunterRankForPoints(game.progression.hunterRankPoints)
   const viewId = combatAtlasViewId(level, selectedContinentId, selectedRegionId, selectedAreaId)
   const view = combatAtlasViewFor(viewId)
   const viewTitle = combatAtlasViewTitle(view)
@@ -55,7 +55,7 @@ export function CombatWorldBrowser() {
   const isCombatActive = activePhases.has(phase)
   const areaLevel = level === 'area'
   const sameLocation = Boolean(areaLevel && activeLocation && activeLocation.id === location?.id && isCombatActive)
-  const canHunt = Boolean(areaLevel && location && isCombatLocationAvailable(location.id, masteryLevel))
+  const canHunt = Boolean(areaLevel && location && isCombatLocationAvailable(location.id, hunterRank))
   const selectedNodeId = level === 'world' ? selectedContinentId : level === 'continent' ? selectedRegionId : level === 'region' ? selectedAreaId : selectedLocationId
   const activeHuntSelection = activeLocationId ? selectionForLocation(activeLocationId) : undefined
   const activeHuntPathNodeId = level === 'world'
@@ -194,7 +194,7 @@ export function CombatWorldBrowser() {
             <CombatAtlasStage
               key={view.id}
               view={view}
-              masteryLevel={masteryLevel}
+              hunterRank={hunterRank}
               selectedNodeId={selectedNodeId}
               activeLocationId={activeLocationId}
               activeHuntPathNodeId={activeHuntPathNodeId}
@@ -236,8 +236,8 @@ function LocationPreview({ location, active, activeLocation, available, onStart 
   return <section className="combat-location-preview" data-debug-kind="combat-location-preview" data-debug-location-id={location.id} data-debug-label={`Preview ${location.name}`}>
     <div className="location-preview-context"><span className="tiny-label">{browsingAnotherLocation ? 'SELECTED ARENA' : active ? 'CURRENT HUNT' : 'SELECTED ARENA'}</span>{browsingAnotherLocation && <small>Current hunt: <strong>{activeLocation?.name}</strong></small>}</div>
     <div className="location-preview-top"><div className={`location-preview-marker ${active ? 'is-active' : ''}`}><Swords size={20} /></div><div className="location-preview-heading"><h3>{location.name}</h3><span className="location-preview-family">{presentation.familyName}</span><GameTooltip content={{ id: location.id, icon: 'target', title: location.name, subtitle: presentation.familyName, description: location.description }}><p>{location.description}</p></GameTooltip></div></div>
-    <div className="location-meta-grid"><div><span>GROUP SIZE</span><strong>{presentation.groupSizeLabel}</strong></div><div><span>RECOMMENDED</span><strong>{presentation.recommendedMasteryLabel}</strong></div></div>
+    <div className="location-meta-grid"><div><span>GROUP SIZE</span><strong>{presentation.groupSizeLabel}</strong></div><div><span>RECOMMENDED</span><strong>{presentation.recommendedHunterRankLabel}</strong></div></div>
     <div className="location-pool"><span className="tiny-label">POSSIBLE ENEMIES</span><div className="location-enemy-icons">{presentation.enemies.map((enemy) => <GameTooltip key={enemy.enemyId} content={enemyTooltipModel(enemy.enemyId)}><span className="location-enemy-icon" tabIndex={0} role="img" aria-label={`Inspect ${enemy.name}`} data-debug-kind="combat-enemy-preview" data-debug-enemy-id={enemy.enemyId}><EnemyPreviewIcon enemy={enemy.enemy} /></span></GameTooltip>)}</div></div>
-    <div className="location-preview-footer"><div className="location-shared-loot">{lootNames.length > 0 && <><span className="tiny-label">LOOT</span><div className="location-loot-list">{lootNames.map((name) => <span key={name}>{name}</span>)}</div></>}</div><div className="location-preview-action"><button aria-label={active ? 'Hunt active' : browsingAnotherLocation ? 'Switch hunt' : 'Start selected location hunt'} className="button button-primary" onClick={onStart} disabled={!available || active}>{buttonLabel}<Play size={14} /></button>{!available && <small className="locked-copy">{location.availability === 'coming-soon' ? 'Coming soon' : `Requires Mastery Level ${location.requiredMasteryLevel}`}</small>}</div></div>
+    <div className="location-preview-footer"><div className="location-shared-loot">{lootNames.length > 0 && <><span className="tiny-label">LOOT</span><div className="location-loot-list">{lootNames.map((name) => <span key={name}>{name}</span>)}</div></>}</div><div className="location-preview-action"><button aria-label={active ? 'Hunt active' : browsingAnotherLocation ? 'Switch hunt' : 'Start selected location hunt'} className="button button-primary" onClick={onStart} disabled={!available || active}>{buttonLabel}<Play size={14} /></button>{!available && <small className="locked-copy">{location.availability === 'coming-soon' ? 'Coming soon' : `Requires Hunter Rank ${location.requiredHunterRank}`}</small>}</div></div>
   </section>
 }

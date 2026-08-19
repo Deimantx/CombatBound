@@ -35,7 +35,7 @@ describe('Defensive Proficiencies V6', () => {
     expect(calculateDefensiveTrainingAwards({ lightArmorPieces: 0, mediumArmorPieces: 0, heavyArmorPieces: 0, shieldEquipped: true })).toMatchObject({ 'light-armor': 0, 'medium-armor': 0, 'heavy-armor': 0, shield: 1 })
   })
 
-  it('awards one event through normal proficiency and Mastery progression', () => {
+  it('awards one event through normal Proficiency progression without Hunter Rank points', () => {
     const game = createInitialGameState()
     const equipped = { slots: { head: 'test.light-head', armor: 'test.medium-armor', gloves: 'test.heavy-gloves', boots: 'test.heavy-boots', offhand: 'test.shield' } }
     const build = inventoryFor(equipped)
@@ -44,9 +44,8 @@ describe('Defensive Proficiencies V6', () => {
     expect(next.progression.proficiencies['medium-armor']?.totalXp).toBe(.25)
     expect(next.progression.proficiencies['heavy-armor']?.totalXp).toBe(.5)
     expect(next.progression.proficiencies.shield?.totalXp).toBe(1)
-    expect(next.progression.masteryXp).toBe(2)
-    expect(next.combat.session.masteryXpGained).toBe(2)
-    expect(resolveDefensiveTrainingForEnemyAction({ ...game, equipment: build.equipment, inventory: build.inventory }, { source: 'enemy-direct-action', resolved: false }, items).progression.masteryXp).toBe(0)
+    expect(next.progression.hunterRankPoints).toBe(0)
+    expect(resolveDefensiveTrainingForEnemyAction({ ...game, equipment: build.equipment, inventory: build.inventory }, { source: 'enemy-direct-action', resolved: false }, items).progression.hunterRankPoints).toBe(0)
   })
 
   it('scales defensive perk effects by matching pieces and respects thresholds', () => {

@@ -2,7 +2,7 @@ import { calculateHunterCombatStats, type HunterCombatStats } from "./derivedSta
 import { previewEquipmentChange, validateEquipmentChange, type EquipmentChangeValidation } from "./equipmentRules";
 import type { EquipmentState, EquipmentSlotId } from "./equipmentTypes";
 import { buildEquipmentComparisonRows, type EquipmentComparisonRow } from "../presentation/equipmentComparison";
-import { masteryLevelForXp } from "../progression/masteryProgression";
+import { hunterRankForPoints } from "../progression/hunterRankProgression";
 import { resolveItemInstance } from "../items/itemResolver";
 import type { GameState } from "../gameState";
 import type { ItemInstanceId } from "../items/itemTypes";
@@ -23,7 +23,7 @@ export interface EquipmentPreviewState {
 
 /**
  * Builds the one canonical equipment preview consumed by Hero and Inventory.
- * Mastery-locked candidates still get a structural stat preview; the original
+ * Hunter Rank-locked candidates still get a structural stat preview; the original
  * validation is retained so the action layer can keep them unequippable.
  */
 export function buildEquipmentPreviewState(game: GameState, request: EquipmentPreviewRequest | null): EquipmentPreviewState {
@@ -35,20 +35,20 @@ export function buildEquipmentPreviewState(game: GameState, request: EquipmentPr
   );
   if (!request) return { request: null, currentStats, comparison: [] };
 
-  const masteryLevel = masteryLevelForXp(game.progression.masteryXp);
+  const hunterRank = hunterRankForPoints(game.progression.hunterRankPoints);
   const validation = validateEquipmentChange({
     instanceId: request.instanceId,
     slotId: request.slotId,
     inventory: game.inventory,
     equipment: game.equipment,
-    masteryLevel,
+    hunterRank,
   });
-  if (!validation.valid && validation.reason !== "mastery-level") {
+  if (!validation.valid && validation.reason !== "hunter-rank") {
     return { request, currentStats, validation, comparison: [] };
   }
 
   const resolved = resolveItemInstance(game.inventory, request.instanceId as ItemInstanceId);
-  // The resolver-backed validation above is authoritative. A mastery-locked
+  // The resolver-backed validation above is authoritative. A rank-locked
   // item previews at its own requirement while the original validation keeps
   // the action disabled.
   const preview = previewEquipmentChange({
@@ -56,7 +56,7 @@ export function buildEquipmentPreviewState(game: GameState, request: EquipmentPr
     slotId: request.slotId,
     inventory: game.inventory,
     equipment: game.equipment,
-    masteryLevel: validation.valid ? masteryLevel : Math.max(masteryLevel, resolved?.definition.requiredMasteryLevel ?? masteryLevel),
+    hunterRank: validation.valid ? hunterRank : Math.max(hunterRank, resolved?.definition.requiredHunterRank ?? hunterRank),
   });
   if (!preview.validation.valid) return { request, currentStats, validation, comparison: [] };
   const previewStats = calculateHunterCombatStats(

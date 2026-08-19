@@ -7,18 +7,18 @@ import type { ResolvedItemInstance } from "../../../../../game/items/itemTypes";
 import { GameTooltip } from "../../../../components/tooltip/GameTooltip";
 import { PlaceholderArt } from "../../../../components/PlaceholderArt";
 
-export function EquipmentCurrentCard({ slotId, current, defensiveContext, masteryLevel, combatLocked, onClearPreview, onUnequip }: {
+export function EquipmentCurrentCard({ slotId, current, defensiveContext, hunterRank, combatLocked, onClearPreview, onUnequip }: {
   slotId: EquipmentSlotId;
   current: ResolvedItemInstance | null;
   defensiveContext: DefensiveEquipmentContext;
-  masteryLevel: number;
+  hunterRank: number;
   combatLocked: boolean;
   onClearPreview: () => void;
   onUnequip: () => void;
 }) {
   const definition = EQUIPMENT_SLOT_DEFINITIONS.find((slot) => slot.id === slotId)!;
   if (!current) return <div className="equipment-current-card is-empty" data-debug-kind="equipment-current-card"><div className="equipment-current-card-heading"><span className="tiny-label">CURRENT</span></div><div className="equipment-current-empty"><PlaceholderArt icon={definition.icon} size="small" variant="muted" /><div><strong>Empty {definition.label} Slot</strong><span>Select an available item to compare.</span></div></div></div>;
-  const tooltip = buildPlayerItemInstanceTooltip(current, { equipped: true, equippedSlot: slotId, defensiveContext, masteryLevel });
+  const tooltip = buildPlayerItemInstanceTooltip(current, { equipped: true, equippedSlot: slotId, defensiveContext, hunterRank });
   const marker = current.instance.upgradeLevel > 0 ? `+${current.instance.upgradeLevel}` : current.instance.quality > 0 ? `Q${current.instance.quality}` : undefined;
   return <GameTooltip content={tooltip}><div className={`equipment-current-card ${itemRarityClass(current.definition.rarity)}`} data-debug-kind="equipment-current-card" data-debug-instance-id={current.instance.id} data-debug-item-id={current.definition.id}>
     <div className="equipment-current-card-heading"><span className="tiny-label">CURRENT</span><span className="equipment-current-equipped"><Check size={12} />Equipped</span></div>

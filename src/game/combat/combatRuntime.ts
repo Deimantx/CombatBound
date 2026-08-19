@@ -59,7 +59,6 @@ export function awardCombatXp(game: GameState, proficiencyId: CombatProficiencyI
         session: {
           ...game.combat.session,
           proficiencyXpGained: { ...game.combat.session.proficiencyXpGained, [proficiencyId]: current + result.proficiencyXpGained },
-          masteryXpGained: game.combat.session.masteryXpGained + result.proficiencyXpGained,
         },
       },
     },

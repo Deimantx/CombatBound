@@ -78,10 +78,8 @@ describe("Time Bank player UI", () => {
           damageTaken: 300,
           healing: 60,
           highestHit: 180,
-          masteryXp: 500,
           proficiencyXp: { "one-handed-sword": 500 },
           progressionRows: [
-            { progressionId: "combat-mastery", name: "Combat Mastery", xpBefore: 0, xpAfter: 500, xpGained: 500, levelBefore: 1, levelAfter: 2, xpPerHour: 1000 },
             { progressionId: "one-handed-sword", name: "One-Handed Sword", xpBefore: 0, xpAfter: 500, xpGained: 500, levelBefore: 0, levelAfter: 2, xpPerHour: 1000 },
           ],
           gold: 1284,
@@ -112,7 +110,6 @@ describe("Time Bank player UI", () => {
     expect(within(dialog).getByText("10m 00s")).toBeInTheDocument();
     expect(within(dialog).getByText("20m 00s")).toBeInTheDocument();
     expect(within(dialog).getByText("Hunter Defeated")).toBeInTheDocument();
-    expect(within(dialog).getByText("Combat Mastery")).toBeInTheDocument();
     expect(within(dialog).getByText("One-Handed Sword")).toBeInTheDocument();
     expect(within(dialog).getByText("Gold")).toBeInTheDocument();
     expect(within(dialog).getByText("Wolf Fang")).toBeInTheDocument();

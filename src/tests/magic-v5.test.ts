@@ -63,13 +63,13 @@ describe('Magic Schools V5', () => {
     expect(darkness.combat.enemies[0].effects.find((effect) => effect.effectId === 'effect.withered')?.sourceProficiencyId).toBe('darkness-magic')
   })
 
-  it('migrates V2 school progress without duplicating Mastery or preserving legacy purchases', () => {
+  it('migrates V2 school progress without duplicating global progression or preserving legacy purchases', () => {
     const game = createInitialGameState()
     const migrated = migrateCurrentSave({ version: 2, progression: { proficiencies: { 'one-handed-sword': { proficiencyId: 'one-handed-sword', totalXp: 10 }, 'warding-magic': { proficiencyId: 'warding-magic', totalXp: 40 }, 'light-magic': { proficiencyId: 'light-magic', totalXp: 3 }, 'disruption-magic': { proficiencyId: 'disruption-magic', totalXp: 20 } }, masteryXp: 123, purchasedPerks: { 'perk.warding-magic.aegis-training': 2, 'perk.one-handed-sword.one-handed-mastery': 1 } }, inventory: game.inventory, equipment: game.equipment, collection: game.collection, gold: 0, settings: { reducedMotion: false, showInspectorButton: true } })
     expect(migrated?.version).toBe(3)
     expect(migrated?.progression.masteryXp).toBe(123)
     expect((migrated?.progression.proficiencies as Record<string, unknown>)['light-magic']).toBeUndefined()
     expect(migrated?.progression.proficiencies['air-magic']?.totalXp).toBe(20)
-    expect(migrated?.progression.purchasedPerks).toEqual({ 'perk.one-handed-sword.one-handed-mastery': 1 })
+    expect(migrated?.progression.purchasedPerks).toEqual({ 'perk.one-handed-sword.one-handed-foundations': 1 })
   })
 })

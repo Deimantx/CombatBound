@@ -1,7 +1,7 @@
 import { createWeaponTree, conditional, damage, type WeaponTreeProfile } from './helpers'
 
 const profile: WeaponTreeProfile = {
-  proficiencyId: 'two-handed-hammer', weaponName: 'Two-Handed Hammer', rootName: 'Warhammer Mastery', icon: 'hammer', apexName: 'Warhammer Master',
+  proficiencyId: 'two-handed-hammer', weaponName: 'Two-Handed Hammer', rootName: 'Warhammer Foundations', icon: 'hammer', apexName: 'Warhammer Master',
   branches: [
     { name: 'Crushing Power', kind: 'power', names: ['Massive Head', 'Full Force', 'Impact Training', 'Crushing Criticals', 'Overwhelming Impact', 'Earthshaker', 'Cataclysmic Blow'] },
     { name: 'Armour Destruction', kind: 'armour', names: ['Dent Armour', 'Crush Steel', 'Pulverize Plate', 'Broken Shell', 'Deep Fracture', 'Total Fracture', 'Fortress Breaker'] },

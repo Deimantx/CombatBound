@@ -9,7 +9,7 @@ import type {
   CombatProficiencyId,
   ProgressionState,
 } from "../progression/progressionTypes";
-import type { GameSaveV3, GameSaveV4, GameSaveV5, GameSaveV6, GameSaveV7, GameSaveV8, GameSaveV9, GameSaveV10, GameSaveV11, GameSaveV12, LegacyEquipmentStateV10, LegacyInventoryStateV10, LegacyInventoryStateV11 } from "./saveTypes";
+import type { GameSaveV3, GameSaveV4, GameSaveV5, GameSaveV6, GameSaveV7, GameSaveV8, GameSaveV9, GameSaveV10, GameSaveV11, GameSaveV12, GameSaveV13, LegacyEquipmentStateV10, LegacyInventoryStateV10, LegacyInventoryStateV11, LegacyProgressionState } from "./saveTypes";
 import { createInitialCombatAutomation } from "../automation/automationTypes";
 import { normalizeSpellbook } from "../spellbook/spellbookLogic";
 import { spellDefinitions } from "../data/spells";
@@ -61,6 +61,8 @@ function xp(value: unknown) {
 // V12 boundary compatibility for renamed technique perk IDs. Runtime content
 // uses the canonical Technique names while old saves retain their purchased ranks.
 const legacyPerkIdAliases: Record<string, string> = {
+  "perk.one-handed-sword.one-handed-mastery": "perk.one-handed-sword.one-handed-foundations",
+  "perk.fire-magic.fire-magic-mastery": "perk.fire-magic.fire-magic-foundations",
   "one-handed-sword.adaptive-stance": "one-handed-sword.adaptive-technique",
   "one-handed-sword.high-form": "one-handed-sword.focused-technique",
   "one-handed-sword.mid-form": "one-handed-sword.measured-technique",
@@ -125,8 +127,8 @@ export function migrateEquipment(value: unknown, quantities?: Record<string, num
 
 function migrateProgression(
   raw: LegacySaveV2["progression"],
-): ProgressionState {
-  const proficiencies: ProgressionState["proficiencies"] = {};
+): LegacyProgressionState {
+  const proficiencies: LegacyProgressionState["proficiencies"] = {};
   for (const [rawId, value] of Object.entries(raw.proficiencies ?? {})) {
     if (rawId === "warding-magic" || rawId === "light-magic") continue;
     const migratedId = rawId === "disruption-magic" ? "air-magic" : rawId;
@@ -453,8 +455,29 @@ export function migrateV11Save(value: unknown): GameSaveV12 | null {
     slots[slot] = instanceId;
     used.add(instanceId);
   }
-  const migrated: GameSaveV12 = { ...old, version: 12, progression: normalizeProgressionPerkIds(old.progression), inventory: { stackables, instances, nextInstanceSequence }, equipment: { slots } };
+  const migrated: GameSaveV12 = { ...old, version: 12, progression: { ...old.progression, purchasedPerks: normalizePurchasedPerks(old.progression.purchasedPerks) }, inventory: { stackables, instances, nextInstanceSequence }, equipment: { slots } };
   if (Object.values(migrated.inventory.instances).some((instance) => !validateItemInstance(instance).valid)) return null;
+  return migrated;
+}
+
+function migrateV12Progression(value: unknown): ProgressionState | null {
+  if (!isRecord(value) || !isRecord(value.proficiencies)) return null;
+  const proficiencies: ProgressionState["proficiencies"] = {};
+  for (const [id, rawProgress] of Object.entries(value.proficiencies)) {
+    if (!proficiencyById[id] || !isRecord(rawProgress) || rawProgress.proficiencyId !== id || typeof rawProgress.totalXp !== "number" || !Number.isFinite(rawProgress.totalXp) || rawProgress.totalXp < 0) return null;
+    proficiencies[id as CombatProficiencyId] = { proficiencyId: id as CombatProficiencyId, totalXp: rawProgress.totalXp };
+  }
+  const bonusPerkPoints = typeof value.bonusPerkPoints === "number" && Number.isFinite(value.bonusPerkPoints) ? Math.max(0, Math.floor(value.bonusPerkPoints)) : 0;
+  return { proficiencies, hunterRankPoints: 0, bonusPerkPoints, purchasedPerks: normalizePurchasedPerks(value.purchasedPerks) };
+}
+
+/** V12 is the final legacy schema: its combat-derived global XP is intentionally discarded. */
+export function migrateV12Save(value: unknown): GameSaveV13 | null {
+  if (!isRecord(value) || value.version !== 12 || !sharedSaveShape(value) || !isRecord(value.progression) || !isRecord(value.inventory) || !isRecord(value.equipment) || !isRecord(value.spellbook) || !isRecord(value.combatAutomation) || !isRecord(value.combatAutomationPresets) || !isRecord(value.combatAbilities)) return null;
+  const progression = migrateV12Progression(value.progression);
+  if (!progression) return null;
+  const old = value as unknown as GameSaveV12;
+  const migrated: GameSaveV13 = { ...old, version: 13, progression };
   return migrated;
 }
 

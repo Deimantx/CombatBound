@@ -1,7 +1,7 @@
 import { createWeaponTree, conditional, damage, interval, type WeaponTreeProfile } from './helpers'
 
 const profile: WeaponTreeProfile = {
-  proficiencyId: 'dagger', weaponName: 'Dagger', rootName: 'Dagger Mastery', icon: 'sword', apexName: 'Dagger Master',
+  proficiencyId: 'dagger', weaponName: 'Dagger', rootName: 'Dagger Foundations', icon: 'sword', apexName: 'Dagger Master',
   branches: [
     { name: 'Speed', kind: 'tempo', names: ['Quick Hands', 'Fast Recovery', 'Light Grip', 'Rapid Sequence', 'Flurry Rhythm', 'Blade Flurry', 'Impossible Speed'] },
     { name: 'Critical Precision', kind: 'critical', names: ['Needle Point', 'Keen Point', 'Critical Anatomy', 'Perfect Angle', 'Precise Violence', "Assassin's Focus", 'Heartseeker'] },

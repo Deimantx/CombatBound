@@ -21,7 +21,7 @@ export type CombatAtlasTransitionPhase = 'idle' | 'exit' | 'enter'
 
 interface CombatAtlasStageProps {
   view: CombatAtlasViewDefinition
-  masteryLevel: number
+  hunterRank: number
   selectedNodeId?: string
   activeLocationId: string | null
   activeHuntPathNodeId?: string
@@ -33,7 +33,7 @@ interface CombatAtlasStageProps {
   onReturnToWorld: () => void
 }
 
-export function CombatAtlasStage({ view, masteryLevel, selectedNodeId, activeLocationId, activeHuntPathNodeId, activatingNodeId, transitionOrigin, transitionPhase = 'idle', onNodeSelect, onBack, onReturnToWorld }: CombatAtlasStageProps) {
+export function CombatAtlasStage({ view, hunterRank, selectedNodeId, activeLocationId, activeHuntPathNodeId, activatingNodeId, transitionOrigin, transitionPhase = 'idle', onNodeSelect, onBack, onReturnToWorld }: CombatAtlasStageProps) {
   const stageRef = useRef<HTMLDivElement>(null)
   const [hoveredNodeId, setHoveredNodeId] = useState<string>()
   const defaultAccent = atlasAtmosphereAccent[view.atmosphere]
@@ -79,7 +79,7 @@ export function CombatAtlasStage({ view, masteryLevel, selectedNodeId, activeLoc
   }
 
   const renderNode = (node: CombatAtlasNodeLayout, index: number, dimmed: boolean): ReactNode => {
-    const details = combatAtlasNodeDetails(node, masteryLevel)
+    const details = combatAtlasNodeDetails(node, hunterRank)
     const huntPath = activeHuntPathNodeId === node.sourceId
     const activating = activatingNodeId === node.sourceId
     if (view.mode === 'territories') return <CombatAtlasTerritoryCard key={node.sourceId} node={node} details={details} selected={selectedNodeId === node.sourceId} dimmed={dimmed} huntPath={huntPath} activating={activating} index={index} onSelect={onNodeSelect} onHover={setHoveredNodeId} />

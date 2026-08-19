@@ -177,7 +177,7 @@ export function filterItemTaxonomy(root: ItemTaxonomyNode, definitionIds: Readon
 export function itemDefinitionSearchText(item: ItemDefinition) {
   const proficiency = item.weaponProficiencyId ? proficiencyById[item.weaponProficiencyId]?.name ?? item.weaponProficiencyId : "";
   const defensive = item.defensiveProficiencyId ? proficiencyById[item.defensiveProficiencyId]?.name ?? item.defensiveProficiencyId : "";
-  return [item.id, item.name, item.description, item.category, item.equipmentSlotKind, item.rarity, item.requiredMasteryLevel, proficiency, defensive, ...Object.keys(item.stats ?? {}), ...Object.values(item.stats ?? {})].join(" ").toLowerCase();
+  return [item.id, item.name, item.description, item.category, item.equipmentSlotKind, item.rarity, item.requiredHunterRank, proficiency, defensive, ...Object.keys(item.stats ?? {}), ...Object.values(item.stats ?? {})].join(" ").toLowerCase();
 }
 
 export function itemTaxonomyNodeCount(node: ItemTaxonomyNode) {

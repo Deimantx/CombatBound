@@ -1,7 +1,7 @@
 import type { CollectionState } from "../collection/collectionTypes";
 import type { EquipmentSlotId, EquipmentState } from "../equipment/equipmentTypes";
 import type { InventoryState } from "../inventory/inventoryTypes";
-import type { LegacyProgressionState, ProgressionState } from "../progression/progressionTypes";
+import type { CombatProficiencyId, ProgressionState, ProficiencyProgress } from "../progression/progressionTypes";
 import type { SpellbookState } from "../spellbook/spellbookTypes";
 import type { CombatAutomationState } from "../automation/automationTypes";
 import type { CombatAutomationPresetsState } from "../automation/automationPresets";
@@ -12,6 +12,13 @@ export interface LegacyEquipmentStateV10 { slots: Partial<Record<EquipmentSlotId
 export interface LegacyItemInstanceV1 { id: string; definitionId: string; version: 1 }
 export interface LegacyInventoryStateV11 { stackables: Record<string, number>; instances: Record<string, LegacyItemInstanceV1>; nextInstanceSequence: number }
 export interface LegacyEquipmentStateV11 { slots: Partial<Record<EquipmentSlotId, string>> }
+/** Historical progression shape retained only at the save migration boundary. */
+export interface LegacyProgressionState {
+  proficiencies: Partial<Record<CombatProficiencyId, ProficiencyProgress>>;
+  masteryXp: number;
+  bonusPerkPoints?: number;
+  purchasedPerks: Record<string, number>;
+}
 
 export interface GameSaveV4 {
   version: 4;
@@ -91,7 +98,7 @@ export interface GameSaveV3 {
 
 export interface GameSaveV9 {
   version: 9;
-  progression: ProgressionState;
+  progression: LegacyProgressionState;
   inventory: LegacyInventoryStateV10;
   equipment: LegacyEquipmentStateV10;
   collection: CollectionState;
@@ -118,6 +125,11 @@ export interface GameSaveV12 extends Omit<GameSaveV11, "version" | "inventory" |
   version: 12;
   inventory: InventoryState;
   equipment: EquipmentState;
+}
+
+export interface GameSaveV13 extends Omit<GameSaveV12, "version" | "progression"> {
+  version: 13;
+  progression: ProgressionState;
 }
 
 /** Compatibility name for callers that only need the save shape. */

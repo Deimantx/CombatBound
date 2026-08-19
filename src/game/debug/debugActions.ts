@@ -17,8 +17,8 @@ import { COMBAT_ABILITY_SLOT_COUNT } from "../combatAbilities/combatAbilityTypes
 import { createInitialSpellbook, normalizeSpellbook } from "../spellbook/spellbookLogic";
 import { COMBAT_SPELL_SLOT_COUNT } from "../spellbook/spellbookTypes";
 import { allProficiencyDefinitions, discoverProficiency, proficiencyXpForLevel } from "../progression/proficiencyProgression";
-import { MAX_MASTERY_LEVEL, MAX_PROFICIENCY_LEVEL } from "../progression/progressionBalance";
-import { masteryXpForLevel } from "../progression/masteryProgression";
+import { MAX_PROFICIENCY_LEVEL } from "../progression/progressionBalance";
+import { awardHunterRankPoints, MAX_HUNTER_RANK, totalHunterRankPointsForRank } from "../progression/hunterRankProgression";
 import type { CombatProficiencyId } from "../progression/progressionTypes";
 import type { CombatantRef } from "../combat/combatTypes";
 import type { GameState } from "../gameState";
@@ -109,31 +109,29 @@ export function debugGrantAllEquipment(game: GameState, quantity = 1): GameState
   );
 }
 
-export function debugGrantEquipmentTier(game: GameState, masteryLevel: number): GameState {
-  const tier = clampInteger(masteryLevel, 1, MAX_MASTERY_LEVEL);
+export function debugGrantEquipmentTier(game: GameState, hunterRank: number): GameState {
+  const tier = clampInteger(hunterRank, 1, MAX_HUNTER_RANK);
   return prototypeEquipmentDefinitions
-    .filter((item) => item.requiredMasteryLevel === tier)
+    .filter((item) => item.requiredHunterRank === tier)
     .reduce(
       (current, item) => debugGrantItem(current, item.id, prototypeQuantity(item.id, 1)),
       game,
     );
 }
 
-export function debugSetMasteryLevel(game: GameState, level: number): GameState {
-  const safeLevel = clampInteger(level, 1, MAX_MASTERY_LEVEL);
-  return syncCombatStats({
-    ...game,
-    progression: { ...game.progression, masteryXp: masteryXpForLevel(safeLevel) },
-  });
+export function debugSetHunterRankPoints(game: GameState, points: number): GameState {
+  const safePoints = Number.isFinite(points) ? Math.max(0, points) : 0;
+  return syncCombatStats({ ...game, progression: { ...game.progression, hunterRankPoints: safePoints } });
 }
 
-export function debugAddMasteryXp(game: GameState, amount: number): GameState {
-  const safeAmount = Number.isFinite(amount) ? Math.max(0, amount) : 0;
-  if (safeAmount <= 0) return game;
-  return syncCombatStats({
-    ...game,
-    progression: { ...game.progression, masteryXp: game.progression.masteryXp + safeAmount },
-  });
+export function debugSetHunterRank(game: GameState, rank: number): GameState {
+  const safeRank = clampInteger(rank, 1, MAX_HUNTER_RANK);
+  return debugSetHunterRankPoints(game, totalHunterRankPointsForRank(safeRank));
+}
+
+export function debugAddHunterRankPoints(game: GameState, amount: number): GameState {
+  const result = awardHunterRankPoints(game.progression, amount);
+  return result.pointsGained > 0 ? syncCombatStats({ ...game, progression: result.progression }) : game;
 }
 
 export function debugGrantPerkPoints(game: GameState, points: number): GameState {
@@ -393,7 +391,6 @@ export function debugResetSessionMetrics(game: GameState): GameState {
         damageTaken: 0,
         healing: 0,
         proficiencyXpGained: {},
-        masteryXpGained: 0,
         itemsGained: 0,
         lootGained: {},
         itemInstanceIdsGained: [],

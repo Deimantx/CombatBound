@@ -8,14 +8,14 @@ import type { EquipmentComparisonRow } from "../../../../../game/presentation/eq
 import { buildEquipmentItemModifierRows, type EquipmentItemDifferenceRow } from "../../../../../game/presentation/equipmentItemComparison";
 import type { ResolvedItemInstance } from "../../../../../game/items/itemTypes";
 
-export function EquipmentItemComparison({ slotLabel, current, candidate, itemRows, buildRows, combatLocked, masteryLocked, actionLabel, canEquip, onEquip }: {
+export function EquipmentItemComparison({ slotLabel, current, candidate, itemRows, buildRows, combatLocked, hunterRankLocked, actionLabel, canEquip, onEquip }: {
   slotLabel: string;
   current: ResolvedItemInstance | null;
   candidate?: ResolvedItemInstance;
   itemRows: readonly EquipmentItemDifferenceRow[];
   buildRows: readonly EquipmentComparisonRow[];
   combatLocked: boolean;
-  masteryLocked: boolean;
+  hunterRankLocked: boolean;
   actionLabel: string;
   canEquip: boolean;
   onEquip: () => void;
@@ -34,7 +34,7 @@ export function EquipmentItemComparison({ slotLabel, current, candidate, itemRow
       {buildRows.length > 0 && <EquipmentBuildChanges rows={buildRows} replacementName={current?.definition.name} slotLabel={slotLabel} debugKind="hero-equipment-build-changes" title="BUILD IMPACT" />}
       <div className="equipment-comparison-action">
         {combatLocked && <p className="equipment-action-note"><LockKeyhole size={14} />Equipment changes are locked during combat. Preview remains available.</p>}
-        {!combatLocked && masteryLocked && <p className="equipment-action-note is-mastery"><LockKeyhole size={14} />Requires Mastery {candidate.definition.requiredMasteryLevel}.</p>}
+        {!combatLocked && hunterRankLocked && <p className="equipment-action-note is-hunter-rank"><LockKeyhole size={14} />Requires Hunter Rank {candidate.definition.requiredHunterRank}.</p>}
         <button type="button" className="button button-primary" onClick={onEquip} disabled={!canEquip} data-debug-action="equip-preview">{actionLabel}</button>
       </div>
     </>}

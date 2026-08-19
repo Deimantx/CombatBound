@@ -1,3 +1,4 @@
+
 import { describe, expect, it } from "vitest";
 import { createInitialGameState } from "../game/gameState";
 import { equipItemInstance, getCompatibleItemInstances, validateEquipmentChange } from "../game/equipment/equipmentRules";
@@ -39,11 +40,11 @@ describe("Phase 1 item instances", () => {
     const granted = grantItem(game.inventory, "item.hunter-sword", 2);
     game = { ...game, inventory: granted.inventory };
     const [first, second] = Object.values(granted.inventory.instances).filter((instance) => instance.definitionId === "item.hunter-sword");
-    const firstEquip = equipItemInstance({ inventory: game.inventory, equipment: game.equipment, instanceId: first.id, slotId: "weapon", masteryLevel: 10 });
+    const firstEquip = equipItemInstance({ inventory: game.inventory, equipment: game.equipment, instanceId: first.id, slotId: "weapon", hunterRank: 10 });
     expect(firstEquip.validation.valid).toBe(true);
-    const moved = equipItemInstance({ inventory: game.inventory, equipment: firstEquip.equipment, instanceId: first.id, slotId: "weapon", masteryLevel: 10 });
+    const moved = equipItemInstance({ inventory: game.inventory, equipment: firstEquip.equipment, instanceId: first.id, slotId: "weapon", hunterRank: 10 });
     expect(moved.equipment.slots.weapon).toBe(first.id);
-    const replaced = equipItemInstance({ inventory: game.inventory, equipment: moved.equipment, instanceId: second.id, slotId: "weapon", masteryLevel: 10 });
+    const replaced = equipItemInstance({ inventory: game.inventory, equipment: moved.equipment, instanceId: second.id, slotId: "weapon", hunterRank: 10 });
     expect(replaced.equipment.slots.weapon).toBe(second.id);
     expect(Object.keys(game.inventory.instances)).toHaveLength(8);
   });
@@ -81,7 +82,7 @@ describe("Phase 1 item instances", () => {
   it("validates modern saves against ownership and slot invariants", () => {
     const game = createInitialGameState();
     const save = {
-      version: 12 as const,
+      version: 13 as const,
       progression: game.progression,
       inventory: game.inventory,
       equipment: game.equipment,
@@ -104,6 +105,6 @@ describe("Phase 1 item instances", () => {
     const candidates = getCompatibleItemInstances(inventory, "weapon");
     expect(candidates).toHaveLength(2);
     expect(new Set(candidates.map((entry) => entry.instance.id)).size).toBe(2);
-    expect(validateEquipmentChange({ instanceId: candidates[0].instance.id, slotId: "weapon", inventory, equipment: { slots: {} }, masteryLevel: 10 }).valid).toBe(true);
+    expect(validateEquipmentChange({ instanceId: candidates[0].instance.id, slotId: "weapon", inventory, equipment: { slots: {} }, hunterRank: 10 }).valid).toBe(true);
   });
 });

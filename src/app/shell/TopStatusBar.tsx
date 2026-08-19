@@ -2,23 +2,24 @@ import { Bug, CircleDollarSign, Eye, Heart, Settings, Shield, Sparkles } from 'l
 import { calculateHunterCombatStats } from '../../game/equipment/derivedStats'
 import { effectById } from '../../game/data/effects'
 import { getBarrierAmount } from '../../game/combat/combatEffects'
-import { masteryLevelForXp } from '../../game/progression/masteryProgression'
+import { getHunterRankProgress } from '../../game/progression/hunterRankProgression'
 import { formatHealthWithBarrier } from '../../game/presentation/statFormatting'
 import { useGameStore } from '../../state/gameStore'
 import { IconButton } from '../components/IconButton'
 import { TimeBankPopover } from './TimeBankPopover'
+import { GameTooltip } from '../components/tooltip/GameTooltip'
 
 export function TopStatusBar({ onInspect, onDebug }: { onInspect: () => void; onDebug: () => void }) {
   const setScreen = useGameStore((state) => state.setScreen)
   const showInspectorButton = useGameStore((state) => state.showInspectorButton)
   const game = useGameStore((state) => state.game)
   const stats = calculateHunterCombatStats(game.equipment, game.inventory, game.progression, game.combat.techniques)
-  const masteryLevel = masteryLevelForXp(game.progression.masteryXp)
+  const hunterRankProgress = getHunterRankProgress(game.progression.hunterRankPoints)
   const playerHp = game.combat.playerHp
   const absorbShield = getBarrierAmount(game.combat.playerEffects, effectById)
   return (
     <header className="topbar" data-ui-region="header" data-debug-screen="shell">
-      <div className="player-identity"><div className="avatar-badge"><Shield size={19} /></div><div><strong>Vanguard</strong><span>Mastery Lv {masteryLevel} <i /> Power {stats.attackDamage}</span></div></div>
+      <div className="player-identity"><div className="avatar-badge"><Shield size={19} /></div><div><strong>Vanguard</strong><GameTooltip content={{ id: 'hunter-rank', title: `HUNTER RANK ${hunterRankProgress.rank}`, subtitle: 'Global progression', description: 'Hunter Rank measures overall career progression. Hunter Rank Points are designed to be awarded by broader progression sources such as Profession level gains.', rows: [{ label: 'Current Points', value: hunterRankProgress.totalPoints.toLocaleString() }, { label: 'Next Rank', value: hunterRankProgress.isMaxRank ? 'MAX' : hunterRankProgress.nextRankTotalPoints.toLocaleString() }, { label: 'Points Remaining', value: hunterRankProgress.pointsToNextRank.toLocaleString() }] }}><span>Hunter Rank {hunterRankProgress.rank} <i /> Power {stats.attackDamage}</span></GameTooltip></div></div>
       <div className="topbar-stats">
         <div className="top-stat"><CircleDollarSign size={15} className="text-gold" /><span>Gold</span><strong>{game.gold.toLocaleString()}</strong></div>
         <div className="top-stat"><Heart size={15} className="text-red" /><span>HP</span><strong>{formatHealthWithBarrier(playerHp, stats.maxLife ?? 0, absorbShield)}</strong></div>

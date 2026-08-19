@@ -49,7 +49,7 @@ export type ItemAffixModifierDefinition = LocalItemAffixModifierDefinition | Glo
 export interface ItemAffixTierDefinition {
   id: ItemAffixTierId;
   tier: number;
-  requiredMasteryLevel?: number;
+  requiredHunterRank?: number;
   modifiers: ItemAffixModifierDefinition[];
 }
 

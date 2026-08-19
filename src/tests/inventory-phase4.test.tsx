@@ -1,3 +1,4 @@
+
 import { act, cleanup, fireEvent, render, screen, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { DebugItemsTab } from "../app/debug/admin/tabs/DebugItemsTab";
@@ -177,7 +178,7 @@ describe("Phase 4 inventory and debug UI", () => {
   it("uses concrete equipment type metadata and exposes alternate-slot movement", () => {
     const debug = useGameStore.getState().debug;
     debug.setOwnedItemCount("item.ring-of-precision", 2);
-    debug.setMasteryLevel(10);
+    debug.setHunterRank(10);
     const ringIds = Object.values(useGameStore.getState().game.inventory.instances).filter((instance) => instance.definitionId === "item.ring-of-precision").map((instance) => instance.id);
     useGameStore.getState().equipItemInstance(ringIds[0], "ring1");
     render(<TooltipProvider><InventoryScreen /></TooltipProvider>);

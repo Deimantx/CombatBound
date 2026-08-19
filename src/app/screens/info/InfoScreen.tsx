@@ -1,3 +1,4 @@
+
 import {
   BookOpen,
   CircleHelp,
@@ -151,7 +152,7 @@ export function InfoScreen() {
             ].map((step, index) => (
               <div className="resolution-step" key={step}>
                 <strong>{step}</strong>
-                {index < 8 && <span>↓</span>}
+                {index < 8 && <span>â†“</span>}
               </div>
             ))}
           </div>
@@ -297,42 +298,38 @@ export function InfoScreen() {
           </div>
         </Panel>
         <Panel
-          title="Combat Mastery & Perks"
-          subtitle="Global progression earned from eligible weapon and magic outcomes"
+          title="Hunter Rank & Perks"
+          subtitle="Career rank gates and independent perk progression"
           icon={Sparkles}
-          panelId="infoMastery"
+          panelId="infoHunterRank"
           screen="info"
           className="info-guide"
         >
           <div className="skill-reference-grid">
             <div className="skill-reference-card">
-              <strong>Combat Mastery</strong>
+              <strong>Hunter Rank</strong>
               <p>
-                Each point of eligible Proficiency XP also grants one point of
-                global Mastery XP. Mastery Level gates world content and grants
-                Perk Points, but does not automatically add combat stats.
+                Hunter Rank is a separate career progression from Proficiency XP.
+                It is used for world and equipment requirements and is not granted
+                by combat or Proficiency XP.
               </p>
-              <small>Separate Mastery XP curve · Maximum Level 100</small>
+              <small>Ranks 1–30 · points are awarded by the Profession system</small>
             </div>
             <div className="skill-reference-card">
-              <strong>Magic progression</strong>
+              <strong>Proficiency XP</strong>
               <p>
-                Fire, Water, Air, Earth, and Darkness Magic gain XP from
-                meaningful outcomes: effective damage, credited periodic damage,
-                successful action effects, effective healing, and meaningful Barrier
-                or cleanse results.
+                Each weapon, magic, and defensive path tracks its own XP and
+                level. Its harder decade-scaled curve rewards focused training
+                without changing Hunter Rank.
               </p>
-              <small>
-                Failed casts, misses, overheal, empty Barriers, and empty
-                cleanses grant no magic XP
-              </small>
+              <small>Each Proficiency has an independent level cap</small>
             </div>
             <div className="skill-reference-card">
               <strong>Perk Points</strong>
               <p>
-                The first Perk Point costs 1,000 Mastery XP. Each additional
-                point costs 500 more than the previous threshold. Points are
-                derived from lifetime Mastery XP and spent in unlocked trees.
+                Perk Points are independent spendable points for authored
+                Proficiency trees. Combat and Proficiency XP do not grant them;
+                bonus points are tracked separately.
               </p>
               <small>{proficiencyPerkDefinitions.length} authored perks</small>
             </div>
@@ -466,10 +463,10 @@ export function InfoScreen() {
           className="info-status"
         >
           <div className="status-checks">
-            <span>✓ No offline combat simulation</span>
-            <span>✓ No crafting or gathering systems</span>
-            <span>✓ No movement, companions, or bosses</span>
-            <span>✓ Placeholder art and temporary balance</span>
+            <span>âœ“ No offline combat simulation</span>
+            <span>âœ“ No crafting or gathering systems</span>
+            <span>âœ“ No movement, companions, or bosses</span>
+            <span>âœ“ Placeholder art and temporary balance</span>
           </div>
         </Panel>
       </div>
@@ -489,7 +486,7 @@ function GuideRow({
   return (
     <div className="guide-row">
       <span className="guide-icon">
-        {Icon ? <Icon size={15} /> : <span>•</span>}
+        {Icon ? <Icon size={15} /> : <span>â€¢</span>}
       </span>
       <div>
         <strong>{title}</strong>

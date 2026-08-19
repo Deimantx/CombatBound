@@ -1,3 +1,4 @@
+
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import App from "../../App";
@@ -60,7 +61,7 @@ describe("Hero Build Workspace V11", () => {
   it("previews gear without mutating equipment and commits only through EQUIP", () => {
     const store = useGameStore.getState();
     store.debug.setOwnedItemCount("item.hunter-sword", 1);
-    store.debug.setMasteryLevel(5);
+    store.debug.setHunterRank(5);
     render(<App />);
     fireEvent.click(screen.getByRole("button", { name: "Hero" }));
 
@@ -85,14 +86,14 @@ describe("Hero Build Workspace V11", () => {
     expect(document.querySelector('[data-debug-kind="hero-combat-stats"]')).not.toHaveAttribute("data-debug-preview-item-id");
   });
 
-  it("allows mastery-locked preview while keeping EQUIP disabled", () => {
+  it("allows Hunter Rank-locked preview while keeping EQUIP disabled", () => {
     useGameStore.getState().debug.setOwnedItemCount("item.vanguard-sword", 1);
     render(<App />);
     fireEvent.click(screen.getByRole("button", { name: "Hero" }));
     const candidate = document.querySelector('[data-debug-kind="equipment-candidate"][data-debug-item-id="item.vanguard-sword"]') as HTMLButtonElement;
     fireEvent.click(candidate);
     expect(candidate).toHaveAttribute("data-debug-preview-selected", "true");
-    expect(screen.getAllByText("MASTERY 10 REQUIRED").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("HUNTER RANK 10 REQUIRED").length).toBeGreaterThan(0);
     expect(screen.getByRole("button", { name: "EQUIP" })).toBeDisabled();
   });
 

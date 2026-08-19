@@ -2,7 +2,7 @@ export type InventorySortKey =
   | "manual"
   | "name"
   | "rarity"
-  | "mastery"
+  | "hunter-rank"
   | "quality"
   | "upgrade"
   | "affix-count"
@@ -23,7 +23,7 @@ export interface InventorySortOption {
 }
 
 interface SortableInventoryEntry {
-  definition: { id: string; name: string; category: string; rarity: "common" | "uncommon" | "rare"; requiredMasteryLevel?: number };
+  definition: { id: string; name: string; category: string; rarity: "common" | "uncommon" | "rare"; requiredHunterRank?: number };
   quantity: number;
   resolved?: { instance: { quality: number; upgradeLevel: number; affixes: readonly unknown[] } };
   sequence: number;
@@ -44,7 +44,7 @@ export function inventorySortOptions(category: "all" | "equipment" | "consumable
     { value: "manual", label: "Manual" },
     { value: "name", label: "Name" },
     { value: "rarity", label: "Rarity" },
-    { value: "mastery", label: "Mastery Level" },
+    { value: "hunter-rank", label: "Hunter Rank" },
     { value: "quality", label: "Quality" },
     { value: "upgrade", label: "Upgrade Level" },
     { value: "affix-count", label: "Affix Count" },
@@ -75,7 +75,7 @@ function primaryValue(entry: SortableInventoryEntry, key: InventorySortKey): num
   if (key === "name") return entry.definition.name;
   if (key === "category") return categoryRank[entry.definition.category] ?? 99;
   if (key === "rarity") return rarityRank[entry.definition.rarity];
-  if (key === "mastery") return entry.definition.requiredMasteryLevel ?? 0;
+  if (key === "hunter-rank") return entry.definition.requiredHunterRank ?? 0;
   if (key === "quality") return entry.resolved?.instance.quality ?? 0;
   if (key === "upgrade") return entry.resolved?.instance.upgradeLevel ?? 0;
   if (key === "affix-count") return entry.resolved?.instance.affixes.length ?? 0;

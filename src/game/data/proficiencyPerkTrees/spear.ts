@@ -1,7 +1,7 @@
 import { createWeaponTree, conditional, damage, interval, type WeaponTreeProfile } from './helpers'
 
 const profile: WeaponTreeProfile = {
-  proficiencyId: 'spear', weaponName: 'Spear', rootName: 'Spear Mastery', icon: 'spear', apexName: 'Spearmaster',
+  proficiencyId: 'spear', weaponName: 'Spear', rootName: 'Spear Foundations', icon: 'spear', apexName: 'Spearmaster',
   branches: [
     { name: 'Precision', kind: 'precision', names: ['Point Control', 'Measured Thrust', 'Narrow Opening', 'Perfect Line', 'Long Reach', 'Unerring Point', 'Perfect Thrust'] },
     { name: 'Critical Windows', kind: 'critical', names: ['Keen Spearhead', 'Piercing Precision', 'Weak-Point Study', 'Critical Window', 'Exploit Opening', 'Fatal Line', 'Heart-Piercer'] },

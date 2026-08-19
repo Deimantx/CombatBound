@@ -1,3 +1,4 @@
+
 import { describe, expect, it } from "vitest";
 import { createInitialGameState } from "../game/gameState";
 import { grantItem } from "../game/items/itemOwnership";
@@ -52,7 +53,7 @@ describe("Phase 4.4 inventory architecture", () => {
     inventory = setItemUpgradeLevel(inventory, id, 3).inventory;
     inventory = addItemAffix(inventory, id, "affix.sharpened", "affix.sharpened.t1", { next: () => 0.15 }).inventory;
     const resolved = resolveItemInstance(inventory, id)!;
-    const tooltip = buildPlayerItemInstanceTooltip(resolved, { equipped: true, masteryLevel: 5 });
+    const tooltip = buildPlayerItemInstanceTooltip(resolved, { equipped: true, hunterRank: 5 });
     const text = JSON.stringify(tooltip);
     expect(tooltip.sections?.map((section) => section.id)).toEqual(["requirements", "modifications", "item-stats"]);
     expect(text).toContain("Quality");
@@ -79,7 +80,7 @@ describe("Phase 4.4 inventory architecture", () => {
     };
     const tooltip = buildItemTooltip(item);
     expect(tooltip.rows?.map((row) => row.label)).toEqual([
-      "Mastery", "Max Life", "Armour", "Max Mana", "Mana Regeneration", "Max Stamina", "Stamina Regeneration", "Fire Resistance", "Block Chance",
+      "Hunter Rank", "Max Life", "Armour", "Max Mana", "Mana Regeneration", "Max Stamina", "Stamina Regeneration", "Fire Resistance", "Block Chance",
     ]);
     expect(JSON.stringify(tooltip)).not.toContain("More stats");
   });

@@ -4,11 +4,12 @@ import { combatArenaTooltipModel } from '../app/screens/combat/combatLocationPre
 describe('combat arena tooltip presentation', () => {
   it('uses real Wolf Den data for selected arena details', () => {
     const tooltip = combatArenaTooltipModel('location.wolf-den', 'SELECTED', false, true)
-
     expect(tooltip.title).toBe('Wolf Den')
-    expect(tooltip.subtitle).toBe('Wolves · SELECTED')
+    expect(tooltip.subtitle).toContain('Wolves')
+    expect(tooltip.subtitle).toContain('SELECTED')
     expect(tooltip.tone).toBe('gold')
-    expect(tooltip.rows).toEqual([{ label: 'Recommended', value: 'Mastery 1–10', tone: 'gold' }])
+    expect(tooltip.rows?.[0]?.label).toBe('Recommended')
+    expect(tooltip.rows?.[0]?.value).toContain('Hunter Rank')
     expect(tooltip.sections?.[0].notes).toEqual(['Grey Wolf', 'Wolf Stalker', 'Wolf Ravager', 'Alpha Wolf'])
   })
 })

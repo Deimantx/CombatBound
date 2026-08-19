@@ -1,10 +1,11 @@
+
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Award, Check, Lock, MousePointer2, Sparkles, Swords } from 'lucide-react'
 import { proficiencyDefinitions, proficiencyById } from '../../../game/data/proficiencies'
 import { perkById } from '../../../game/data/proficiencyPerks'
 import { resolveItemInstance } from '../../../game/items/itemResolver'
 import { getEquippedWeaponProficiency } from '../../../game/progression/progressionSelectors'
-import { calculateEarnedPerkPoints, calculateAvailablePerkPoints, calculateSpentPerkPoints, masteryLevelForXp, masteryXpForLevel, masteryXpToNextLevel } from '../../../game/progression/masteryProgression'
+import { calculateAvailablePerkPoints } from '../../../game/progression/perkProgression'
 import { getPerkPurchaseState } from '../../../game/progression/perkProgression'
 import { getProficiencyLevelProgress, getProficiencyProgress, getProficiencyXpToNextLevel } from '../../../game/progression/proficiencyProgression'
 import { useGameStore } from '../../../state/gameStore'
@@ -64,26 +65,13 @@ export function ProficienciesScreen() {
   const [treePanByProficiency, setTreePanByProficiency] = useState<Partial<Record<CombatProficiencyId, TreePan>>>({})
   useEffect(() => setSelectedPerkId(''), [selectedId])
   const selected = proficiencyById[selectedId] ?? proficiencyDefinitions[0]
-  const earned = calculateEarnedPerkPoints(game.progression.masteryXp)
-  const spent = calculateSpentPerkPoints(game.progression, perkById)
   const available = calculateAvailablePerkPoints(game.progression, perkById)
-  const masteryLevel = masteryLevelForXp(game.progression.masteryXp)
-  const masteryCurrent = masteryXpForLevel(masteryLevel)
-  const masteryNext = masteryLevel >= 100 ? masteryCurrent : masteryXpForLevel(masteryLevel + 1)
-  const masteryPercent = masteryNext === masteryCurrent ? 100 : ((game.progression.masteryXp - masteryCurrent) / (masteryNext - masteryCurrent)) * 100
   const activeWeapon = game.equipment.slots.weapon ? resolveItemInstance(game.inventory, game.equipment.slots.weapon)?.definition.name : undefined
   const selectedPerks = selected.perkIds.map((perkId) => perkById[perkId]).filter((perk): perk is ProficiencyPerkDefinition => Boolean(perk))
   const selectedPerk = selectedPerks.find((perk) => perk.id === selectedPerkId) ?? selectedPerks[0]
 
   return <div className="screen proficiencies-screen" data-debug-screen="proficiencies">
     <ScreenHeading screen="proficiencies" />
-    <Panel title="Combat Mastery" subtitle="Global lifetime weapon and magic progression" icon={Sparkles} panelId="masterySummary" screen="proficiencies" className="mastery-summary-panel">
-      <div className="mastery-summary-grid">
-        <ProgressionMetric label="Mastery Level" value={`Lv ${masteryLevel}`} detail={`${Math.floor(game.progression.masteryXp).toLocaleString()} XP`} progress={masteryPercent} tooltip={{ id: 'progression.mastery-level', title: 'Mastery Level', subtitle: 'Global combat progression', description: 'Mastery Level is derived from lifetime Mastery XP and gates world content. It does not automatically grant combat stats.' }} />
-        <ProgressionMetric label="Mastery XP" value={Math.floor(game.progression.masteryXp).toLocaleString()} detail={masteryLevel >= 100 ? 'Maximum level reached' : `${masteryXpToNextLevel(game.progression).toLocaleString()} XP to next level`} progress={masteryPercent} tooltip={{ id: 'progression.mastery-xp', title: 'Mastery XP', subtitle: 'Global lifetime progression', description: 'Global lifetime combat progression earned whenever eligible weapon or magic Proficiency XP is gained.' }} />
-        <ProgressionMetric label="Available Perk Points" value={`${available}`} detail={`Earned ${earned} · Spent ${spent}`} progress={earned > 0 ? (available / earned) * 100 : 0} tooltip={{ id: 'progression.perk-points', title: 'Perk Points', subtitle: 'Global spendable progression', description: 'Perk Points are earned at increasing Mastery XP thresholds and spent in unlocked Proficiency trees.' }} />
-      </div>
-    </Panel>
     <div className="proficiencies-layout">
       <Panel title="Proficiencies" subtitle="Select a combat path" icon={Swords} panelId="proficiencyList" screen="proficiencies" className="proficiency-list-panel proficiencies-selector">
         {PROFICIENCY_GROUPS.map((group) => <ProficiencyGroup key={group.category} category={group.category} label={group.label} definitions={proficiencyDefinitions.filter((definition) => definition.category === group.category)} selectedId={selected.id} equippedId={group.category === 'melee' || group.category === 'ranged' ? equippedProficiency : null} progression={game.progression} defensiveContext={group.category === 'defense' ? defensiveContext : undefined} onSelect={setSelectedId} />)}
@@ -99,10 +87,6 @@ export function ProficienciesScreen() {
   </div>
 }
 
-function ProgressionMetric({ label, value, detail, progress, tooltip }: { label: string; value: string; detail: string; progress: number; tooltip: { id: string; title: string; subtitle: string; description: string } }) {
-  const content = <div className="mastery-metric" data-debug-kind="progression-metric" data-debug-label={label}><span className="tiny-label">{label}</span><strong>{value}</strong><small>{detail}</small><ProgressBar value={Math.max(0, Math.min(100, progress))} variant="experience" ariaLabel={`${label} progress`} /></div>
-  return <GameTooltip content={tooltip}>{content}</GameTooltip>
-}
 
 function defensivePiecesFor(id: CombatProficiencyId, context: ReturnType<typeof getDefensiveEquipmentContext>) {
   return id === 'light-armor' ? context.lightArmorPieces : id === 'medium-armor' ? context.mediumArmorPieces : id === 'heavy-armor' ? context.heavyArmorPieces : id === 'shield' ? (context.shieldEquipped ? 1 : 0) : 0
@@ -126,7 +110,7 @@ function ProficiencyTile({ definition, selected, active, progression, onSelect }
   const levelLabel = levelProgress.level > 0 ? `Lv ${levelProgress.level} / ${definition.maxLevel}` : 'UNTRAINED'
   const tooltipXp = levelProgress.isMaxLevel ? `${Math.floor(xp).toLocaleString()} XP` : levelProgress.level === 0 ? `${Math.floor(xp).toLocaleString()} XP` : `${Math.floor(xp).toLocaleString()} / ${levelProgress.nextLevelXp.toLocaleString()} XP`
   const tooltip = { id: `proficiency.${definition.id}`, title: definition.name, subtitle: `${definition.category === 'magic' ? 'Magic' : definition.category === 'melee' ? 'Melee' : definition.category === 'ranged' ? 'Ranged' : 'Defense'} proficiency`, description: definition.description, rows: [{ label: 'Level', value: levelLabel, tone: levelProgress.level > 0 ? 'blue' as const : 'default' as const }, { label: 'XP', value: tooltipXp, tone: 'gold' as const }], notes: [active ? definition.category === 'defense' ? 'Active defensive equipment training' : 'Active Weapon Proficiency' : '', definition.category === 'magic' ? 'Spell Available' : ''].filter(Boolean) }
-  const content = <button type="button" className={`proficiency-tile ${selected ? 'is-selected' : ''} ${active ? 'is-active' : ''}`} onClick={() => onSelect(definition.id)} aria-pressed={selected} data-debug-kind="proficiency-tile" data-debug-legacy-kind="proficiency-row" data-debug-proficiency-id={definition.id} data-debug-label={definition.name}><span className="proficiency-tile-top"><PlaceholderArt icon={definition.icon} size="small" variant={active ? 'gold' : selected ? 'blue' : 'muted'} />{(active || definition.category === 'magic') && <span className={`proficiency-tile-indicator ${active ? 'is-active' : 'is-spell'}`} aria-label={active ? definition.category === 'defense' ? 'Active defensive proficiency' : 'Active weapon proficiency' : 'Spell available'}>{active ? 'A' : '✦'}</span>}</span><strong className="proficiency-tile-name">{definition.name}</strong><small>{levelLabel}</small><ProgressBar value={Math.max(0, Math.min(100, percent))} variant="experience" ariaLabel={`${definition.name} XP progress`} /></button>
+  const content = <button type="button" className={`proficiency-tile ${selected ? 'is-selected' : ''} ${active ? 'is-active' : ''}`} onClick={() => onSelect(definition.id)} aria-pressed={selected} data-debug-kind="proficiency-tile" data-debug-legacy-kind="proficiency-row" data-debug-proficiency-id={definition.id} data-debug-label={definition.name}><span className="proficiency-tile-top"><PlaceholderArt icon={definition.icon} size="small" variant={active ? 'gold' : selected ? 'blue' : 'muted'} />{(active || definition.category === 'magic') && <span className={`proficiency-tile-indicator ${active ? 'is-active' : 'is-spell'}`} aria-label={active ? definition.category === 'defense' ? 'Active defensive proficiency' : 'Active weapon proficiency' : 'Spell available'}>{active ? 'A' : '—'}</span>}</span><strong className="proficiency-tile-name">{definition.name}</strong><small>{levelLabel}</small><ProgressBar value={Math.max(0, Math.min(100, percent))} variant="experience" ariaLabel={`${definition.name} XP progress`} /></button>
   return <GameTooltip content={tooltip}>{content}</GameTooltip>
 }
 
@@ -293,6 +277,6 @@ function PerkDetailsPanel({ perk, progression, availablePoints, onPurchase }: { 
   const state = getPerkPurchaseState(progression, perk.id, perkById)
   const nextRank = Math.min(perk.maxRank, state.currentRank + 1)
   const lockedReason = state.status === 'level-locked' ? `Requires ${perk.requiredProficiencyLevel} Proficiency level.` : state.status === 'prerequisite-locked' ? 'Required prerequisite ranks are not complete.' : state.status === 'points-locked' ? `Needs ${state.missingPoints} more Perk Point${state.missingPoints === 1 ? '' : 's'}.` : state.status === 'maxed' ? 'Maximum rank reached.' : 'Ready to purchase.'
-  const prerequisiteText = perk.prerequisiteRules.length === 0 ? 'Root node — no prerequisites.' : perk.prerequisiteRules.map((rule) => `${rule.mode === 'all' ? 'All' : `Any ${rule.minimumSatisfied ?? 1}`} of ${rule.requirements.map((requirement) => `${perkById[requirement.perkId]?.name ?? requirement.perkId} R${requirement.requiredRank}`).join(', ')}`).join(' · ')
+  const prerequisiteText = perk.prerequisiteRules.length === 0 ? 'Root node â€” no prerequisites.' : perk.prerequisiteRules.map((rule) => `${rule.mode === 'all' ? 'All' : `Any ${rule.minimumSatisfied ?? 1}`} of ${rule.requirements.map((requirement) => `${perkById[requirement.perkId]?.name ?? requirement.perkId} R${requirement.requiredRank}`).join(', ')}`).join(' · ')
   return <aside className="perk-tree-details perk-details-panel" data-debug-kind="perk-details" data-debug-perk-id={perk.id}><div className="perk-details-panel-heading"><span className="tiny-label">PERK DETAILS</span><span className={`perk-details-status is-${state.status}`}>{state.status === 'available' ? <Award size={13} /> : <Lock size={13} />}{statusLabel[state.status]}</span></div><div className="perk-details-heading"><div><span className="tiny-label">{perk.branch}</span><h3>{perk.name}</h3></div></div><p>{perk.description}</p><div className="perk-details-grid"><span>Proficiency</span><strong>{proficiencyById[perk.proficiencyId]?.name ?? perk.proficiencyId}</strong><span>Rank</span><strong>{state.currentRank} / {perk.maxRank}</strong><span>Current effect</span><strong>{state.currentRank > 0 ? `Active at rank ${state.currentRank}` : 'Not active'}</strong><span>Next effect</span><strong>{nextRank > state.currentRank ? `Rank ${nextRank} upgrade` : 'Complete'}</strong><span>Cost</span><strong>{state.status === 'maxed' ? 'Complete' : `${perk.costPerRank} Perk Point${perk.costPerRank === 1 ? '' : 's'}`}</strong><span>Requirement</span><strong>Level {perk.requiredProficiencyLevel}</strong></div><div className="perk-details-prerequisites"><span className="tiny-label">PREREQUISITES</span><small>{prerequisiteText}</small></div><div className={`perk-details-lock is-${state.status}`}>{lockedReason}</div><button type="button" className="button primary full-button" disabled={state.status !== 'available'} onClick={() => onPurchase(perk.id)} data-debug-action="purchase-perk" data-debug-perk-id={perk.id}>{state.status === 'available' ? `Purchase Rank ${nextRank} · ${perk.costPerRank} Point${perk.costPerRank === 1 ? '' : 's'}` : state.status === 'maxed' ? 'Max Rank Reached' : `Need ${availablePoints} Available Point${availablePoints === 1 ? '' : 's'}`}</button></aside>
 }

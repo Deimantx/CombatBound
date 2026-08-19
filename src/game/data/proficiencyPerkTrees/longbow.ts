@@ -1,7 +1,7 @@
 import { createWeaponTree, conditional, damage, interval, type WeaponTreeProfile } from './helpers'
 
 const profile: WeaponTreeProfile = {
-  proficiencyId: 'longbow', weaponName: 'Longbow', rootName: 'Longbow Mastery', icon: 'bow', apexName: 'Longbow Master',
+  proficiencyId: 'longbow', weaponName: 'Longbow', rootName: 'Longbow Foundations', icon: 'bow', apexName: 'Longbow Master',
   branches: [
     { name: 'Marksman Precision', kind: 'precision', names: ['Steady Draw', 'Long Sight', 'Fine Release', 'Measured Shot', 'Unerring Arrow', 'Master Marksman', 'Impossible Shot'] },
     { name: 'Power / Crit', kind: 'power', names: ['Heavy Arrow', 'Strong Draw', 'Killing Shaft', 'Full Draw', 'Lethal Release', 'Warbow Force', 'Dragonshot'] },

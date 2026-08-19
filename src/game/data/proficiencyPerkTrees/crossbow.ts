@@ -1,7 +1,7 @@
 import { createWeaponTree, conditional, damage, interval, type WeaponTreeProfile } from './helpers'
 
 const profile: WeaponTreeProfile = {
-  proficiencyId: 'crossbow', weaponName: 'Crossbow', rootName: 'Crossbow Mastery', icon: 'crossbow', apexName: 'Crossbow Master',
+  proficiencyId: 'crossbow', weaponName: 'Crossbow', rootName: 'Crossbow Foundations', icon: 'crossbow', apexName: 'Crossbow Master',
   branches: [
     { name: 'Bolt Power', kind: 'power', names: ['Heavy Bolt', 'Powerful Limbs', 'Massive Impact', 'Driven Bolt', 'Overdrawn Mechanism', 'Siege Bolt', 'Ballista Shot'] },
     { name: 'Armor Penetration', kind: 'penetration', names: ['Hardened Bolts', 'Bodkin Bolt', 'Punch Through', 'Plate Piercer', 'Siege Heads', 'Ignore the Plate', 'Armor Means Nothing'] },

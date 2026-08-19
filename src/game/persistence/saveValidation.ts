@@ -1,4 +1,4 @@
-import type { GameSaveV12 } from "./saveTypes";
+import type { GameSaveV13 } from "./saveTypes";
 import { proficiencyById } from "../data/proficiencies";
 import { perkById } from "../data/proficiencyPerks";
 import { COMBAT_SPELL_SLOT_COUNT } from "../spellbook/spellbookTypes";
@@ -12,10 +12,10 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return Boolean(value) && typeof value === "object" && !Array.isArray(value);
 }
 
-export function isGameSave(value: unknown): value is GameSaveV12 {
+export function isGameSave(value: unknown): value is GameSaveV13 {
   if (
     !isRecord(value) ||
-    value.version !== 12 ||
+    value.version !== 13 ||
     typeof value.gold !== "number" ||
     !isRecord(value.progression) ||
     !isRecord(value.inventory) ||
@@ -31,8 +31,9 @@ export function isGameSave(value: unknown): value is GameSaveV12 {
   const progression = value.progression;
   if (
     !isRecord(progression.proficiencies) ||
-    typeof progression.masteryXp !== "number" ||
-    progression.masteryXp < 0 ||
+    typeof progression.hunterRankPoints !== "number" ||
+    !Number.isFinite(progression.hunterRankPoints) ||
+    progression.hunterRankPoints < 0 ||
     typeof progression.bonusPerkPoints !== "number" ||
     !Number.isInteger(progression.bonusPerkPoints) ||
     progression.bonusPerkPoints < 0 ||
@@ -62,8 +63,8 @@ export function isGameSave(value: unknown): value is GameSaveV12 {
     })
   )
     return false;
-  const inventory = value.inventory as unknown as GameSaveV12["inventory"];
-  const equipment = value.equipment as unknown as GameSaveV12["equipment"];
+  const inventory = value.inventory as unknown as GameSaveV13["inventory"];
+  const equipment = value.equipment as unknown as GameSaveV13["equipment"];
   const collection = value.collection;
   const settings = value.settings;
   const spellbook = value.spellbook;

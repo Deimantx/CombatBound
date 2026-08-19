@@ -1,6 +1,6 @@
 import { useDeferredValue, useEffect, useMemo, useState } from "react";
 import { buildOwnedItemTaxonomyCounts } from "../../../game/presentation/itemTaxonomy";
-import { masteryLevelForXp } from "../../../game/progression/masteryProgression";
+import { hunterRankForPoints } from "../../../game/progression/hunterRankProgression";
 import {
   defaultInventoryFilters,
   inventoryItemTaxonomy,
@@ -46,14 +46,14 @@ export function InventoryScreen() {
   const [filters, setFilters] = useState<InventoryFilters>(defaultInventoryFilters);
   const [visibleLimit, setVisibleLimit] = useState(INVENTORY_PAGE_SIZE);
   const deferredQuery = useDeferredValue(query);
-  const masteryLevel = masteryLevelForXp(game.progression.masteryXp);
+  const hunterRank = hunterRankForPoints(game.progression.hunterRankPoints);
   const profileId = activeProfileId ?? "profile-1";
   const storageKey = manualOrderStorageKey(profileId);
   const sort = sortByCategory[category];
 
   const allOwnedEntries = useMemo(
-    () => selectInventoryEntries(game.inventory, game.equipment, defaultInventoryFilters, "", { key: "name", direction: "asc" }, { masteryLevel }),
-    [game.equipment, game.inventory, masteryLevel],
+    () => selectInventoryEntries(game.inventory, game.equipment, defaultInventoryFilters, "", { key: "name", direction: "asc" }, { hunterRank }),
+    [game.equipment, game.inventory, hunterRank],
   );
   const allOwnedKeys = useMemo(() => allOwnedEntries.map((entry) => serializeInventoryEntryRef(entry.ref)), [allOwnedEntries]);
   const allOwnedKeysToken = allOwnedKeys.join("\0");
@@ -83,8 +83,8 @@ export function InventoryScreen() {
     [category, equipmentNodeId, filters],
   );
   const filteredEntries = useMemo(
-    () => selectInventoryEntries(game.inventory, game.equipment, effectiveFilters, deferredQuery, sort, { masteryLevel }),
-    [deferredQuery, effectiveFilters, game.equipment, game.inventory, masteryLevel, sort],
+    () => selectInventoryEntries(game.inventory, game.equipment, effectiveFilters, deferredQuery, sort, { hunterRank }),
+    [deferredQuery, effectiveFilters, game.equipment, game.inventory, hunterRank, sort],
   );
   const entries = useMemo(
     () => sort.key === "manual" && manualOrderState.storageKey === storageKey
@@ -156,7 +156,7 @@ export function InventoryScreen() {
             query={query}
             activeFilterCount={activeFilterCount}
             showSummary={Boolean(query.trim() || activeFilterCount)}
-            masteryLevel={masteryLevel}
+            hunterRank={hunterRank}
             manualMode={sort.key === "manual"}
             selectedRef={selectedRef}
             onSelect={(entry) => selectEntry(entry.ref)}

@@ -198,13 +198,13 @@ describe('gameplay domain', () => {
     expect(nextGroup.combat.stamina).toBeLessThan(nextGroup.combat.maxStamina)
   })
 
-  it('levels weapon proficiency and global mastery from eligible damage', () => {
+  it('levels weapon proficiency without changing Hunter Rank', () => {
     let progression = createInitialGameState().progression
     const result = awardProficiencyXp(progression, 'one-handed-sword', proficiencyXpForLevel(4))
     progression = result.progression
     expect(proficiencyLevelForXp(progression.proficiencies['one-handed-sword']!.totalXp)).toBeGreaterThanOrEqual(4)
-    expect(progression.masteryXp).toBe(proficiencyXpForLevel(4))
-    expect(result.perkPointsEarned).toBe(0)
+    expect(progression.hunterRankPoints).toBe(0)
+    expect(result.levelsGained).toBeGreaterThan(0)
   })
 
   it('awards only actual HP damage from direct weapon attacks', () => {
@@ -214,9 +214,8 @@ describe('gameplay domain', () => {
     const target = started.combat.enemies[0]
     const overkill = advanceCombat({ ...started, combat: { ...started.combat, playerAttackTimer: 0, selectedEnemyInstanceId: target.instanceId, enemies: [{ ...target, currentHealth: 1 }] } }, 0.01, fixedContext, stats)
     expect(overkill.progression.proficiencies['one-handed-sword']?.totalXp).toBe(1)
-    expect(overkill.progression.masteryXp).toBe(1)
+    expect(overkill.progression.hunterRankPoints).toBe(0)
     expect(overkill.combat.session.proficiencyXpGained['one-handed-sword']).toBe(1)
-    expect(overkill.combat.session.masteryXpGained).toBe(1)
   })
 
   it('awards magic progression for eligible Fire spell damage without awarding the equipped weapon', () => {
@@ -225,7 +224,7 @@ describe('gameplay domain', () => {
     const started = startHunt(game, 'location.wolf-den', stats, fixedContext)
     const target = started.combat.enemies[0]
     const cast = castSpell({ ...started, combat: { ...started.combat, selectedEnemyInstanceId: target.instanceId, mana: 100 } }, 'spell.flame-blast', stats, fixedContext)
-    expect(cast.progression.masteryXp).toBeGreaterThan(0)
+    expect(cast.progression.hunterRankPoints).toBe(0)
     expect(cast.progression.proficiencies['one-handed-sword']?.totalXp).toBe(0)
     expect(cast.progression.proficiencies['fire-magic']?.totalXp).toBeGreaterThan(0)
     expect(cast.combat.session.proficiencyXpGained['fire-magic']).toBeGreaterThan(0)

@@ -18,22 +18,22 @@ describe('proficiency perk graphs', () => {
   })
 
   it('uses any-rule minimums and rank-specific requirements in the purchase state', () => {
-    const base = { ...createInitialGameState().progression, masteryXp: 10000, proficiencies: { 'one-handed-sword': { proficiencyId: 'one-handed-sword' as const, totalXp: proficiencyXpForLevel(100) } } }
+    const base = { ...createInitialGameState().progression, bonusPerkPoints: 8, proficiencies: { 'one-handed-sword': { proficiencyId: 'one-handed-sword' as const, totalXp: proficiencyXpForLevel(100) } } }
     const apex = perkById['perk.one-handed-sword.swordmaster']
     expect(apex.prerequisiteRules.some((rule) => rule.mode === 'any' && rule.minimumSatisfied === 3)).toBe(true)
     expect(getPerkPurchaseState(base, apex.id, perkById).status).toBe('prerequisite-locked')
-    const partial = { ...base, purchasedPerks: { 'perk.one-handed-sword.one-handed-mastery': 5, 'perk.one-handed-sword.final-measure': 1, 'perk.one-handed-sword.red-finale': 1, 'perk.one-handed-sword.perfect-form': 1 } }
+    const partial = { ...base, purchasedPerks: { 'perk.one-handed-sword.one-handed-foundations': 5, 'perk.one-handed-sword.final-measure': 1, 'perk.one-handed-sword.red-finale': 1, 'perk.one-handed-sword.perfect-form': 1 } }
     expect(getPerkPurchaseState(partial, apex.id, perkById).status).toBe('points-locked')
-    const purchased = purchasePerk({ ...partial, masteryXp: 1000000 }, apex.id, perkById)
+    const purchased = purchasePerk({ ...partial, bonusPerkPoints: 100 }, apex.id, perkById)
     expect(purchased.outcome).toBe('purchased')
   })
 
   it('reports distinct level, prerequisite, points, and maxed states', () => {
-    const rootId = 'perk.one-handed-sword.one-handed-mastery'
+    const rootId = 'perk.one-handed-sword.one-handed-foundations'
     const root = perkById[rootId]
     const noPoints = { ...createInitialGameState().progression, proficiencies: { 'one-handed-sword': { proficiencyId: 'one-handed-sword' as const, totalXp: 0 } } }
     expect(getPerkPurchaseState(noPoints, rootId, perkById).status).toBe('level-locked')
-    const lowLevel = { ...noPoints, masteryXp: 1000, proficiencies: { 'one-handed-sword': { proficiencyId: 'one-handed-sword' as const, totalXp: 0 } } }
+    const lowLevel = { ...noPoints, bonusPerkPoints: 0, proficiencies: { 'one-handed-sword': { proficiencyId: 'one-handed-sword' as const, totalXp: 0 } } }
     expect(getPerkPurchaseState(lowLevel, 'perk.one-handed-sword.measured-strikes', perkById).status).toBe('level-locked')
     const purchased = { ...lowLevel, proficiencies: { 'one-handed-sword': { proficiencyId: 'one-handed-sword' as const, totalXp: proficiencyXpForLevel(5) } }, purchasedPerks: { [rootId]: 1 } }
     expect(getPerkPurchaseState(purchased, 'perk.one-handed-sword.measured-strikes', perkById).status).toBe('points-locked')
@@ -42,7 +42,7 @@ describe('proficiency perk graphs', () => {
   })
 
   it('rejects a cyclic graph', () => {
-    const root = proficiencyPerkDefinitions.find((perk) => perk.id === 'perk.fire-magic.fire-magic-mastery')!
+    const root = proficiencyPerkDefinitions.find((perk) => perk.id === 'perk.fire-magic.fire-magic-foundations')!
     const child = proficiencyPerkDefinitions.find((perk) => perk.id === 'perk.fire-magic.kindled-force')!
     const result = validatePerkGraph([{ ...root, prerequisiteRules: [{ mode: 'all', requirements: [{ perkId: child.id, requiredRank: 1 }] }] }, child], 'fire-magic')
     expect(result.valid).toBe(false)

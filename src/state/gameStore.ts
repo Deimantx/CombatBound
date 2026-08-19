@@ -21,7 +21,7 @@ import { normalizeEquipmentState } from "../game/equipment/equipmentRules";
 import { combatLocationById } from "../game/data/world/combatLocations";
 import { continentById } from "../game/data/world/continents";
 import { createInitialGameState, type GameState } from "../game/gameState";
-import { masteryLevelForXp } from "../game/progression/masteryProgression";
+import { hunterRankForPoints } from "../game/progression/hunterRankProgression";
 import { discoverProficiency } from "../game/progression/proficiencyProgression";
 import { purchasePerk } from "../game/progression/perkProgression";
 import { perkById } from "../game/data/proficiencyPerks";
@@ -36,7 +36,7 @@ import {
   loadProfileGameSave,
 } from "../game/profiles/profileStorage";
 import { getProfileSessionOwnerId, isProfileSessionOwner } from "../game/profiles/profileSessionLease";
-import { gameStateToSaveV12, parseGameSaveJson } from "../game/persistence/saveGame";
+import { gameStateToSaveV13, parseGameSaveJson } from "../game/persistence/saveGame";
 import type { ProfileId } from "../game/profiles/profileTypes";
 import type { InventoryEntryRef } from "../game/items/itemTypes";
 import type { TechniqueId } from "../game/combat/combatTypes";
@@ -84,7 +84,7 @@ import type { HeroWindowRequest, ScreenId } from "../shared/types";
 import type { AutomationCondition, AutomationRule } from "../game/automation/automationTypes";
 import {
   debugAddGold,
-  debugAddMasteryXp,
+  debugAddHunterRankPoints,
   debugApplyEffect,
   debugCancelEnemyActions,
   debugClearAllEnemyEffects,
@@ -128,7 +128,8 @@ import {
   debugAddItemAffix,
   debugRemoveItemAffix,
   debugRerollItemAffix,
-  debugSetMasteryLevel,
+  debugSetHunterRank,
+  debugSetHunterRankPoints,
   debugSetBonusPerkPoints,
   debugSetPlayerResource,
   debugSetProficiencyLevel,
@@ -251,9 +252,10 @@ export interface DebugStoreApi {
   removeItemAffix: (instanceId: string, affixId: string) => void;
   rerollItemAffix: (instanceId: string, affixId: string) => void;
   grantAllEquipment: (quantity?: number) => void;
-  grantEquipmentTier: (masteryLevel: number) => void;
-  setMasteryLevel: (level: number) => void;
-  addMasteryXp: (amount: number) => void;
+  grantEquipmentTier: (hunterRank: number) => void;
+  setHunterRank: (rank: number) => void;
+  setHunterRankPoints: (points: number) => void;
+  addHunterRankPoints: (amount: number) => void;
   grantPerkPoints: (points: number) => void;
   setBonusPerkPoints: (points: number) => void;
   resetBonusPerkPoints: () => void;
@@ -427,7 +429,7 @@ function savePermanent(
   const profileId = activeProfileIdForPersistence();
   // A lease check here protects every gameplay save path, including debug and combat mutations.
   if (!profileId || !isProfileSessionOwner(profileId, getProfileSessionOwnerId())) return false;
-  return saveProfileGameSave(profileId, gameStateToSaveV12(game, settings));
+  return saveProfileGameSave(profileId, gameStateToSaveV13(game, settings));
 }
 
 function captureDebugCombatEvents(previous: GameState, next: GameState) {
@@ -515,9 +517,9 @@ export const useGameStore = create<GameStoreState>((set, get) => {
     useDevToolsRuntimeStore.getState().clearEnemyImmortality();
     useDevToolsRuntimeStore.getState().resetSimulationAccumulator();
     return set((state) => {
-      const masteryLevel = masteryLevelForXp(state.game.progression.masteryXp);
+      const hunterRank = hunterRankForPoints(state.game.progression.hunterRankPoints);
       if (
-        !isCombatLocationAvailable(state.selectedCombatLocationId, masteryLevel)
+        !isCombatLocationAvailable(state.selectedCombatLocationId, hunterRank)
       )
         return state;
       const stats = calculateHunterCombatStats(
@@ -567,8 +569,9 @@ export const useGameStore = create<GameStoreState>((set, get) => {
     rerollItemAffix: (instanceId, affixId) => commitDebug((game) => debugRerollItemAffix(game, instanceId, affixId), true),
     grantAllEquipment: (quantity = 1) => commitDebug((game) => debugGrantAllEquipment(game, quantity), true),
     grantEquipmentTier: (level) => commitDebug((game) => debugGrantEquipmentTier(game, level), true),
-    setMasteryLevel: (level) => commitDebug((game) => debugSetMasteryLevel(game, level), true),
-    addMasteryXp: (amount) => commitDebug((game) => debugAddMasteryXp(game, amount), true),
+    setHunterRank: (rank) => commitDebug((game) => debugSetHunterRank(game, rank), true),
+    setHunterRankPoints: (points) => commitDebug((game) => debugSetHunterRankPoints(game, points), true),
+    addHunterRankPoints: (amount) => commitDebug((game) => debugAddHunterRankPoints(game, amount), true),
     grantPerkPoints: (points) => commitDebug((game) => debugGrantPerkPoints(game, points), true),
     setBonusPerkPoints: (points) => commitDebug((game) => debugSetBonusPerkPoints(game, points), true),
     resetBonusPerkPoints: () => commitDebug(debugResetBonusPerkPoints, true),
@@ -705,7 +708,7 @@ export const useGameStore = create<GameStoreState>((set, get) => {
         const game = advanceCombat(state.game, delta, context, stats);
         captureDebugCombatEvents(state.game, game);
         if (
-          game.progression.masteryXp !== state.game.progression.masteryXp ||
+          game.progression.hunterRankPoints !== state.game.progression.hunterRankPoints ||
           Object.keys(game.progression.proficiencies).length !==
             Object.keys(state.game.progression.proficiencies).length ||
           game.combat.session.enemiesDefeated !==
@@ -745,7 +748,7 @@ export const useGameStore = create<GameStoreState>((set, get) => {
         const game = engineCastSpell(state.game, spellId, stats, context);
         captureDebugCombatEvents(state.game, game);
         if (
-          game.progression.masteryXp !== state.game.progression.masteryXp ||
+          game.progression.hunterRankPoints !== state.game.progression.hunterRankPoints ||
           Object.keys(game.progression.proficiencies).length !==
             Object.keys(state.game.progression.proficiencies).length
         )
@@ -1113,7 +1116,7 @@ export const useGameStore = create<GameStoreState>((set, get) => {
           slotId: slot,
           inventory: state.game.inventory,
           equipment: state.game.equipment,
-          masteryLevel: masteryLevelForXp(state.game.progression.masteryXp),
+          hunterRank: hunterRankForPoints(state.game.progression.hunterRankPoints),
         });
         if (!result.validation.valid) return state;
         if (result.equipment === state.game.equipment) return state;

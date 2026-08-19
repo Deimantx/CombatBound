@@ -1,5 +1,5 @@
 import { useMemo } from "react";
-import { masteryLevelForXp } from "../../../../game/progression/masteryProgression";
+import { hunterRankForPoints } from "../../../../game/progression/hunterRankProgression";
 import { getDefensiveEquipmentContext } from "../../../../game/equipment/defensiveEquipment";
 import type { EquipmentPreviewState } from "../../../../game/equipment/equipmentPreview";
 import { equippedSlotForInstance, getCompatibleItemInstances, validateEquipmentChange } from "../../../../game/equipment/equipmentRules";
@@ -40,15 +40,15 @@ export function HeroEquipmentWorkspace({ preview, hoveredPreview, previewState, 
   const selected = (EQUIPMENT_SLOT_DEFINITIONS.some((slot) => slot.id === selectedEquipmentSlot) ? selectedEquipmentSlot : "weapon") as EquipmentSlotId;
   const selectedDefinition = EQUIPMENT_SLOT_DEFINITIONS.find((slot) => slot.id === selected)!;
   const combatLocked = combatPhase === "active" || combatPhase === "recovery";
-  const masteryLevel = masteryLevelForXp(progression.masteryXp);
+  const hunterRank = hunterRankForPoints(progression.hunterRankPoints);
   const defensiveContext = useMemo(() => getDefensiveEquipmentContext(equipment, inventory), [equipment, inventory]);
   const effectivePreviewState = previewState;
   const candidates = useMemo(() => getCompatibleItemInstances(inventory, selected), [inventory, selected]);
   const candidateModels = useMemo<EquipmentCandidateModel[]>(() => candidates.map((entry) => {
-    const validation = validateEquipmentChange({ instanceId: entry.instance.id, slotId: selected, inventory, equipment, masteryLevel });
+    const validation = validateEquipmentChange({ instanceId: entry.instance.id, slotId: selected, inventory, equipment, hunterRank });
     const equipped = entry.instance.id === equipment.slots[selected];
-    return { entry, validation, equipped, equippedSlot: equippedSlotForInstance(equipment, entry.instance.id), masteryLocked: validation.reason === "mastery-level", canEquip: validation.valid && !combatLocked && !equipped, combatLocked };
-  }), [candidates, combatLocked, equipment, inventory, masteryLevel, selected]);
+    return { entry, validation, equipped, equippedSlot: equippedSlotForInstance(equipment, entry.instance.id), hunterRankLocked: validation.reason === "hunter-rank", canEquip: validation.valid && !combatLocked && !equipped, combatLocked };
+  }), [candidates, combatLocked, equipment, inventory, hunterRank, selected]);
 
   const selectCandidate = (instanceId: string) => onPreviewChange({ slotId: selected, instanceId });
   const hoverCandidate = (instanceId: string) => onHoverPreview({ slotId: selected, instanceId });

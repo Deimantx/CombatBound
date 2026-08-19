@@ -1,3 +1,4 @@
+
 import { describe, expect, it } from "vitest";
 import { effectDefinitions } from "../game/data/effects";
 import { itemDefinitions } from "../game/data/items";
@@ -61,10 +62,10 @@ describe("debug catalogue presentation", () => {
 
   it("uses canonical tooltip builders for item, enemy, and spell identities", () => {
     const item = itemDefinitions.find((entry) => entry.name === "Vanguard Plate")!;
-    const itemTooltip = buildItemTooltip(item, { quantity: 2, masteryLevel: 10, equipped: true });
+    const itemTooltip = buildItemTooltip(item, { quantity: 2, hunterRank: 10, equipped: true });
     expect(itemTooltip.title).toBe("Vanguard Plate");
     expect(itemTooltip.description).toContain("heavy torso");
-    expect(itemTooltip.rows?.map((row) => row.label)).toEqual(expect.arrayContaining(["Quantity", "Mastery", "Max Life", "Life Regen", "Armour"]));
+    expect(itemTooltip.rows?.map((row) => row.label)).toEqual(expect.arrayContaining(["Quantity", "Hunter Rank", "Max Life", "Life Regen", "Armour"]));
     const enemyTooltip = buildEnemyDefinitionTooltip(enemyById["enemy.grey-wolf"], { defeats: 3, sourceLocations: ["Wolf Den"] });
     expect(enemyTooltip.title).toBe("Grey Wolf");
     expect(enemyTooltip.rows?.map((row) => row.label)).toEqual(expect.arrayContaining(["Family", "Max Life", "Attack Damage", "Accuracy Rating", "Armour", "Evasion Rating"]));

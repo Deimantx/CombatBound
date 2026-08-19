@@ -44,7 +44,7 @@ const branchData: Record<DefensiveId, { name: string; icon: string; root: string
       { name: 'Stamina Discipline', icon: 'wind', names: ['Balanced Breathing', 'Stamina Reserve', 'Efficient Motion', 'Second Wind', 'Combat Rhythm', 'Enduring Pace', 'Unbroken Stamina'] },
       { name: 'Mobile Defense', icon: 'shield', names: ['Moving Guard', 'Reactive Step', 'Skirmisher Pace', 'Deflecting Path', 'Mobile Bulwark', 'Dancing Defense', 'Uncatchable'] },
       { name: 'Weapon Tempo', icon: 'sword', names: ['Ready Grip', 'Tempo Study', 'Measured Strikes', 'Swift Recovery', 'Battle Cadence', 'Rapid Technique', 'Perfect Tempo'] },
-      { name: 'Balanced Guard', icon: 'shield', names: ['Practical Armor', 'Guarded Center', 'Firm Footing', 'Flexible Guard', 'Reinforced Frame', 'Adaptive Defense', 'Balanced Mastery'] },
+      { name: 'Balanced Guard', icon: 'shield', names: ['Practical Armor', 'Guarded Center', 'Firm Footing', 'Flexible Guard', 'Reinforced Frame', 'Adaptive Defense', 'Balanced Training'] },
       { name: 'General Resilience', icon: 'spark', names: ["Hunter's Resolve", 'Pain Tolerance', 'Status Awareness', 'Hardy Constitution', 'Elemental Balance', 'Relentless Survivor', 'Versatile Resilience'] },
     ],
     effects: (branch, index) => {
@@ -75,7 +75,7 @@ const branchData: Record<DefensiveId, { name: string; icon: string; root: string
   shield: {
     name: 'Shield', icon: 'shield', root: 'Shield Foundation', apex: 'Shieldmaster',
     branches: [
-      { name: 'Shield Mastery', icon: 'shield', names: ['Shield Familiarity', 'Guard Training', 'Broad Guard', 'Shield Wall', 'Perfect Guard', 'Aegis Training', 'Impenetrable Guard'] },
+      { name: 'Shield Training', icon: 'shield', names: ['Shield Familiarity', 'Guard Training', 'Broad Guard', 'Shield Wall', 'Perfect Guard', 'Aegis Training', 'Impenetrable Guard'] },
         { name: 'Impact Warding', icon: 'shield', names: ['Braced Impact', 'Dense Guard', 'Absorbing Face', 'Reinforced Rim', 'Heavy Deflection', 'Warding Block', 'Unstoppable Guard'] },
       { name: 'Stamina Control', icon: 'wind', names: ['Guarded Breathing', 'Efficient Block', 'Stamina on Guard', 'Measured Defense', 'Endless Guard', 'Rhythmic Guard', 'Unbroken Rhythm'] },
       { name: 'Counterattack', icon: 'sword', names: ['Shield and Blade', 'Opening Counter', 'Reprisal', 'Perfect Riposte', 'Driving Counter', 'Punishing Wall', 'Countermaster'] },

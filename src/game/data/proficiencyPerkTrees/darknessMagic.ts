@@ -1,7 +1,7 @@
 import { createMagicTree, type MagicTreeProfile } from './magicHelpers'
 
 const profile: MagicTreeProfile = {
-  proficiencyId: 'darkness-magic', schoolName: 'Darkness Magic', damageType: 'chaos', rootName: 'Darkness Magic Mastery', icon: 'moon',
+  proficiencyId: 'darkness-magic', schoolName: 'Darkness Magic', damageType: 'chaos', rootName: 'Darkness Magic Foundations', icon: 'moon',
   branches: [
     { name: 'Shadow Damage', kind: 'shadow', names: ['Shadow Bolt', 'Focused Shadow', 'Dense Darkness', 'Black Edge', 'Nightfall', 'Abyssal Force', 'Void Strike'], icon: 'moon' },
     { name: 'Curse / Weakening', kind: 'curse', names: ['Whispered Curse', 'Deepening Curse', 'Weakening Word', 'Heavy Curse', 'Open to Darkness', 'Enduring Hex', 'Doomed Soul'], icon: 'moon' },

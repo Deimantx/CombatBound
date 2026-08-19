@@ -78,7 +78,7 @@ export function buildItemTooltip(
     quantity?: number;
     equipped?: boolean;
     defensiveContext?: DefensiveEquipmentContext;
-    masteryLevel?: number;
+    hunterRank?: number;
   } = {},
 ): TooltipModel {
   const statRows = formatItemStats(item.stats ?? {}).map((row) => ({
@@ -87,16 +87,16 @@ export function buildItemTooltip(
     tone: row.tone,
   }));
   const rows = statRows;
-  if (item.requiredMasteryLevel !== undefined) {
+  if (item.requiredHunterRank !== undefined) {
     rows.unshift({
-      label: "Mastery",
-      value: `Lv ${item.requiredMasteryLevel}`,
+      label: "Hunter Rank",
+      value: `${item.requiredHunterRank}`,
       tone: "gold" as TooltipTone,
     });
-    if (options.masteryLevel !== undefined && options.masteryLevel < item.requiredMasteryLevel)
+    if (options.hunterRank !== undefined && options.hunterRank < item.requiredHunterRank)
       rows.unshift({
         label: "Availability",
-        value: `Requires Mastery ${item.requiredMasteryLevel} · Current Mastery ${options.masteryLevel}`,
+        value: `Requires Hunter Rank ${item.requiredHunterRank} · Current Hunter Rank ${options.hunterRank}`,
         tone: "red",
       });
   }
@@ -126,7 +126,7 @@ export function buildItemInstanceTooltip(
     equipped?: boolean;
     equippedSlot?: EquipmentSlotId;
     defensiveContext?: DefensiveEquipmentContext;
-    masteryLevel?: number;
+    hunterRank?: number;
   } = {},
 ): TooltipModel {
   const tooltip = buildItemTooltip(
@@ -160,7 +160,7 @@ export function buildPlayerItemInstanceTooltip(
     equipped?: boolean;
     equippedSlot?: EquipmentSlotId;
     defensiveContext?: DefensiveEquipmentContext;
-    masteryLevel?: number;
+    hunterRank?: number;
   } = {},
 ): TooltipModel {
   const presentation = buildItemPresentation(resolved, { equipped: options.equipped });
@@ -174,7 +174,7 @@ export function buildPlayerItemInstanceTooltip(
     ? [{ label: "Equipped", value: options.equippedSlot ? getEquipmentSlotDefinition(options.equippedSlot).label : resolved.definition.equipmentSlotKind ? equipmentSlotKindLabel(resolved.definition.equipmentSlotKind) : "Currently equipped", tone: "green" }]
     : [];
   const allBaseRows = [...equippedRows, ...(tooltip.rows ?? [])];
-  const requirementRows = allBaseRows.filter((row) => row.label === "Mastery" || row.label === "Availability" || row.label === "Equipped");
+  const requirementRows = allBaseRows.filter((row) => row.label === "Hunter Rank" || row.label === "Availability" || row.label === "Equipped");
   const statRows = allBaseRows.filter((row) => !requirementRows.includes(row));
   const sections = [
     requirementRows.length ? { id: "requirements", title: "Requirements / State", rows: requirementRows } : undefined,

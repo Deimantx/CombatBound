@@ -1,7 +1,7 @@
 import { createMagicTree, type MagicTreeProfile } from './magicHelpers'
 
 const profile: MagicTreeProfile = {
-  proficiencyId: 'water-magic', schoolName: 'Water Magic', damageType: 'cold', rootName: 'Water Magic Mastery', icon: 'droplets',
+  proficiencyId: 'water-magic', schoolName: 'Water Magic', damageType: 'cold', rootName: 'Water Magic Foundations', icon: 'droplets',
   branches: [
     { name: 'Frost / Chill', kind: 'frost', names: ['Cold Touch', 'Deep Chill', 'Numbing Cold', 'Brittle Motion', 'Freezing Pressure', "Winter's Grasp", 'Absolute Cold'], icon: 'snowflake' },
     { name: 'Tidal Force', kind: 'tidal', names: ['Pressurized Flow', 'Focused Current', 'Crashing Wave', 'Hydraulic Impact', 'High Tide', 'Tidal Surge', "Ocean's Wrath"], icon: 'droplets' },

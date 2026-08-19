@@ -28,8 +28,8 @@ export function validateItemDefinition(item: ItemDefinition): ItemValidationResu
 
   if (item.equipmentSlotKind && !EQUIPMENT_SLOT_DEFINITIONS.some((slot) => slot.kind === item.equipmentSlotKind))
     errors.push(`${item.id}: invalid equipment slot kind ${item.equipmentSlotKind}`);
-  if (item.equipmentSlotKind && item.requiredMasteryLevel !== undefined && (!Number.isInteger(item.requiredMasteryLevel) || item.requiredMasteryLevel < 1))
-    errors.push(`${item.id}: requiredMasteryLevel must be an integer >= 1`);
+  if (item.equipmentSlotKind && item.requiredHunterRank !== undefined && (!Number.isInteger(item.requiredHunterRank) || item.requiredHunterRank < 1))
+    errors.push(`${item.id}: requiredHunterRank must be an integer >= 1`);
   if (item.equipmentSlotKind && item.stats === undefined)
     warnings.push(`${item.id}: equipment item has no stats`);
 

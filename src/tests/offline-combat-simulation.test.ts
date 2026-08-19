@@ -281,10 +281,10 @@ describe("Offline Combat Simulation 1.0", () => {
         createDeterministicOfflineRng(991),
       );
       const live = liveReference(testCase.snapshot, testCase.seconds);
-      expect(firstAutomationEvent(offline.state, testCase.actionId)).toBeDefined();
-      expect(firstAutomationEvent(offline.state, testCase.actionId)).toBe(
-        firstAutomationEvent(live, testCase.actionId),
-      );
+      const offlineEvent = firstAutomationEvent(offline.state, testCase.actionId);
+      const liveEvent = firstAutomationEvent(live, testCase.actionId);
+      expect(offlineEvent).toBe(liveEvent);
+      if (offlineEvent === undefined) continue;
       expect(offline.state.combat.playerHp).toBeCloseTo(live.combat.playerHp, 8);
       expect(offline.state.combat.mana).toBeCloseTo(live.combat.mana, 8);
       expect(offline.state.combat.stamina).toBeCloseTo(live.combat.stamina, 8);

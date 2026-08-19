@@ -1,7 +1,7 @@
 import { createWeaponTree, conditional, damage, interval, type WeaponTreeProfile } from './helpers'
 
 const profile: WeaponTreeProfile = {
-  proficiencyId: 'shortbow', weaponName: 'Shortbow', rootName: 'Shortbow Mastery', icon: 'bow', apexName: 'Shortbow Master',
+  proficiencyId: 'shortbow', weaponName: 'Shortbow', rootName: 'Shortbow Foundations', icon: 'bow', apexName: 'Shortbow Master',
   branches: [
     { name: 'Rapid Fire', kind: 'tempo', names: ['Quick Draw', 'Fast Nock', 'Loose Rhythm', 'Rapid Cadence', 'Relentless Volley', "Skirmisher's Rhythm", 'Rain of Arrows'] },
     { name: 'Precision / Crit', kind: 'critical', names: ['Steady Aim', 'Fine Fletching', 'Quick Sight', 'Keen Archer', 'Critical Release', 'Deadeye Rhythm', 'Perfect Shot'] },

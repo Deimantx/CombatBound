@@ -17,7 +17,7 @@ export type EquipmentChangeFailureReason =
   | "unknown-slot"
   | "invalid-instance"
   | "wrong-slot-kind"
-  | "mastery-level";
+  | "hunter-rank";
 
 export interface EquipmentChangeValidation {
   valid: boolean;
@@ -32,13 +32,13 @@ export function validateEquipmentChange({
   instanceId,
   slotId,
   inventory,
-  masteryLevel,
+  hunterRank,
 }: {
   instanceId: ItemInstanceId | string;
   slotId: EquipmentSlotId | string;
   inventory: InventoryState;
   equipment: EquipmentState;
-  masteryLevel: number;
+  hunterRank: number;
 }): EquipmentChangeValidation {
   if (!isEquipmentSlotId(slotId)) return { valid: false, reason: "unknown-slot" };
   if (!isItemInstanceId(instanceId)) return { valid: false, reason: "invalid-instance" };
@@ -48,8 +48,8 @@ export function validateEquipmentChange({
   if (!definition) return { valid: false, reason: "unknown-definition" };
   if (definition.inventoryMode !== "instance") return { valid: false, reason: "invalid-instance" };
   if (!canEquipItemToSlot(definition, slotId)) return { valid: false, reason: "wrong-slot-kind" };
-  if (definition.requiredMasteryLevel !== undefined && Math.max(0, Math.floor(masteryLevel)) < definition.requiredMasteryLevel)
-    return { valid: false, reason: "mastery-level" };
+  if (definition.requiredHunterRank !== undefined && Math.max(0, Math.floor(hunterRank)) < definition.requiredHunterRank)
+    return { valid: false, reason: "hunter-rank" };
   return { valid: true };
 }
 
@@ -62,15 +62,15 @@ export function equipItemInstance({
   equipment,
   instanceId,
   slotId,
-  masteryLevel,
+  hunterRank,
 }: {
   inventory: InventoryState;
   equipment: EquipmentState;
   instanceId: ItemInstanceId | string;
   slotId: EquipmentSlotId | string;
-  masteryLevel: number;
+  hunterRank: number;
 }): { equipment: EquipmentState; validation: EquipmentChangeValidation } {
-  const validation = validateEquipmentChange({ instanceId, slotId, inventory, equipment, masteryLevel });
+  const validation = validateEquipmentChange({ instanceId, slotId, inventory, equipment, hunterRank });
   if (!validation.valid || !isEquipmentSlotId(slotId)) return { equipment, validation };
   if (equipment.slots[slotId] === instanceId) return { equipment, validation };
   const nextSlots = { ...equipment.slots };
@@ -85,7 +85,7 @@ export function previewEquipmentChange(input: {
   equipment: EquipmentState;
   instanceId: ItemInstanceId | string;
   slotId: EquipmentSlotId | string;
-  masteryLevel: number;
+  hunterRank: number;
 }) {
   return equipItemInstance(input);
 }

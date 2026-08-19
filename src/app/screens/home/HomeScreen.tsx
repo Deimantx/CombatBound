@@ -1,8 +1,10 @@
+
 import { Award, BookOpen, Coins, Crosshair, Shield, Sparkles, Swords, Trophy } from 'lucide-react'
 import { enemyById } from '../../../game/data/enemies'
 import { itemDefinitions } from '../../../game/data/items'
 import { proficiencyById } from '../../../game/data/proficiencies'
-import { calculateAvailablePerkPoints, calculateEarnedPerkPoints, masteryLevelForXp } from '../../../game/progression/masteryProgression'
+import { calculateAvailablePerkPoints } from '../../../game/progression/perkProgression'
+import { getHunterRankProgress } from '../../../game/progression/hunterRankProgression'
 import { getActiveWeaponProficiency } from '../../../game/progression/progressionSelectors'
 import { getProficiencyLevelProgress, getProficiencyProgress, getProficiencyXpToNextLevel } from '../../../game/progression/proficiencyProgression'
 import { combatLocationById } from '../../../game/data/world/combatLocations'
@@ -30,7 +32,7 @@ export function HomeScreen() {
   const activeLevelProgress = active ? getProficiencyLevelProgress(xp, activeDefinition?.maxLevel) : undefined
   const level = activeLevelProgress?.level ?? 0
   const proficiencyPercent = (activeLevelProgress?.progressFraction ?? 0) * 100
-  const earnedPoints = calculateEarnedPerkPoints(game.progression.masteryXp)
+  const hunterRankProgress = getHunterRankProgress(game.progression.hunterRankPoints)
   const availablePoints = calculateAvailablePerkPoints(game.progression, Object.fromEntries(proficiencyPerkDefinitions.map((perk) => [perk.id, perk])))
   const totalDefeats = Object.values(game.collection.targets).reduce((sum, entry) => sum + entry.defeats, 0)
   const discoveredTargets = Object.values(game.collection.targets).filter((entry) => entry.discovered).length
@@ -44,13 +46,13 @@ export function HomeScreen() {
     <ScreenHeading screen="home" />
     <div className="home-overview-grid">
       <Panel title="Hunter overview" subtitle="Your current combat profile" icon={Shield} panelId="homeOverview" screen="home" className="home-overview">
-        <div className="overview-primary"><div className="large-avatar"><Shield size={35} /></div><div><h3>Vanguard</h3><p>{activeDefinition?.name ?? 'No weapon proficiency'} · {stats.attackDamage} Attack Damage</p><div className="identity-tags"><span>MASTERY {Math.floor(game.progression.masteryXp).toLocaleString()} XP</span><span>POWER {stats.attackDamage}</span></div></div></div>
+        <div className="overview-primary"><div className="large-avatar"><Shield size={35} /></div><div><h3>Vanguard</h3><p>{activeDefinition?.name ?? "No weapon proficiency"} / {stats.attackDamage} Attack Damage</p><div className="identity-tags"><span>HUNTER RANK {hunterRankProgress.rank}</span><span>POWER {stats.attackDamage}</span></div></div></div>
         <div className="overview-stats"><StatLine label="Current activity" value={activeLocation ? `${activeLocation.name} · ${activeFamily ?? 'Hunt'} · Group ${game.combat.groupNumber}` : 'Idle'} accent="blue" /><StatLine label="Total kills" value={totalDefeats} accent="gold" /><StatLine label="Active proficiency" value={activeDefinition ? `${activeDefinition.name} · Lv ${level}` : 'Untrained'} /></div>
         <div className="home-hp"><div className="home-hp-heading"><span>Current health</span><strong>{playerHealth}</strong></div><ProgressBar value={(game.combat.playerHp / Math.max(1, stats.maxLife ?? 0)) * 100} variant="health" ariaLabel={`Player health ${playerHealth}`} /></div>
         <button className="button button-primary full-button" onClick={() => setScreen('combat')}><Swords size={15} />{game.combat.phase === 'active' ? 'View live combat' : 'Open combat'}</button>{activeLocation && <p className="home-active-breadcrumb">{locationBreadcrumb(activeLocation.id)}</p>}
       </Panel>
-      <Panel title="Combat Mastery" subtitle="Weapon use becomes permanent progression" icon={Sparkles} panelId="homeCombatMastery" screen="home">
-        <div className="mastery-home-grid"><div><span className="tiny-label">MASTERY LEVEL</span><strong>Lv {masteryLevelForXp(game.progression.masteryXp)}</strong></div><div><span className="tiny-label">MASTERY XP</span><strong>{Math.floor(game.progression.masteryXp).toLocaleString()}</strong></div><div><span className="tiny-label">PERK POINTS</span><strong>{availablePoints}</strong><small>{earnedPoints} earned</small></div></div>
+      <Panel title="Hunter Rank" subtitle="Global career progression" icon={Sparkles} panelId="homeHunterRank" screen="home">
+        <div className="hunter-rank-home-grid"><div><span className="tiny-label">HUNTER RANK</span><strong>Rank {hunterRankProgress.rank}</strong></div><div><span className="tiny-label">RANK POINTS</span><strong>{Math.floor(hunterRankProgress.totalPoints).toLocaleString()}</strong></div><div><span className="tiny-label">TO NEXT RANK</span><strong>{hunterRankProgress.isMaxRank ? "MAX" : hunterRankProgress.pointsToNextRank.toLocaleString()}</strong><small>{availablePoints} perk points available</small></div></div>
         <div className="active-proficiency-home"><span className="tiny-label">ACTIVE WEAPON PROFICIENCY</span><strong>{activeDefinition ? `${activeDefinition.name} · Lv ${level}` : 'UNTRAINED'}</strong><small>{active ? `${getProficiencyXpToNextLevel(game.progression, active.proficiencyId).toLocaleString()} XP to next level` : 'Equip a weapon to begin.'}</small>{activeDefinition && <ProgressBar value={Math.max(0, Math.min(100, proficiencyPercent))} variant="experience" ariaLabel="Active proficiency progress" />}</div>
         <button className="button button-ghost full-button" onClick={() => setScreen('proficiencies')}><Award size={15} />Open Proficiencies</button>
       </Panel>

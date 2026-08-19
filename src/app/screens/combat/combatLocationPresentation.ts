@@ -9,7 +9,7 @@ export interface CombatLocationPresentation {
   familyName: string
   enemies: Array<EnemyPresentation & { enemy: NonNullable<EnemyPresentation['enemy']> }>
   sharedLootNames: string[]
-  recommendedMasteryLabel: string
+  recommendedHunterRankLabel: string
   groupSizeLabel: string
 }
 
@@ -18,7 +18,7 @@ export function combatLocationPresentation(location: CombatLocationDefinition): 
     familyName: enemyFamilyById[location.familyId]?.name ?? 'Unknown Family',
     enemies: location.enemyPool.map((entry) => enemyPresentation(entry.enemyId)).filter((entry): entry is EnemyPresentation & { enemy: NonNullable<EnemyPresentation['enemy']> } => Boolean(entry.enemy)),
     sharedLootNames: location.sharedLoot?.map((drop) => itemById[drop.itemId]?.name ?? 'Unknown Item') ?? [],
-    recommendedMasteryLabel: `Mastery ${location.recommendedMasteryLevel[0]}–${location.recommendedMasteryLevel[1]}`,
+    recommendedHunterRankLabel: `Hunter Rank ${location.recommendedHunterRank[0]}–${location.recommendedHunterRank[1]}`,
     groupSizeLabel: `${location.groupGeneration.minGroupSize}-${location.groupGeneration.maxGroupSize}`,
   }
 }
@@ -44,7 +44,7 @@ export function combatArenaTooltipModel(locationId: string, status: string, acti
     subtitle: `${presentation.familyName} · ${status}`,
     tone: active ? 'green' : selected ? 'gold' : 'default',
     description: location.description,
-    rows: [{ label: 'Recommended', value: presentation.recommendedMasteryLabel, tone: 'gold' }],
+    rows: [{ label: 'Recommended', value: presentation.recommendedHunterRankLabel, tone: 'gold' }],
     sections: [{ id: 'possible-enemies', title: 'POSSIBLE ENEMIES', notes: presentation.enemies.map((enemy) => enemy.name) }],
   }
 }

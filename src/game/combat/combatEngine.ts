@@ -43,7 +43,7 @@ import {
   resolveLocationClearReward,
 } from "./combatRewards";
 import { calculateProficiencyXpAward, discoverProficiency } from "../progression/proficiencyProgression";
-import { masteryLevelForXp } from "../progression/masteryProgression";
+import { hunterRankForPoints } from "../progression/hunterRankProgression";
 import {
   getBarrierAbsorbResourceRestore,
 } from "../progression/perkProgression";
@@ -252,7 +252,7 @@ export function startHunt(
   const group = generateCombatGroup(
     location,
     context.rng,
-    masteryLevelForXp(game.progression.masteryXp),
+    hunterRankForPoints(game.progression.hunterRankPoints),
   );
   const session = {
     ...game.combat.session,
@@ -263,7 +263,6 @@ export function startHunt(
     damageTaken: 0,
     healing: 0,
     proficiencyXpGained: {},
-    masteryXpGained: 0,
     itemsGained: 0,
     lootGained: {},
     itemInstanceIdsGained: [],
@@ -289,7 +288,7 @@ export function startDebugEncounter(
   if (!context.locations[locationId]) return game;
   const validEnemyIds = enemyIds.filter((enemyId) => Boolean(context.enemies[enemyId])).slice(0, 12);
   if (validEnemyIds.length === 0) return game;
-  const session = { ...game.combat.session, elapsedSeconds: 0, groupClears: 0, enemiesDefeated: 0, damageDealt: 0, damageTaken: 0, healing: 0, proficiencyXpGained: {}, masteryXpGained: 0, itemsGained: 0, lootGained: {}, itemInstanceIdsGained: [], goldGained: 0, highestHit: 0 };
+  const session = { ...game.combat.session, elapsedSeconds: 0, groupClears: 0, enemiesDefeated: 0, damageDealt: 0, damageTaken: 0, healing: 0, proficiencyXpGained: {}, itemsGained: 0, lootGained: {}, itemInstanceIdsGained: [], goldGained: 0, highestHit: 0 };
   const clean = clearEndedHuntEffects({ ...game.combat, session }, context.effects);
   return { ...game, combat: createActiveCombat(clean, locationId, validEnemyIds, stats, Math.max(1, game.combat.groupNumber + 1), false) };
 }
@@ -456,7 +455,7 @@ export function advanceCombatStep(
         ? generateCombatGroup(
             location,
             context.rng,
-            masteryLevelForXp(game.progression.masteryXp),
+            hunterRankForPoints(game.progression.hunterRankPoints),
           )
         : [];
       combat =

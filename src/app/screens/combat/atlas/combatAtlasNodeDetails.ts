@@ -13,7 +13,7 @@ export interface CombatAtlasNodeDetails {
   description: string
   availability: ContentAvailability
   available: boolean
-  requiredMasteryLevel?: number
+  requiredHunterRank?: number
 }
 
 export const atlasIconByKey: Record<AtlasIconKey, LucideIcon> = {
@@ -32,14 +32,14 @@ export const atlasIconByKey: Record<AtlasIconKey, LucideIcon> = {
   swords: Swords,
 }
 
-export function combatAtlasNodeDetails(node: CombatAtlasNodeLayout, masteryLevel: number): CombatAtlasNodeDetails {
+export function combatAtlasNodeDetails(node: CombatAtlasNodeLayout, hunterRank: number): CombatAtlasNodeDetails {
   if (node.kind === 'continent') {
     const definition = continentById[node.sourceId]
     return {
       name: definition?.name ?? node.sourceId,
       description: definition?.description ?? 'A distant territory in the CombatBound frontier.',
       availability: definition?.availability ?? 'locked',
-      available: isWorldNodeAvailable(definition?.availability, undefined, masteryLevel),
+      available: isWorldNodeAvailable(definition?.availability, undefined, hunterRank),
     }
   }
 
@@ -49,8 +49,8 @@ export function combatAtlasNodeDetails(node: CombatAtlasNodeLayout, masteryLevel
       name: definition?.name ?? node.sourceId,
       description: definition?.description ?? 'A region waiting to be charted.',
       availability: definition?.availability ?? 'locked',
-      available: isWorldNodeAvailable(definition?.availability, definition?.requiredMasteryLevel, masteryLevel),
-      requiredMasteryLevel: definition?.requiredMasteryLevel,
+      available: isWorldNodeAvailable(definition?.availability, definition?.requiredHunterRank, hunterRank),
+      requiredHunterRank: definition?.requiredHunterRank,
     }
   }
 
@@ -60,8 +60,8 @@ export function combatAtlasNodeDetails(node: CombatAtlasNodeLayout, masteryLevel
       name: definition?.name ?? node.sourceId,
       description: definition?.description ?? 'A combat area waiting to be charted.',
       availability: definition?.availability ?? 'locked',
-      available: isWorldNodeAvailable(definition?.availability, definition?.requiredMasteryLevel, masteryLevel),
-      requiredMasteryLevel: definition?.requiredMasteryLevel,
+      available: isWorldNodeAvailable(definition?.availability, definition?.requiredHunterRank, hunterRank),
+      requiredHunterRank: definition?.requiredHunterRank,
     }
   }
 
@@ -70,8 +70,8 @@ export function combatAtlasNodeDetails(node: CombatAtlasNodeLayout, masteryLevel
     name: definition?.name ?? node.sourceId,
     description: definition?.description ?? 'A combat destination waiting to be discovered.',
     availability: definition?.availability ?? 'locked',
-    available: isCombatLocationAvailable(node.sourceId, masteryLevel),
-    requiredMasteryLevel: definition?.requiredMasteryLevel,
+    available: isCombatLocationAvailable(node.sourceId, hunterRank),
+    requiredHunterRank: definition?.requiredHunterRank,
   }
 }
 
