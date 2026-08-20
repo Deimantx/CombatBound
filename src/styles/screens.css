@@ -587,8 +587,8 @@ html[data-reduced-motion="true"] .equipment-stat-group-chevron { transition: non
 .magic-arts-atlas-stage { background: #121619; border: 1px solid rgba(148,163,184,.18); border-radius: 7px; box-shadow: inset 0 0 80px rgba(0,0,0,.45); isolation: isolate; max-width: 100%; min-height: 600px; min-width: 0; overflow: hidden; position: relative; width: 100%; }
 .magic-arts-atlas-stage::after { background: radial-gradient(ellipse at center, transparent 38%, rgba(5,10,12,.66) 100%); content: ''; inset: 0; pointer-events: none; position: absolute; z-index: 1; }
 .magic-arts-atlas-stage .combat-atlas-backdrop { z-index: 0; }
-.magic-arts-atlas-stage.is-skill-tree { cursor: grab; touch-action: none; }
-.magic-arts-atlas-stage.is-skill-tree:active { cursor: grabbing; }
+.magic-arts-atlas-stage.is-skill-tree { -webkit-user-drag: none; -webkit-user-select: none; cursor: grab; touch-action: none; user-select: none; }
+.magic-arts-atlas-stage.is-skill-tree.is-panning { cursor: grabbing; }
 .magic-arts-view-transition { animation: magic-arts-view-enter 280ms cubic-bezier(.2,.75,.25,1) both; }
 @keyframes magic-arts-view-enter { from { opacity: .72; transform: translateY(3px) scale(.985); } to { opacity: 1; transform: translateY(0) scale(1); } }
 .magic-art-atlas-node { --atlas-accent-rgb: var(--atlas-node-rgb, var(--atlas-focus-rgb)); }
@@ -604,7 +604,8 @@ html[data-reduced-motion="true"] .equipment-stat-group-chevron { transition: non
 .magic-art-back-button, .magic-art-center-button { align-items: center; background: rgba(7,14,16,.76); border: 1px solid rgba(220,193,117,.3); border-radius: 5px; color: var(--muted); cursor: pointer; display: inline-flex; font: inherit; font-size: 8px; font-weight: 800; gap: 5px; justify-content: center; letter-spacing: .1em; min-height: 33px; padding: 0 9px; transition: background .18s ease, border-color .18s ease, color .18s ease, transform .18s ease; }
 .magic-art-back-button { padding: 0; width: 33px; }
 .magic-art-back-button:hover, .magic-art-back-button:focus-visible, .magic-art-center-button:hover, .magic-art-center-button:focus-visible { background: var(--gold-soft); border-color: rgba(213,170,98,.72); color: var(--gold); outline: none; transform: translateY(-1px); }
-.magic-art-specialization-camera { height: 100%; inset: 0; position: absolute; transform-origin: center; transition: transform .25s ease; width: 100%; z-index: 2; }
+.magic-art-specialization-camera { height: 100%; inset: 0; position: absolute; width: 100%; z-index: 2; }
+.magic-art-specialization-world { height: 900px; left: 50%; position: absolute; top: 50%; transform-origin: center; transition: transform .25s ease; width: 1320px; }
 .magic-art-specialization-connections { height: 100%; inset: 0; overflow: visible; pointer-events: none; position: absolute; width: 100%; z-index: 0; }
 .magic-art-specialization-connections line { fill: none; stroke: rgba(186,173,125,.42); stroke-dasharray: 3 5; stroke-linecap: round; stroke-width: .24; vector-effect: non-scaling-stroke; transition: opacity .18s ease, stroke .18s ease, stroke-width .18s ease; }
 .magic-art-specialization-connections line.is-highlighted { stroke: var(--gold); stroke-width: .46; opacity: .9; }

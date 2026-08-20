@@ -31,16 +31,18 @@ export const magicArtsBrowserLayout: MagicArtsBrowserNodeLayout[] = [
 
 export const earthShieldSpecializationNodes = Array.from({ length: 22 }, (_, index) => {
   const positions = [
-    [31, 34], [39, 27], [50, 25], [61, 28], [69, 35],
-    [25, 46], [36, 43], [48, 42], [61, 43], [75, 47],
-    [29, 58], [42, 57], [55, 58], [68, 60], [79, 65],
-    [35, 72], [48, 70], [61, 73], [72, 77], [46, 84], [60, 85], [77, 84],
+    [38, 36], [27, 27], [16, 18], [29, 11],
+    [50, 31], [50, 13], [62, 18],
+    [64, 36], [76, 27], [88, 18], [86, 38],
+    [36, 64], [24, 73], [12, 84], [38, 87],
+    [50, 71], [50, 90], [63, 82], [64, 65], [76, 70], [89, 79], [76, 91],
   ] as const;
   const prerequisites = [
-    ["earth-shield.root"], ["earth-shield.root"], ["earth-shield.root"], ["earth-shield.root"], ["earth-shield.root"],
-    ["earth-shield.preview.01"], ["earth-shield.preview.02"], ["earth-shield.preview.03"], ["earth-shield.preview.03"], ["earth-shield.preview.05"],
-    ["earth-shield.preview.06"], ["earth-shield.preview.07"], ["earth-shield.preview.08"], ["earth-shield.preview.09"], ["earth-shield.preview.10"],
-    ["earth-shield.preview.11"], ["earth-shield.preview.12"], ["earth-shield.preview.13"], ["earth-shield.preview.14"], ["earth-shield.preview.16"], ["earth-shield.preview.17"], ["earth-shield.preview.19"],
+    ["earth-shield.root"], ["earth-shield.preview.01"], ["earth-shield.preview.02"], ["earth-shield.preview.03"],
+    ["earth-shield.root"], ["earth-shield.preview.05"], ["earth-shield.preview.06"],
+    ["earth-shield.root"], ["earth-shield.preview.08"], ["earth-shield.preview.09"], ["earth-shield.preview.10"],
+    ["earth-shield.root"], ["earth-shield.preview.12"], ["earth-shield.preview.13"], ["earth-shield.preview.14"],
+    ["earth-shield.root"], ["earth-shield.preview.16"], ["earth-shield.preview.17"], ["earth-shield.preview.18"], ["earth-shield.preview.19"], ["earth-shield.preview.18"], ["earth-shield.preview.19"],
   ] as const;
   const [x, y] = positions[index];
   return {

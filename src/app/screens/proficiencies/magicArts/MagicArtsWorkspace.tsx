@@ -20,6 +20,10 @@ type WorkspaceMode = "browser" | "skill-tree";
 type Pan = { x: number; y: number };
 type PanInteraction = { pointerId: number; startX: number; startY: number; startPan: Pan };
 
+const SKILL_TREE_WORLD_WIDTH = 1320;
+const SKILL_TREE_WORLD_HEIGHT = 900;
+const SKILL_TREE_OVERSCROLL = 100;
+
 function atlasStageStyle(focusRgb = "122,130,136") {
   return {
     "--atlas-default-rgb": "122,130,136",
@@ -48,6 +52,17 @@ function resetAtlasPointer(stage: HTMLDivElement | null) {
   stage?.style.setProperty("--atlas-y", "50%");
   stage?.style.setProperty("--atlas-shift-x", "0px");
   stage?.style.setProperty("--atlas-shift-y", "0px");
+}
+
+function clampSkillTreePan(pan: Pan, stage: HTMLDivElement | null) {
+  const stageWidth = stage?.clientWidth ?? 0;
+  const stageHeight = stage?.clientHeight ?? 0;
+  const maxX = Math.max(SKILL_TREE_OVERSCROLL, (SKILL_TREE_WORLD_WIDTH - stageWidth) / 2 + SKILL_TREE_OVERSCROLL);
+  const maxY = Math.max(SKILL_TREE_OVERSCROLL, (SKILL_TREE_WORLD_HEIGHT - stageHeight) / 2 + SKILL_TREE_OVERSCROLL);
+  return {
+    x: Math.max(-maxX, Math.min(maxX, pan.x)),
+    y: Math.max(-maxY, Math.min(maxY, pan.y)),
+  };
 }
 
 export function MagicArtsWorkspace() {
@@ -123,27 +138,36 @@ function MagicArtStats({ art }: { art: NonNullable<ReturnType<typeof getMagicArt
 function MagicArtSkillTreeContent({ pan, setPan, selectedNode, setSelectedNode }: { pan: Pan; setPan: (next: Pan) => void; selectedNode: string | null; setSelectedNode: (id: string | null) => void }) {
   const stageRef = useRef<HTMLDivElement>(null);
   const interaction = useRef<PanInteraction | null>(null);
+  const [isPanning, setIsPanning] = useState(false);
   const beginPan = (event: ReactPointerEvent<HTMLElement>) => {
-    if ((event.target as Element).closest("button")) return;
+    if (!event.isPrimary || event.button !== 0) return;
+    const target = event.target as Element;
+    if (target.closest("button, a, input, textarea, select, [data-no-pan]")) return;
+    event.preventDefault();
     interaction.current = { pointerId: event.pointerId, startX: event.clientX, startY: event.clientY, startPan: pan };
+    setIsPanning(true);
     event.currentTarget.setPointerCapture?.(event.pointerId);
   };
   const movePan = (event: ReactPointerEvent<HTMLElement>) => {
     const current = interaction.current;
     if (!current || current.pointerId !== event.pointerId) return;
-    setPan({ x: current.startPan.x + event.clientX - current.startX, y: current.startPan.y + event.clientY - current.startY });
+    setPan(clampSkillTreePan({ x: current.startPan.x + event.clientX - current.startX, y: current.startPan.y + event.clientY - current.startY }, stageRef.current));
   };
   const stopPan = (event?: ReactPointerEvent<HTMLElement>) => {
-    if (event && stageRef.current?.hasPointerCapture(event.pointerId)) stageRef.current.releasePointerCapture(event.pointerId);
+    const stage = stageRef.current;
+    if (event && stage && typeof stage.hasPointerCapture === "function" && stage.hasPointerCapture(event.pointerId) && typeof stage.releasePointerCapture === "function") stage.releasePointerCapture(event.pointerId);
     interaction.current = null;
+    setIsPanning(false);
   };
 
-  return <section ref={stageRef} className="magic-arts-atlas-stage is-skill-tree" aria-label="Earth Shield Skill Tree" data-debug-kind="magic-arts-primary-stage" data-debug-legacy-kind="magic-art-specialization-graph" onPointerDown={beginPan} onPointerMove={(event) => { updateAtlasPointer(stageRef.current, event); movePan(event); }} onPointerUp={stopPan} onPointerCancel={stopPan} onPointerLeave={() => resetAtlasPointer(stageRef.current)} style={atlasStageStyle("122,130,136")}>
+  return <section ref={stageRef} className={`magic-arts-atlas-stage is-skill-tree ${isPanning ? "is-panning" : ""}`} aria-label="Earth Shield Skill Tree" data-debug-kind="magic-arts-primary-stage" data-debug-legacy-kind="magic-art-specialization-graph" onPointerDown={beginPan} onPointerMove={(event) => { updateAtlasPointer(stageRef.current, event); movePan(event); }} onPointerUp={stopPan} onPointerCancel={stopPan} onLostPointerCapture={stopPan} onPointerLeave={() => resetAtlasPointer(stageRef.current)} onDragStart={(event) => event.preventDefault()} style={atlasStageStyle("122,130,136")}>
     <CombatAtlasBackdrop atmosphere="world" />
-    <div className="magic-art-specialization-camera" style={{ transform: `translate(${pan.x}px, ${pan.y}px)` }}>
+    <div className="magic-art-specialization-camera">
+      <div className="magic-art-specialization-world" data-debug-kind="magic-art-specialization-world" style={{ height: `${SKILL_TREE_WORLD_HEIGHT}px`, transform: `translate(-50%, -50%) translate3d(${pan.x}px, ${pan.y}px, 0)`, width: `${SKILL_TREE_WORLD_WIDTH}px` }}>
       <svg className="magic-art-specialization-connections" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">{earthShieldSpecializationEdges.map((edge) => { const from = edge.from === "earth-shield.root" ? { x: 50, y: 50 } : earthShieldSpecializationNodes.find((node) => node.id === edge.from); const to = earthShieldSpecializationNodes.find((node) => node.id === edge.to); return from && to ? <line key={`${edge.from}-${edge.to}`} x1={`${from.x}%`} y1={`${from.y}%`} x2={`${to.x}%`} y2={`${to.y}%`} className={selectedNode === edge.from || selectedNode === edge.to ? "is-highlighted" : undefined} /> : null; })}</svg>
       <GameTooltip content={buildMagicArtTooltip(earthShield)}><button type="button" className={`magic-art-tree-node magic-art-tree-root ${selectedNode === "earth-shield.root" ? "is-selected" : ""}`} style={{ left: "50%", top: "50%" }} onClick={() => setSelectedNode("earth-shield.root")} aria-pressed={selectedNode === "earth-shield.root"} aria-label="Earth Shield base Magic Art" data-debug-kind="magic-art-specialization-node" data-debug-specialization-node-id="earth-shield.root"><span className="magic-art-tree-node-halo" /><span className="magic-art-tree-node-orb"><Shield size={18} /></span><span className="magic-art-tree-node-label"><strong>Earth Shield</strong><em>ROOT ART</em></span></button></GameTooltip>
       {earthShieldSpecializationNodes.map((node, index) => <GameTooltip key={node.id} content={{ id: node.id, title: "Future Perk", subtitle: "Earth Shield Skill Tree", description: "Not available yet.", rows: [] }}><button type="button" className={`magic-art-tree-node ${selectedNode === node.id ? "is-selected" : ""}`} style={{ left: `${node.x}%`, top: `${node.y}%`, animationDelay: `${Math.min(index * 28, 160)}ms` }} onClick={() => setSelectedNode(node.id)} aria-pressed={selectedNode === node.id} aria-label={`Future Perk ${index + 1}`} data-debug-kind="magic-art-specialization-node" data-debug-specialization-node-id={node.id}><span className="magic-art-tree-node-halo" /><span className="magic-art-tree-node-orb"><Sparkles size={13} /></span><span className="magic-art-tree-node-label"><strong>Future Perk</strong><em>NOT AVAILABLE</em></span></button></GameTooltip>)}
+      </div>
     </div>
     <div className="magic-art-specialization-controls"><button type="button" className="magic-art-center-button" onClick={() => setPan({ x: 0, y: 0 })} title="Center skill tree"><LocateFixed size={13} /> CENTER</button></div>
   </section>;
