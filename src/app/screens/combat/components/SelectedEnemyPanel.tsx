@@ -16,6 +16,7 @@ import {
 import type { HunterCombatStats } from "../../../../game/equipment/derivedStats";
 import { getEnemyEffectiveCombatStats } from "../../../../game/combat/combatSelectors";
 import { GameTooltip } from "../../../components/tooltip/GameTooltip";
+import { getEnemyResolvedTraits } from "../../../../game/enemyTraits/enemyTraitSelectors";
 
 export function SelectedEnemyPanel({
   game,
@@ -124,10 +125,10 @@ export function SelectedEnemyPanel({
           ) : null}
           <div className="trait-section">
             <span className="tiny-label">TRAITS</span>
-            {definition.traits.map((trait) => (
-              <div className="trait-row" key={trait.id}>
-                <strong>{trait.name}</strong>
-                <small>{trait.description}</small>
+            {getEnemyResolvedTraits(definition).map((trait) => (
+              <div className="trait-row" key={trait.assignment.traitId}>
+                <strong>{trait.definition.name} · Rank {trait.assignment.rank}</strong>
+                <small>{trait.rank.description}</small>
               </div>
             ))}
           </div>

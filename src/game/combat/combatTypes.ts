@@ -15,6 +15,7 @@ export type DamageType =
 export type DamageSourceKind = "attack" | "magic-art" | "secondary";
 /** Historical packet spelling accepted only when decoding old combat fixtures. */
 export type LegacyDamageSourceKind = "spell";
+export type CombatSourceCategory = "melee" | "ranged" | "magic" | "secondary";
 export type DamageDeliveryKind = "hit" | "damage-over-time";
 export type ResistanceDamageType = Exclude<DamageType, "physical">;
 export type PlayerActionKind =
@@ -22,6 +23,7 @@ export type PlayerActionKind =
 export type PlayerActionTargetMode = "self" | "selected-enemy";
 export type GlobalCooldownMode = "standard" | "none" | number;
 import type { ItemDefinition } from "../data/items";
+import type { EnemyTier, EnemyTraitAssignment, EnemyTraitId, EnemyTraitRuntimeState } from "../enemyTraits/enemyTraitTypes";
 
 export type CombatantRef =
   { kind: "player" } | { kind: "enemy"; instanceId: string };
@@ -139,6 +141,7 @@ export interface DefensiveEligibility {
 export interface DamageComponent {
   damageType: DamageType;
   sourceKind?: DamageSourceKind | LegacyDamageSourceKind;
+  sourceCategory?: CombatSourceCategory;
   deliveryKind?: DamageDeliveryKind;
   scaling?: { sourceStat: "attackDamage"; multiplier: number };
   flatDamage?: number;
@@ -267,12 +270,6 @@ export interface EnemyActionRuntime {
   startedSequence?: number;
 }
 
-export interface EnemyTraitDefinition {
-  id: string;
-  name: string;
-  description: string;
-}
-
 export interface LootEntry {
   itemId: string;
   chance: number;
@@ -295,7 +292,8 @@ export interface EnemyDefinition {
   blockChance?: number;
   blockEffect?: number;
   resistances: Partial<Record<ResistanceDamageType, number>>;
-  traits: EnemyTraitDefinition[];
+  enemyTier: EnemyTier;
+  traits: EnemyTraitAssignment[];
   actions: EnemyActionDefinition[];
   phases?: Array<{
     phaseId: string;
@@ -324,6 +322,7 @@ export interface EnemyCombatInstance {
   effects: import("./combatEffectTypes").ActiveEffectInstance[];
   defeated: boolean;
   rewardResolved: boolean;
+  traitRuntime: EnemyTraitRuntimeState;
 }
 
 export type CombatEventType =
@@ -428,6 +427,7 @@ export interface CombatContext {
   magicArts?: Record<string, import("../magicArts/magicArtTypes").MagicArtDefinition>;
   items: Record<string, ItemDefinition>;
   effects: Record<string, import("./combatEffectTypes").EffectDefinition>;
+  enemyTraits?: Record<EnemyTraitId, import("../enemyTraits/enemyTraitTypes").EnemyTraitDefinition>;
   rng: CombatRng;
   debugHooks?: {
     onAutomationTrace?: (trace: import("../automation/automationTypes").AutomationEvaluationTrace) => void;

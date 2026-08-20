@@ -1,7 +1,7 @@
 import { calculateArmorMitigation, calculateBlockedDamage, calculateEffectiveArmor, calculateResistanceMultiplier, resolveDefensiveOutcome, rollBlock, type DefensiveOutcome } from "./combatMath";
 import { calculateEffectiveResistance } from "./combatStats";
 import { clamp, combatBalance } from "./combatBalance";
-import type { CombatRng, CombatStats, CombatantRef, DamageComponent, DamageProgressionSource, DefensiveEligibility } from "./combatTypes";
+import type { CombatRng, CombatStats, CombatantRef, DamageComponent, DamageProgressionSource, DefensiveEligibility, CombatSourceCategory } from "./combatTypes";
 import { nextCombatRandom } from "./combatRng";
 import { calculateIncomingEffectDamageMultiplier, calculateOutgoingEffectDamageMultiplier } from "./combatEffects";
 import type { EffectDefinition } from "./combatEffectTypes";
@@ -24,6 +24,7 @@ export interface DamagePacket extends DamageComponent {
   armorPenetrationFlat?: number;
   resistancePenetration?: number;
   incomingDamageMultiplier?: number;
+  criticalDamageResistance?: number;
 }
 
 export interface DamageResolution {
@@ -84,7 +85,10 @@ export function resolveDamage(packet: DamagePacket, attacker: CombatStats, defen
   const criticalChance = clamp(packet.criticalStrikeChance ?? attacker.criticalStrikeChance ?? 0, 0, combatBalance.maximumCriticalStrikeChance);
   const critical = Boolean(packet.canCrit && deliveryKind === "hit" && nextCombatRandom(rng, "crit") < criticalChance);
   const critMultiplier = Math.max(1, packet.criticalStrikeMultiplier ?? attacker.criticalStrikeMultiplier ?? 1);
-  const rawDamage = Math.max(0, rolledDamage * (critical ? critMultiplier : 1));
+  const criticalResistance = clamp(packet.criticalDamageResistance ?? 0, 0, 1);
+  const rawDamage = critical
+    ? Math.max(0, rolledDamage + rolledDamage * Math.max(0, critMultiplier - 1) * (1 - criticalResistance))
+    : Math.max(0, rolledDamage);
   const blockedRoll = rollBlock(defender, eligibility, rng, deliveryKind);
   const blockedDamage = blockedRoll ? calculateBlockedDamage(rawDamage, defender.blockEffect ?? 0) : 0;
   const blocked = blockedRoll && blockedDamage > 0;
@@ -126,6 +130,13 @@ function emptyDamageResolution(outcome: DefensiveOutcome, barrierEligible: boole
 
 export function componentFromAttack(damageType: DamageComponent["damageType"], multiplier = 1, canCrit = true): DamageComponent {
   return { sourceKind: "attack", deliveryKind: "hit", damageType, scaling: { sourceStat: "attackDamage", multiplier }, canCrit };
+}
+
+export function getDamageSourceCategory(packet: Pick<DamagePacket, "sourceKind" | "sourceCategory" | "progressionSource">): CombatSourceCategory {
+  if (packet.sourceCategory) return packet.sourceCategory;
+  if (packet.sourceKind === "spell" || packet.sourceKind === "magic-art" || packet.progressionSource?.type === "magic-art") return "magic";
+  if (packet.sourceKind === "secondary") return "secondary";
+  return "melee";
 }
 
 /**

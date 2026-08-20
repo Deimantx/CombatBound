@@ -33,6 +33,7 @@ import type { CombatAbilityCatalogueEntry } from "../combatAbilities/combatAbili
 import type { CombatAbilityAvailability } from "../combatAbilities/combatAbilitySelectors";
 import { buildItemPresentation } from "./itemPresentation";
 import type { MagicArtDefinition } from "../magicArts/magicArtTypes";
+import { getEnemyResolvedTraits } from "../enemyTraits/enemyTraitSelectors";
 
 const damageLabels: Record<DamageType, string> = {
   physical: "Physical",
@@ -401,7 +402,7 @@ export function buildEnemyDefinitionTooltip(enemy: EnemyDefinition, options: { d
     subtitle: `${enemy.family} - ${enemy.id}`,
     tone: enemy.accent,
     rows,
-    notes: [enemy.traits.length ? `Traits: ${enemy.traits.map((trait) => trait.name).join(", ")}` : "", enemy.actions.length ? `Actions: ${enemy.actions.map((action) => action.name).join(", ")}` : "", options.sourceLocations?.length ? `Source locations: ${options.sourceLocations.join(", ")}` : ""].filter(Boolean),
+    notes: [enemy.traits.length ? `Traits: ${getEnemyResolvedTraits(enemy).map((trait) => `${trait.definition.name} · Rank ${trait.assignment.rank}`).join(", ")}` : "", enemy.actions.length ? `Actions: ${enemy.actions.map((action) => action.name).join(", ")}` : "", options.sourceLocations?.length ? `Source locations: ${options.sourceLocations.join(", ")}` : ""].filter(Boolean),
   };
 }
 

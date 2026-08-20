@@ -1,6 +1,7 @@
 import { combatBalance } from "./combatBalance";
 import type { CombatState, EnemyCombatInstance } from "./combatTypes";
 import { enemyById } from "../data/enemies";
+import { createEnemyTraitRuntimeState } from "../enemyTraits/enemyTraitRuntime";
 
 export function instantiateEnemies(
   enemyIds: string[],
@@ -29,6 +30,7 @@ export function instantiateEnemies(
       effects: [],
       defeated: false,
       rewardResolved: false,
+      traitRuntime: createEnemyTraitRuntimeState(definition.traits),
     };
   });
 }

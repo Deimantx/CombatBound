@@ -12,6 +12,7 @@ import type { CombatContext, CombatantRef } from "./combatTypes";
 import type { HunterCombatStats } from "../equipment/derivedStats";
 import type { DefensiveTrainingEvent } from "../equipment/defensiveEquipment";
 import type { CombatProficiencyId, ProgressionCredit } from "../progression/progressionTypes";
+import { consumeEnemyNormalAttackEmpowerment, getEnemyActionCooldownMultiplier, getEnemyActionCooldownReduction, getEnemyActionDamageMultiplier, getEnemyTraitOutgoingDamageMultiplier, prepareEnemyNormalAttack, processEnemyTraitEvent, reduceEnemyActionRemainingCooldowns } from "../enemyTraits/enemyTraitRuntime";
 
 type BarrierAbsorption = { effectId: string; amount: number; progressionCredit?: ProgressionCredit };
 
@@ -54,12 +55,14 @@ export function advanceEnemyNormalAttacks(
     const playerStats = getPlayerStats(combat, stats, context, game.progression);
     const packet: DamagePacket = {
       ...componentFromAttack("physical", 1, true),
+      sourceCategory: "melee",
       source: { kind: "enemy", instanceId: current.instanceId },
       target: { kind: "player" },
       defensiveEligibility: { canMiss: true, canBeEvaded: true, blockable: true },
     };
     const enemyStats = getEnemyStats(combat, current, context);
-    const result = resolveDamageWithEffectModifiers(packet, enemyStats, playerStats, context.rng, current.effects, combat.playerEffects, context.effects);
+    const preparedPacket = prepareEnemyNormalAttack(current, { ...packet, attackerAccuracy: enemyStats.accuracyRating }, combat.maxPlayerHp > 0 ? combat.playerHp / combat.maxPlayerHp : 1, context);
+    const result = resolveDamageWithEffectModifiers(preparedPacket, enemyStats, playerStats, context.rng, current.effects, combat.playerEffects, context.effects);
     const barrierResult = packet.ignoresBarrier
       ? { combat, absorbed: 0, remaining: result.mitigatedDamage, absorptions: [] as BarrierAbsorption[] }
       : absorbDamage(combat, packet.target, result.mitigatedDamage, context.effects);
@@ -76,6 +79,17 @@ export function advanceEnemyNormalAttacks(
     };
     if (resolved.blocked) {
       game = applyPlayerSuccessfulBlockHooks({ ...game, combat }, context);
+      combat = game.combat;
+    }
+    if (resolved.outcome === "hit") {
+      game = processEnemyTraitEvent({ ...game, combat }, current.instanceId, "enemy-normal-attack-resolved", { actualDamage: playerDamage.appliedDamage, critical: resolved.critical, successful: true }, context);
+      if (playerDamage.appliedDamage > 0)
+        game = processEnemyTraitEvent(game, current.instanceId, "enemy-damage-dealt", { actualDamage: playerDamage.appliedDamage, successful: true }, context);
+      game.combat = consumeEnemyNormalAttackEmpowerment(game.combat, current.instanceId);
+      combat = game.combat;
+      combat = reduceEnemyActionRemainingCooldowns(combat, current.instanceId, getEnemyActionCooldownReduction(current, "normal-hit", context.enemies, context.enemyTraits));
+    } else if (resolved.outcome === "evaded") {
+      game = processEnemyTraitEvent({ ...game, combat }, current.instanceId, "enemy-normal-attack-missed", {}, context);
       combat = game.combat;
     }
     game = dependencies.resolveDefensiveTrainingForEnemyAction({ ...game, combat }, { source: "enemy-normal-attack", resolved: true }, context.items);
@@ -154,6 +168,9 @@ export function advanceEnemySpecials(
         data: { phaseId: phase.phaseId },
       });
       game = { ...game, combat };
+      game = processEnemyTraitEvent(game, current.instanceId, "enemy-phase-entered", { phaseId: phase.phaseId }, context);
+      combat = game.combat;
+      current = combat.enemies.find((candidate) => candidate.instanceId === current.instanceId) ?? current;
       for (const effectId of phase.onEnterEffectIds ?? [])
         game = applyEffectToGame(game, effectId, source, source, context);
       combat = game.combat;
@@ -176,8 +193,11 @@ export function advanceEnemySpecials(
         let playerBlockedAction = false;
         let playerHitAction = false;
         for (const component of components) {
+          const actionSourceCategory = component.sourceCategory ?? "melee";
           const packet: DamagePacket = {
             ...component,
+            sourceCategory: actionSourceCategory,
+            damageMultiplier: getEnemyActionDamageMultiplier(current, context.enemies, context.enemyTraits) * getEnemyTraitOutgoingDamageMultiplier(current, { damageType: component.damageType, deliveryKind: component.deliveryKind, sourceCategory: actionSourceCategory }, combat.maxPlayerHp > 0 ? combat.playerHp / combat.maxPlayerHp : 1, context.enemies, context.enemyTraits),
             source,
             target: { kind: "player" },
             defensiveEligibility: { canMiss: true, canBeEvaded: true, blockable: actionDefinition.blockable },
@@ -221,6 +241,12 @@ export function advanceEnemySpecials(
           data: { damage: totalDamage, absorbed: totalAbsorbed, components: components.length, requestedDamage, appliedDamage: totalDamage, immortalPrevented: Math.max(0, requestedDamage - totalDamage) },
         });
         game = { ...game, combat };
+        if (playerHitAction) {
+          game = processEnemyTraitEvent(game, current.instanceId, "enemy-action-resolved", { actionId: actionDefinition.id, successful: true, actualDamage: totalDamage }, context);
+          combat = reduceEnemyActionRemainingCooldowns(game.combat, current.instanceId, getEnemyActionCooldownReduction(current, "action-hit", context.enemies, context.enemyTraits), actionDefinition.id);
+          game = { ...game, combat };
+        }
+        combat = { ...combat, enemies: combat.enemies.map((candidate) => candidate.instanceId === current.instanceId ? { ...candidate, actionCooldowns: { ...candidate.actionCooldowns, [actionDefinition.id]: Math.max(0, actionDefinition.cooldownSeconds * getEnemyActionCooldownMultiplier(candidate, actionDefinition.id, context.enemies, context.enemyTraits)) } } : candidate) };
         if (playerHitAction && actionDefinition.applyEffects)
           for (const applied of actionDefinition.applyEffects)
             if (applied.chance >= 1 || nextCombatRandom(context.rng, "effect") < applied.chance)

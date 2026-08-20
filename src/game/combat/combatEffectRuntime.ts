@@ -6,6 +6,7 @@ import type { GameState } from "../gameState";
 import { getEquippedWeaponProficiency } from "../progression/progressionSelectors";
 import { getWeaponBlockEffectHooks } from "../progression/perkProgression";
 import { perkById } from "../data/proficiencyPerks";
+import { getEnemyTraitEffectPolicy } from "../enemyTraits/enemyTraitRuntime";
 
 export interface ApplyEffectToGameOptions extends EffectApplyOptions {
   secondaryOnly?: boolean;
@@ -14,10 +15,14 @@ export interface ApplyEffectToGameOptions extends EffectApplyOptions {
 }
 
 export function applyEffectToGame(game: GameState, effectId: string, source: CombatantRef, target: CombatantRef, context: CombatContext, options: ApplyEffectToGameOptions = {}) {
-  const result = applyEffectById(game.combat, effectId, context.effects, source, target, { ...options, rng: context.rng });
+  const definition = context.effects[effectId];
+  if (!definition) return game;
+  const enemy = target.kind === "enemy" ? game.combat.enemies.find((candidate) => candidate.instanceId === target.instanceId) : undefined;
+  const policy = enemy ? getEnemyTraitEffectPolicy(enemy, definition.tags, context.enemies, context.enemyTraits) : { allow: true, durationMultiplier: 1 };
+  if (!policy.allow) return game;
+  const result = applyEffectById(game.combat, effectId, context.effects, source, target, { ...options, durationMultiplier: (options.durationMultiplier ?? 1) * policy.durationMultiplier, rng: context.rng });
   if (!result.instance || result.outcome === "rejected" || result.outcome === "missing-target") return game;
   const eventType = result.outcome === "refreshed" ? "effectRefreshed" : result.outcome === "stacked" ? "effectStacked" : "effectApplied";
-  const definition = context.effects[effectId];
   const suffix = result.instance.stacks > 1 ? ` x${result.instance.stacks}` : "";
   return {
     ...game,

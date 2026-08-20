@@ -11,6 +11,8 @@ import { itemAffixDefinitions } from "../data/itemAffixes";
 import { validateItemAffixDefinitions } from "../data/validation/itemAffixValidation";
 import type { CombatStatKey, DamageType } from "../combat/combatTypes";
 import { COMBAT_STAT_REGISTRY } from "../presentation/combatStatRegistry";
+import { enemyTraitDefinitions } from "../data/enemyTraits";
+import { validateEnemyTraitAssignments, validateEnemyTraitDefinitions } from "../data/validation/enemyTraitValidation";
 
 export type ValidationSeverity = "error" | "warning";
 export interface ContentValidationIssue {
@@ -61,6 +63,9 @@ export function validateContent(): ContentValidationIssue[] {
     }
   };
   ids(itemDefinitions, "item"); ids(itemAffixDefinitions, "itemAffix"); ids(magicArtDefinitions, "magicArt"); ids(effectDefinitions, "effect"); ids(weaponSkillDefinitions, "weaponSkill"); ids(enemyDefinitions, "enemy"); ids(combatLocationDefinitions, "location");
+  const traitValidation = validateEnemyTraitDefinitions(enemyTraitDefinitions, effectById);
+  for (const message of traitValidation.errors) addIssue(issues, "enemyTrait", "catalogue", "INVALID_TRAIT", message);
+  for (const enemy of enemyDefinitions) for (const message of validateEnemyTraitAssignments(enemy).errors) addIssue(issues, "enemy", enemy.id, "INVALID_TRAIT_ASSIGNMENT", message);
   for (const message of validateEquipmentDefinitions(itemDefinitions).errors) {
     const separator = message.indexOf(": ");
     const entityId = separator > 0 ? message.slice(0, separator) : "catalogue";

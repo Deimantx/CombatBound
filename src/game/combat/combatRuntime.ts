@@ -26,7 +26,13 @@ export function getPlayerStats(combat: CombatState, stats: HunterCombatStats, co
 }
 
 export function getEnemyStats(combat: CombatState, enemy: EnemyCombatInstance, context: CombatContext) {
-  return getEnemyEffectiveCombatStats(enemy, context.effects, context.enemies);
+  return getEnemyEffectiveCombatStats(
+    enemy,
+    context.effects,
+    context.enemies,
+    context.enemyTraits,
+    combat.maxPlayerHp > 0 ? combat.playerHp / combat.maxPlayerHp : 1,
+  );
 }
 
 export function recoverOutOfCombatResources(combat: CombatState, effective: ReturnType<typeof getPlayerStats>, step: number): CombatState {

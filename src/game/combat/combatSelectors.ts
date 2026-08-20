@@ -23,6 +23,8 @@ import type {
   CombatStats,
   EnemyCombatInstance,
 } from "./combatTypes";
+import { enemyTraitById } from "../data/enemyTraits";
+import { getEnemyTraitStatModifiers } from "../enemyTraits/enemyTraitRuntime";
 
 export const MIN_RATE_SAMPLE_SECONDS = 10;
 
@@ -93,10 +95,16 @@ export function getEnemyEffectiveCombatStats(
   enemy: EnemyCombatInstance,
   effectDefinitions = effectById,
   enemyDefinitions = enemyById,
+  traitDefinitions = enemyTraitById,
+  playerHpFraction = 1,
 ): CombatStats {
   const definition = enemyDefinitions[enemy.enemyId];
-  const base = calculateEffectiveCombatStats(
+  const traitAdjusted = applyProficiencyStatModifiers(
     calculateEnemyBaseCombatStats(definition),
+    getEnemyTraitStatModifiers(enemy, playerHpFraction, enemyDefinitions, traitDefinitions),
+  );
+  const base = calculateEffectiveCombatStats(
+    traitAdjusted,
     enemy.effects,
     effectDefinitions,
   );

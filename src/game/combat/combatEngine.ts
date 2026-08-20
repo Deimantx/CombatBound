@@ -5,6 +5,7 @@ import {
 import { magicArtById } from "../data/magicArts";
 import { effectById } from "../data/effects";
 import { enemyById } from "../data/enemies";
+import { enemyTraitById } from "../data/enemyTraits";
 import { combatLocationById } from "../data/world/combatLocations";
 import { itemById } from "../data/items";
 import { combatBalance, clamp } from "./combatBalance";
@@ -47,6 +48,7 @@ import {
   getBarrierAbsorbResourceRestore,
 } from "../progression/perkProgression";
 import { perkById } from "../data/proficiencyPerks";
+import { proficiencyById } from "../data/proficiencies";
 import {
   calculateDefensiveTrainingAwards,
   getDefensiveEquipmentContext,
@@ -68,6 +70,7 @@ import type {
   CombatantRef,
   EnemyCombatInstance,
 } from "./combatTypes";
+import { advanceEnemyTraitRuntime, applyEnemyTraitCombatStart, getEnemyTraitHealingReceivedMultiplier } from "../enemyTraits/enemyTraitRuntime";
 import type {
   CombatProficiencyId,
   ProgressionCredit,
@@ -80,6 +83,7 @@ export function createCombatContext(rng: CombatContext["rng"]): CombatContext {
     magicArts: magicArtById,
     items: itemById,
     effects: effectById,
+    enemyTraits: enemyTraitById,
     rng,
   };
 }
@@ -116,6 +120,9 @@ function applyEffectiveHealing(
   label: string,
   awardProgression = true,
 ) {
+  const selectedEnemy = game.combat.enemies.find((enemy) => enemy.instanceId === game.combat.selectedEnemyInstanceId && !enemy.defeated);
+  const healingMultiplier = selectedEnemy ? getEnemyTraitHealingReceivedMultiplier(selectedEnemy, enemyById, enemyTraitById) : 1;
+  requestedAmount *= healingMultiplier;
   const effective = Math.min(
     Math.max(0, game.combat.maxPlayerHp - game.combat.playerHp),
     Math.max(0, requestedAmount),
@@ -267,7 +274,7 @@ export function startHunt(
     { ...game.combat, session },
     context.effects,
   );
-  const combat = createActiveCombat(clean, locationId, group, stats, 1, false);
+  const combat = applyEnemyTraitCombatStart(createActiveCombat(clean, locationId, group, stats, 1, false), context);
   return { ...game, combat };
 }
 
@@ -284,7 +291,7 @@ export function startDebugEncounter(
   if (validEnemyIds.length === 0) return game;
   const session = { ...game.combat.session, elapsedSeconds: 0, groupClears: 0, enemiesDefeated: 0, damageDealt: 0, damageTaken: 0, healing: 0, proficiencyXpGained: {}, itemsGained: 0, lootGained: {}, itemInstanceIdsGained: [], goldGained: 0, highestHit: 0 };
   const clean = clearEndedHuntEffects({ ...game.combat, session }, context.effects);
-  return { ...game, combat: createActiveCombat(clean, locationId, validEnemyIds, stats, Math.max(1, game.combat.groupNumber + 1), false) };
+  return { ...game, combat: applyEnemyTraitCombatStart(createActiveCombat(clean, locationId, validEnemyIds, stats, Math.max(1, game.combat.groupNumber + 1), false), context) };
 }
 
 function createActiveCombat(
@@ -445,13 +452,13 @@ export function advanceCombatStep(
         : [];
       combat =
         location && group.length > 0
-          ? createActiveCombat(
+          ? applyEnemyTraitCombatStart(createActiveCombat(
               combat,
               location.id,
               group,
               stats,
               combat.groupNumber + 1,
-            )
+            ), context)
           : { ...combat, phase: "stopped", stopReason: "completed" };
     } else if (combat.recoveryRemaining <= 0)
       combat = { ...combat, phase: "stopped", stopReason: "completed" };
@@ -496,11 +503,15 @@ export function advanceCombatStep(
     ),
   };
   game = { ...game, combat };
+  game = advanceEnemyTraitRuntime(game, step, context);
+  combat = game.combat;
   game = advanceCombatEffects(game, step, context, stats);
   combat = game.combat;
   if (combat.phase !== "active") return game;
   const effective = getPlayerStats(combat, stats, context, game.progression);
-  const requestedRegen = Math.max(0, effective.lifeRegenFlat ?? 0) * step;
+  const engagedEnemy = combat.enemies.find((enemy) => enemy.instanceId === combat.selectedEnemyInstanceId && !enemy.defeated);
+  const healingMultiplier = engagedEnemy ? getEnemyTraitHealingReceivedMultiplier(engagedEnemy, context.enemies, context.enemyTraits) : 1;
+  const requestedRegen = Math.max(0, effective.lifeRegenFlat ?? 0) * step * healingMultiplier;
   const effectiveHealing = Math.min(
     Math.max(0, (effective.maxLife ?? 0) - combat.playerHp),
     requestedRegen,
@@ -597,6 +608,7 @@ export function advanceCombatStep(
       };
       const packet: DamagePacket = {
         ...componentFromAttack("physical", 1, true),
+        sourceCategory: proficiencyById[stats.weaponProficiencyId ?? ""]?.category === "ranged" ? "ranged" : "melee",
         source: { kind: "player" },
         target: { kind: "enemy", instanceId: target.instanceId },
         defensiveEligibility: {

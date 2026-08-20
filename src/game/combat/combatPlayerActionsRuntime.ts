@@ -1,8 +1,8 @@
 import { absorbDamage } from "./combatEffects";
-import { applyBarrierToDamage, componentFromAttack, resolveDamageWithEffectModifiers, type DamagePacket } from "./combatDamage";
+import { applyBarrierToDamage, componentFromAttack, getDamageSourceCategory, resolveDamageWithEffectModifiers, type DamagePacket } from "./combatDamage";
 import { awardCombatXp, combatEvent as event, getEnemyStats, getPlayerStats } from "./combatRuntime";
 import { nextCombatRandom } from "./combatRng";
-import { applyEnemyHealthDamage } from "./combatHealth";
+import { applyEnemyHealthDamage, applyPlayerHealthDamage } from "./combatHealth";
 import { applyEffectToGame } from "./combatEffectRuntime";
 import { removeStackableItem } from "../items/itemOwnership";
 import { combatBalance } from "./combatBalance";
@@ -36,6 +36,7 @@ import type {
   EnemyCombatInstance,
 } from "./combatTypes";
 import type { CombatProficiencyId, ProgressionCredit } from "../progression/progressionTypes";
+import { getEnemyTraitCriticalDamageResistance, getEnemyTraitHealingReceivedMultiplier, getEnemyTraitIncomingDamageMultiplier, getEnemyTraitReflectionFraction, processEnemyTraitEvent, applyEnemyTraitHealthTriggers } from "../enemyTraits/enemyTraitRuntime";
 
 type BarrierAbsorption = {
   effectId: string;
@@ -204,6 +205,9 @@ export function damageEnemy(
   let resolution = resolveDamageWithEffectModifiers(
     {
       ...packet,
+      sourceCategory: isSecondary ? "secondary" : getDamageSourceCategory(packet),
+      incomingDamageMultiplier: (packet.incomingDamageMultiplier ?? 1) * getEnemyTraitIncomingDamageMultiplier(current, { damageType: packet.damageType, deliveryKind: packet.deliveryKind, sourceCategory: isSecondary ? "secondary" : getDamageSourceCategory(packet) }, game.combat.maxPlayerHp > 0 ? game.combat.playerHp / game.combat.maxPlayerHp : 1, context.enemies, context.enemyTraits),
+      criticalDamageResistance: getEnemyTraitCriticalDamageResistance(current, context.enemies, context.enemyTraits),
       damageMultiplier:
         (packet.damageMultiplier ?? 1) *
         conditionalMultiplier *
@@ -252,6 +256,7 @@ export function damageEnemy(
     ...game,
     combat: damageApplication.combat,
   };
+  next.combat = applyEnemyTraitHealthTriggers(next.combat, current.instanceId, current.currentHealth, context);
   let progressionResults: Array<ReturnType<typeof awardProficiencyXp>> = [];
   if (proficiencyId && effectiveHealthDamage > 0) {
     const awarded = awardCombatXp(
@@ -318,6 +323,22 @@ export function damageEnemy(
       immortalPrevented: damageApplication.preventedLethalDamage,
     },
   });
+  const sourceCategory = getDamageSourceCategory(packet);
+  if (resolution.outcome === "hit") {
+    next = processEnemyTraitEvent(next, current.instanceId, "enemy-damaged", { sourceCategory, actualDamage: effectiveHealthDamage, critical: resolution.critical, successful: true }, context);
+    if (resolution.critical) next = processEnemyTraitEvent(next, current.instanceId, "enemy-critical-hit-taken", { sourceCategory, critical: true, actualDamage: effectiveHealthDamage }, context);
+    const reflectionFraction = !isSecondary && resolution.healthDamage > 0 ? getEnemyTraitReflectionFraction(current, sourceCategory, context.enemies, context.enemyTraits) : 0;
+    if (reflectionFraction > 0) {
+      const reflected = resolution.healthDamage * reflectionFraction;
+      const reflectedBarrier = absorbDamage(next.combat, { kind: "player" }, reflected, context.effects);
+      const reflectedDamage = applyPlayerHealthDamage(reflectedBarrier.combat, reflectedBarrier.remaining, context);
+      next = { ...next, combat: reflectedDamage.combat };
+    }
+  } else if (resolution.outcome === "evaded") {
+    next = processEnemyTraitEvent(next, current.instanceId, "enemy-successful-evade", { sourceCategory }, context);
+  } else if (resolution.blocked) {
+    next = processEnemyTraitEvent(next, current.instanceId, "enemy-successful-block", { sourceCategory }, context);
+  }
   if (resolution.outcome === "hit") {
     for (const applied of effectsToApply)
       if (
@@ -599,6 +620,7 @@ export function castMagicArt(
         {
           ...componentFromAttack(art.damage.damageType, 0, art.damage.canCrit ?? false),
           sourceKind: "magic-art",
+          sourceCategory: "magic",
           source,
           target: targetRef,
           sourceActionId: art.id,
@@ -709,6 +731,7 @@ function executeWeaponSkill(
     target,
     {
       ...componentFromAttack("physical", 1, skill.canCrit),
+      sourceCategory: proficiencyById[skill.proficiencyId]?.category === "ranged" ? "ranged" : "melee",
       source: sourceRef,
       target: targetRef,
       sourceActionId: skill.id,
@@ -747,9 +770,11 @@ export function useHealingPotion(
     context,
   );
   if (!validation.valid || game.combat.potionCooldownRemaining > 0) return game;
+  const engagedEnemy = game.combat.enemies.find((enemy) => enemy.instanceId === game.combat.selectedEnemyInstanceId && !enemy.defeated);
+  const healingMultiplier = engagedEnemy ? getEnemyTraitHealingReceivedMultiplier(engagedEnemy, context.enemies, context.enemyTraits) : 1;
   const amount = Math.min(
     combatBalance.healingPotionAmount,
-    (stats.maxLife ?? 0) - game.combat.playerHp,
+    ((stats.maxLife ?? 0) - game.combat.playerHp) * healingMultiplier,
   );
   return {
     ...game,
