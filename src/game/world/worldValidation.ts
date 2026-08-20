@@ -1,4 +1,5 @@
 import { enemyById } from '../data/enemies'
+import { itemById } from '../data/items'
 import { areaById, areaDefinitions } from '../data/world/areas'
 import { combatLocationById, combatLocationDefinitions } from '../data/world/combatLocations'
 import { continentById, continentDefinitions } from '../data/world/continents'
@@ -26,10 +27,24 @@ export function validateWorldContent() {
     if (!enemyFamilyById[location.familyId]) errors.push(`Location ${location.id} has no family`)
     if (location.targets.length === 0) errors.push(`Location ${location.id} must expose at least one target`)
     if (new Set(location.targets.map((entry) => entry.enemyId)).size !== location.targets.length) errors.push(`Location ${location.id} contains duplicate targets`)
+    if (location.areaId === 'area.deep-woods' && location.targets.length !== 4) errors.push(`Deep Woods location ${location.id} must contain exactly four targets`)
     for (const entry of location.targets) {
       if (!enemyById[entry.enemyId]) errors.push(`Location ${location.id} references missing enemy ${entry.enemyId}`)
       else if (enemyById[entry.enemyId].familyId !== location.familyId) errors.push(`Location ${location.id} mixes enemy family ${entry.enemyId}`)
-      if (entry.minHunterRank !== undefined && (!Number.isFinite(entry.minHunterRank) || entry.minHunterRank < 1)) errors.push(`Location ${location.id} has invalid target rank requirement`)
+      for (const drop of enemyById[entry.enemyId]?.loot ?? []) {
+        if (!Number.isFinite(drop.chance) || drop.chance < 0 || drop.chance > 1) errors.push(`Enemy ${entry.enemyId} has invalid loot chance`)
+        if (!Number.isInteger(drop.minQuantity) || !Number.isInteger(drop.maxQuantity) || drop.minQuantity < 1 || drop.maxQuantity < drop.minQuantity) errors.push(`Enemy ${entry.enemyId} has invalid loot quantity`)
+        if (!itemById[drop.itemId]) errors.push(`Enemy ${entry.enemyId} references missing loot item ${drop.itemId}`)
+      }
+    }
+    if (location.sharedLoot) for (const drop of location.sharedLoot) {
+      if (!Number.isFinite(drop.chance) || drop.chance < 0 || drop.chance > 1) errors.push(`Location ${location.id} has invalid shared loot chance`)
+      if (!Number.isInteger(drop.minQuantity) || !Number.isInteger(drop.maxQuantity) || drop.minQuantity < 1 || drop.maxQuantity < drop.minQuantity) errors.push(`Location ${location.id} has invalid shared loot quantity`)
+      if (!itemById[drop.itemId]) errors.push(`Location ${location.id} references missing shared loot item ${drop.itemId}`)
+      for (const [enemyId, range] of Object.entries(drop.targetQuantityOverrides ?? {})) {
+        if (!location.targets.some((target) => target.enemyId === enemyId)) errors.push(`Location ${location.id} has quantity override for non-target ${enemyId}`)
+        if (!Number.isInteger(range.minQuantity) || !Number.isInteger(range.maxQuantity) || range.minQuantity < 1 || range.maxQuantity < range.minQuantity) errors.push(`Location ${location.id} has invalid quantity override for ${enemyId}`)
+      }
     }
   }
   return errors

@@ -6,6 +6,7 @@ import { proficiencyById } from "../../../game/data/proficiencies";
 import { normalizeSpellbook } from "../../../game/spellbook/spellbookLogic";
 import { normalizeCombatAutomation } from "../../../game/automation/automationLogic";
 import { instantiateCombatTarget } from "../../../game/combat/combatState";
+import { normalizeCombatLocationId } from "../../../game/world/worldMigration";
 import type { DebugScenarioSnapshot, DebugScenarioSnapshotV2 } from "./debugScenarioTypes";
 
 export interface ScenarioValidationResult {
@@ -67,7 +68,8 @@ export function validateDebugScenario(value: unknown): ScenarioValidationResult 
   }
   const game = value.game;
   const world = value.world;
-  if (typeof world.combatLocationId !== "string" || !combatLocationById[world.combatLocationId]) errors.push(`Missing location: ${String(world.combatLocationId)}`);
+  const normalizedLocationId = normalizeCombatLocationId(world.combatLocationId);
+  if (!normalizedLocationId || !combatLocationById[normalizedLocationId]) errors.push(`Missing location: ${String(world.combatLocationId)}`);
   if (!isRecord(game.inventory) || !isRecord(game.equipment) || !isRecord(game.progression) || !isRecord(game.combat)) errors.push("Missing game setup data.");
   if (isRecord(game.inventory) && isRecord(game.inventory.stackables)) for (const id of Object.keys(game.inventory.stackables)) if (!itemById[id]) errors.push(`Missing item: ${id}`);
   if (isRecord(game.inventory) && isRecord(game.inventory.instances)) for (const [instanceId, instance] of Object.entries(game.inventory.instances)) if (!isRecord(instance) || !itemById[String(instance.definitionId)] || instanceId !== instance.id) errors.push(`Invalid item instance: ${instanceId}`);
@@ -86,7 +88,8 @@ export function normalizeDebugScenarioSnapshot(value: unknown): DebugScenarioSna
     if (Array.isArray(combat.playerEffects)) combat.playerEffects = combat.playerEffects.filter((effect) => isRecord(effect) && effect.effectId !== "effect.protective-sign" && effect.effectId !== "effect.light-purity");
     if (isRecord(combat.enemy) && Array.isArray(combat.enemy.effects)) combat.enemy = { ...combat.enemy, effects: combat.enemy.effects.filter((effect) => isRecord(effect) && effect.effectId !== "effect.protective-sign" && effect.effectId !== "effect.light-purity") };
   }
-  return { version: 2, game: { ...rawGame, progression: { ...rawProgression, proficiencies, purchasedPerks }, spellbook: normalizeSpellbook(isRecord(rawGame.spellbook) ? rawGame.spellbook : undefined), combatAutomation: normalizeCombatAutomation(rawGame.combatAutomation), combat } as DebugScenarioSnapshotV2["game"], world: value.world as DebugScenarioSnapshotV2["world"] };
+  const rawWorld = value.world as DebugScenarioSnapshotV2["world"];
+  return { version: 2, game: { ...rawGame, progression: { ...rawProgression, proficiencies, purchasedPerks }, spellbook: normalizeSpellbook(isRecord(rawGame.spellbook) ? rawGame.spellbook : undefined), combatAutomation: normalizeCombatAutomation(rawGame.combatAutomation), combat } as DebugScenarioSnapshotV2["game"], world: { ...rawWorld, combatLocationId: normalizeCombatLocationId(rawWorld.combatLocationId) ?? rawWorld.combatLocationId } };
 }
 
 export function isDebugScenarioSnapshot(value: unknown): value is DebugScenarioSnapshot {

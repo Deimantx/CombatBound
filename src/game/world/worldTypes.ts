@@ -1,6 +1,7 @@
 export type ContentAvailability = 'available' | 'locked' | 'coming-soon'
 export type WorldAccent = 'gold' | 'blue' | 'green' | 'red'
 export type WorldIconKey = 'globe' | 'map' | 'mountain' | 'trees' | 'pin' | 'target' | 'tent' | 'shield'
+import type { ArenaSharedLootEntry } from '../loot/lootTypes'
 
 export interface WorldPresentation {
   accent: WorldAccent
@@ -43,7 +44,6 @@ export interface AreaDefinition {
 
 export interface CombatLocationTargetEntry {
   enemyId: string
-  minHunterRank?: number
 }
 
 export interface CombatLocationDefinition {
@@ -55,8 +55,8 @@ export interface CombatLocationDefinition {
   targets: CombatLocationTargetEntry[]
   availability: ContentAvailability
   requiredHunterRank: number
-  recommendedHunterRank: [number, number]
-  sharedLoot?: Array<{ itemId: string; chance: number; minQuantity: number; maxQuantity: number }>
+  recommendedHunterRank?: [number, number]
+  sharedLoot?: ArenaSharedLootEntry[]
   presentation: WorldPresentation
 }
 

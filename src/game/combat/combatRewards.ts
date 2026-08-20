@@ -1,9 +1,11 @@
 import { grantItem } from "../items/itemOwnership";
 import { discoverItem, recordTargetDefeat } from "../collection/collectionLogic";
-import type { CombatContext, CombatState, EnemyCombatInstance, LootEntry } from "./combatTypes";
+import type { CombatContext, CombatState, EnemyCombatInstance } from "./combatTypes";
 import type { GameState } from "../gameState";
 import type { CombatLocationDefinition } from "../world/worldTypes";
 import { nextCombatRandom } from "./combatRng";
+import type { LootEntry } from "../loot/lootTypes";
+import { resolveSharedLootEntryForTarget } from "../loot/lootResolution";
 
 export interface CombatRewardRolls {
   source: "target" | "location";
@@ -11,8 +13,11 @@ export interface CombatRewardRolls {
   quantity: number;
 }
 
-export function getCombatTargetLootPreview(location: CombatLocationDefinition, enemy: { loot: LootEntry[] }) {
-  return { sharedLoot: location.sharedLoot ?? [], targetLoot: enemy.loot };
+export function getCombatTargetLootPreview(location: CombatLocationDefinition, enemy: { id?: string; loot: LootEntry[] }) {
+  return {
+    sharedLoot: (location.sharedLoot ?? []).map((drop) => resolveSharedLootEntryForTarget(drop, enemy.id)),
+    targetLoot: enemy.loot,
+  };
 }
 
 export function resolveEnemyKillRewards(game: GameState, combat: CombatState, enemy: EnemyCombatInstance, location: CombatLocationDefinition | undefined, context: CombatContext) {
@@ -45,7 +50,7 @@ export function resolveEnemyKillRewards(game: GameState, combat: CombatState, en
     }
   };
   roll(definition.loot, "target");
-  roll(location?.sharedLoot ?? [], "location");
+  roll((location?.sharedLoot ?? []).map((drop) => resolveSharedLootEntryForTarget(drop, enemy.enemyId)), "location");
   nextGame.collection = recordTargetDefeat(nextGame.collection, definition.id);
   nextGame.gold = gold;
   const nextCombat = { ...combat, session: { ...combat.session, itemInstanceIdsGained, enemiesDefeated: combat.session.enemiesDefeated + 1, itemsGained: combat.session.itemsGained + items, lootGained, goldGained: combat.session.goldGained + goldGained } };

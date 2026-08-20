@@ -63,7 +63,12 @@ const southfenAreaPositions: Record<string, AtlasPoint> = {
 }
 
 const arenaPositions: Record<string, AtlasPoint> = {
-  'location.wolf-den': { x: 50, y: 44 },
+  'location.wolfscar-hollow': { x: 20, y: 22 },
+  'location.ironback-riverbed': { x: 52, y: 18 },
+  'location.fallen-watch-ruins': { x: 80, y: 34 },
+  'location.blackroot-cemetery': { x: 25, y: 56 },
+  'location.blighted-grove': { x: 62, y: 56 },
+  'location.hollow-bell-temple': { x: 48, y: 82 },
   'location.bandit-camp': { x: 50, y: 44 },
 }
 
@@ -115,7 +120,7 @@ const northwoodConnections: readonly CombatAtlasConnection[] = [
 
 function areaDecorations(areaId: string) {
   if (areaId === 'area.deep-woods') return [
-    { kind: 'route' as const, tone: 'forest' as const, points: [{ x: 16, y: 82 }, { x: 32, y: 68 }, { x: 37, y: 52 }, { x: 29, y: 37 }, { x: 50, y: 44 }] },
+    { kind: 'route' as const, tone: 'forest' as const, points: [{ x: 12, y: 78 }, { x: 20, y: 22 }, { x: 52, y: 18 }, { x: 80, y: 34 }, { x: 62, y: 56 }, { x: 25, y: 56 }, { x: 48, y: 82 }] },
     { kind: 'ring' as const, x: 22, y: 25, radius: 11 },
     { kind: 'ring' as const, x: 74, y: 70, radius: 8 },
   ]

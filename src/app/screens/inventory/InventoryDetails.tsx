@@ -7,6 +7,7 @@ import { buildItemPresentation, buildStackableItemPresentation } from "../../../
 import { formatItemStatsWithKeys } from "../../../game/presentation/statFormatting";
 import { itemRarityArtVariant } from "../../../game/presentation/itemRarity";
 import { buildItemTooltip, buildPlayerItemInstanceTooltip, buildStatTooltip } from "../../../game/presentation/tooltipBuilders";
+import { lootContainerById } from "../../../game/data/loot/lootContainers";
 import { chooseEquipmentTargetSlot, type InventoryViewEntry } from "../../../game/inventory/inventorySelectors";
 import { useGameStore } from "../../../state/gameStore";
 import { DisclosureChevron } from "../../components/DisclosureChevron";
@@ -17,6 +18,7 @@ import { buildEquipmentReplacementPresentation, equipmentSlotTargets, InventoryR
 
 export function InventoryDetails({ entry, game }: { entry?: InventoryViewEntry; game: ReturnType<typeof useGameStore.getState>["game"] }) {
   const equipItem = useGameStore((state) => state.equipItemInstance);
+  const openLootContainer = useGameStore((state) => state.openLootContainer);
   const [baseOpen, setBaseOpen] = useState(false);
   const [targetSlot, setTargetSlot] = useState<EquipmentSlotId | undefined>();
   if (!entry) return <aside className="inventory-details-pane" data-ui-panel="inventoryDetails" data-debug-kind="inventory-details-pane"><div className="inventory-empty-state"><SlidersHorizontal size={18} /><strong>Select an item</strong><span>Choose an item card to inspect it.</span></div></aside>;
@@ -39,10 +41,12 @@ export function InventoryDetails({ entry, game }: { entry?: InventoryViewEntry; 
   const actionDescription = replacement?.current ? `Replaces ${replacement.current.name} in the ${replacement.slotLabel} slot.` : chosenSlot ? `Equip this item to the ${getEquipmentSlotDefinition(chosenSlot).label} slot.` : "Choose a valid equipment target.";
   const statRows = resolved ? formatItemStatsWithKeys(resolved.effectiveStats) : [];
   const baseStatRows = resolved ? formatItemStatsWithKeys(resolved.baseStats) : [];
+  const container = entry.definition.lootContainerId ? lootContainerById[entry.definition.lootContainerId] : undefined;
   return <aside className="inventory-details-pane" data-ui-panel="inventoryDetails" data-debug-kind="inventory-details-pane">
     <GameTooltip content={tooltip}><div className="detail-item-head" data-debug-kind="tooltip-trigger" data-debug-item-id={entry.definition.id} data-debug-instance-id={entry.instanceId}><PlaceholderArt icon={entry.definition.icon} label={entry.definition.name} size="large" variant={itemRarityArtVariant(entry.definition.rarity)} /><div><span className="tiny-label">{(presentation.slotLabel ?? presentation.typeLabel).toUpperCase()}</span><h2>{presentation.name}</h2><p>{presentation.rarity}</p></div></div></GameTooltip>
     <div className="detail-badge-row">{entry.equipped && <span className="detail-badge is-equipped">Equipped · {currentSlot ? getEquipmentSlotDefinition(currentSlot).label : ""}</span>}{presentation.hunterRankRequirement !== undefined && <span className={`detail-badge ${hunterRank >= presentation.hunterRankRequirement ? "is-equipped" : ""}`}>Hunter Rank {presentation.hunterRankRequirement}</span>}</div>
     <p className="detail-description">{entry.definition.description}</p>
+    {container && !resolved && <DetailSection title="Loot container"><div className="detail-action-row"><span className="detail-muted">{container.description}</span><GameTooltip content={{ id: container.id, icon: entry.definition.icon, title: container.name, description: container.description }}><button type="button" className="button button-primary" onClick={() => openLootContainer(entry.definition.id)} disabled={entry.quantity <= 0}>Open</button></GameTooltip></div></DetailSection>}
     {resolved ? <>
       <div className="detail-summary-grid">{presentation.modified ? <><span className="detail-badge">{resolved.instance.quality > 0 ? `Quality ${resolved.instance.quality}%` : "No quality"}</span><span className="detail-badge">{resolved.instance.upgradeLevel > 0 ? `Upgrade +${resolved.instance.upgradeLevel}` : "No upgrade"}</span><span className="detail-badge">{resolved.instance.affixes.length} modifier{resolved.instance.affixes.length === 1 ? "" : "s"}</span></> : <span className="detail-badge">Unmodified</span>}</div>
       <DetailSection title="Modifiers">{presentation.modifiers.length ? <div className="detail-modifier-list">{presentation.modifiers.map((modifier) => <div key={modifier.id}><span>{modifier.kind ? `${modifier.kind === "prefix" ? "Prefix" : "Suffix"} · ` : ""}{modifier.label}{modifier.tier ? ` (T${modifier.tier})` : ""}</span><strong>{modifier.value}</strong></div>)}</div> : <span className="detail-muted">No modifications.</span>}</DetailSection>

@@ -26,6 +26,8 @@ import { normalizeInventoryState } from "../items/itemOwnership";
 import { normalizeEquipmentState } from "../equipment/equipmentRules";
 import { normalizeMagicArts } from "../magicArts/magicArtLogic";
 import { getActiveAbilityActionDefinitions } from "../combat/playerActions";
+import { enemyDefinitions } from "../data/enemies";
+import { normalizeCollectionTargets } from "../collection/collectionLogic";
 
 export const CURRENT_SAVE_VERSION = 15;
 export const GAME_SAVE_KEY = "combatbound-idle-save-v15";
@@ -104,6 +106,7 @@ function normalizeCurrentSaveV15(value: unknown): GameSaveV15 | null {
     progression: normalizeProgressionPerkIds(raw.progression),
     inventory: normalizeInventoryState(raw.inventory),
     equipment: normalizeEquipmentState(raw.equipment, raw.inventory),
+    collection: normalizeCollectionTargets(raw.collection, enemyDefinitions.map((enemy) => enemy.id)),
     magicArts,
     combatAutomation: { ...automation, rules: stripRetiredSpellRules(automation.rules) },
     combatAutomationPresets: { slots: presets.slots.map((preset) => preset ? { ...preset, config: { ...preset.config, rules: stripRetiredSpellRules(preset.config.rules) } } : null) },

@@ -38,7 +38,6 @@ export { applyEnemyHealthDamage, applyPlayerHealthDamage } from "./combatHealth"
 import { instantiateCombatTarget } from "./combatState";
 import { resolveEnemyKillRewards } from "./combatRewards";
 import { calculateProficiencyXpAward, discoverProficiency } from "../progression/proficiencyProgression";
-import { hunterRankForPoints } from "../progression/hunterRankProgression";
 import {
   getBarrierAbsorbResourceRestore,
 } from "../progression/perkProgression";
@@ -71,6 +70,7 @@ import type {
   CombatProficiencyId,
   ProgressionCredit,
 } from "../progression/progressionTypes";
+import { normalizeCombatLocationId } from "../world/worldMigration";
 
 export function createCombatContext(rng: CombatContext["rng"]): CombatContext {
   return {
@@ -320,22 +320,22 @@ function createFreshEncounter(previous: CombatState, locationId: string, enemyId
 }
 
 export function startCombatTarget(game: GameState, locationId: string, enemyId: string, stats: HunterCombatStats, context: CombatContext): GameState {
-  const location = context.locations[locationId];
+  const canonicalLocationId = normalizeCombatLocationId(locationId) ?? locationId;
+  const location = context.locations[canonicalLocationId];
   const target = location?.targets.find((entry) => entry.enemyId === enemyId);
-  const hunterRank = hunterRankForPoints(game.progression.hunterRankPoints);
-  if (!location || !target || !context.enemies[enemyId] || (target.minHunterRank ?? 0) > hunterRank) return game;
+  if (!location || !target || !context.enemies[enemyId]) return game;
   const clean = clearEndedHuntEffects({ ...game.combat, session: { ...game.combat.session, elapsedSeconds: 0, enemiesDefeated: 0, damageDealt: 0, damageTaken: 0, healing: 0, proficiencyXpGained: {}, itemsGained: 0, lootGained: {}, itemInstanceIdsGained: [], goldGained: 0, highestHit: 0 }, enemy: null }, context.effects);
-  const started = createFreshEncounter(clean, locationId, enemyId, stats, context);
+  const started = createFreshEncounter(clean, canonicalLocationId, enemyId, stats, context);
   return started.enemy ? { ...game, combat: started } : game;
 }
 
 export function switchCombatTarget(game: GameState, locationId: string, enemyId: string, stats: HunterCombatStats, context: CombatContext): GameState {
-  const location = context.locations[locationId];
+  const canonicalLocationId = normalizeCombatLocationId(locationId) ?? locationId;
+  const location = context.locations[canonicalLocationId];
   const target = location?.targets.find((entry) => entry.enemyId === enemyId);
-  const hunterRank = hunterRankForPoints(game.progression.hunterRankPoints);
-  if (!location || !target || !context.enemies[enemyId] || (target.minHunterRank ?? 0) > hunterRank) return game;
+  if (!location || !target || !context.enemies[enemyId]) return game;
   const ended = clearEndedHuntEffects({ ...game.combat, enemy: null }, context.effects);
-  const started = createFreshEncounter(ended, locationId, enemyId, stats, context);
+  const started = createFreshEncounter(ended, canonicalLocationId, enemyId, stats, context);
   return started.enemy ? { ...game, combat: started } : game;
 }
 

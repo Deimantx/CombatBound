@@ -3,11 +3,12 @@ import { combatLocationById, combatLocationDefinitions } from '../data/world/com
 import { continentById, continentDefinitions } from '../data/world/continents'
 import { regionById, regionDefinitions } from '../data/world/regions'
 import type { WorldSelection } from './worldTypes'
+import { normalizeCombatLocationId } from './worldMigration'
 
 export const getRegionsForContinent = (continentId: string) => regionDefinitions.filter((region) => region.continentId === continentId)
 export const getAreasForRegion = (regionId: string) => areaDefinitions.filter((area) => area.regionId === regionId)
 export const getLocationsForArea = (areaId: string) => combatLocationDefinitions.filter((location) => location.areaId === areaId)
-export const getAreaForCombatLocation = (locationId: string) => { const location = combatLocationById[locationId]; return location ? areaById[location.areaId] : undefined }
+export const getAreaForCombatLocation = (locationId: string) => { const location = combatLocationById[normalizeCombatLocationId(locationId) ?? locationId]; return location ? areaById[location.areaId] : undefined }
 export const getRegionForArea = (areaId: string) => { const area = areaById[areaId]; return area ? regionById[area.regionId] : undefined }
 export const getContinentForRegion = (regionId: string) => { const region = regionById[regionId]; return region ? continentById[region.continentId] : undefined }
 export const getCombatLocationBreadcrumb = locationBreadcrumb
@@ -21,7 +22,7 @@ export function getDefaultWorldSelection(): WorldSelection {
 }
 
 export function selectionForLocation(locationId: string, fallback = getDefaultWorldSelection()): WorldSelection {
-  const location = combatLocationById[locationId]
+  const location = combatLocationById[normalizeCombatLocationId(locationId) ?? locationId]
   const area = location ? areaById[location.areaId] : undefined
   const region = area ? regionById[area.regionId] : undefined
   const continent = region ? continentById[region.continentId] : undefined
@@ -33,7 +34,8 @@ export function cascadeSelection(selection: Partial<WorldSelection>): WorldSelec
   const continent = continentById[selection.continentId ?? ''] ?? continentById[fallback.continentId]
   const region = getRegionsForContinent(continent.id).find((candidate) => candidate.id === selection.regionId) ?? getRegionsForContinent(continent.id)[0] ?? regionById[fallback.regionId]
   const area = getAreasForRegion(region.id).find((candidate) => candidate.id === selection.areaId) ?? getAreasForRegion(region.id)[0] ?? areaById[fallback.areaId]
-  const location = getLocationsForArea(area.id).find((candidate) => candidate.id === selection.combatLocationId) ?? getLocationsForArea(area.id)[0] ?? combatLocationById[fallback.combatLocationId]
+  const normalizedLocationId = normalizeCombatLocationId(selection.combatLocationId)
+  const location = getLocationsForArea(area.id).find((candidate) => candidate.id === normalizedLocationId) ?? getLocationsForArea(area.id)[0] ?? combatLocationById[fallback.combatLocationId]
   return { continentId: continent.id, regionId: region.id, areaId: area.id, combatLocationId: location.id }
 }
 
@@ -42,7 +44,7 @@ export function isWorldNodeAvailable(availability: string | undefined, requiredH
 }
 
 export function isCombatLocationAvailable(locationId: string, hunterRank: number) {
-  const location = combatLocationById[locationId]
+  const location = combatLocationById[normalizeCombatLocationId(locationId) ?? locationId]
   if (!location) return false
   const area = areaById[location.areaId]
   const region = area && regionById[area.regionId]

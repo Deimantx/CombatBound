@@ -2,9 +2,12 @@ import { deepFreeze } from './freeze'
 import type { DefensiveProficiencyId, WeaponProficiencyId } from '../progression/progressionTypes'
 import type { EquipmentSlotKind } from '../equipment/equipmentTypes'
 import type { ItemInventoryMode, ItemStats } from '../items/itemTypes'
+import type { LootContainerId } from '../loot/lootTypes'
+import { deepWoodsItemDefinitions } from './deepWoodsItems'
 
 export type ItemCategory = 'weapon' | 'armor' | 'accessory' | 'material' | 'consumable' | 'currency'
 export type ItemRarity = 'common' | 'uncommon' | 'rare'
+export type ItemPurpose = 'equipment' | 'consumable' | 'crafting' | 'sell-only' | 'loot-container' | 'future'
 
 export interface ItemDefinition {
   id: string
@@ -14,6 +17,8 @@ export interface ItemDefinition {
   description: string
   icon: string
   inventoryMode: ItemInventoryMode
+  purpose?: ItemPurpose
+  lootContainerId?: LootContainerId
   requiredHunterRank?: number
   weaponProficiencyId?: WeaponProficiencyId
   equipmentSlotKind?: EquipmentSlotKind
@@ -59,10 +64,11 @@ const authoredItemDefinitions: ItemDefinition[] = [
   { id: 'item.wind-earring', name: 'Wind Earring', category: 'accessory', rarity: 'uncommon', description: 'An earring that makes every step feel lighter.', icon: 'earring', inventoryMode: 'instance', requiredHunterRank: 5, equipmentSlotKind: 'earring', stats: { evasionRating: 3, staminaRegen: .2 } },
   { id: 'item.star-earring', name: 'Star Earring', category: 'accessory', rarity: 'rare', description: 'A star-bright earring tuned to shadow and arcane forces.', icon: 'earring', inventoryMode: 'instance', requiredHunterRank: 10, equipmentSlotKind: 'earring', stats: { manaRegenFlat: .35, accuracyRating: 4, chaosResistance: .03 } },
   { id: 'item.healing-potion', name: 'Healing Potion', category: 'consumable', rarity: 'common', description: 'Restores health during combat.', icon: 'cross', inventoryMode: 'stackable' },
-  { id: 'item.wolf-fang', name: 'Wolf Fang', category: 'material', rarity: 'common', description: 'A small trophy from a Grey Wolf.', icon: 'target', inventoryMode: 'stackable' },
-  { id: 'item.wolf-pelt', name: 'Wolf Pelt', category: 'material', rarity: 'uncommon', description: 'A useful hunting material.', icon: 'cube', inventoryMode: 'stackable' },
+  { id: 'item.wolf-fang', name: 'Wolf Fang', category: 'material', rarity: 'common', description: 'A hardened wolf fang used in weapon crafting.', icon: 'target', inventoryMode: 'stackable', purpose: 'crafting' },
+  { id: 'item.wolf-pelt', name: 'Wolf Pelt', category: 'material', rarity: 'common', description: 'A wolf pelt intended for future sale only.', icon: 'cube', inventoryMode: 'stackable', purpose: 'sell-only' },
   { id: 'item.bandit-scrap', name: 'Bandit Scrap', category: 'material', rarity: 'common', description: 'Recovered from a bandit camp.', icon: 'cube', inventoryMode: 'stackable' },
   { id: 'item.coin-pouch', name: 'Coin Pouch', category: 'currency', rarity: 'uncommon', description: 'A small purse of prototype gold.', icon: 'coin', inventoryMode: 'stackable' },
+  ...deepWoodsItemDefinitions,
 ]
 
 export const itemDefinitions = deepFreeze<ItemDefinition[]>(authoredItemDefinitions)

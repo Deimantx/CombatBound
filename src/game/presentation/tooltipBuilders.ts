@@ -102,6 +102,8 @@ export function buildItemTooltip(
   }
   if (options.quantity !== undefined)
     rows.unshift({ label: "Quantity", value: options.quantity.toLocaleString(), tone: "default" as TooltipTone });
+  if (item.purpose === "sell-only") rows.unshift({ label: "Purpose", value: "Sell-only", tone: "gold" as TooltipTone });
+  if (item.purpose === "loot-container") rows.unshift({ label: "Purpose", value: "Loot container", tone: "blue" as TooltipTone });
   return {
     id: item.id,
     icon: item.icon,

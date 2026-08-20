@@ -25,6 +25,9 @@ export type PlayerActionTargetMode = "self" | "selected-enemy";
 export type GlobalCooldownMode = "standard" | "none" | number;
 import type { ItemDefinition } from "../data/items";
 import type { EnemyTier, EnemyTraitAssignment, EnemyTraitId, EnemyTraitRuntimeState } from "../enemyTraits/enemyTraitTypes";
+import type { LootEntry } from "../loot/lootTypes";
+
+export type { LootEntry } from "../loot/lootTypes";
 
 export type CombatantRef =
   { kind: "player" } | { kind: "enemy"; instanceId: string };
@@ -213,13 +216,6 @@ export interface EnemyPreparedAbilityRuntime {
   source?: CombatantRef;
   target?: CombatantRef;
   startedSequence?: number;
-}
-
-export interface LootEntry {
-  itemId: string;
-  chance: number;
-  minQuantity: number;
-  maxQuantity: number;
 }
 
 export interface EnemyDefinition {

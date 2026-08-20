@@ -15,8 +15,13 @@ import { calculateHunterCombatStats } from "../game/equipment/derivedStats";
 import { equipItemInstance as equipOwnedItemInstance, unequipEquipmentSlot as unequipOwnedEquipmentSlot } from "../game/equipment/equipmentRules";
 import { getItemDefinitionForInstance } from "../game/items/itemResolver";
 import { normalizeInventoryState } from "../game/items/itemOwnership";
+import { normalizeCollectionTargets } from "../game/collection/collectionLogic";
+import { discoverItem } from "../game/collection/collectionLogic";
+import { openLootContainer as resolveLootContainer } from "../game/loot/lootContainerLogic";
+import { lootContainerById } from "../game/data/loot/lootContainers";
 import { normalizeEquipmentState } from "../game/equipment/equipmentRules";
 import { combatLocationById } from "../game/data/world/combatLocations";
+import { enemyDefinitions } from "../game/data/enemies";
 import { continentById } from "../game/data/world/continents";
 import { createInitialGameState, type GameState } from "../game/gameState";
 import { hunterRankForPoints } from "../game/progression/hunterRankProgression";
@@ -195,6 +200,7 @@ interface GameStoreState {
   renameAutomationPreset: (slot: number, name: string) => void;
   clearAutomationPreset: (slot: number) => void;
   usePotion: () => void;
+  openLootContainer: (itemId: string) => void;
   purchaseProficiencyPerk: (perkId: string) => void;
   equipItemInstance: (instanceId: string, slot: EquipmentSlotId) => void;
   unequipEquipmentSlot: (slot: EquipmentSlotId) => void;
@@ -300,7 +306,7 @@ function gameFromSave(saved: NonNullable<ReturnType<typeof loadProfileGameSave>>
       progression: saved.progression,
       inventory,
       equipment: normalizeEquipmentState(saved.equipment, inventory),
-      collection: saved.collection,
+       collection: normalizeCollectionTargets(saved.collection, enemyDefinitions.map((enemy) => enemy.id)),
       gold: saved.gold,
       spellbook: { knownSpellIds: [] } satisfies SpellbookState,
       magicArts: normalizeMagicArts(saved.magicArts),
@@ -911,6 +917,19 @@ export const useGameStore = create<GameStoreState>((set, get) => {
           state.game.progression,
         );
         return flatState(useHealingPotion(state.game, stats), state);
+      }),
+    openLootContainer: (itemId) =>
+      set((state) => {
+        const result = resolveLootContainer(state.game.inventory, itemId, 1, lootContainerById, () => Math.random());
+        if (result.openedQuantity <= 0) return state;
+        let collection = state.game.collection;
+        for (const rewardId of Object.keys(result.rewards)) collection = discoverItem(collection, rewardId);
+        const game = { ...state.game, inventory: result.inventory, collection };
+        savePermanent(game, {
+          reducedMotion: state.reducedMotion,
+          showInspectorButton: state.showInspectorButton,
+        });
+        return flatState(game, state);
       }),
     purchaseProficiencyPerk: (perkId) =>
       set((state) => {

@@ -2,3 +2,8 @@ import type { CollectionState } from './collectionTypes'
 export function discoverItem(collection: CollectionState, itemId: string): CollectionState { return collection.discoveredItems.includes(itemId) ? collection : { ...collection, discoveredItems: [...collection.discoveredItems, itemId] } }
 export function discoverTarget(collection: CollectionState, enemyId: string): CollectionState { const current = collection.targets[enemyId] ?? { enemyId, discovered: false, defeats: 0 }; return { ...collection, targets: { ...collection.targets, [enemyId]: { ...current, discovered: true } } } }
 export function recordTargetDefeat(collection: CollectionState, enemyId: string): CollectionState { const current = collection.targets[enemyId] ?? { enemyId, discovered: false, defeats: 0 }; return { ...collection, targets: { ...collection.targets, [enemyId]: { ...current, discovered: true, defeats: current.defeats + 1, firstDefeatedAt: current.firstDefeatedAt ?? Date.now() } } } }
+export function normalizeCollectionTargets(collection: CollectionState, enemyIds: readonly string[]): CollectionState {
+  const targets = { ...collection.targets }
+  for (const enemyId of enemyIds) if (!targets[enemyId]) targets[enemyId] = { enemyId, discovered: false, defeats: 0 }
+  return { ...collection, targets }
+}

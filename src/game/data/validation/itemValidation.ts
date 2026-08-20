@@ -32,6 +32,14 @@ export function validateItemDefinition(item: ItemDefinition): ItemValidationResu
     errors.push(`${item.id}: requiredHunterRank must be an integer >= 1`);
   if (item.equipmentSlotKind && item.stats === undefined)
     warnings.push(`${item.id}: equipment item has no stats`);
+  if (item.lootContainerId && item.inventoryMode !== "stackable")
+    errors.push(`${item.id}: loot containers must be stackable`);
+  if (item.lootContainerId && item.purpose !== "loot-container")
+    errors.push(`${item.id}: loot containers must use purpose loot-container`);
+  if (item.purpose === "loot-container" && !item.lootContainerId)
+    errors.push(`${item.id}: loot-container purpose requires lootContainerId`);
+  if (item.purpose === "sell-only" && item.lootContainerId)
+    errors.push(`${item.id}: sell-only items cannot also be loot containers`);
 
   const hasDamageMin = stats.baseDamageMin !== undefined;
   const hasDamageMax = stats.baseDamageMax !== undefined;
