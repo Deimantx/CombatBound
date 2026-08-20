@@ -220,18 +220,8 @@ function conditionMatches(
     case "target-missing-effect":
       return !hasEffect(targetEffects, condition.effectId);
     case "target-casting":
-      return Boolean(target?.currentAction);
-    case "target-danger-at-least": {
-      const levels = { low: 0, medium: 1, high: 2, critical: 3 };
-      const definition = target ? context.enemies[target.enemyId] : undefined;
-      const danger = definition?.actions.find(
-        (action) => action.id === target?.currentAction?.actionId,
-      )?.danger;
-      const threshold = levels[condition.danger];
-      return (
-        danger !== undefined && danger in levels && levels[danger] >= threshold
-      );
-    }
+    case "target-danger-at-least":
+      return false;
     case "alive-enemies-at-least":
       return (
         game.combat.enemies.filter((enemy) => !enemy.defeated).length >= condition.count
@@ -248,15 +238,8 @@ function criterionScore(
 ): number {
   if (enemy.defeated) return -Infinity;
   const definition = context.enemies[enemy.enemyId];
-  const action = enemy.currentAction
-    ? definition?.actions.find(
-        (candidate) => candidate.id === enemy.currentAction?.actionId,
-      )
-    : undefined;
   if (criterion === "highest-danger-casting")
-    return action
-      ? ({ low: 1, medium: 2, high: 3, critical: 4 }[action.danger] ?? 0)
-      : 0;
+    return 0;
   if (criterion === "elite") return definition?.accent === "gold" ? 1 : 0;
   if (criterion === "lowest-health-percent")
     return 1 - enemy.currentHealth / Math.max(1, enemy.maxHealth);

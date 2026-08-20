@@ -6,6 +6,8 @@ import { magicArtById } from "../data/magicArts";
 import { effectById } from "../data/effects";
 import { enemyById } from "../data/enemies";
 import { enemyTraitById } from "../data/enemyTraits";
+import { enemyCombatAbilityById } from "../data/enemyCombatAbilities";
+import { enemyAbilityEffectById } from "../data/enemyAbilityEffects";
 import { combatLocationById } from "../data/world/combatLocations";
 import { itemById } from "../data/items";
 import { combatBalance, clamp } from "./combatBalance";
@@ -23,7 +25,7 @@ import {
   recoverOutOfCombatResources,
 } from "./combatRuntime";
 import { advanceCombatEffects as runPeriodicRuntime } from "./combatPeriodicRuntime";
-import { advanceEnemyNormalAttacks as runEnemyNormalAttacks, advanceEnemySpecials as runEnemyRuntime } from "./combatEnemyRuntime";
+import { advanceEnemyNormalAttacks as runEnemyNormalAttacks, advanceEnemyCombatAbilities as runEnemyRuntime } from "./combatEnemyRuntime";
 import {
   castMagicArt as runPlayerCastMagicArt,
   damageEnemy as runPlayerDamageEnemy,
@@ -82,7 +84,8 @@ export function createCombatContext(rng: CombatContext["rng"]): CombatContext {
     locations: combatLocationById,
     magicArts: magicArtById,
     items: itemById,
-    effects: effectById,
+    effects: { ...effectById, ...enemyAbilityEffectById },
+    enemyCombatAbilities: enemyCombatAbilityById,
     enemyTraits: enemyTraitById,
     rng,
   };
@@ -662,11 +665,12 @@ function advanceEnemySpecials(
   stats: HunterCombatStats,
   mode: "both" | "start" | "advance" = "both",
 ): GameState {
+  if (mode === "advance") return game;
   return runEnemyRuntime(game, step, context, stats, {
     applyEffectiveHealing,
     awardBarrierCredits,
     resolveDefensiveTrainingForEnemyAction,
-  }, mode);
+  });
 }
 
 function resolveDefeatedEnemies(

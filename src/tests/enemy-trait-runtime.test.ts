@@ -7,7 +7,7 @@ import { createInitialGameState } from "../game/gameState";
 
 const createEnemy = (currentHealth = 50): EnemyCombatInstance => ({
   instanceId: "trait-test#1", enemyId: "trait-test", displayName: "Trait Test", currentHealth, maxHealth: 100,
-  attackTimer: 1, attackInterval: 1, actionCooldowns: {}, phaseId: null, currentAction: null, effects: [], defeated: false,
+  attackTimer: 1, attackInterval: 1, actionCooldowns: {}, abilityCooldowns: {}, abilityRuntime: { usedThisFight: {} }, phaseId: null, currentAction: null, effects: [], defeated: false,
   rewardResolved: false, traitRuntime: normalizeEnemyTraitRuntimeState(undefined),
 });
 

@@ -1,4 +1,3 @@
-import { useMemo } from "react";
 import { enemyById } from "../../../../game/data/enemies";
 import { buildCombatAbilityTooltip, buildMagicArtTooltip } from "../../../../game/presentation/tooltipBuilders";
 import { getActionById, reasonLabel, validatePlayerAction } from "../../../../game/combat/playerActions";
@@ -14,14 +13,13 @@ import { getMagicArt } from "../../../../game/magicArts/magicArtLogic";
 
 export function CombatActionWorkspace({ game, stats, selectedEnemy, selectedDefinition, actionContext, onUseAction, onUsePotion }: { game: GameState; stats: HunterCombatStats; selectedEnemy?: EnemyCombatInstance; selectedDefinition?: (typeof enemyById)[keyof typeof enemyById]; actionContext: CombatContext; onUseAction: (actionId: string) => void; onUsePotion: () => void }) {
   const combat = game.combat;
-  const selectedAction = useMemo(() => selectedEnemy?.currentAction ? selectedDefinition?.actions.find((action) => action.id === selectedEnemy.currentAction?.actionId) : undefined, [selectedDefinition, selectedEnemy]);
   const potionQuantity = game.inventory.stackables["item.healing-potion"] ?? 0;
   const potionReady = combat.phase === "active" && combat.potionCooldownRemaining <= 0 && potionQuantity > 0 && combat.playerHp < (stats.maxLife ?? 0);
   const potionStatus = combat.potionCooldownRemaining > 0 ? `COOLDOWN ${combat.potionCooldownRemaining.toFixed(1)}s` : potionQuantity <= 0 ? "OUT OF STOCK" : combat.playerHp >= (stats.maxLife ?? 0) ? "FULL HEALTH" : "READY";
   const abilityIds = game.combatAbilities.slots;
   const catalogue = getKnownCombatAbilities(game);
   return <div className="spell-controls" data-debug-kind="combat-action-workspace">
-    <div className="section-title"><span className="tiny-label">COMBAT ACTIONS</span><small>{selectedAction ? `${selectedAction.name} TELEGRAPHED` : combat.globalCooldownRemaining > 0 ? `GLOBAL COOLDOWN ${combat.globalCooldownRemaining.toFixed(1)}s` : "Five equipped Combat Abilities plus Consumables"}</small></div>
+    <div className="section-title"><span className="tiny-label">COMBAT ACTIONS</span><small>{combat.globalCooldownRemaining > 0 ? `GLOBAL COOLDOWN ${combat.globalCooldownRemaining.toFixed(1)}s` : "Five equipped Combat Abilities plus Consumables"}</small></div>
     <div className="combat-action-sections">
       <section className="combat-action-section"><div className="section-title"><span className="tiny-label">COMBAT ABILITIES</span><small>{COMBAT_ABILITY_SLOT_COUNT} shared loadout slots</small></div><div className="spell-grid combat-ability-grid">{Array.from({ length: COMBAT_ABILITY_SLOT_COUNT }, (_, slot) => {
         const actionId = abilityIds[slot];

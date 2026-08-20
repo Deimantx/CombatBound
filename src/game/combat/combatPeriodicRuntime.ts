@@ -129,6 +129,13 @@ export function resolvePeriodicEffect(
         ),
       };
     }
+    if (effect.target.kind === "enemy") {
+      const targetId = effect.target.instanceId;
+      const enemy = game.combat.enemies.find((candidate) => candidate.instanceId === targetId);
+      if (!enemy) return game;
+      const healed = Math.min(enemy.maxHealth - enemy.currentHealth, (operation.maxLifeFraction ? enemy.maxHealth * operation.maxLifeFraction : amount) * effect.stacks);
+      return healed > 0 ? { ...game, combat: { ...game.combat, enemies: game.combat.enemies.map((candidate) => candidate.instanceId === targetId ? { ...candidate, currentHealth: candidate.currentHealth + healed } : candidate) } } : game;
+    }
     return game;
   }
 

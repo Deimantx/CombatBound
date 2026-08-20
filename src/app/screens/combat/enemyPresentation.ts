@@ -2,6 +2,7 @@ import type { EnemyDefinition } from '../../../game/combat/combatTypes'
 import { enemyById } from '../../../game/data/enemies'
 import { formatDamageRange, formatPercent, formatSeconds } from '../../../game/presentation/statFormatting'
 import { getEnemyResolvedTraits } from '../../../game/enemyTraits/enemyTraitSelectors'
+import { enemyCombatAbilityById } from '../../../game/data/enemyCombatAbilities'
 import type { TooltipModel, TooltipRow, TooltipSection, TooltipTone } from '../../components/tooltip/tooltipTypes'
 
 export interface EnemyPresentation {
@@ -32,11 +33,13 @@ export function enemyTooltipModel(enemyId: string): TooltipModel {
   const sections: TooltipSection[] = [{ id: 'enemy-stats', title: 'CORE STATS', rows }]
   const traits = getEnemyResolvedTraits(enemy)
   if (traits.length > 0) sections.push({ id: 'enemy-traits', title: 'TRAITS', notes: traits.map((trait) => `${trait.definition.name} · Rank ${trait.assignment.rank} — ${trait.rank.description}`) })
-  if (enemy.actions.length > 0) sections.push({ id: 'enemy-actions', title: 'SPECIAL ACTIONS', notes: enemy.actions.map((action) => {
+  if (false && enemy.actions.length > 0) sections.push({ id: 'enemy-legacy-actions', title: 'LEGACY ACTIONS', notes: enemy.actions.map((action) => {
     const danger = action.danger ? ` [${action.danger.toUpperCase()}]` : ''
     const timing = ` Prep ${formatSeconds(action.preparationSeconds)} · Cooldown ${formatSeconds(action.cooldownSeconds)}`
     return `${action.name}${danger} — ${action.description}${timing}`
   }) })
+  const abilities = (enemy.combatAbilityIds ?? []).map((id) => enemyCombatAbilityById[id]).filter(Boolean)
+  if (abilities.length > 0) sections.push({ id: 'enemy-abilities', title: 'COMBAT ABILITIES', notes: abilities.map((ability) => `${ability.name} — ${ability.description} Cooldown ${formatSeconds(ability.cooldownSeconds)}`) })
 
   const resistances = Object.entries(enemy.resistances).filter(([, value]) => value !== 0)
   if (resistances.length > 0) sections.push({

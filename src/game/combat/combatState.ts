@@ -25,6 +25,8 @@ export function instantiateEnemies(
       attackTimer: definition.baseAttackTime,
       attackInterval: definition.baseAttackTime,
       actionCooldowns: {},
+      abilityCooldowns: {},
+      abilityRuntime: { usedThisFight: {} },
       phaseId: null,
       currentAction: null,
       effects: [],

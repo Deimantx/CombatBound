@@ -47,7 +47,7 @@ export function SelectedEnemyPanel({
       icon={Target}
       panelId="targetCombat"
       screen="combat"
-      className={`target-combat-panel ${selectedEnemy ? "has-target" : ""} ${selectedEnemy?.currentAction ? "has-target-action" : ""}`}
+      className={`target-combat-panel ${selectedEnemy ? "has-target" : ""}`}
     >
       {selectedEnemy && definition ? (
         <>
@@ -132,12 +132,13 @@ export function SelectedEnemyPanel({
               </div>
             ))}
           </div>
-          {definition.actions.length > 0 && (
+          {/*
+          {selectedEnemy && definition && false && definition.actions.length > 0 && (
             <div className="enemy-actions-detail">
-              <span className="tiny-label">SPECIAL ACTIONS</span>
+              <span className="tiny-label">COMBAT ABILITIES</span>
               {definition.actions.map((action) => {
                 const current =
-                  selectedEnemy.currentAction?.actionId === action.id;
+                  false;
                 return (
                   <div
                     className={`enemy-action-detail ${current ? `is-casting danger-${action.danger}` : ""}`}
@@ -149,14 +150,15 @@ export function SelectedEnemyPanel({
                     </strong>
                     <small>
                       {action.danger.toUpperCase()} DANGER Â·{" "}
-                      "TELEGRAPHED"
+                      "RESOLVES IMMEDIATELY"
                     </small>
-                    {current && <small className="casting-now-label">CASTING NOW Â· RESOLVES WHEN TIMER ENDS</small>}
+                    {current && <small className="ability-resolved-label">ABILITY RESOLVED</small>}
                   </div>
                 );
               })}
             </div>
           )}
+          */}
           <AffinityRow
             label="WEAKNESS"
             values={affinityValues(definition.resistances, "weakness")}

@@ -23,7 +23,7 @@ export interface EffectIncomingDamageModifier {
 
 export type PeriodicOperation =
   | { type: 'damage'; damageType: DamageType; baseAmount: number; canCrit?: boolean }
-  | { type: 'heal'; baseAmount: number }
+  | { type: 'heal'; baseAmount: number; maxLifeFraction?: number }
 
 export interface EffectDefinition {
   id: string

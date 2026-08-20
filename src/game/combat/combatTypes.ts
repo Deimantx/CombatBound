@@ -195,6 +195,7 @@ export type ActionValidationReason =
 import type {
   CombatProficiencyId,
 } from "../progression/progressionTypes";
+import type { EnemyCombatAbilityId, EnemyAbilityRuntimeState } from "../enemyAbilities/enemyAbilityTypes";
 
 export type DamageProgressionSource =
   | { type: "equippedWeapon"; proficiencyEligible: boolean }
@@ -294,6 +295,7 @@ export interface EnemyDefinition {
   resistances: Partial<Record<ResistanceDamageType, number>>;
   enemyTier: EnemyTier;
   traits: EnemyTraitAssignment[];
+  combatAbilityIds: EnemyCombatAbilityId[];
   actions: EnemyActionDefinition[];
   phases?: Array<{
     phaseId: string;
@@ -316,6 +318,8 @@ export interface EnemyCombatInstance {
   attackTimer: number;
   attackInterval: number;
   actionCooldowns: Record<string, number>;
+  abilityCooldowns: Record<EnemyCombatAbilityId, number>;
+  abilityRuntime: EnemyAbilityRuntimeState;
   phaseId: string | null;
   phaseStatModifiers?: StatModifier[];
   currentAction: EnemyActionRuntime | null;
@@ -326,6 +330,7 @@ export interface EnemyCombatInstance {
 }
 
 export type CombatEventType =
+  | "enemyAbilityResolved"
   | "actionStarted"
   | "actionResolved"
   | "attackMissed"
@@ -427,6 +432,7 @@ export interface CombatContext {
   magicArts?: Record<string, import("../magicArts/magicArtTypes").MagicArtDefinition>;
   items: Record<string, ItemDefinition>;
   effects: Record<string, import("./combatEffectTypes").EffectDefinition>;
+  enemyCombatAbilities?: Record<EnemyCombatAbilityId, import("../enemyAbilities/enemyAbilityTypes").EnemyCombatAbilityDefinition>;
   enemyTraits?: Record<EnemyTraitId, import("../enemyTraits/enemyTraitTypes").EnemyTraitDefinition>;
   rng: CombatRng;
   debugHooks?: {

@@ -4,6 +4,7 @@ import { getPlayerStats } from "../combat/combatRuntime";
 import type { GameState } from "../gameState";
 import type { CombatContext, EnemyCombatInstance } from "../combat/combatTypes";
 import type { HunterCombatStats } from "../equipment/derivedStats";
+import { getEnemyCombatAbilities } from "../enemyAbilities/enemyAbilityRuntime";
 import type { AutomationCondition } from "../automation/automationTypes";
 
 export const OFFLINE_COMBAT_TIME_QUANTUM_SECONDS = 0.1;
@@ -122,60 +123,22 @@ export function getAutomationConditionBoundary(
   return boundary;
 }
 
-function enemyActionConditionValid(
-  action: NonNullable<CombatContext["enemies"][string]>["actions"][number],
-  enemy: EnemyCombatInstance,
-  game: GameState,
-  context: CombatContext,
-): boolean {
-  return (action.conditions ?? []).every((condition) => {
-    const value = condition.value;
-    switch (condition.type) {
-      case "player-hp-below":
-        return game.combat.maxPlayerHp > 0 && game.combat.playerHp / game.combat.maxPlayerHp < Number(value);
-      case "self-hp-below":
-        return enemy.maxHealth > 0 && enemy.currentHealth / enemy.maxHealth < Number(value);
-      case "has-effect":
-        return enemy.effects.some((effect) => effect.effectId === value);
-      case "missing-effect":
-        return !enemy.effects.some((effect) => effect.effectId === value);
-      case "allies-at-least":
-        return game.combat.enemies.filter((candidate) => !candidate.defeated).length >= Number(value);
-      case "phase":
-        return enemy.phaseId === value;
-      default:
-        return true;
-    }
-  }) && Boolean(context.enemies[enemy.enemyId]);
-}
-
 /** Pure readiness inspection. It deliberately does not call weighted selection or RNG. */
 export function enemyActionReady(
   enemy: EnemyCombatInstance,
   game: GameState,
   context: CombatContext,
 ): boolean {
-  if (enemy.defeated || enemy.currentAction) return false;
+  if (enemy.defeated) return false;
   const definition = context.enemies[enemy.enemyId];
   if (!definition) return false;
-  const activePhase = definition.phases?.find((phase) => phase.phaseId === enemy.phaseId);
-  const actions = activePhase?.actionIds
-    ? definition.actions.filter((action) => activePhase.actionIds?.includes(action.id))
-    : definition.actions;
-  return actions.some((action) =>
-    action.preparationSeconds >= 0 &&
-    action.cooldownSeconds >= 0 &&
-    (enemy.actionCooldowns[action.id] ?? 0) <= 0 &&
-    enemyActionConditionValid(action, enemy, game, context),
-  );
+  return getEnemyCombatAbilities(definition, context).some((ability) => (enemy.abilityCooldowns[ability.id] ?? 0) <= 0);
 }
 
 function enemyBoundary(enemy: EnemyCombatInstance): number {
   if (enemy.defeated) return Number.POSITIVE_INFINITY;
-  if (enemy.currentAction)
-    return Math.min(timerBoundary(enemy.currentAction.remainingSeconds), effectBoundary(enemy.effects));
   let boundary = timerBoundary(enemy.attackTimer);
-  for (const remaining of Object.values(enemy.actionCooldowns)) boundary = Math.min(boundary, cooldownBoundary(remaining));
+  for (const remaining of Object.values(enemy.abilityCooldowns ?? {})) boundary = Math.min(boundary, cooldownBoundary(remaining));
   return Math.min(boundary, effectBoundary(enemy.effects));
 }
 

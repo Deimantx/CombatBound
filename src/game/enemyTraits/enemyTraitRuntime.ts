@@ -218,6 +218,7 @@ export interface EnemyTraitEventPayload {
   successful?: boolean;
   actualDamage?: number;
   actionId?: string;
+  abilityId?: string;
   phaseId?: string;
 }
 
@@ -256,8 +257,8 @@ export function processEnemyTraitEvent(game: GameState, instanceId: string, even
         if (mechanic.type === "critical-damage-resistance" && event === "enemy-critical-hit-taken" && mechanic.cap > mechanic.perStack) entry.counters[key] = (entry.counters[key] ?? 0) + 1;
         if (mechanic.type === "stack-stat-modifier" && mechanic.sourceCategory && payload.sourceCategory && mechanic.sourceCategory === payload.sourceCategory && mechanic.counterKey) entry.timers[mechanic.counterKey] = 10;
         if (mechanic.type === "phase-stack" && mechanic.event === event) entry.stacks[key] = (entry.stacks[key] ?? 0) + 1;
-        if (mechanic.type === "action-cooldown-on-action-use" && event === "enemy-action-resolved" && payload.actionId) {
-          const counter = `${key}:${payload.actionId}`;
+        if (mechanic.type === "action-cooldown-on-action-use" && event === "enemy-action-resolved" && (payload.abilityId ?? payload.actionId)) {
+          const counter = `${key}:${payload.abilityId ?? payload.actionId}`;
           entry.counters[counter] = (entry.counters[counter] ?? 0) + 1;
         }
       });
@@ -444,6 +445,14 @@ export function getEnemyActionCooldownReduction(enemy: EnemyCombatInstance, kind
 
 export function getEnemyActionDamageMultiplier(enemy: EnemyCombatInstance, enemyDefinitions: Record<string, { traits: readonly EnemyTraitAssignment[] }> = {}, definitions: Record<string, EnemyTraitDefinition> = enemyTraitById) {
   return mechanicsForEnemy(enemy, enemyDefinitions, definitions).reduce((multiplier, { mechanic }) => mechanic.type === "action-damage-modifier" ? multiplier * (1 + mechanic.value) : multiplier, 1);
+}
+
+/** Ability terminology aliases retained beside the legacy action hooks during save/runtime migration. */
+export const getEnemyCombatAbilityCooldownMultiplier = getEnemyActionCooldownMultiplier;
+export const getEnemyCombatAbilityCooldownReduction = getEnemyActionCooldownReduction;
+export const getEnemyCombatAbilityDamageMultiplier = getEnemyActionDamageMultiplier;
+export function reduceEnemyCombatAbilityCooldowns(combat: CombatState, instanceId: string, fraction: number, exceptAbilityId?: string) {
+  return { ...combat, enemies: combat.enemies.map((enemy) => enemy.instanceId === instanceId ? { ...enemy, abilityCooldowns: Object.fromEntries(Object.entries(enemy.abilityCooldowns ?? {}).map(([abilityId, remaining]) => [abilityId, abilityId === exceptAbilityId ? remaining : Math.max(0, remaining * (1 - fraction))])) } : enemy) };
 }
 
 export function getEnemyTraitReflectionFraction(enemy: EnemyCombatInstance, sourceCategory: CombatSourceCategory, enemyDefinitions: Record<string, { traits: readonly EnemyTraitAssignment[] }> = {}, definitions: Record<string, EnemyTraitDefinition> = enemyTraitById) {

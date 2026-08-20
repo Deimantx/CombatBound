@@ -25,6 +25,7 @@ export interface DamagePacket extends DamageComponent {
   resistancePenetration?: number;
   incomingDamageMultiplier?: number;
   criticalDamageResistance?: number;
+  targetBlockEffectMultiplier?: number;
 }
 
 export interface DamageResolution {
@@ -90,7 +91,7 @@ export function resolveDamage(packet: DamagePacket, attacker: CombatStats, defen
     ? Math.max(0, rolledDamage + rolledDamage * Math.max(0, critMultiplier - 1) * (1 - criticalResistance))
     : Math.max(0, rolledDamage);
   const blockedRoll = rollBlock(defender, eligibility, rng, deliveryKind);
-  const blockedDamage = blockedRoll ? calculateBlockedDamage(rawDamage, defender.blockEffect ?? 0) : 0;
+  const blockedDamage = blockedRoll ? calculateBlockedDamage(rawDamage, (defender.blockEffect ?? 0) * Math.max(0, packet.targetBlockEffectMultiplier ?? 1)) : 0;
   const blocked = blockedRoll && blockedDamage > 0;
   const postBlockDamage = Math.max(0, rawDamage - blockedDamage);
   const effectiveArmor = damageType === "physical" ? calculateEffectiveArmor(defender.armour ?? 0, packet.armorPenetrationPercent, packet.armorPenetrationFlat) : 0;

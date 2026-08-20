@@ -1,7 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import type {
   CombatState,
-  EnemyActionDefinition,
 } from "../../../../game/combat/combatTypes";
 import type { SpellDefinition } from "../../../../game/data/spells";
 import type { EffectiveSpellDefinition } from "../../../../game/progression/spellProgression";
@@ -83,7 +82,7 @@ export function getSpellUiState(
   spell: SpellDefinition,
   cooldownRemaining: number | { cooldownRemaining: number } | undefined,
   combat: CombatState,
-  _selectedAction?: EnemyActionDefinition,
+  _selectedAction?: never,
   effectiveSpell: EffectiveSpellDefinition = spell as EffectiveSpellDefinition,
 ): SpellUiState {
   if (combat.phase !== "active")

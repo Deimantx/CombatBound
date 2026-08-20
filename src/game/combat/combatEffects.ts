@@ -9,6 +9,8 @@ export interface EffectApplyOptions {
   sourceProficiencyId?: ProgressionCredit['proficiencyId']
   durationBonusSeconds?: number
   durationMultiplier?: number
+  durationOverrideSeconds?: number
+  magnitudeMultiplier?: number
   periodicPowerMultiplier?: number
   maxStacksBonus?: number
   rng?: CombatRng
@@ -78,7 +80,7 @@ export function calculateEffectDuration(definition: EffectDefinition, durationBo
 export function applyEffect(combat: CombatState, definition: EffectDefinition, source: CombatantRef, target: CombatantRef, options: EffectApplyOptions = {}): EffectApplicationResult {
   if (!aliveRef(combat, target)) return { combat, instance: null, outcome: 'missing-target' }
   const effects = getActiveEffects(combat, target)
-  const duration = calculateEffectDuration(definition, options.durationBonusSeconds, options.durationMultiplier)
+  const duration = options.durationOverrideSeconds === undefined ? calculateEffectDuration(definition, options.durationBonusSeconds, options.durationMultiplier) : Math.max(0, options.durationOverrideSeconds)
   const interval = definition.periodic && definition.periodic.intervalSeconds > 0 ? definition.periodic.intervalSeconds : null
   const nextSequence = combat.effectSequence + 1
   const maxStacks = Math.max(1, Math.floor((definition.stacking.maxStacks || 1) + (options.maxStacksBonus ?? 0)))
@@ -95,7 +97,7 @@ export function applyEffect(combat: CombatState, definition: EffectDefinition, s
       stacks: mode === 'stack-refresh' ? Math.min(maxStacks, current.stacks + 1) : current.stacks,
       remainingSeconds: mode === 'extend' ? (current.remainingSeconds === null || duration === null ? null : current.remainingSeconds + duration) : duration,
       nextTickRemaining: interval,
-      snapshot: options.power !== undefined || current.snapshot || options.periodicPowerMultiplier !== undefined ? { power: options.power ?? current.snapshot?.power, periodicPowerMultiplier: options.periodicPowerMultiplier ?? current.snapshot?.periodicPowerMultiplier, effectMagnitudeMultiplier: current.snapshot?.effectMagnitudeMultiplier } : current.snapshot,
+      snapshot: options.power !== undefined || current.snapshot || options.periodicPowerMultiplier !== undefined || options.magnitudeMultiplier !== undefined ? { power: options.power ?? current.snapshot?.power, periodicPowerMultiplier: options.periodicPowerMultiplier ?? current.snapshot?.periodicPowerMultiplier, effectMagnitudeMultiplier: options.magnitudeMultiplier ?? current.snapshot?.effectMagnitudeMultiplier } : current.snapshot,
       progressionCredit: options.progressionCredit ?? current.progressionCredit,
       sourceProficiencyId: options.sourceProficiencyId ?? current.sourceProficiencyId,
       runtimeValues: definition.kind === 'barrier' ? { absorbRemaining: options.absorbAmount ?? definition.barrierAmount ?? current.runtimeValues?.absorbRemaining ?? 0 } : current.runtimeValues,
@@ -113,7 +115,7 @@ export function applyEffect(combat: CombatState, definition: EffectDefinition, s
     remainingSeconds: duration,
     nextTickRemaining: interval,
     appliedSequence: nextSequence,
-    snapshot: options.power !== undefined || definition.barrierAmount !== undefined || options.periodicPowerMultiplier !== undefined ? { power: options.power ?? definition.barrierAmount, periodicPowerMultiplier: options.periodicPowerMultiplier } : undefined,
+    snapshot: options.power !== undefined || definition.barrierAmount !== undefined || options.periodicPowerMultiplier !== undefined || options.magnitudeMultiplier !== undefined ? { power: options.power ?? definition.barrierAmount, periodicPowerMultiplier: options.periodicPowerMultiplier, effectMagnitudeMultiplier: options.magnitudeMultiplier } : undefined,
     progressionCredit: options.progressionCredit,
     sourceProficiencyId: options.sourceProficiencyId,
     runtimeValues: definition.kind === 'barrier' ? { absorbRemaining: options.absorbAmount ?? definition.barrierAmount ?? 0 } : undefined,
