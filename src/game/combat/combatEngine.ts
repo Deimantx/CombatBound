@@ -72,7 +72,9 @@ import type {
   CombatantRef,
   EnemyCombatInstance,
 } from "./combatTypes";
-import { advanceEnemyTraitRuntime, applyEnemyTraitCombatStart, getEnemyTraitHealingReceivedMultiplier } from "../enemyTraits/enemyTraitRuntime";
+import { advanceEnemyTraitRuntime, applyEnemyTraitCombatStart } from "../enemyTraits/enemyTraitRuntime";
+import { getPlayerHealingReceivedMultiplier } from "./combatHealing";
+import { isPlayerStunned } from "./combatCrowdControl";
 import type {
   CombatProficiencyId,
   ProgressionCredit,
@@ -124,7 +126,15 @@ function applyEffectiveHealing(
   awardProgression = true,
 ) {
   const selectedEnemy = game.combat.enemies.find((enemy) => enemy.instanceId === game.combat.selectedEnemyInstanceId && !enemy.defeated);
-  const healingMultiplier = selectedEnemy ? getEnemyTraitHealingReceivedMultiplier(selectedEnemy, enemyById, enemyTraitById) : 1;
+  const healingMultiplier = getPlayerHealingReceivedMultiplier(game.combat, {
+    enemies: enemyById,
+    locations: combatLocationById,
+    items: itemById,
+    effects: effectById,
+    enemyCombatAbilities: enemyCombatAbilityById,
+    enemyTraits: enemyTraitById,
+    rng: { next: () => 0.5 },
+  }, selectedEnemy);
   requestedAmount *= healingMultiplier;
   const effective = Math.min(
     Math.max(0, game.combat.maxPlayerHp - game.combat.playerHp),
@@ -513,7 +523,7 @@ export function advanceCombatStep(
   if (combat.phase !== "active") return game;
   const effective = getPlayerStats(combat, stats, context, game.progression);
   const engagedEnemy = combat.enemies.find((enemy) => enemy.instanceId === combat.selectedEnemyInstanceId && !enemy.defeated);
-  const healingMultiplier = engagedEnemy ? getEnemyTraitHealingReceivedMultiplier(engagedEnemy, context.enemies, context.enemyTraits) : 1;
+  const healingMultiplier = getPlayerHealingReceivedMultiplier(combat, context, engagedEnemy);
   const requestedRegen = Math.max(0, effective.lifeRegenFlat ?? 0) * step * healingMultiplier;
   const effectiveHealing = Math.min(
     Math.max(0, (effective.maxLife ?? 0) - combat.playerHp),
@@ -594,7 +604,7 @@ export function advanceCombatStep(
   game = advanceEnemySpecials(game, step, context, stats, "advance");
   combat = game.combat;
   if (combat.phase !== "active") return game;
-  if (combat.playerAttackTimer <= 0) {
+  if (combat.playerAttackTimer <= 0 && !isPlayerStunned(combat, context.effects)) {
     const target =
       combat.enemies.find(
         (enemy) =>

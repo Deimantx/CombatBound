@@ -5,16 +5,17 @@ import { selectNextEnemyAction } from "./combatActions";
 import { enemyActionTargets } from "./combatEnemyTargets";
 import { nextCombatRandom } from "./combatRng";
 import { applyPlayerHealthDamage } from "./combatHealth";
-import { applyEffectToGame, applyPlayerSuccessfulBlockHooks } from "./combatEffectRuntime";
+import { applyEffectToGame, applyEffectToGameResult, applyPlayerSuccessfulBlockHooks } from "./combatEffectRuntime";
 import { combatBalance } from "./combatBalance";
-import { selectNextEnemyCombatAbility, tickEnemyCombatAbilityCooldowns } from "../enemyAbilities/enemyAbilityRuntime";
-import type { EnemyCombatAbilityDefinition, EnemyCombatAbilityDamageMechanic, EnemyCombatAbilityApplyEffectMechanic } from "../enemyAbilities/enemyAbilityTypes";
+import { enemyCombatAbilityConditionMatches, selectNextEnemyCombatAbility, tickEnemyCombatAbilityCooldowns } from "../enemyAbilities/enemyAbilityRuntime";
+import type { EnemyCombatAbilityDefinition, EnemyCombatAbilityDamageMechanic, EnemyCombatAbilityApplyEffectMechanic, EnemyCombatAbilityResolution } from "../enemyAbilities/enemyAbilityTypes";
 import type { GameState } from "../gameState";
 import type { CombatContext, CombatantRef, EnemyCombatInstance } from "./combatTypes";
 import type { HunterCombatStats } from "../equipment/derivedStats";
 import type { DefensiveTrainingEvent } from "../equipment/defensiveEquipment";
 import type { CombatProficiencyId, ProgressionCredit } from "../progression/progressionTypes";
-import { consumeEnemyNormalAttackEmpowerment, getEnemyActionCooldownMultiplier, getEnemyActionCooldownReduction, getEnemyActionDamageMultiplier, getEnemyTraitOutgoingDamageMultiplier, prepareEnemyNormalAttack, processEnemyTraitEvent, reduceEnemyActionRemainingCooldowns, reduceEnemyCombatAbilityCooldowns } from "../enemyTraits/enemyTraitRuntime";
+import { consumeEnemyNormalAttackEmpowerment, getEnemyActionCooldownMultiplier, getEnemyActionCooldownReduction, getEnemyActionDamageMultiplier, getEnemyCombatAbilityCooldownMultiplier, getEnemyCombatAbilityCooldownReduction, getEnemyCombatAbilityDamageMultiplier, getEnemyTraitOutgoingDamageMultiplier, prepareEnemyNormalAttack, processEnemyTraitEvent, reduceEnemyActionRemainingCooldowns, reduceEnemyCombatAbilityCooldowns } from "../enemyTraits/enemyTraitRuntime";
+import { getEnemyPhaseSequence } from "../enemyAbilities/enemyAbilityRuntime";
 
 type BarrierAbsorption = { effectId: string; amount: number; progressionCredit?: ProgressionCredit };
 
@@ -40,106 +41,180 @@ function abilityTarget(source: CombatantRef, target: "player" | "self"): Combata
 }
 
 function abilityConditionMatches(mechanic: EnemyCombatAbilityDamageMechanic, enemy: EnemyCombatInstance, game: GameState, context: CombatContext) {
-  const condition = mechanic.conditionalMultiplierOverride?.condition;
-  if (!condition) return mechanic.attackDamageMultiplier;
-  const playerFraction = game.combat.maxPlayerHp > 0 ? game.combat.playerHp / game.combat.maxPlayerHp : 0;
-  if (condition.type === "player-hp-below" && playerFraction < condition.fraction) return mechanic.conditionalMultiplierOverride!.attackDamageMultiplier;
-  if (condition.type === "player-has-effect-tag" && game.combat.playerEffects.some((effect) => context.effects[effect.effectId]?.tags.includes(condition.tag))) return mechanic.conditionalMultiplierOverride!.attackDamageMultiplier;
-  return mechanic.attackDamageMultiplier;
+  const override = mechanic.conditionalMultiplierOverride;
+  if (!override) return mechanic.attackDamageMultiplier;
+  return enemyCombatAbilityConditionMatches(override.condition, enemy, game, context)
+    ? override.attackDamageMultiplier
+    : mechanic.attackDamageMultiplier;
 }
 
 function applyAbilityEffect(game: GameState, mechanic: EnemyCombatAbilityApplyEffectMechanic, source: CombatantRef, context: CombatContext, successfulHit: boolean) {
-  if (mechanic.requireSuccessfulHit && !successfulHit) return game;
+  const requiresHit = mechanic.requireSuccessfulHit ?? mechanic.target === "player";
+  if (requiresHit && !successfulHit) return { game, applied: [] as string[] };
   let next = game;
+  const applied: string[] = [];
   const stacks = Math.max(1, mechanic.stacks ?? 1);
   for (let index = 0; index < stacks; index++) {
     if (mechanic.chance < 1 && nextCombatRandom(context.rng, "enemyAbilityEffect") >= mechanic.chance) continue;
-    next = applyEffectToGame(next, mechanic.effectId, source, abilityTarget(source, mechanic.target), context, {
+    const result = applyEffectToGameResult(next, mechanic.effectId, source, abilityTarget(source, mechanic.target), context, {
       durationMultiplier: mechanic.durationMultiplier,
       durationOverrideSeconds: mechanic.durationOverrideSeconds,
       magnitudeMultiplier: mechanic.magnitudeMultiplier,
     });
+    next = result.game;
+    if (result.applied) applied.push(mechanic.effectId);
   }
+  return { game: next, applied };
+}
+
+function emptyAbilityResolution(ability: EnemyCombatAbilityDefinition, enemyId: string): EnemyCombatAbilityResolution {
+  return { abilityId: ability.id, sourceEnemyInstanceId: enemyId, target: ability.target, successfulHits: 0, totalHits: 0, hpDamageDealt: 0, barrierDamageAbsorbed: 0, healingDone: 0, effectsApplied: [] };
+}
+
+export function enterEnemyPhase(game: GameState, enemyId: string, phaseId: string, context: CombatContext): GameState {
+  const enemy = game.combat.enemies.find((candidate) => candidate.instanceId === enemyId);
+  if (!enemy) return game;
+  const definition = context.enemies[enemy.enemyId];
+  const phase = definition ? getEnemyPhaseSequence(definition).find((candidate) => candidate.phaseId === phaseId) : undefined;
+  if (!phase) return game;
+  const source: CombatantRef = { kind: "enemy", instanceId: enemyId };
+  let next = { ...game, combat: { ...game.combat, enemies: game.combat.enemies.map((candidate) => candidate.instanceId === enemyId ? { ...candidate, phaseId: phase.phaseId, phaseStatModifiers: phase.statModifiers ?? [] } : candidate) } };
+  next = { ...next, combat: event(next.combat, { text: `${enemy.displayName} enters ${phase.phaseId}.`, type: "enemy", eventType: "enemyPhaseChanged", source, target: source, data: { phaseId: phase.phaseId } }) };
+  next = processEnemyTraitEvent(next, enemyId, "enemy-phase-entered", { phaseId: phase.phaseId }, context);
+  for (const effectId of phase.onEnterEffectIds ?? []) next = applyEffectToGame(next, effectId, source, source, context);
   return next;
 }
 
-export function resolveEnemyCombatAbility(game: GameState, enemyId: string, ability: EnemyCombatAbilityDefinition, context: CombatContext, stats: HunterCombatStats, dependencies: EnemyRuntimeDependencies): GameState {
+export function advanceEnemyPhase(game: GameState, enemyId: string, context: CombatContext): GameState {
+  const enemy = game.combat.enemies.find((candidate) => candidate.instanceId === enemyId);
+  if (!enemy) return game;
+  const phases = getEnemyPhaseSequence(context.enemies[enemy.enemyId] ?? {});
+  const index = enemy.phaseId ? phases.findIndex((phase) => phase.phaseId === enemy.phaseId) : -1;
+  const next = phases[index + 1];
+  return next ? enterEnemyPhase(game, enemyId, next.phaseId, context) : game;
+}
+
+function resolveEnemyAbilityDamageHit(
+  game: GameState,
+  enemyId: string,
+  ability: EnemyCombatAbilityDefinition,
+  mechanic: EnemyCombatAbilityDamageMechanic,
+  context: CombatContext,
+  stats: HunterCombatStats,
+  dependencies: EnemyRuntimeDependencies,
+) {
+  const enemy = game.combat.enemies.find((candidate) => candidate.instanceId === enemyId);
+  if (!enemy || enemy.defeated || game.combat.playerHp <= 0) return { game, outcome: "evaded" as const, hpDamage: 0, barrierAbsorbed: 0, blocked: false };
+  const source: CombatantRef = { kind: "enemy", instanceId: enemyId };
+  const playerStats = getPlayerStats(game.combat, stats, context, game.progression);
+  const enemyStats = getEnemyStats(game.combat, enemy, context);
+  const packet: DamagePacket = {
+    ...componentFromAttack(mechanic.damageType, abilityConditionMatches(mechanic, enemy, game, context), mechanic.canCrit),
+    sourceCategory: mechanic.sourceCategory,
+    source,
+    target: { kind: "player" },
+    attackerAccuracy: (enemyStats.accuracyRating ?? 0) * (mechanic.accuracyMultiplier ?? 1),
+    criticalStrikeChance: (enemyStats.criticalStrikeChance ?? 0) + (mechanic.flatCriticalChanceBonus ?? 0),
+    armorPenetrationPercent: mechanic.armourPenetrationPercent,
+    targetBlockEffectMultiplier: mechanic.targetBlockEffectMultiplier,
+    defensiveEligibility: { canMiss: true, canBeEvaded: true, blockable: true },
+    damageMultiplier: getEnemyCombatAbilityDamageMultiplier(enemy, context.enemies, context.enemyTraits) * getEnemyTraitOutgoingDamageMultiplier(enemy, { damageType: mechanic.damageType, sourceCategory: mechanic.sourceCategory, deliveryKind: "hit" }, game.combat.maxPlayerHp > 0 ? game.combat.playerHp / game.combat.maxPlayerHp : 1, context.enemies, context.enemyTraits, false),
+  };
+  const result = resolveDamageWithEffectModifiers(packet, enemyStats, playerStats, context.rng, enemy.effects, game.combat.playerEffects, context.effects);
+  const barrierResult = absorbDamage(game.combat, packet.target, result.mitigatedDamage, context.effects);
+  const resolved = applyBarrierToDamage(result, barrierResult.absorbed);
+  let next = dependencies.awardBarrierCredits({ ...game, combat: barrierResult.combat }, barrierResult.absorptions);
+  const playerDamage = applyPlayerHealthDamage(next.combat, resolved.healthDamage, context);
+  next = { ...next, combat: { ...playerDamage.combat, lastDamageSource: enemy.displayName } };
+  if (result.blocked) next = applyPlayerSuccessfulBlockHooks(next, context);
+  if (playerDamage.appliedDamage > 0) next = processEnemyTraitEvent(next, enemyId, "enemy-damage-dealt", { actionId: ability.id, abilityId: ability.id, actualDamage: playerDamage.appliedDamage, successful: true }, context);
+  return { game: next, outcome: result.outcome, hpDamage: playerDamage.appliedDamage, barrierAbsorbed: resolved.barrierAbsorbed, blocked: result.blocked };
+}
+
+export function resolveEnemyCombatAbilityResult(game: GameState, enemyId: string, ability: EnemyCombatAbilityDefinition, context: CombatContext, stats: HunterCombatStats, dependencies: EnemyRuntimeDependencies): { game: GameState; resolution: EnemyCombatAbilityResolution } {
   const current = game.combat.enemies.find((enemy) => enemy.instanceId === enemyId);
-  if (!current || current.defeated) return game;
+  if (!current || current.defeated) return { game, resolution: emptyAbilityResolution(ability, enemyId) };
   const source: CombatantRef = { kind: "enemy", instanceId: enemyId };
   let next = game;
-  let successfulHits = 0;
-  let totalHits = 0;
-  let damageDealt = 0;
-  let absorbed = 0;
-  let healingDone = 0;
-  const playerStats = getPlayerStats(next.combat, stats, context, next.progression);
-  const enemyStats = getEnemyStats(next.combat, current, context);
-  const damageMechanics: EnemyCombatAbilityDamageMechanic[] = [];
-  const effectMechanics: EnemyCombatAbilityApplyEffectMechanic[] = [];
+  const resolution = emptyAbilityResolution(ability, enemyId);
+  let previousHitSuccessful = false;
   for (const mechanic of ability.mechanics) {
-    if (mechanic.type === "damage") damageMechanics.push(mechanic);
-    if (mechanic.type === "multi-hit") for (let hit = 0; hit < Math.max(1, mechanic.hits); hit++) { damageMechanics.push(mechanic.hit); if (mechanic.perHitEffects) effectMechanics.push(...mechanic.perHitEffects); }
-    if (mechanic.type === "apply-effect") effectMechanics.push(mechanic);
-  }
-  for (const mechanic of damageMechanics) {
-    totalHits++;
-    const packet: DamagePacket = {
-      ...componentFromAttack(mechanic.damageType, abilityConditionMatches(mechanic, current, next, context), mechanic.canCrit),
-      sourceCategory: mechanic.sourceCategory,
-      source,
-      target: { kind: "player" },
-      attackerAccuracy: (enemyStats.accuracyRating ?? 0) * (mechanic.accuracyMultiplier ?? 1),
-      criticalStrikeChance: (enemyStats.criticalStrikeChance ?? 0) + (mechanic.flatCriticalChanceBonus ?? 0),
-      armorPenetrationPercent: mechanic.armourPenetrationPercent,
-      targetBlockEffectMultiplier: mechanic.targetBlockEffectMultiplier,
-      defensiveEligibility: { canMiss: true, canBeEvaded: true, blockable: true },
-      damageMultiplier: getEnemyActionDamageMultiplier(current, context.enemies, context.enemyTraits) * getEnemyTraitOutgoingDamageMultiplier(current, { damageType: mechanic.damageType, sourceCategory: mechanic.sourceCategory, deliveryKind: "hit" }, next.combat.maxPlayerHp > 0 ? next.combat.playerHp / next.combat.maxPlayerHp : 1, context.enemies, context.enemyTraits, false),
-    };
-    const result = resolveDamageWithEffectModifiers(packet, enemyStats, playerStats, context.rng, current.effects, next.combat.playerEffects, context.effects);
-    const barrierResult = absorbDamage(next.combat, packet.target, result.mitigatedDamage, context.effects);
-    const resolved = applyBarrierToDamage(result, barrierResult.absorbed);
-    next = dependencies.awardBarrierCredits({ ...next, combat: barrierResult.combat }, barrierResult.absorptions);
-    const playerDamage = applyPlayerHealthDamage(next.combat, resolved.healthDamage, context);
-    next = { ...next, combat: { ...playerDamage.combat, lastDamageSource: current.displayName } };
-    damageDealt += playerDamage.appliedDamage;
-    absorbed += resolved.barrierAbsorbed;
-    if (result.outcome === "hit") successfulHits++;
-    if (result.blocked) next = applyPlayerSuccessfulBlockHooks(next, context);
-    if (playerDamage.appliedDamage > 0) next = processEnemyTraitEvent(next, enemyId, "enemy-damage-dealt", { actionId: ability.id, abilityId: ability.id, actualDamage: playerDamage.appliedDamage, successful: true }, context);
-  }
-  for (const mechanic of effectMechanics) next = applyAbilityEffect(next, mechanic, source, context, successfulHits > 0);
-  for (const mechanic of ability.mechanics) {
-    if (mechanic.type === "advance-phase") {
-      const phases = [...(context.enemies[current.enemyId].phases ?? [])].sort((a, b) => a.hpThreshold - b.hpThreshold);
-      const currentIndex = current.phaseId ? phases.findIndex((phase) => phase.phaseId === current.phaseId) : -1;
-      const phase = phases[currentIndex + 1];
-      if (phase) {
-        next = { ...next, combat: { ...next.combat, enemies: next.combat.enemies.map((candidate) => candidate.instanceId === enemyId ? { ...candidate, phaseId: phase.phaseId, phaseStatModifiers: phase.statModifiers ?? [] } : candidate) } };
-        next = processEnemyTraitEvent(next, enemyId, "enemy-phase-entered", { phaseId: phase.phaseId }, context);
+    if (mechanic.type === "damage") {
+      const hit = resolveEnemyAbilityDamageHit(next, enemyId, ability, mechanic, context, stats, dependencies);
+      next = hit.game;
+      resolution.totalHits += 1;
+      if (hit.outcome === "hit") { resolution.successfulHits += 1; previousHitSuccessful = true; }
+      else previousHitSuccessful = false;
+      resolution.hpDamageDealt += hit.hpDamage;
+      resolution.barrierDamageAbsorbed += hit.barrierAbsorbed;
+      for (const effect of mechanic.onHitEffects ?? []) {
+        const applied = applyAbilityEffect(next, effect, source, context, hit.outcome === "hit");
+        next = applied.game;
+        resolution.effectsApplied.push(...applied.applied);
       }
     }
-    if (mechanic.type === "ability-stat-effect") next = applyEffectToGame(next, mechanic.effectId, source, source, context);
+    if (mechanic.type === "multi-hit") {
+      let lastHitSuccessful = false;
+      for (let index = 0; index < Math.max(1, mechanic.hits); index += 1) {
+        const hit = resolveEnemyAbilityDamageHit(next, enemyId, ability, mechanic.hit, context, stats, dependencies);
+        next = hit.game;
+        resolution.totalHits += 1;
+        const successful = hit.outcome === "hit";
+        lastHitSuccessful = successful;
+        if (successful) resolution.successfulHits += 1;
+        resolution.hpDamageDealt += hit.hpDamage;
+        resolution.barrierDamageAbsorbed += hit.barrierAbsorbed;
+        for (const effect of [...(mechanic.hit.onHitEffects ?? []), ...(mechanic.perHitEffects ?? [])]) {
+          const applied = applyAbilityEffect(next, effect, source, context, successful);
+          next = applied.game;
+          resolution.effectsApplied.push(...applied.applied);
+        }
+        if (next.combat.playerHp <= 0) break;
+      }
+      previousHitSuccessful = lastHitSuccessful;
+    }
+    if (mechanic.type === "apply-effect") {
+      const applied = applyAbilityEffect(next, mechanic, source, context, previousHitSuccessful);
+      next = applied.game;
+      resolution.effectsApplied.push(...applied.applied);
+    }
+    if (mechanic.type === "advance-phase") next = advanceEnemyPhase(next, enemyId, context);
+    if (mechanic.type === "ability-stat-effect") {
+      const applied = applyEffectToGameResult(next, mechanic.effectId, source, source, context);
+      next = applied.game;
+      if (applied.applied) resolution.effectsApplied.push(mechanic.effectId);
+    }
     if (mechanic.type === "barrier") {
       const target = next.combat.enemies.find((candidate) => candidate.instanceId === enemyId);
-      if (target) next = applyEffectToGame(next, "effect.enemy-ability-barrier", source, source, context, { absorbAmount: target.maxHealth * mechanic.maxHpFraction });
+      if (target) {
+        const applied = applyEffectToGameResult(next, "effect.enemy-ability-barrier", source, source, context, { absorbAmount: target.maxHealth * mechanic.maxHpFraction, power: target.maxHealth * mechanic.maxHpFraction });
+        next = applied.game;
+        if (applied.applied) resolution.effectsApplied.push("effect.enemy-ability-barrier");
+      }
     }
-    if (mechanic.type === "heal-self") {
+    if (mechanic.type === "heal-self" || mechanic.type === "damage-based-heal") {
       const target = next.combat.enemies.find((candidate) => candidate.instanceId === enemyId);
-      const amount = target ? Math.min(target.maxHealth - target.currentHealth, target.maxHealth * mechanic.maxHpFraction) : 0;
-      if (amount > 0) { healingDone += amount; next = { ...next, combat: { ...next.combat, enemies: next.combat.enemies.map((candidate) => candidate.instanceId === enemyId ? { ...candidate, currentHealth: candidate.currentHealth + amount } : candidate) } }; }
-    }
-    if (mechanic.type === "damage-based-heal") {
-      const target = next.combat.enemies.find((candidate) => candidate.instanceId === enemyId);
-      const amount = target ? Math.min(target.maxHealth - target.currentHealth, damageDealt * mechanic.fraction) : 0;
-      if (amount > 0) { healingDone += amount; next = { ...next, combat: { ...next.combat, enemies: next.combat.enemies.map((candidate) => candidate.instanceId === enemyId ? { ...candidate, currentHealth: candidate.currentHealth + amount } : candidate) } }; }
+      const requested = mechanic.type === "heal-self" ? (target?.maxHealth ?? 0) * mechanic.maxHpFraction : resolution.hpDamageDealt * mechanic.fraction;
+      const amount = target ? Math.min(Math.max(0, target.maxHealth - target.currentHealth), Math.max(0, requested)) : 0;
+      if (amount > 0) {
+        resolution.healingDone += amount;
+        next = { ...next, combat: { ...next.combat, enemies: next.combat.enemies.map((candidate) => candidate.instanceId === enemyId ? { ...candidate, currentHealth: candidate.currentHealth + amount } : candidate) } };
+      }
     }
   }
-  const used = (current.abilityRuntime?.usedThisFight?.[ability.id] ?? 0) + 1;
-  next = { ...next, combat: { ...next.combat, enemies: next.combat.enemies.map((candidate) => candidate.instanceId === enemyId ? { ...candidate, abilityCooldowns: { ...(candidate.abilityCooldowns ?? {}), [ability.id]: Math.max(0, ability.cooldownSeconds * getEnemyActionCooldownMultiplier(candidate, ability.id, context.enemies, context.enemyTraits)) }, abilityRuntime: { ...(candidate.abilityRuntime ?? { usedThisFight: {} }), usedThisFight: { ...(candidate.abilityRuntime?.usedThisFight ?? {}), [ability.id]: used } } } : candidate) } };
-  next = processEnemyTraitEvent(next, enemyId, "enemy-action-resolved", { actionId: ability.id, abilityId: ability.id, successful: successfulHits > 0, actualDamage: damageDealt }, context);
-  if (successfulHits > 0) next = { ...next, combat: reduceEnemyCombatAbilityCooldowns(next.combat, enemyId, getEnemyActionCooldownReduction(current, "action-hit", context.enemies, context.enemyTraits), ability.id) };
-  return { ...next, combat: event(next.combat, { text: `${current.displayName} uses ${ability.name}${damageDealt > 0 ? ` for ${damageDealt} damage` : ""}.`, type: "enemy", eventType: "enemyAbilityResolved", source, target: abilityTarget(source, ability.target), data: { abilityId: ability.id, damage: damageDealt, hits: totalHits, successfulHits, absorbed, healing: healingDone } }) };
+  const target = next.combat.enemies.find((enemy) => enemy.instanceId === enemyId) ?? current;
+  resolution.effectsApplied = [...new Set(resolution.effectsApplied)];
+  const used = (target.abilityRuntime?.usedThisFight?.[ability.id] ?? 0) + 1;
+  next = { ...next, combat: { ...next.combat, enemies: next.combat.enemies.map((candidate) => candidate.instanceId === enemyId ? { ...candidate, abilityCooldowns: { ...(candidate.abilityCooldowns ?? {}), [ability.id]: Math.max(0, ability.cooldownSeconds * getEnemyCombatAbilityCooldownMultiplier(candidate, ability.id, context.enemies, context.enemyTraits)) }, abilityRuntime: { ...(candidate.abilityRuntime ?? { usedThisFight: {} }), usedThisFight: { ...(candidate.abilityRuntime?.usedThisFight ?? {}), [ability.id]: used } } } : candidate) } };
+  next = processEnemyTraitEvent(next, enemyId, "enemy-combat-ability-resolved", { actionId: ability.id, abilityId: ability.id, successful: resolution.successfulHits > 0, actualDamage: resolution.hpDamageDealt }, context);
+  if (resolution.successfulHits > 0) next = { ...next, combat: reduceEnemyCombatAbilityCooldowns(next.combat, enemyId, getEnemyCombatAbilityCooldownReduction(target, "action-hit", context.enemies, context.enemyTraits), ability.id) };
+  next = dependencies.resolveDefensiveTrainingForEnemyAction(next, { source: "enemy-combat-ability", resolved: true }, context.items);
+  next = { ...next, combat: event(next.combat, { text: `${current.displayName} uses ${ability.name}${resolution.hpDamageDealt > 0 ? ` for ${resolution.hpDamageDealt} damage` : resolution.healingDone > 0 ? ` and restores ${resolution.healingDone} HP` : ""}.`, type: "enemy", eventType: "enemyAbilityResolved", source, target: abilityTarget(source, ability.target), data: { abilityId: ability.id, damage: resolution.hpDamageDealt, hits: resolution.totalHits, successfulHits: resolution.successfulHits, absorbed: resolution.barrierDamageAbsorbed, healing: resolution.healingDone } }) };
+  return { game: next, resolution };
+}
+
+export function resolveEnemyCombatAbility(game: GameState, enemyId: string, ability: EnemyCombatAbilityDefinition, context: CombatContext, stats: HunterCombatStats, dependencies: EnemyRuntimeDependencies): GameState {
+  return resolveEnemyCombatAbilityResult(game, enemyId, ability, context, stats, dependencies).game;
 }
 
 export function advanceEnemyCombatAbilities(game: GameState, step: number, context: CombatContext, stats: HunterCombatStats, dependencies: EnemyRuntimeDependencies): GameState {
@@ -271,7 +346,7 @@ export function advanceEnemySpecials(
     const definition = context.enemies[enemy.enemyId];
     let current = combat.enemies.find((candidate) => candidate.instanceId === enemy.instanceId) ?? enemy;
     const source: CombatantRef = { kind: "enemy", instanceId: current.instanceId };
-    const phases = [...(definition.phases ?? [])].sort((a, b) => b.hpThreshold - a.hpThreshold);
+    const phases = getEnemyPhaseSequence(definition);
     const currentPhaseIndex = current.phaseId ? phases.findIndex((candidate) => candidate.phaseId === current.phaseId) : -1;
     const desiredPhaseIndex = phases.reduce(
       (deepest, candidate, index) => current.currentHealth / Math.max(1, current.maxHealth) <= candidate.hpThreshold ? index : deepest,
@@ -279,22 +354,9 @@ export function advanceEnemySpecials(
     );
     const phase = desiredPhaseIndex > currentPhaseIndex ? phases[desiredPhaseIndex] : undefined;
     if (phase) {
-      current = { ...current, phaseId: phase.phaseId, phaseStatModifiers: phase.statModifiers ?? [] };
-      combat = event(combat, {
-        text: current.displayName + " enters " + phase.phaseId + ".",
-        type: "enemy",
-        eventType: "enemyPhaseChanged",
-        source,
-        target: source,
-        data: { phaseId: phase.phaseId },
-      });
-      game = { ...game, combat };
-      game = processEnemyTraitEvent(game, current.instanceId, "enemy-phase-entered", { phaseId: phase.phaseId }, context);
+      game = enterEnemyPhase(game, current.instanceId, phase.phaseId, context);
       combat = game.combat;
       current = combat.enemies.find((candidate) => candidate.instanceId === current.instanceId) ?? current;
-      for (const effectId of phase.onEnterEffectIds ?? [])
-        game = applyEffectToGame(game, effectId, source, source, context);
-      combat = game.combat;
     }
     const actionDefinition = current.currentAction ? definition.actions.find((action) => action.id === current.currentAction?.actionId) : undefined;
     if (current.currentAction && !actionDefinition) {

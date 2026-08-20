@@ -14,10 +14,22 @@ export function createEnemyAbilityRuntimeState(): EnemyAbilityRuntimeState {
 export function normalizeEnemyAbilityRuntimeState(value: unknown): EnemyAbilityRuntimeState {
   if (!value || typeof value !== "object") return createEnemyAbilityRuntimeState();
   const used = (value as { usedThisFight?: unknown }).usedThisFight;
-  return { usedThisFight: used && typeof used === "object" ? { ...(used as Record<string, number>) } : {} };
+  const usedThisFight: Record<string, number> = {};
+  if (used && typeof used === "object" && !Array.isArray(used)) {
+    for (const [id, count] of Object.entries(used as Record<string, unknown>))
+      if (typeof count === "number" && Number.isFinite(count) && count >= 0)
+        usedThisFight[id] = Math.floor(count);
+  }
+  return { usedThisFight };
 }
 
-function conditionMatches(condition: EnemyCombatAbilityCondition, enemy: EnemyCombatInstance, game: GameState, context: CombatContext): boolean {
+export function getEnemyPhaseSequence<T extends { phaseId: string; hpThreshold: number }>(definition: { phases?: readonly T[] }) {
+  // HP thresholds are authored from shallow to deep phase transitions: the
+  // highest threshold is entered first as health falls.
+  return [...(definition.phases ?? [])].sort((a, b) => b.hpThreshold - a.hpThreshold);
+}
+
+function conditionMatches(condition: EnemyCombatAbilityCondition, enemy: EnemyCombatInstance, game: GameState, context: CombatContext, abilityId?: string): boolean {
   const playerFraction = game.combat.maxPlayerHp > 0 ? game.combat.playerHp / game.combat.maxPlayerHp : 0;
   const enemyFraction = enemy.maxHealth > 0 ? enemy.currentHealth / enemy.maxHealth : 0;
   switch (condition.type) {
@@ -28,7 +40,12 @@ function conditionMatches(condition: EnemyCombatAbilityCondition, enemy: EnemyCo
     case "self-has-effect-id": return enemy.effects.some((effect) => effect.effectId === condition.effectId);
     case "self-missing-effect-id": return !enemy.effects.some((effect) => effect.effectId === condition.effectId);
     case "phase": return enemy.phaseId === condition.phaseId;
-    case "once-per-fight-not-used": return true;
+    case "has-next-phase": {
+      const phases = getEnemyPhaseSequence(context.enemies[enemy.enemyId] ?? {});
+      const index = enemy.phaseId ? phases.findIndex((phase) => phase.phaseId === enemy.phaseId) : -1;
+      return index >= -1 && index + 1 < phases.length;
+    }
+    case "once-per-fight-not-used": return abilityId ? (enemy.abilityRuntime?.usedThisFight?.[abilityId as keyof typeof enemy.abilityRuntime.usedThisFight] ?? 0) <= 0 : condition.abilityId ? (enemy.abilityRuntime?.usedThisFight?.[condition.abilityId] ?? 0) <= 0 : true;
   }
 }
 
@@ -44,14 +61,23 @@ export function getEnemyCombatAbilities(definition: { combatAbilityIds?: readonl
   });
 }
 
+export function isEnemyCombatAbilityEligible(
+  enemy: EnemyCombatInstance,
+  ability: EnemyCombatAbilityDefinition,
+  game: GameState,
+  context: CombatContext,
+) {
+  const definition = context.enemies[enemy.enemyId];
+  if (enemy.defeated || !definition || ability.draft || !ability.allowedEnemyTiers.includes(definition.enemyTier)) return false;
+  if ((enemy.abilityCooldowns?.[ability.id] ?? 0) > 0) return false;
+  const used = enemy.abilityRuntime?.usedThisFight?.[ability.id] ?? 0;
+  if (ability.usageLimitPerFight !== undefined && used >= ability.usageLimitPerFight) return false;
+  if ((ability.conditions ?? []).some((condition) => condition.type === "once-per-fight-not-used" && used > 0)) return false;
+  return (ability.conditions ?? []).every((condition) => conditionMatches(condition, enemy, game, context, ability.id));
+}
+
 export function selectNextEnemyCombatAbility(enemy: EnemyCombatInstance, definition: { combatAbilityIds?: readonly string[]; enemyTier: string }, game: GameState, context: CombatContext): EnemyCombatAbilityDefinition | null {
-  const cooldowns = enemy.abilityCooldowns ?? {};
-  const usedThisFight = enemy.abilityRuntime?.usedThisFight ?? {};
-  const available = getEnemyCombatAbilities(definition, context).filter((ability) =>
-    (cooldowns[ability.id] ?? 0) <= 0 &&
-    (ability.usageLimitPerFight === undefined || (usedThisFight[ability.id] ?? 0) < ability.usageLimitPerFight) &&
-    (ability.conditions ?? []).every((condition) => conditionMatches(condition, enemy, game, context)),
-  );
+  const available = getEnemyCombatAbilities(definition, context).filter((ability) => isEnemyCombatAbilityEligible(enemy, ability, game, context));
   if (available.length === 0) return null;
   const totalWeight = available.reduce((sum, ability) => sum + Math.max(0, ability.weight ?? 1), 0);
   if (totalWeight <= 0) return available[0];

@@ -66,6 +66,30 @@ export function calculateIncomingEffectDamageMultiplier(effects: ActiveEffectIns
   return Math.max(0, (1 + increased) * more)
 }
 
+/** Resolves healing modifiers using the same deterministic modifier buckets as combat stats. */
+export function calculateHealingReceivedMultiplier(
+  effects: ActiveEffectInstance[],
+  definitions: Record<string, EffectDefinition>,
+  additionalMultiplier = 1,
+) {
+  let increased = 0
+  let reduced = 0
+  let more = 1
+  let less = 1
+  for (const instance of effects) {
+    const stacks = Math.max(1, instance.stacks)
+    const magnitude = instance.snapshot?.effectMagnitudeMultiplier ?? 1
+    for (const modifier of definitions[instance.effectId]?.healingReceivedModifiers ?? []) {
+      const value = modifier.value * stacks * magnitude
+      if (modifier.operation === 'increased') increased += value
+      else if (modifier.operation === 'reduced') reduced += value
+      else if (modifier.operation === 'more') more *= 1 + value
+      else less *= Math.max(0, 1 - value)
+    }
+  }
+  return Math.max(0, (1 + increased - reduced) * more * less * Math.max(0, additionalMultiplier))
+}
+
 export function updateActiveEffects(combat: CombatState, target: CombatantRef, effects: ActiveEffectInstance[]): CombatState {
   if (target.kind === 'player') return { ...combat, playerEffects: effects }
   return { ...combat, enemies: combat.enemies.map((enemy) => enemy.instanceId === target.instanceId ? { ...enemy, effects } : enemy) }

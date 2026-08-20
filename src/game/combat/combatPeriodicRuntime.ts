@@ -23,6 +23,7 @@ import type { ActiveEffectInstance, EffectDefinition } from "./combatEffectTypes
 import type { CombatContext, CombatantRef } from "./combatTypes";
 import type { CombatProficiencyId } from "../progression/progressionTypes";
 import type { HunterCombatStats } from "../equipment/derivedStats";
+import { getPlayerHealingReceivedMultiplier } from "./combatHealing";
 
 export interface PeriodicRuntimeDependencies {
   applyEffectiveHealing: (
@@ -108,9 +109,10 @@ export function resolvePeriodicEffect(
     const amount = Math.max(0, operation.baseAmount * effect.stacks);
     if (effect.target.kind === "player") {
       const effective = getPlayerStats(game.combat, stats, context, game.progression);
-      const healed = Math.min((effective.maxLife ?? 0) - game.combat.playerHp, amount);
+      const healingMultiplier = getPlayerHealingReceivedMultiplier(game.combat, context);
+      const healed = Math.min((effective.maxLife ?? 0) - game.combat.playerHp, amount * healingMultiplier);
       if (healed > 0 && effect.sourceProficiencyId)
-        return dependencies.applyEffectiveHealing(game, effect.sourceProficiencyId, healed, effect.source, "Regeneration");
+        return dependencies.applyEffectiveHealing(game, effect.sourceProficiencyId, amount, effect.source, "Regeneration");
       return {
         ...game,
         combat: event(

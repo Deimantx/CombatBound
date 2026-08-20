@@ -190,7 +190,8 @@ export type ActionValidationReason =
   | "proficiency-level-requirement"
   | "equipment-requirement"
   | "full-health"
-  | "consumable-missing";
+  | "consumable-missing"
+  | "stunned";
 
 import type {
   CombatProficiencyId,

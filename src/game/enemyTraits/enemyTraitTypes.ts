@@ -36,6 +36,7 @@ export type EnemyTraitEvent =
   | "enemy-normal-attack-resolved"
   | "player-attack-resolved"
   | "enemy-action-resolved"
+  | "enemy-combat-ability-resolved"
   | "enemy-damaged"
   | "enemy-damage-dealt"
   | "player-damaged"
@@ -184,6 +185,7 @@ export interface TraitActionCooldownMechanic {
     | "action-cooldown-on-normal-hit"
     | "action-cooldown-on-action-hit"
     | "action-cooldown-on-action-use"
+    | "combat-ability-cooldown-on-use"
     | "action-cooldown-below-threshold"
     | "action-cooldown-static";
   value: number;
@@ -192,7 +194,7 @@ export interface TraitActionCooldownMechanic {
 }
 
 export interface TraitActionDamageMechanic {
-  type: "action-damage-modifier";
+  type: "action-damage-modifier" | "combat-ability-damage-modifier";
   value: number;
 }
 

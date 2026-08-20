@@ -16,15 +16,12 @@ import type {
 import { createInitialCombatAutomation } from "./automationTypes";
 
 const targetCriteria: TargetPriorityCriterion[] = [
-  "highest-danger-casting",
   "elite",
   "lowest-health-percent",
   "lowest-health",
   "lowest-evasion",
   "first-living",
 ];
-const dangerLevels = ["low", "medium", "high", "critical"] as const;
-
 function clampFraction(value: unknown, fallback = 0.5) {
   return typeof value === "number" && Number.isFinite(value)
     ? Math.max(0, Math.min(1, value))
@@ -62,14 +59,6 @@ function normalizeCondition(value: unknown): AutomationCondition | null {
   if (type === "barrier-below")
     return { type, fraction: clampFraction(raw.fraction ?? raw.value) };
   if (type === "barrier-missing") return { type };
-  if (type === "target-casting")
-    return { type };
-  if (type === "target-danger-at-least") {
-    const danger = raw.danger ?? raw.value;
-    return typeof danger === "string" && dangerLevels.includes(danger as never)
-      ? { type, danger: danger as (typeof dangerLevels)[number] }
-      : null;
-  }
   if (type === "alive-enemies-at-least") {
     const count = Number(raw.count ?? raw.value);
     return Number.isFinite(count)
@@ -88,10 +77,11 @@ function normalizeRule(value: unknown, index: number, usedIds: Set<string>) {
   usedIds.add(id);
   const rawConditions = Array.isArray(raw.conditions) ? raw.conditions : [];
   const removedInterruptCondition = rawConditions.some((condition) => condition && typeof condition === "object" && (condition as Record<string, unknown>).type === "target-interruptible");
+  const removedEnemyTelegraphCondition = rawConditions.some((condition) => condition && typeof condition === "object" && ["target-casting", "target-danger-at-least"].includes(String((condition as Record<string, unknown>).type)));
   const conditions = rawConditions.map(normalizeCondition).filter((condition): condition is AutomationCondition => Boolean(condition));
   const priority = Number(raw.priority);
   let actionId = typeof raw.actionId === "string" ? raw.actionId : "";
-  if (removedInterruptCondition) return null;
+  if (removedInterruptCondition || removedEnemyTelegraphCondition) return null;
   if (actionId === "spell.disrupting-pulse") actionId = "spell.lightning-pulse";
   if (actionId === "spell.protective-sign" || actionId.includes("light-magic")) return null;
   return {
@@ -219,9 +209,6 @@ function conditionMatches(
       return hasEffect(targetEffects, condition.effectId);
     case "target-missing-effect":
       return !hasEffect(targetEffects, condition.effectId);
-    case "target-casting":
-    case "target-danger-at-least":
-      return false;
     case "alive-enemies-at-least":
       return (
         game.combat.enemies.filter((enemy) => !enemy.defeated).length >= condition.count
@@ -238,8 +225,6 @@ function criterionScore(
 ): number {
   if (enemy.defeated) return -Infinity;
   const definition = context.enemies[enemy.enemyId];
-  if (criterion === "highest-danger-casting")
-    return 0;
   if (criterion === "elite") return definition?.accent === "gold" ? 1 : 0;
   if (criterion === "lowest-health-percent")
     return 1 - enemy.currentHealth / Math.max(1, enemy.maxHealth);

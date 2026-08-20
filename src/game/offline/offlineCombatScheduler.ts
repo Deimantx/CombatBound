@@ -4,7 +4,7 @@ import { getPlayerStats } from "../combat/combatRuntime";
 import type { GameState } from "../gameState";
 import type { CombatContext, EnemyCombatInstance } from "../combat/combatTypes";
 import type { HunterCombatStats } from "../equipment/derivedStats";
-import { getEnemyCombatAbilities } from "../enemyAbilities/enemyAbilityRuntime";
+import { getEnemyCombatAbilities, isEnemyCombatAbilityEligible } from "../enemyAbilities/enemyAbilityRuntime";
 import type { AutomationCondition } from "../automation/automationTypes";
 
 export const OFFLINE_COMBAT_TIME_QUANTUM_SECONDS = 0.1;
@@ -132,7 +132,7 @@ export function enemyActionReady(
   if (enemy.defeated) return false;
   const definition = context.enemies[enemy.enemyId];
   if (!definition) return false;
-  return getEnemyCombatAbilities(definition, context).some((ability) => (enemy.abilityCooldowns[ability.id] ?? 0) <= 0);
+  return getEnemyCombatAbilities(definition, context).some((ability) => isEnemyCombatAbilityEligible(enemy, ability, game, context));
 }
 
 function enemyBoundary(enemy: EnemyCombatInstance): number {

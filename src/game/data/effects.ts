@@ -1,6 +1,7 @@
 import { combatBalance } from "../combat/combatBalance";
 import type { EffectDefinition } from "../combat/combatEffectTypes";
 import { deepFreeze } from "./freeze";
+import { enemyAbilityEffectDefinitions } from "./enemyAbilityEffects";
 
 /** Small reference catalogue used to exercise the generic effect runtime. */
 export const effectDefinitions = deepFreeze<EffectDefinition[]>([
@@ -465,5 +466,9 @@ export const effectDefinitions = deepFreeze<EffectDefinition[]>([
 ]);
 
 export const effectById = Object.fromEntries(
-  effectDefinitions.map((effect) => [effect.id, effect]),
+  [...effectDefinitions, ...enemyAbilityEffectDefinitions].map((effect) => [effect.id, effect]),
 ) as Record<string, EffectDefinition>;
+
+/** The single runtime/presentation resolver for every combat effect family. */
+export const combatEffectDefinitions = [...effectDefinitions, ...enemyAbilityEffectDefinitions];
+export const combatEffectById = effectById;

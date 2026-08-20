@@ -57,7 +57,7 @@ export function calculateDefensiveTrainingAwards(context: DefensiveEquipmentCont
 }
 
 export interface DefensiveTrainingEvent {
-  source: 'enemy-normal-attack' | 'enemy-direct-action'
+  source: 'enemy-normal-attack' | 'enemy-direct-action' | 'enemy-combat-ability'
   resolved: boolean
 }
 

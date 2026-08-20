@@ -32,14 +32,9 @@ export function enemyTooltipModel(enemyId: string): TooltipModel {
 
   const sections: TooltipSection[] = [{ id: 'enemy-stats', title: 'CORE STATS', rows }]
   const traits = getEnemyResolvedTraits(enemy)
-  if (traits.length > 0) sections.push({ id: 'enemy-traits', title: 'TRAITS', notes: traits.map((trait) => `${trait.definition.name} · Rank ${trait.assignment.rank} — ${trait.rank.description}`) })
-  if (false && enemy.actions.length > 0) sections.push({ id: 'enemy-legacy-actions', title: 'LEGACY ACTIONS', notes: enemy.actions.map((action) => {
-    const danger = action.danger ? ` [${action.danger.toUpperCase()}]` : ''
-    const timing = ` Prep ${formatSeconds(action.preparationSeconds)} · Cooldown ${formatSeconds(action.cooldownSeconds)}`
-    return `${action.name}${danger} — ${action.description}${timing}`
-  }) })
+  if (traits.length > 0) sections.push({ id: 'enemy-traits', title: 'TRAITS', notes: traits.map((trait) => `${trait.definition.name} - Rank ${trait.assignment.rank} - ${trait.rank.description}`) })
   const abilities = (enemy.combatAbilityIds ?? []).map((id) => enemyCombatAbilityById[id]).filter(Boolean)
-  if (abilities.length > 0) sections.push({ id: 'enemy-abilities', title: 'COMBAT ABILITIES', notes: abilities.map((ability) => `${ability.name} — ${ability.description} Cooldown ${formatSeconds(ability.cooldownSeconds)}`) })
+  if (abilities.length > 0) sections.push({ id: 'enemy-abilities', title: 'COMBAT ABILITIES', notes: abilities.map((ability) => `${ability.name} - ${ability.description} Cooldown ${formatSeconds(ability.cooldownSeconds)}`) })
 
   const resistances = Object.entries(enemy.resistances).filter(([, value]) => value !== 0)
   if (resistances.length > 0) sections.push({
@@ -48,14 +43,7 @@ export function enemyTooltipModel(enemyId: string): TooltipModel {
     rows: resistances.map(([damageType, value]) => ({ label: `${damageType[0].toUpperCase()}${damageType.slice(1)}`, value: formatPercent(value, true), tone: value < 0 ? 'red' : 'blue' } satisfies TooltipRow)),
   })
 
-  return {
-    id: `enemy:${enemy.id}`,
-    icon: enemy.icon,
-    title: enemy.name,
-    subtitle: enemy.family,
-    tone: enemyTone(enemy.accent),
-    sections,
-  }
+  return { id: `enemy:${enemy.id}`, icon: enemy.icon, title: enemy.name, subtitle: enemy.family, tone: enemyTone(enemy.accent), sections }
 }
 
 function enemyTone(accent: EnemyDefinition['accent']): TooltipTone {

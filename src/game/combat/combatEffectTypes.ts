@@ -21,6 +21,11 @@ export interface EffectIncomingDamageModifier {
   value: number
 }
 
+export interface EffectHealingReceivedModifier {
+  operation: 'increased' | 'reduced' | 'more' | 'less'
+  value: number
+}
+
 export type PeriodicOperation =
   | { type: 'damage'; damageType: DamageType; baseAmount: number; canCrit?: boolean }
   | { type: 'heal'; baseAmount: number; maxLifeFraction?: number }
@@ -41,6 +46,7 @@ export interface EffectDefinition {
   resistanceModifiers?: Array<{ damageType: DamageType; operation: 'flat' | 'more'; value: number }>
   outgoingDamageModifiers?: EffectOutgoingDamageModifier[]
   incomingDamageModifiers?: EffectIncomingDamageModifier[]
+  healingReceivedModifiers?: EffectHealingReceivedModifier[]
   periodic?: {
     intervalSeconds: number
     operation: PeriodicOperation

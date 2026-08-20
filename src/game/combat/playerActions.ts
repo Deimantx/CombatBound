@@ -13,6 +13,7 @@ import { weaponSkillDefinitions } from "../data/weaponSkills";
 import { getEquippedWeaponProficiency } from "../progression/progressionSelectors";
 import { getProficiencyLevel } from "../progression/proficiencyProgression";
 import { isMagicArtKnown } from "../magicArts/magicArtLogic";
+import { isPlayerStunned } from "./combatCrowdControl";
 
 export const defensiveActionDefinitions: PlayerActionDefinition[] = [
   {
@@ -174,6 +175,8 @@ export function validatePlayerAction(
   if (combat.phase !== "active")
     return { valid: false, reason: "combat-inactive", action };
   if (!action) return { valid: false, reason: "combat-inactive" };
+  if (action.kind !== "consumable" && isPlayerStunned(combat, context.effects))
+    return { valid: false, reason: "stunned", action };
   if (action.kind === "magic-art" && !isMagicArtKnown(game.magicArts ?? { knownArtIds: [] }, action.id))
     return { valid: false, reason: "magic-art-not-known", action };
   if (

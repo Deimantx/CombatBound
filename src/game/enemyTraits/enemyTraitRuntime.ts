@@ -148,6 +148,12 @@ function runtimeEntryForKey(enemy: EnemyCombatInstance, key: string) {
   return runtimeEntry(enemy, mechanicKeyTrait(key));
 }
 
+function traitEventMatches(mechanicEvent: EnemyTraitEvent, event: EnemyTraitEvent) {
+  return mechanicEvent === event ||
+    (mechanicEvent === "enemy-action-resolved" && event === "enemy-combat-ability-resolved") ||
+    (mechanicEvent === "enemy-combat-ability-resolved" && event === "enemy-action-resolved");
+}
+
 export function getEnemyTraitOutgoingDamageMultiplier(enemy: EnemyCombatInstance, packet: Pick<DamagePacket, "damageType" | "deliveryKind" | "sourceCategory">, playerHpFraction: number, enemyDefinitions: Record<string, { traits: readonly EnemyTraitAssignment[] }> = {}, definitions: Record<string, EnemyTraitDefinition> = enemyTraitById, isNormalAttack = true): number {
   let increased = 0;
   let more = 1;
@@ -235,9 +241,9 @@ export function processEnemyTraitEvent(game: GameState, instanceId: string, even
       entry.counters = { ...entry.counters }; entry.stacks = { ...entry.stacks }; entry.timers = { ...entry.timers }; entry.flags = { ...entry.flags }; entry.values = { ...entry.values };
       rank?.mechanics.forEach((mechanic, index) => {
         const key = `${assignment.traitId}:${assignment.rank}:${index}`;
-        if (mechanic.type === "timed-stat-modifier" && mechanic.event === event && (!mechanic.sourceCategory || mechanic.sourceCategory === payload.sourceCategory)) entry.timers[key] = mechanic.durationSeconds ?? 0;
+        if (mechanic.type === "timed-stat-modifier" && traitEventMatches(mechanic.event, event) && (!mechanic.sourceCategory || mechanic.sourceCategory === payload.sourceCategory)) entry.timers[key] = mechanic.durationSeconds ?? 0;
         if (mechanic.type === "threshold-timed-stat-modifier" && event === "enemy-hp-threshold-crossed") entry.timers[key] = mechanic.durationSeconds ?? 0;
-        if (mechanic.type === "stack-stat-modifier" && mechanic.event === event && (!mechanic.sourceCategory || mechanic.sourceCategory === payload.sourceCategory)) {
+        if (mechanic.type === "stack-stat-modifier" && traitEventMatches(mechanic.event, event) && (!mechanic.sourceCategory || mechanic.sourceCategory === payload.sourceCategory)) {
           const counter = mechanic.counterKey ?? key;
           if (!mechanic.sourceCategory && event === "enemy-damaged" && payload.sourceCategory) {
             const prior = entry.values["adaptation-category"];
@@ -248,7 +254,7 @@ export function processEnemyTraitEvent(game: GameState, instanceId: string, even
           if (mechanic.activateAfter && entry.counters[counter] >= mechanic.activateAfter) entry.flags.active = true;
           else if (!mechanic.activateAfter) entry.stacks[counter] = Math.min(mechanic.maxStacks, (entry.stacks[counter] ?? 0) + 1);
         }
-        if (mechanic.type === "next-attack-modifier" && mechanic.event === event && (!mechanic.sourceCategory || mechanic.sourceCategory === payload.sourceCategory) && (!mechanic.condition || conditionMatches(mechanic.condition, enemy, game.combat.maxPlayerHp > 0 ? game.combat.playerHp / game.combat.maxPlayerHp : 1))) {
+        if (mechanic.type === "next-attack-modifier" && traitEventMatches(mechanic.event, event) && (!mechanic.sourceCategory || mechanic.sourceCategory === payload.sourceCategory) && (!mechanic.condition || conditionMatches(mechanic.condition, enemy, game.combat.maxPlayerHp > 0 ? game.combat.playerHp / game.combat.maxPlayerHp : 1))) {
           entry.values["pending-damage-multiplier"] = mechanic.damageMultiplier ?? 1;
           entry.values["pending-accuracy"] = mechanic.modifiers.filter((modifier) => modifier.stat === "accuracyRating").reduce((total, modifier) => total + modifier.value, 0);
           entry.values["pending-attack-key"] = key;
@@ -257,7 +263,7 @@ export function processEnemyTraitEvent(game: GameState, instanceId: string, even
         if (mechanic.type === "critical-damage-resistance" && event === "enemy-critical-hit-taken" && mechanic.cap > mechanic.perStack) entry.counters[key] = (entry.counters[key] ?? 0) + 1;
         if (mechanic.type === "stack-stat-modifier" && mechanic.sourceCategory && payload.sourceCategory && mechanic.sourceCategory === payload.sourceCategory && mechanic.counterKey) entry.timers[mechanic.counterKey] = 10;
         if (mechanic.type === "phase-stack" && mechanic.event === event) entry.stacks[key] = (entry.stacks[key] ?? 0) + 1;
-        if (mechanic.type === "action-cooldown-on-action-use" && event === "enemy-action-resolved" && (payload.abilityId ?? payload.actionId)) {
+        if ((mechanic.type === "action-cooldown-on-action-use" || mechanic.type === "combat-ability-cooldown-on-use") && traitEventMatches("enemy-combat-ability-resolved", event) && (payload.abilityId ?? payload.actionId)) {
           const counter = `${key}:${payload.abilityId ?? payload.actionId}`;
           entry.counters[counter] = (entry.counters[counter] ?? 0) + 1;
         }
@@ -273,13 +279,15 @@ export function processEnemyTraitEvent(game: GameState, instanceId: string, even
   for (const assignment of definition?.traits ?? []) {
     const trait = (context.enemyTraits ?? enemyTraitById)[assignment.traitId];
     const rank = trait?.ranks.find((candidate) => candidate.rank === assignment.rank);
-    for (const mechanic of rank?.mechanics ?? []) if (mechanic.type === "effect-proc" && mechanic.event === event && conditionMatches(mechanic.condition, updated, game.combat.maxPlayerHp > 0 ? game.combat.playerHp / game.combat.maxPlayerHp : 1) && (mechanic.chance >= 1 || nextCombatRandom(context.rng, "trait") < mechanic.chance)) {
+    for (const mechanic of rank?.mechanics ?? []) if (mechanic.type === "effect-proc" && traitEventMatches(mechanic.event, event) && conditionMatches(mechanic.condition, updated, game.combat.maxPlayerHp > 0 ? game.combat.playerHp / game.combat.maxPlayerHp : 1) && (mechanic.chance >= 1 || nextCombatRandom(context.rng, "trait") < mechanic.chance)) {
       // `source` identifies the entity that owns the applied effect. A trait
       // proc sourced by the enemy therefore targets the player by default.
       const source: CombatantRef = mechanic.source === "player" ? { kind: "player" } : { kind: "enemy", instanceId };
       const target: CombatantRef = mechanic.source === "player" ? { kind: "enemy", instanceId } : { kind: "player" };
       const effectDefinition = context.effects[mechanic.effectId];
-      const result = effectDefinition ? applyEffect(next.combat, effectDefinition, source, target, { rng: context.rng }) : { combat: next.combat, instance: null };
+      const targetEnemy = target.kind === "enemy" ? next.combat.enemies.find((candidate) => candidate.instanceId === target.instanceId) : undefined;
+      const policy = targetEnemy ? getEnemyTraitEffectPolicy(targetEnemy, effectDefinition?.tags ?? [], context.enemies, context.enemyTraits, effectDefinition?.kind === "debuff" || effectDefinition?.tags.includes("harmful")) : { allow: true, durationMultiplier: 1 };
+      const result = effectDefinition && policy.allow ? applyEffect(next.combat, effectDefinition, source, target, { rng: context.rng, durationMultiplier: policy.durationMultiplier }) : { combat: next.combat, instance: null };
       if (result.instance && result.outcome !== "rejected" && result.outcome !== "missing-target") {
         next.combat = result.combat;
         const eventId = next.combat.eventSequence + 1;
@@ -431,7 +439,7 @@ export function getEnemyActionCooldownMultiplier(enemy: EnemyCombatInstance, act
   for (const { mechanic, key } of mechanicsForEnemy(enemy, enemyDefinitions, definitions)) {
     if (mechanic.type === "action-cooldown-static") multiplier *= 1 - mechanic.value;
     if (mechanic.type === "action-cooldown-below-threshold" && hpFraction < (mechanic.threshold ?? 0)) multiplier *= 1 - mechanic.value;
-    if (mechanic.type === "action-cooldown-on-action-use") {
+    if (mechanic.type === "action-cooldown-on-action-use" || mechanic.type === "combat-ability-cooldown-on-use") {
       const uses = runtimeEntryForKey(enemy, key).counters[`${key}:${actionId}`] ?? 0;
       multiplier *= 1 - Math.min(mechanic.cap ?? 1, uses * mechanic.value);
     }
@@ -444,13 +452,19 @@ export function getEnemyActionCooldownReduction(enemy: EnemyCombatInstance, kind
 }
 
 export function getEnemyActionDamageMultiplier(enemy: EnemyCombatInstance, enemyDefinitions: Record<string, { traits: readonly EnemyTraitAssignment[] }> = {}, definitions: Record<string, EnemyTraitDefinition> = enemyTraitById) {
-  return mechanicsForEnemy(enemy, enemyDefinitions, definitions).reduce((multiplier, { mechanic }) => mechanic.type === "action-damage-modifier" ? multiplier * (1 + mechanic.value) : multiplier, 1);
+  return mechanicsForEnemy(enemy, enemyDefinitions, definitions).reduce((multiplier, { mechanic }) => (mechanic.type === "action-damage-modifier" || mechanic.type === "combat-ability-damage-modifier") ? multiplier * (1 + mechanic.value) : multiplier, 1);
 }
 
-/** Ability terminology aliases retained beside the legacy action hooks during save/runtime migration. */
-export const getEnemyCombatAbilityCooldownMultiplier = getEnemyActionCooldownMultiplier;
-export const getEnemyCombatAbilityCooldownReduction = getEnemyActionCooldownReduction;
-export const getEnemyCombatAbilityDamageMultiplier = getEnemyActionDamageMultiplier;
+/** Canonical Enemy Combat Ability terminology. Legacy names remain as read-only compatibility wrappers. */
+export function getEnemyCombatAbilityCooldownMultiplier(enemy: EnemyCombatInstance, abilityId: string, enemyDefinitions: Record<string, { traits: readonly EnemyTraitAssignment[] }> = {}, definitions: Record<string, EnemyTraitDefinition> = enemyTraitById) {
+  return getEnemyActionCooldownMultiplier(enemy, abilityId, enemyDefinitions, definitions);
+}
+export function getEnemyCombatAbilityCooldownReduction(enemy: EnemyCombatInstance, kind: "normal-hit" | "action-hit", enemyDefinitions: Record<string, { traits: readonly EnemyTraitAssignment[] }> = {}, definitions: Record<string, EnemyTraitDefinition> = enemyTraitById) {
+  return getEnemyActionCooldownReduction(enemy, kind, enemyDefinitions, definitions);
+}
+export function getEnemyCombatAbilityDamageMultiplier(enemy: EnemyCombatInstance, enemyDefinitions: Record<string, { traits: readonly EnemyTraitAssignment[] }> = {}, definitions: Record<string, EnemyTraitDefinition> = enemyTraitById) {
+  return getEnemyActionDamageMultiplier(enemy, enemyDefinitions, definitions);
+}
 export function reduceEnemyCombatAbilityCooldowns(combat: CombatState, instanceId: string, fraction: number, exceptAbilityId?: string) {
   return { ...combat, enemies: combat.enemies.map((enemy) => enemy.instanceId === instanceId ? { ...enemy, abilityCooldowns: Object.fromEntries(Object.entries(enemy.abilityCooldowns ?? {}).map(([abilityId, remaining]) => [abilityId, abilityId === exceptAbilityId ? remaining : Math.max(0, remaining * (1 - fraction))])) } : enemy) };
 }

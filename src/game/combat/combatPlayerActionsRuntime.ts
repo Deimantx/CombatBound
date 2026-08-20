@@ -36,7 +36,8 @@ import type {
   EnemyCombatInstance,
 } from "./combatTypes";
 import type { CombatProficiencyId, ProgressionCredit } from "../progression/progressionTypes";
-import { getEnemyTraitCriticalDamageResistance, getEnemyTraitHealingReceivedMultiplier, getEnemyTraitIncomingDamageMultiplier, getEnemyTraitReflectionFraction, processEnemyTraitEvent, applyEnemyTraitHealthTriggers } from "../enemyTraits/enemyTraitRuntime";
+import { getEnemyTraitCriticalDamageResistance, getEnemyTraitIncomingDamageMultiplier, getEnemyTraitReflectionFraction, processEnemyTraitEvent, applyEnemyTraitHealthTriggers } from "../enemyTraits/enemyTraitRuntime";
+import { getPlayerHealingReceivedMultiplier } from "./combatHealing";
 
 type BarrierAbsorption = {
   effectId: string;
@@ -772,11 +773,12 @@ export function useHealingPotion(
   );
   if (!validation.valid || game.combat.potionCooldownRemaining > 0) return game;
   const engagedEnemy = game.combat.enemies.find((enemy) => enemy.instanceId === game.combat.selectedEnemyInstanceId && !enemy.defeated);
-  const healingMultiplier = engagedEnemy ? getEnemyTraitHealingReceivedMultiplier(engagedEnemy, context.enemies, context.enemyTraits) : 1;
+  const healingMultiplier = getPlayerHealingReceivedMultiplier(game.combat, context, engagedEnemy);
+  const missingHealth = Math.max(0, (stats.maxLife ?? 0) - game.combat.playerHp);
   const amount = Math.min(
+    missingHealth,
     combatBalance.healingPotionAmount,
-    ((stats.maxLife ?? 0) - game.combat.playerHp) * healingMultiplier,
-  );
+  ) * healingMultiplier;
   return {
     ...game,
     inventory: removeStackableItem(game.inventory, "item.healing-potion", 1),

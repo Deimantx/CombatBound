@@ -36,8 +36,6 @@ const conditionOptions: Array<{ value: AutomationCondition["type"]; label: strin
   { value: "target-missing-effect", label: "Target missing Effect" },
   { value: "barrier-missing", label: "Barrier missing" },
   { value: "barrier-below", label: "Barrier below %" },
-  { value: "target-casting", label: "Target is casting" },
-  { value: "target-danger-at-least", label: "Danger at least" },
   { value: "alive-enemies-at-least", label: "Alive enemies at least" },
 ];
 
@@ -170,13 +168,12 @@ function RuleEditor({ rule, actions, catalogue, isDraft = false, onSave, onDelet
 
 function ConditionEditor({ condition, onChange, onRemove }: { condition: AutomationCondition; onChange: (condition: AutomationCondition) => void; onRemove: () => void }) {
   const updateType = (type: AutomationCondition["type"]) => onChange(defaultCondition(type));
-  return <div className="automation-condition-row" data-debug-kind="automation-condition" data-debug-condition-type={condition.type}><select value={condition.type} onChange={(event) => updateType(event.target.value as AutomationCondition["type"])}>{conditionOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}</select>{fractionTypes.has(condition.type) && "fraction" in condition && <input type="number" min="0" max="100" step="1" value={Math.round(condition.fraction * 100)} onChange={(event) => onChange({ ...condition, fraction: Math.max(0, Math.min(1, Number(event.target.value) / 100)) })} />}{"effectId" in condition && <select value={condition.effectId} onChange={(event) => onChange({ ...condition, effectId: event.target.value })}>{effectDefinitions.map((effect) => <option key={effect.id} value={effect.id}>{effect.name}</option>)}</select>}{condition.type === "target-danger-at-least" && <select value={condition.danger} onChange={(event) => onChange({ ...condition, danger: event.target.value as typeof condition.danger })}><option value="low">Low</option><option value="medium">Medium</option><option value="high">High</option><option value="critical">Critical</option></select>}{condition.type === "alive-enemies-at-least" && <input type="number" min="1" step="1" value={condition.count} onChange={(event) => onChange({ ...condition, count: Math.max(1, Math.floor(Number(event.target.value))) })} />}<button className="icon-button compact" onClick={onRemove} aria-label="Remove condition"><Trash2 size={12} /></button><span className="condition-readable">{conditionLabel(condition)}</span></div>;
+  return <div className="automation-condition-row" data-debug-kind="automation-condition" data-debug-condition-type={condition.type}><select value={condition.type} onChange={(event) => updateType(event.target.value as AutomationCondition["type"])}>{conditionOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}</select>{fractionTypes.has(condition.type) && "fraction" in condition && <input type="number" min="0" max="100" step="1" value={Math.round(condition.fraction * 100)} onChange={(event) => onChange({ ...condition, fraction: Math.max(0, Math.min(1, Number(event.target.value) / 100)) })} />}{"effectId" in condition && <select value={condition.effectId} onChange={(event) => onChange({ ...condition, effectId: event.target.value })}>{effectDefinitions.map((effect) => <option key={effect.id} value={effect.id}>{effect.name}</option>)}</select>}{condition.type === "alive-enemies-at-least" && <input type="number" min="1" step="1" value={condition.count} onChange={(event) => onChange({ ...condition, count: Math.max(1, Math.floor(Number(event.target.value))) })} />}<button className="icon-button compact" onClick={onRemove} aria-label="Remove condition"><Trash2 size={12} /></button><span className="condition-readable">{conditionLabel(condition)}</span></div>;
 }
 
 function defaultCondition(type: AutomationCondition["type"]): AutomationCondition {
   if (fractionTypes.has(type)) return { type: type as never, fraction: 0.5 };
-  if (type === "barrier-missing" || type === "target-casting" || type === "always") return { type };
-  if (type === "target-danger-at-least") return { type, danger: "high" };
+  if (type === "barrier-missing" || type === "always") return { type };
   if (type === "alive-enemies-at-least") return { type, count: 1 };
   return { type: type as "player-has-effect", effectId: "effect.ignite" };
 }
@@ -185,7 +182,6 @@ function conditionLabel(condition: AutomationCondition) {
   if (condition.type === "always") return "Always";
   if ("fraction" in condition) return `${conditionOptions.find((option) => option.value === condition.type)?.label ?? condition.type} ${Math.round(condition.fraction * 100)}%`;
   if ("effectId" in condition) return `${conditionOptions.find((option) => option.value === condition.type)?.label ?? condition.type}: ${effectDefinitions.find((effect) => effect.id === condition.effectId)?.name ?? condition.effectId}`;
-  if (condition.type === "target-danger-at-least") return `Target danger at least ${condition.danger}`;
   if (condition.type === "alive-enemies-at-least") return `Alive enemies at least ${condition.count}`;
   return conditionOptions.find((option) => option.value === condition.type)?.label ?? condition.type;
 }

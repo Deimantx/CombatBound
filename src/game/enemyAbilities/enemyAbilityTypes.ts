@@ -16,7 +16,8 @@ export type EnemyCombatAbilityCondition =
   | { type: "self-has-effect-id"; effectId: string }
   | { type: "self-missing-effect-id"; effectId: string }
   | { type: "phase"; phaseId: string }
-  | { type: "once-per-fight-not-used" };
+  | { type: "has-next-phase" }
+  | { type: "once-per-fight-not-used"; abilityId?: EnemyCombatAbilityId };
 
 export interface EnemyCombatAbilityDamageMechanic {
   type: "damage";
@@ -29,6 +30,8 @@ export interface EnemyCombatAbilityDamageMechanic {
   armourPenetrationPercent?: number;
   targetBlockEffectMultiplier?: number;
   conditionalMultiplierOverride?: { condition: EnemyCombatAbilityCondition; attackDamageMultiplier: number };
+  /** Effects resolved immediately after this hit, and only when this hit lands. */
+  onHitEffects?: readonly EnemyCombatAbilityApplyEffectMechanic[];
 }
 
 export interface EnemyCombatAbilityApplyEffectMechanic {

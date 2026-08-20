@@ -69,7 +69,7 @@ const definitions: EnemyCombatAbilityDefinition[] = [
   ability("enemy-ability.life-drain", "Life Drain", "A Chaos hit that heals for 50% of actual HP damage.", "boss", "player", 15, [damage("magic", "chaos", 2.5), { type: "damage-based-heal", fraction: .5 }], { allowedEnemyTiers: boss }),
   ability("enemy-ability.cataclysm", "Cataclysm", "Elemental damage type is intentionally unresolved by the authored content.", "boss", "player", 25, [], { allowedEnemyTiers: boss, draft: true, tags: ["boss", "content-open"] }),
   ability("enemy-ability.doom-mark", "Doom Mark", "Doom effect mechanics are intentionally unresolved by the authored content.", "boss", "player", 20, [], { allowedEnemyTiers: boss, draft: true, tags: ["boss", "content-open"] }),
-  ability("enemy-ability.phase-shift", "Phase Shift", "Advances to the next authored enemy phase.", "boss", "self", 0, [{ type: "advance-phase" }], { allowedEnemyTiers: boss }),
+  ability("enemy-ability.phase-shift", "Phase Shift", "Advances to the next authored enemy phase.", "boss", "self", 0, [{ type: "advance-phase" }], { allowedEnemyTiers: boss, conditions: [{ type: "has-next-phase" }] }),
   ability("enemy-ability.berserk-assault", "Berserk Assault", "A short aggressive Boss buff.", "boss", "self", 25, [{ type: "ability-stat-effect", effectId: "effect.enemy-berserk-assault" }], { allowedEnemyTiers: boss }),
   ability("enemy-ability.execution-protocol", "Execution Protocol", "A Boss finisher against a low-health player.", "boss", "player", 18, [damage("melee", "physical", 4)], { allowedEnemyTiers: boss, conditions: [hp("player-hp-below", .25)] }),
 ];
