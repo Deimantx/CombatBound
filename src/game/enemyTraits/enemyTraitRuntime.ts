@@ -133,6 +133,8 @@ export function getEnemyTraitStatModifiers(
     } else if (mechanic.type === "phase-stack") {
       const stacks = runtimeEntryForKey(enemy, key).stacks[key] ?? 0;
       if (stacks > 0) result.push(...modifierForStacks(mechanic.modifiers, stacks));
+    } else if (mechanic.type === "lethal-intercept" && (runtimeEntryForKey(enemy, key).timers[key] ?? 0) > 0 && mechanic.damageBonus) {
+      result.push({ stat: "attackDamage", operation: "increased", value: mechanic.damageBonus });
     }
   }
   return result;
@@ -145,7 +147,7 @@ function runtimeEntryForKey(enemy: EnemyCombatInstance, key: string) {
   return runtimeEntry(enemy, mechanicKeyTrait(key));
 }
 
-export function getEnemyTraitOutgoingDamageMultiplier(enemy: EnemyCombatInstance, packet: Pick<DamagePacket, "damageType" | "deliveryKind" | "sourceCategory">, playerHpFraction: number, enemyDefinitions: Record<string, { traits: readonly EnemyTraitAssignment[] }> = {}, definitions: Record<string, EnemyTraitDefinition> = enemyTraitById): number {
+export function getEnemyTraitOutgoingDamageMultiplier(enemy: EnemyCombatInstance, packet: Pick<DamagePacket, "damageType" | "deliveryKind" | "sourceCategory">, playerHpFraction: number, enemyDefinitions: Record<string, { traits: readonly EnemyTraitAssignment[] }> = {}, definitions: Record<string, EnemyTraitDefinition> = enemyTraitById, isNormalAttack = true): number {
   let increased = 0;
   let more = 1;
   for (const { mechanic, key } of mechanicsForEnemy(enemy, enemyDefinitions, definitions)) {
@@ -154,13 +156,9 @@ export function getEnemyTraitOutgoingDamageMultiplier(enemy: EnemyCombatInstance
       if (mechanic.operation === "increased" || mechanic.operation === "reduced") increased += mechanic.operation === "reduced" ? -value : value;
       else more *= mechanic.operation === "more" ? 1 + value : 1 - value;
     }
-    if (mechanic.type === "fight-stage-damage") {
-    const value = mechanic.stages.reduce((current, stage) => runtimeState(enemy).elapsedSeconds >= stage.afterSeconds ? stage.value : current, 0);
-      increased += value;
-    }
   }
   const pending = runtimeEntryForPending(enemy).values["pending-damage-multiplier"];
-  if (typeof pending === "number") more *= pending;
+  if (isNormalAttack && typeof pending === "number") more *= pending;
   return Math.max(0, (1 + increased) * more);
 }
 
@@ -235,7 +233,7 @@ export function processEnemyTraitEvent(game: GameState, instanceId: string, even
       entry.counters = { ...entry.counters }; entry.stacks = { ...entry.stacks }; entry.timers = { ...entry.timers }; entry.flags = { ...entry.flags }; entry.values = { ...entry.values };
       rank?.mechanics.forEach((mechanic, index) => {
         const key = `${assignment.traitId}:${assignment.rank}:${index}`;
-        if (mechanic.type === "timed-stat-modifier" && mechanic.event === event) entry.timers[key] = mechanic.durationSeconds ?? 0;
+        if (mechanic.type === "timed-stat-modifier" && mechanic.event === event && (!mechanic.sourceCategory || mechanic.sourceCategory === payload.sourceCategory)) entry.timers[key] = mechanic.durationSeconds ?? 0;
         if (mechanic.type === "threshold-timed-stat-modifier" && event === "enemy-hp-threshold-crossed") entry.timers[key] = mechanic.durationSeconds ?? 0;
         if (mechanic.type === "stack-stat-modifier" && mechanic.event === event && (!mechanic.sourceCategory || mechanic.sourceCategory === payload.sourceCategory)) {
           const counter = mechanic.counterKey ?? key;
@@ -248,7 +246,7 @@ export function processEnemyTraitEvent(game: GameState, instanceId: string, even
           if (mechanic.activateAfter && entry.counters[counter] >= mechanic.activateAfter) entry.flags.active = true;
           else if (!mechanic.activateAfter) entry.stacks[counter] = Math.min(mechanic.maxStacks, (entry.stacks[counter] ?? 0) + 1);
         }
-        if (mechanic.type === "next-attack-modifier" && mechanic.event === event && (!mechanic.condition || conditionMatches(mechanic.condition, enemy, game.combat.maxPlayerHp > 0 ? game.combat.playerHp / game.combat.maxPlayerHp : 1))) {
+        if (mechanic.type === "next-attack-modifier" && mechanic.event === event && (!mechanic.sourceCategory || mechanic.sourceCategory === payload.sourceCategory) && (!mechanic.condition || conditionMatches(mechanic.condition, enemy, game.combat.maxPlayerHp > 0 ? game.combat.playerHp / game.combat.maxPlayerHp : 1))) {
           entry.values["pending-damage-multiplier"] = mechanic.damageMultiplier ?? 1;
           entry.values["pending-accuracy"] = mechanic.modifiers.filter((modifier) => modifier.stat === "accuracyRating").reduce((total, modifier) => total + modifier.value, 0);
           entry.values["pending-attack-key"] = key;
@@ -256,6 +254,7 @@ export function processEnemyTraitEvent(game: GameState, instanceId: string, even
         if (mechanic.type === "critical-damage-resistance" && event === "enemy-critical-hit-taken" && mechanic.cap > mechanic.perStack) entry.stacks[key] = Math.min(Math.floor(mechanic.cap / mechanic.perStack + .0001), (entry.stacks[key] ?? 0) + 1);
         if (mechanic.type === "critical-damage-resistance" && event === "enemy-critical-hit-taken" && mechanic.cap > mechanic.perStack) entry.counters[key] = (entry.counters[key] ?? 0) + 1;
         if (mechanic.type === "stack-stat-modifier" && mechanic.sourceCategory && payload.sourceCategory && mechanic.sourceCategory === payload.sourceCategory && mechanic.counterKey) entry.timers[mechanic.counterKey] = 10;
+        if (mechanic.type === "phase-stack" && mechanic.event === event) entry.stacks[key] = (entry.stacks[key] ?? 0) + 1;
       });
       next.byTraitId[assignment.traitId] = entry;
     }
@@ -269,8 +268,10 @@ export function processEnemyTraitEvent(game: GameState, instanceId: string, even
     const trait = (context.enemyTraits ?? enemyTraitById)[assignment.traitId];
     const rank = trait?.ranks.find((candidate) => candidate.rank === assignment.rank);
     for (const mechanic of rank?.mechanics ?? []) if (mechanic.type === "effect-proc" && mechanic.event === event && conditionMatches(mechanic.condition, updated, game.combat.maxPlayerHp > 0 ? game.combat.playerHp / game.combat.maxPlayerHp : 1) && (mechanic.chance >= 1 || nextCombatRandom(context.rng, "trait") < mechanic.chance)) {
-      const source = { kind: "enemy" as const, instanceId };
-      const target = mechanic.source === "self" ? source : { kind: "player" as const };
+      // `source` identifies the entity that owns the applied effect. A trait
+      // proc sourced by the enemy therefore targets the player by default.
+      const source = mechanic.source === "player" ? { kind: "player" as const } : { kind: "enemy" as const, instanceId };
+      const target = mechanic.source === "player" ? { kind: "enemy" as const, instanceId } : { kind: "player" as const };
       const effectDefinition = context.effects[mechanic.effectId];
       const result = effectDefinition ? applyEffect(next.combat, effectDefinition, source, target, { rng: context.rng }) : { combat: next.combat, instance: null };
       if (result.instance) next.combat = result.combat;

@@ -116,6 +116,7 @@ export interface TraitTimedStatModifierMechanic {
   modifiers: readonly TraitStatModifier[];
   refresh: "refresh" | "replace";
   condition?: EnemyTraitCondition;
+  sourceCategory?: CombatSourceCategory;
 }
 
 export interface TraitStackStatModifierMechanic {
@@ -133,6 +134,7 @@ export interface TraitNextAttackMechanic {
   event: EnemyTraitEvent;
   modifiers: readonly TraitStatModifier[];
   condition?: EnemyTraitCondition;
+  sourceCategory?: CombatSourceCategory;
   damageMultiplier?: number;
   consumeOn: "successful-normal-attack";
 }

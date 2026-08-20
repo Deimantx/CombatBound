@@ -197,7 +197,7 @@ export function advanceEnemySpecials(
           const packet: DamagePacket = {
             ...component,
             sourceCategory: actionSourceCategory,
-            damageMultiplier: getEnemyActionDamageMultiplier(current, context.enemies, context.enemyTraits) * getEnemyTraitOutgoingDamageMultiplier(current, { damageType: component.damageType, deliveryKind: component.deliveryKind, sourceCategory: actionSourceCategory }, combat.maxPlayerHp > 0 ? combat.playerHp / combat.maxPlayerHp : 1, context.enemies, context.enemyTraits),
+            damageMultiplier: getEnemyActionDamageMultiplier(current, context.enemies, context.enemyTraits) * getEnemyTraitOutgoingDamageMultiplier(current, { damageType: component.damageType, deliveryKind: component.deliveryKind, sourceCategory: actionSourceCategory }, combat.maxPlayerHp > 0 ? combat.playerHp / combat.maxPlayerHp : 1, context.enemies, context.enemyTraits, false),
             source,
             target: { kind: "player" },
             defensiveEligibility: { canMiss: true, canBeEvaded: true, blockable: actionDefinition.blockable },
@@ -243,6 +243,7 @@ export function advanceEnemySpecials(
         game = { ...game, combat };
         if (playerHitAction) {
           game = processEnemyTraitEvent(game, current.instanceId, "enemy-action-resolved", { actionId: actionDefinition.id, successful: true, actualDamage: totalDamage }, context);
+          if (totalDamage > 0) game = processEnemyTraitEvent(game, current.instanceId, "enemy-damage-dealt", { actionId: actionDefinition.id, successful: true, actualDamage: totalDamage }, context);
           combat = reduceEnemyActionRemainingCooldowns(game.combat, current.instanceId, getEnemyActionCooldownReduction(current, "action-hit", context.enemies, context.enemyTraits), actionDefinition.id);
           game = { ...game, combat };
         }

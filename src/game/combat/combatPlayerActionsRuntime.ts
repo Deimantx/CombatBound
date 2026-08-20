@@ -327,6 +327,7 @@ export function damageEnemy(
   if (resolution.outcome === "hit") {
     next = processEnemyTraitEvent(next, current.instanceId, "enemy-damaged", { sourceCategory, actualDamage: effectiveHealthDamage, critical: resolution.critical, successful: true }, context);
     if (resolution.critical) next = processEnemyTraitEvent(next, current.instanceId, "enemy-critical-hit-taken", { sourceCategory, critical: true, actualDamage: effectiveHealthDamage }, context);
+    if (resolution.blocked) next = processEnemyTraitEvent(next, current.instanceId, "enemy-successful-block", { sourceCategory }, context);
     const reflectionFraction = !isSecondary && resolution.healthDamage > 0 ? getEnemyTraitReflectionFraction(current, sourceCategory, context.enemies, context.enemyTraits) : 0;
     if (reflectionFraction > 0) {
       const reflected = resolution.healthDamage * reflectionFraction;
