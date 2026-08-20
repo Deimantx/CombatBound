@@ -34,6 +34,11 @@ describe('combat target selection UI', () => {
     expect(screen.getByText('SELECTED TARGET')).toBeInTheDocument()
     expect(screen.getByText('ZONE SHARED LOOT')).toBeInTheDocument()
     expect(screen.getByText('NO CURRENT ENEMY')).toBeInTheDocument()
+    expect(document.querySelectorAll('.location-preview-action button')).toHaveLength(1)
+    expect(document.querySelectorAll('.combat-inspector-tile')).not.toHaveLength(0)
+    expect(screen.queryByText(/Every kill in this arena/i)).not.toBeInTheDocument()
+    expect(screen.queryByText(/No traits|No combat abilities/i)).not.toBeInTheDocument()
+    expect(screen.queryByText(/Drop chance/i)).not.toBeInTheDocument()
   })
 
   it('changes the preview without changing combat and keeps locked targets uncommittable', () => {

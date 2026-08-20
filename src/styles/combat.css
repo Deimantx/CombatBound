@@ -80,6 +80,8 @@
 .combat-atlas-workspace { align-items: stretch; display: grid; gap: 14px; grid-template-columns: 1fr; }
 .combat-atlas-workspace.is-area-level { grid-template-columns: minmax(0, 1.65fr) minmax(300px, .72fr); }
 .combat-atlas-panel { animation: atlas-panel-enter 220ms ease both; background: rgba(255,255,255,.012); border: 1px solid var(--line-soft); border-radius: 8px; display: flex; flex-direction: column; min-width: 0; overflow: hidden; }
+.combat-atlas-workspace.is-area-level > .combat-atlas-panel, .combat-atlas-workspace.is-area-level > .combat-location-preview { min-height: clamp(600px, 68vh, 760px); }
+.combat-atlas-workspace.is-area-level > .combat-atlas-panel > .combat-atlas-stage { flex: 1 1 auto; min-height: clamp(600px, 68vh, 760px); }
 
 @keyframes atlas-panel-enter {
   from { opacity: .72; transform: scale(.985) translateY(4px); }
@@ -273,18 +275,15 @@
 .combat-target-detail-grid span { color: var(--muted); font-size: 9px; }
 .combat-target-detail-grid strong { color: var(--text); font-size: 10px; }
 .combat-target-preview-section { border-top: 1px solid rgba(148,163,184,.1); display: flex; flex-direction: column; gap: 6px; margin-top: 10px; padding-top: 9px; }
+.combat-inspector-tile-grid { align-items: center; display: flex; flex-wrap: wrap; gap: 6px; min-height: 44px; }
+.combat-inspector-tile { align-items: center; appearance: none; background: linear-gradient(145deg, rgba(42,53,62,.95), rgba(19,26,32,.98)); border: 1px solid rgba(182,151,91,.34); border-radius: 7px; color: var(--gold-bright); cursor: help; display: inline-flex; height: 42px; justify-content: center; padding: 0; transition: border-color 120ms ease, background 120ms ease, transform 120ms ease; width: 42px; }
+.combat-inspector-tile:hover, .combat-inspector-tile:focus-visible { background: linear-gradient(145deg, rgba(65,76,84,.98), rgba(27,35,42,.98)); border-color: var(--gold-bright); outline: none; transform: translateY(-1px); }
 .combat-target-preview-section-heading { align-items: baseline; display: flex; justify-content: space-between; }
 .combat-target-preview-section-heading small { color: var(--muted); font-size: 8px; }
-.combat-target-preview-row { align-items: baseline; display: flex; gap: 8px; justify-content: space-between; }
-.combat-target-preview-row strong { color: var(--text-dim); font-size: 9px; }
-.combat-target-preview-row small, .combat-target-muted { color: var(--muted); font-size: 8px; }
-.combat-target-loot-row { align-items: center; display: flex; gap: 6px; min-width: 0; }
-.combat-target-loot-row strong { color: var(--text-dim); flex: 1; font-size: 9px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.combat-target-loot-row small { color: var(--gold); font-size: 9px; white-space: nowrap; }
+.combat-target-muted { color: var(--muted); font-size: 8px; }
 .location-loot-list { display: flex; flex-wrap: wrap; gap: 5px; }
 .location-loot-list span { background: var(--gold-soft); border: 1px solid rgba(213,170,98,.24); border-radius: 99px; color: var(--gold); font-size: 9px; padding: 3px 6px; }
 .location-preview-footer { align-items: flex-end; border-top: 1px solid var(--line-soft); display: flex; gap: 12px; justify-content: space-between; margin-top: auto; padding-top: 10px; }
-.location-shared-loot { display: flex; flex: 1; flex-direction: column; gap: 3px; min-width: 0; }
 .location-preview-action { align-items: flex-end; display: flex; flex-direction: column; gap: 4px; }
 .location-preview-action .button { min-width: 124px; }
 .locked-copy { color: var(--gold); font-size: 9px; margin-top: 4px; text-align: right; }
@@ -559,7 +558,7 @@
 
 @media (max-width: 700px) { .combat-resource-hud { grid-template-columns: 1fr; } .session-metric-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } .session-breakdown { grid-template-columns: 1fr; } .progression-value-grid { grid-template-columns: 1fr 1fr; } }
 @media (max-width: 1050px) { .combat-location-preview { min-height: 0; } }
-@media (max-width: 900px) { .combat-atlas-workspace { grid-template-columns: 1fr; } .combat-atlas-stage { min-height: 430px; } }
+@media (max-width: 900px) { .combat-atlas-workspace { grid-template-columns: 1fr; } .combat-atlas-workspace.is-area-level > .combat-atlas-panel, .combat-atlas-workspace.is-area-level > .combat-location-preview { min-height: 0; } .combat-atlas-workspace.is-area-level > .combat-atlas-panel > .combat-atlas-stage { min-height: 430px; } .combat-atlas-stage { min-height: 430px; } }
 @media (max-width: 600px) {
   .combat-atlas-title-row { align-items: flex-start; flex-direction: column; gap: 9px; }
   .combat-world-active-context { align-items: flex-start; flex-basis: auto; text-align: left; }
