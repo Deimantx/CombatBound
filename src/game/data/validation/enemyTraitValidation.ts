@@ -2,7 +2,7 @@ import { effectById } from "../effects";
 import { enemyTraitDefinitions, enemyTraitById } from "../enemyTraits";
 import { COMBAT_STAT_REGISTRY } from "../../presentation/combatStatRegistry";
 import type { EnemyDefinition } from "../../combat/combatTypes";
-import { ENEMY_TRAIT_CATEGORIES, ENEMY_TIERS, type EnemyTraitDefinition, type EnemyTraitMechanic, type EnemyTraitAssignment, type EnemyTier } from "../../enemyTraits/enemyTraitTypes";
+import { COMBAT_SOURCE_CATEGORIES, ENEMY_TRAIT_CATEGORIES, ENEMY_TIERS, type EnemyTraitDefinition, type EnemyTraitMechanic, type EnemyTraitAssignment, type EnemyTier } from "../../enemyTraits/enemyTraitTypes";
 
 export interface EnemyTraitValidationResult {
   errors: string[];
@@ -17,6 +17,7 @@ const finite = (value: unknown) => typeof value === "number" && Number.isFinite(
 function validateMechanic(mechanic: EnemyTraitMechanic, trait: EnemyTraitDefinition, result: EnemyTraitValidationResult, effectDefinitions: Record<string, unknown>) {
   const candidate = mechanic as unknown as Record<string, unknown>;
   for (const value of Object.values(candidate)) if (typeof value === "string" && groupWords.test(value)) add(result, `${trait.id}: group/ally mechanic is forbidden (${value}).`);
+  if (typeof candidate.sourceCategory === "string" && !COMBAT_SOURCE_CATEGORIES.includes(candidate.sourceCategory as never)) add(result, `${trait.id}: invalid source category.`);
   if (mechanic.type === "stat-modifier" || mechanic.type === "conditional-stat-modifier" || mechanic.type === "linear-hp-stat-scaling" || mechanic.type === "timed-stat-modifier" || mechanic.type === "stack-stat-modifier" || mechanic.type === "phase-stack" || mechanic.type === "fight-stack") {
     const modifiers = "modifiers" in mechanic ? mechanic.modifiers : "perStack" in mechanic ? mechanic.perStack : [];
     for (const modifier of modifiers) {
@@ -27,24 +28,28 @@ function validateMechanic(mechanic: EnemyTraitMechanic, trait: EnemyTraitDefinit
   if (mechanic.type === "effect-proc") {
     if (!effectDefinitions[mechanic.effectId]) add(result, `${trait.id}: unknown Effect ID ${mechanic.effectId}.`);
     if (!finite(mechanic.chance) || mechanic.chance < 0 || mechanic.chance > 1) add(result, `${trait.id}: effect chance must be between 0 and 1.`);
+    if (mechanic.stacks !== undefined && (!Number.isInteger(mechanic.stacks) || mechanic.stacks < 1)) add(result, `${trait.id}: effect stacks must be a positive integer.`);
   }
   if (mechanic.type === "outgoing-damage-modifier" || mechanic.type === "incoming-damage-modifier") {
-    if (!finite(mechanic.value)) add(result, `${trait.id}: damage modifier must be finite.`);
-    if (mechanic.sourceCategory && !["melee", "ranged", "magic", "secondary"].includes(mechanic.sourceCategory)) add(result, `${trait.id}: invalid source category.`);
+    if (!finite(mechanic.value) || mechanic.value < 0 || mechanic.value > 1) add(result, `${trait.id}: damage modifier must be a fraction between 0 and 1.`);
   }
   if (mechanic.type === "critical-damage-resistance") {
-    if (!finite(mechanic.perStack) || !finite(mechanic.cap) || mechanic.perStack < 0 || mechanic.cap < 0 || mechanic.cap > 1) add(result, `${trait.id}: invalid Critical Damage Resistance.`);
+    if (!finite(mechanic.perStack) || !finite(mechanic.cap) || mechanic.perStack < 0 || mechanic.cap < 0 || mechanic.perStack > mechanic.cap || mechanic.cap > 1) add(result, `${trait.id}: invalid Critical Damage Resistance.`);
   }
   if (mechanic.type === "linear-hp-stat-scaling" && (!finite(mechanic.maxBonus) || !finite(mechanic.fullEffectAtHpFraction) || mechanic.fullEffectAtHpFraction < 0 || mechanic.fullEffectAtHpFraction > 1)) add(result, `${trait.id}: invalid HP scaling values.`);
   if (mechanic.type === "threshold-heal" || mechanic.type === "threshold-barrier" || mechanic.type === "threshold-timed-stat-modifier" || mechanic.type === "lethal-intercept" || mechanic.type === "action-cooldown-below-threshold") {
     const threshold = mechanic.threshold;
     if (!finite(threshold) || (threshold ?? 0) < 0 || (threshold ?? 0) > 1) add(result, `${trait.id}: invalid HP threshold.`);
     if ("durationSeconds" in mechanic && mechanic.durationSeconds !== undefined && (!finite(mechanic.durationSeconds) || mechanic.durationSeconds < 0)) add(result, `${trait.id}: invalid duration.`);
+    if ("healFraction" in mechanic && mechanic.healFraction !== undefined && (!finite(mechanic.healFraction) || mechanic.healFraction < 0 || mechanic.healFraction > 1)) add(result, `${trait.id}: invalid healing fraction.`);
+    if ("barrierFraction" in mechanic && mechanic.barrierFraction !== undefined && (!finite(mechanic.barrierFraction) || mechanic.barrierFraction < 0 || mechanic.barrierFraction > 1)) add(result, `${trait.id}: invalid barrier fraction.`);
   }
   if (mechanic.type === "timed-stat-modifier" && (!finite(mechanic.durationSeconds) || mechanic.durationSeconds < 0)) add(result, `${trait.id}: invalid duration.`);
-  if (mechanic.type === "action-cooldown-on-normal-hit" || mechanic.type === "action-cooldown-on-action-hit" || mechanic.type === "action-cooldown-on-action-use" || mechanic.type === "action-cooldown-static") if (!finite(mechanic.value) || mechanic.value < 0 || mechanic.value > 1) add(result, `${trait.id}: invalid cooldown percentage.`);
+  if (mechanic.type === "action-cooldown-on-normal-hit" || mechanic.type === "action-cooldown-on-action-hit" || mechanic.type === "action-cooldown-on-action-use" || mechanic.type === "action-cooldown-below-threshold" || mechanic.type === "action-cooldown-static") if (!finite(mechanic.value) || mechanic.value < 0 || mechanic.value > 1) add(result, `${trait.id}: invalid cooldown percentage.`);
   if (mechanic.type === "action-cooldown-on-action-use" && mechanic.cap !== undefined && (!finite(mechanic.cap) || mechanic.cap < 0 || mechanic.cap > 1)) add(result, `${trait.id}: invalid cooldown cap.`);
-  if (mechanic.type === "fight-stack" && (!finite(mechanic.intervalSeconds) || mechanic.intervalSeconds <= 0 || mechanic.maxStacks < 0)) add(result, `${trait.id}: invalid fight stack timing or cap.`);
+  if (mechanic.type === "stack-stat-modifier" && (!Number.isInteger(mechanic.maxStacks) || mechanic.maxStacks < 0)) add(result, `${trait.id}: invalid stack cap.`);
+  if (mechanic.type === "fight-stack" && (!finite(mechanic.intervalSeconds) || mechanic.intervalSeconds <= 0 || !Number.isInteger(mechanic.maxStacks) || mechanic.maxStacks < 0)) add(result, `${trait.id}: invalid fight stack timing or cap.`);
+  if (mechanic.type === "action-damage-modifier" && (!finite(mechanic.value) || mechanic.value < 0)) add(result, `${trait.id}: invalid action damage modifier.`);
   if (mechanic.type === "effect-duration-modifier") { const value = mechanic.value; if (!finite(value) || (value ?? 0) < 0 || (value ?? 0) > 1) add(result, `${trait.id}: invalid duration multiplier.`); }
 }
 
@@ -85,6 +90,7 @@ export function validateEnemyTraitAssignments(enemy: Pick<EnemyDefinition, "id" 
     const trait = definitions[assignment.traitId];
     if (!trait) { add(result, `${enemy.id}: unknown Trait ID ${assignment.traitId}.`); continue; }
     if (!Number.isInteger(assignment.rank)) add(result, `${enemy.id}: missing or invalid rank for ${assignment.traitId}.`);
+    else if (assignment.rank < 1 || assignment.rank > 3) add(result, `${enemy.id}: invalid rank for ${assignment.traitId}.`);
     else if (assignment.rank > trait.maxRank) add(result, `${enemy.id}: ${assignment.traitId} exceeds max rank.`);
     if (!trait.allowedEnemyTiers.includes(tier)) add(result, `${enemy.id}: ${assignment.traitId} is not allowed on ${tier}.`);
   }

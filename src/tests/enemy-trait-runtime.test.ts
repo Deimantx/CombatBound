@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { EnemyCombatInstance } from "../game/combat/combatTypes";
-import { getEnemyTraitCriticalDamageResistance, getEnemyTraitIncomingDamageMultiplier, getEnemyTraitStatModifiers, normalizeEnemyTraitRuntimeState, processEnemyTraitEvent } from "../game/enemyTraits/enemyTraitRuntime";
+import { getEnemyActionCooldownMultiplier, getEnemyTraitCriticalDamageResistance, getEnemyTraitIncomingDamageMultiplier, getEnemyTraitStatModifiers, normalizeEnemyTraitRuntimeState, processEnemyTraitEvent } from "../game/enemyTraits/enemyTraitRuntime";
 import { enemyTraitById } from "../game/data/enemyTraits";
 import { createCombatContext } from "../game/combat/combatEngine";
 import { createInitialGameState } from "../game/gameState";
@@ -40,5 +40,16 @@ describe("enemy Trait runtime", () => {
     const contextWithEnemy = { ...context, enemies: { ...context.enemies, "trait-test": { ...context.enemies["enemy.grey-wolf"], id: "trait-test", traits: [{ traitId: "trait.venomous-fangs" as const, rank: 1 as const }] } } };
     const result = processEnemyTraitEvent(withEnemy, "trait-test#1", "enemy-normal-attack-resolved", { successful: true }, contextWithEnemy);
     expect(result.combat.playerEffects.some((effect) => effect.effectId === "effect.poison")).toBe(true);
+  });
+
+  it("tracks per-action cooldown use through a generic action-use mechanic", () => {
+    const game = createInitialGameState();
+    const context = createCombatContext({ nextFor: () => 0, next: () => 0 });
+    const withEnemy = { ...game, combat: { ...game.combat, phase: "active" as const, enemies: [createEnemy()] } };
+    const contextWithEnemy = { ...context, enemies: { ...context.enemies, "trait-test": { ...context.enemies["enemy.grey-wolf"], id: "trait-test", traits: [{ traitId: "trait.accelerating-assault" as const, rank: 1 as const }] } } };
+    const afterFirst = processEnemyTraitEvent(withEnemy, "trait-test#1", "enemy-action-resolved", { actionId: "action.test", successful: true }, contextWithEnemy);
+    const afterSecond = processEnemyTraitEvent(afterFirst, "trait-test#1", "enemy-action-resolved", { actionId: "action.test", successful: true }, contextWithEnemy);
+    const updatedEnemy = afterSecond.combat.enemies[0];
+    expect(getEnemyActionCooldownMultiplier(updatedEnemy, "action.test", contextWithEnemy.enemies, context.enemyTraits)).toBeCloseTo(.9);
   });
 });

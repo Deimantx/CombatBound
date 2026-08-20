@@ -18,7 +18,7 @@ export function applyEffectToGame(game: GameState, effectId: string, source: Com
   const definition = context.effects[effectId];
   if (!definition) return game;
   const enemy = target.kind === "enemy" ? game.combat.enemies.find((candidate) => candidate.instanceId === target.instanceId) : undefined;
-  const policy = enemy ? getEnemyTraitEffectPolicy(enemy, definition.tags, context.enemies, context.enemyTraits) : { allow: true, durationMultiplier: 1 };
+  const policy = enemy ? getEnemyTraitEffectPolicy(enemy, definition.tags, context.enemies, context.enemyTraits, definition.kind === "debuff" || definition.tags.includes("harmful")) : { allow: true, durationMultiplier: 1 };
   if (!policy.allow) return game;
   const result = applyEffectById(game.combat, effectId, context.effects, source, target, { ...options, durationMultiplier: (options.durationMultiplier ?? 1) * policy.durationMultiplier, rng: context.rng });
   if (!result.instance || result.outcome === "rejected" || result.outcome === "missing-target") return game;

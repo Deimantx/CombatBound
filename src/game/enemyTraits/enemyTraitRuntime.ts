@@ -4,6 +4,7 @@ import type {
   CombatContext,
   CombatState,
   CombatSourceCategory,
+  CombatantRef,
   EnemyCombatInstance,
 } from "../combat/combatTypes";
 import type { DamagePacket } from "../combat/combatDamage";
@@ -255,6 +256,10 @@ export function processEnemyTraitEvent(game: GameState, instanceId: string, even
         if (mechanic.type === "critical-damage-resistance" && event === "enemy-critical-hit-taken" && mechanic.cap > mechanic.perStack) entry.counters[key] = (entry.counters[key] ?? 0) + 1;
         if (mechanic.type === "stack-stat-modifier" && mechanic.sourceCategory && payload.sourceCategory && mechanic.sourceCategory === payload.sourceCategory && mechanic.counterKey) entry.timers[mechanic.counterKey] = 10;
         if (mechanic.type === "phase-stack" && mechanic.event === event) entry.stacks[key] = (entry.stacks[key] ?? 0) + 1;
+        if (mechanic.type === "action-cooldown-on-action-use" && event === "enemy-action-resolved" && payload.actionId) {
+          const counter = `${key}:${payload.actionId}`;
+          entry.counters[counter] = (entry.counters[counter] ?? 0) + 1;
+        }
       });
       next.byTraitId[assignment.traitId] = entry;
     }
@@ -270,11 +275,23 @@ export function processEnemyTraitEvent(game: GameState, instanceId: string, even
     for (const mechanic of rank?.mechanics ?? []) if (mechanic.type === "effect-proc" && mechanic.event === event && conditionMatches(mechanic.condition, updated, game.combat.maxPlayerHp > 0 ? game.combat.playerHp / game.combat.maxPlayerHp : 1) && (mechanic.chance >= 1 || nextCombatRandom(context.rng, "trait") < mechanic.chance)) {
       // `source` identifies the entity that owns the applied effect. A trait
       // proc sourced by the enemy therefore targets the player by default.
-      const source = mechanic.source === "player" ? { kind: "player" as const } : { kind: "enemy" as const, instanceId };
-      const target = mechanic.source === "player" ? { kind: "enemy" as const, instanceId } : { kind: "player" as const };
+      const source: CombatantRef = mechanic.source === "player" ? { kind: "player" } : { kind: "enemy", instanceId };
+      const target: CombatantRef = mechanic.source === "player" ? { kind: "enemy", instanceId } : { kind: "player" };
       const effectDefinition = context.effects[mechanic.effectId];
       const result = effectDefinition ? applyEffect(next.combat, effectDefinition, source, target, { rng: context.rng }) : { combat: next.combat, instance: null };
-      if (result.instance) next.combat = result.combat;
+      if (result.instance && result.outcome !== "rejected" && result.outcome !== "missing-target") {
+        next.combat = result.combat;
+        const eventId = next.combat.eventSequence + 1;
+        const targetName = target.kind === "player" ? "you" : updated.displayName;
+        const sourceName = source.kind === "player" ? "Your" : `${updated.displayName}'s`;
+        const text = `${sourceName} ${trait?.name ?? "Trait"} applies ${effectDefinition.name} to ${targetName}.`;
+        next.combat = {
+          ...next.combat,
+          eventSequence: eventId,
+          log: [{ id: eventId, text, type: "enemy" as const, time: `T+${Math.floor(next.combat.session.elapsedSeconds)}s` }, ...next.combat.log].slice(0, 30),
+          events: [...next.combat.events, { id: eventId, type: "effectApplied" as const, source, target, data: { effectId: mechanic.effectId, stacks: result.instance.stacks } }].slice(-100),
+        };
+      }
     }
     if (event === "enemy-damage-dealt" && (payload.actualDamage ?? 0) > 0) for (const mechanic of rank?.mechanics ?? []) if (mechanic.type === "damage-leech") {
       const healed = (payload.actualDamage ?? 0) * mechanic.fraction;
@@ -396,10 +413,10 @@ export function isEnemyActionInterruptionImmune(enemy: EnemyCombatInstance, enem
   return mechanicsForEnemy(enemy, enemyDefinitions, definitions).some(({ mechanic }) => mechanic.type === "action-interruption-immunity");
 }
 
-export function getEnemyTraitEffectPolicy(enemy: EnemyCombatInstance, effectTags: readonly string[], enemyDefinitions: Record<string, { traits: readonly EnemyTraitAssignment[] }> = {}, definitions: Record<string, EnemyTraitDefinition> = enemyTraitById) {
+export function getEnemyTraitEffectPolicy(enemy: EnemyCombatInstance, effectTags: readonly string[], enemyDefinitions: Record<string, { traits: readonly EnemyTraitAssignment[] }> = {}, definitions: Record<string, EnemyTraitDefinition> = enemyTraitById, isHarmful = true) {
   const hardCc = effectTags.includes("hard-cc");
   const immune = hardCc && mechanicsForEnemy(enemy, enemyDefinitions, definitions).some(({ mechanic }) => mechanic.type === "hard-cc-immunity");
-  const durationMultiplier = mechanicsForEnemy(enemy, enemyDefinitions, definitions).reduce((value, { mechanic }) => mechanic.type === "effect-duration-modifier" && !hardCc ? value * (mechanic.value ?? 1) : value, 1);
+  const durationMultiplier = isHarmful ? mechanicsForEnemy(enemy, enemyDefinitions, definitions).reduce((value, { mechanic }) => mechanic.type === "effect-duration-modifier" && !hardCc ? value * (mechanic.value ?? 1) : value, 1) : 1;
   return { allow: !immune, durationMultiplier };
 }
 
@@ -410,9 +427,13 @@ export function reduceEnemyActionRemainingCooldowns(combat: CombatState, instanc
 export function getEnemyActionCooldownMultiplier(enemy: EnemyCombatInstance, actionId: string, enemyDefinitions: Record<string, { traits: readonly EnemyTraitAssignment[] }> = {}, definitions: Record<string, EnemyTraitDefinition> = enemyTraitById) {
   let multiplier = 1;
   const hpFraction = enemy.maxHealth > 0 ? enemy.currentHealth / enemy.maxHealth : 0;
-  for (const { mechanic } of mechanicsForEnemy(enemy, enemyDefinitions, definitions)) {
+  for (const { mechanic, key } of mechanicsForEnemy(enemy, enemyDefinitions, definitions)) {
     if (mechanic.type === "action-cooldown-static") multiplier *= 1 - mechanic.value;
     if (mechanic.type === "action-cooldown-below-threshold" && hpFraction < (mechanic.threshold ?? 0)) multiplier *= 1 - mechanic.value;
+    if (mechanic.type === "action-cooldown-on-action-use") {
+      const uses = runtimeEntryForKey(enemy, key).counters[`${key}:${actionId}`] ?? 0;
+      multiplier *= 1 - Math.min(mechanic.cap ?? 1, uses * mechanic.value);
+    }
   }
   return Math.max(0, multiplier);
 }
