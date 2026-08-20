@@ -1,6 +1,7 @@
-import { Map, Play, Swords, Target } from 'lucide-react'
+import { Lock, Map, Play, Swords, Target } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import { combatLocationById } from '../../../game/data/world/combatLocations'
+import { enemyById } from '../../../game/data/enemies'
 import { hunterRankForPoints } from '../../../game/progression/hunterRankProgression'
 import { isCombatLocationAvailable, locationBreadcrumb, selectionForLocation } from '../../../game/world/worldSelectors'
 import type { CombatLocationDefinition } from '../../../game/world/worldTypes'
@@ -11,9 +12,10 @@ import { GameTooltip } from '../../components/tooltip/GameTooltip'
 import { CombatAtlasStage } from './atlas/CombatAtlasStage'
 import { atlasAccentRgb } from './atlas/combatAtlasLayout'
 import { combatAtlasViewFor, combatAtlasViewId, combatAtlasViewTitle, combatAtlasViewDescription } from './atlas/combatAtlasRegistry'
-import { combatLocationPresentation } from './combatLocationPresentation'
+import { combatLocationPresentation, combatTargetPresentation, isCombatTargetUnlocked } from './combatLocationPresentation'
 import { enemyTooltipModel } from './enemyPresentation'
 import { EnemyPreviewIcon } from './components/EnemyPreviewIcon'
+import { TargetPreviewInspector } from './components/TargetPreviewInspector'
 import type { CombatAtlasLevel, CombatAtlasNodeLayout } from './atlas/combatAtlasTypes'
 import type { CombatAtlasTransitionOrigin, CombatAtlasTransitionPhase } from './atlas/CombatAtlasStage'
 
@@ -56,7 +58,6 @@ export function CombatWorldBrowser() {
   const activeLocation = activeLocationId ? combatLocationById[activeLocationId] : undefined
   const isCombatActive = activePhases.has(phase)
   const areaLevel = level === 'area'
-  const sameLocation = Boolean(areaLevel && activeLocation && activeLocation.id === location?.id && isCombatActive)
   const activeTargetId = game.combat.targetEnemyId
   const canHunt = Boolean(areaLevel && location && isCombatLocationAvailable(location.id, hunterRank))
   const selectedNodeId = level === 'world' ? selectedContinentId : level === 'continent' ? selectedRegionId : level === 'region' ? selectedAreaId : selectedLocationId
@@ -167,6 +168,8 @@ export function CombatWorldBrowser() {
 
   const subtitle = open ? `${viewTitle} · Browse combat destinations by depth.` : activeLocation ? `Current Hunt · ${activeLocation.name}` : `Viewing · ${viewTitle}`
 
+  const activeTargetName = game.combat.enemy?.displayName ?? (game.combat.targetEnemyId ? enemyById[game.combat.targetEnemyId]?.name : undefined) ?? 'No target'
+
   return <Panel
     title="Combat world"
     subtitle={subtitle}
@@ -209,9 +212,9 @@ export function CombatWorldBrowser() {
               onReturnToWorld={handleReturnToWorld}
             />
           </section>
-          {areaLevel && <LocationPreview location={location} active={sameLocation && activeTargetId === selectedTargetId} activeLocation={activeLocation} available={canHunt} hunterRank={hunterRank} selectedTargetId={selectedTargetId} onSelectTarget={selectTargetPreview} onStart={handleHuntAction} />}
+          {areaLevel && <LocationPreview location={location} activeLocation={activeLocation} activeTargetId={activeTargetId} combatActive={isCombatActive} available={canHunt} hunterRank={hunterRank} selectedTargetId={selectedTargetId} onSelectTarget={selectTargetPreview} onStart={handleHuntAction} />}
         </div>
-      </> : <CollapsedWorldSummary viewTitle={viewTitle} level={level} activeLocation={activeLocation} location={location} targetName={game.combat.enemy?.displayName ?? game.combat.targetEnemyId ?? 'No target'} />}
+      </> : <CollapsedWorldSummary viewTitle={viewTitle} level={level} activeLocation={activeLocation} location={location} targetName={activeTargetName} />}
     </div>
   </Panel>
 }
@@ -230,17 +233,21 @@ function CollapsedWorldSummary({ viewTitle, level, activeLocation, location, tar
   </div>
 }
 
-function LocationPreview({ location, active, activeLocation, available, hunterRank, selectedTargetId, onSelectTarget, onStart }: { location?: CombatLocationDefinition; active: boolean; activeLocation?: CombatLocationDefinition; available: boolean; hunterRank: number; selectedTargetId: string; onSelectTarget: (enemyId: string) => void; onStart: () => void }) {
+function LocationPreview({ location, activeLocation, activeTargetId, combatActive, available, hunterRank, selectedTargetId, onSelectTarget, onStart }: { location?: CombatLocationDefinition; activeLocation?: CombatLocationDefinition; activeTargetId: string | null; combatActive: boolean; available: boolean; hunterRank: number; selectedTargetId: string; onSelectTarget: (enemyId: string) => void; onStart: () => void }) {
   if (!location) return <div className="combat-location-preview empty-state" data-debug-kind="combat-location-preview" data-debug-label="No combat location"><Target size={20} /><strong>No combat arena</strong><p>Select an arena on the area map.</p></div>
   const presentation = combatLocationPresentation(location)
-  const lootNames = presentation.sharedLootNames
   const browsingAnotherLocation = Boolean(activeLocation && activeLocation.id !== location.id)
-  const buttonLabel = !available ? 'Locked' : active ? 'Fighting' : activeLocation ? 'Switch target' : 'Fight target'
+  const selectedId = location.targets.some((target) => target.enemyId === selectedTargetId) ? selectedTargetId : location.targets[0]?.enemyId ?? ''
+  const selectedIsActive = combatActive && activeLocation?.id === location.id && activeTargetId === selectedId
+  const buttonLabel = !available ? 'Locked' : selectedIsActive ? 'Fighting' : combatActive ? 'Switch target' : 'Fight target'
+  const active = selectedIsActive
+  const lootNames: string[] = []
   return <section className="combat-location-preview" data-debug-kind="combat-location-preview" data-debug-location-id={location.id} data-debug-label={`Preview ${location.name}`}>
-    <div className="location-preview-context"><span className="tiny-label">{browsingAnotherLocation ? 'SELECTED ARENA' : active ? 'CURRENT HUNT' : 'SELECTED ARENA'}</span>{browsingAnotherLocation && <small>Current hunt: <strong>{activeLocation?.name}</strong></small>}</div>
-    <div className="location-preview-top"><div className={`location-preview-marker ${active ? 'is-active' : ''}`}><Swords size={20} /></div><div className="location-preview-heading"><h3>{location.name}</h3><span className="location-preview-family">{presentation.familyName}</span><GameTooltip content={{ id: location.id, icon: 'target', title: location.name, subtitle: presentation.familyName, description: location.description }}><p>{location.description}</p></GameTooltip></div></div>
+    <div className="location-preview-context"><span className="tiny-label">{selectedIsActive ? 'CURRENT COMBAT' : 'SELECTED ARENA'}</span>{browsingAnotherLocation && <small>Current hunt: <strong>{activeLocation?.name}</strong></small>}</div>
+    <div className="location-preview-top"><div className={`location-preview-marker ${selectedIsActive ? 'is-active' : ''}`}><Swords size={20} /></div><div className="location-preview-heading"><h3>{location.name}</h3><span className="location-preview-family">{presentation.familyName}</span><GameTooltip content={{ id: location.id, icon: 'target', title: location.name, subtitle: presentation.familyName, description: location.description }}><p>{location.description}</p></GameTooltip></div></div>
     <div className="location-meta-grid"><div><span>TARGETS</span><strong>{presentation.targetCountLabel}</strong></div><div><span>RECOMMENDED</span><strong>{presentation.recommendedHunterRankLabel}</strong></div></div>
-    <div className="location-pool" data-debug-kind="combat-target-list"><span className="tiny-label">SELECT A TARGET</span><div className="location-target-list">{presentation.enemies.map((enemy) => { const target = location.targets.find((entry) => entry.enemyId === enemy.enemyId); const locked = !available || (target?.minHunterRank ?? 0) > hunterRank; return <GameTooltip key={enemy.enemyId} content={enemyTooltipModel(enemy.enemyId)}><button type="button" className={`location-target-card ${selectedTargetId === enemy.enemyId ? 'is-selected' : ''}`} onClick={() => onSelectTarget(enemy.enemyId)} disabled={locked} aria-pressed={selectedTargetId === enemy.enemyId} data-debug-kind="combat-target-preview" data-debug-enemy-id={enemy.enemyId}><EnemyPreviewIcon enemy={enemy.enemy} /><span><strong>{enemy.name}</strong><small>{target?.minHunterRank ? `Hunter Rank ${target.minHunterRank}+` : 'Available'}</small><small>{enemy.enemy.loot.length ? `${enemy.enemy.loot.length} individual drops` : 'No individual drops'}</small></span></button></GameTooltip> })}</div></div>
+    <div className="location-pool" data-debug-kind="combat-target-list"><span className="tiny-label">SELECT TARGET</span><div className="location-target-list">{presentation.enemies.map((enemy) => { const target = combatTargetPresentation(location, enemy.enemyId); const locked = !isCombatTargetUnlocked(location, enemy.enemyId, hunterRank, available); const selected = selectedId === enemy.enemyId; const fighting = combatActive && activeLocation?.id === location.id && activeTargetId === enemy.enemyId; return <GameTooltip key={enemy.enemyId} content={enemyTooltipModel(enemy.enemyId)}><button type="button" className={`location-target-card ${selected ? 'is-selected' : ''} ${fighting ? 'is-fighting' : ''} ${locked ? 'is-locked' : ''}`} onClick={() => onSelectTarget(enemy.enemyId)} disabled={locked} aria-pressed={selected} aria-label={`${enemy.name} — ${fighting ? 'currently fighting' : locked ? `locked, requires Hunter Rank ${target?.requiredHunterRank}` : selected ? 'selected for preview' : 'available'}`} data-debug-kind="combat-target-preview" data-debug-enemy-id={enemy.enemyId}><span className="location-target-icon"><EnemyPreviewIcon enemy={enemy.enemy} />{locked && <span className="location-target-lock"><span className="sr-only">Locked</span><Lock size={8} /></span>}</span><span className="location-target-copy"><strong>{enemy.name}</strong><small>{enemy.enemy.enemyTier.toUpperCase()} · {fighting ? 'FIGHTING' : locked ? 'LOCKED' : 'AVAILABLE'}</small><small className="location-target-drops">{enemy.enemy.loot.length ? `${enemy.enemy.loot.length} DROPS` : 'NO DROPS'}</small></span></button></GameTooltip> })}</div></div>
+    <TargetPreviewInspector location={location} selectedTargetId={selectedId} hunterRank={hunterRank} locationAvailable={available} activeLocationId={activeLocation?.id} activeTargetId={activeTargetId} combatActive={combatActive} />
     <div className="location-preview-footer"><div className="location-shared-loot">{lootNames.length > 0 && <><span className="tiny-label">SHARED LOCATION LOOT · EACH KILL</span><div className="location-loot-list">{lootNames.map((name) => <span key={name}>{name}</span>)}</div></>}</div><div className="location-preview-action"><button aria-label={active ? 'Fighting selected target' : activeLocation ? 'Switch to selected target' : 'Fight selected target'} className="button button-primary" onClick={onStart} disabled={!available || active}>{buttonLabel}<Play size={14} /></button>{!available && <small className="locked-copy">{location.availability === 'coming-soon' ? 'Coming soon' : `Requires Hunter Rank ${location.requiredHunterRank}`}</small>}</div></div>
   </section>
 }

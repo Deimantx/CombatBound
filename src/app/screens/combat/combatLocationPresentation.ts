@@ -1,4 +1,5 @@
 import { itemById } from '../../../game/data/items'
+import { enemyById } from '../../../game/data/enemies'
 import { formatPercent } from '../../../game/presentation/statFormatting'
 import { combatLocationById } from '../../../game/data/world/combatLocations'
 import { enemyFamilyById } from '../../../game/data/world/enemyFamilies'
@@ -12,6 +13,36 @@ export interface CombatLocationPresentation {
   sharedLootNames: string[]
   recommendedHunterRankLabel: string
   targetCountLabel: string
+}
+
+export interface CombatTargetPresentation {
+  enemyId: string
+  name: string
+  tier: string
+  icon: string
+  accent: 'red' | 'blue' | 'gold'
+  requiredHunterRank?: number
+  individualDropCount: number
+}
+
+export function combatTargetPresentation(location: CombatLocationDefinition, enemyId: string): CombatTargetPresentation | undefined {
+  const target = location.targets.find((entry) => entry.enemyId === enemyId)
+  const enemy = target ? enemyById[target.enemyId] : undefined
+  if (!target || !enemy) return undefined
+  return {
+    enemyId: enemy.id,
+    name: enemy.name,
+    tier: enemy.enemyTier,
+    icon: enemy.icon,
+    accent: enemy.accent,
+    requiredHunterRank: target.minHunterRank,
+    individualDropCount: enemy.loot.length,
+  }
+}
+
+export function isCombatTargetUnlocked(location: CombatLocationDefinition, enemyId: string, hunterRank: number, locationAvailable = true): boolean {
+  const target = location.targets.find((entry) => entry.enemyId === enemyId)
+  return Boolean(locationAvailable && target && (target.minHunterRank ?? 0) <= hunterRank)
 }
 
 export function combatLocationPresentation(location: CombatLocationDefinition): CombatLocationPresentation {

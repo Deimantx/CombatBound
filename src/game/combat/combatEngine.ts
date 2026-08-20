@@ -90,7 +90,7 @@ export function createCombatPreviewContext(): CombatContext {
   return createCombatContext({ next: () => 0.5 });
 }
 
-/** Canonical defensive progression hook: invoke once after a direct enemy action resolves. */
+/** Canonical defensive progression hook: invoke once after a direct enemy combat event resolves. */
 export function resolveDefensiveTrainingForCombatEvent(
   game: GameState,
   trainingEvent: DefensiveTrainingEvent,
@@ -257,10 +257,9 @@ export function startHunt(
   locationId: string,
   stats: HunterCombatStats,
   context: CombatContext,
+  enemyId?: string,
 ): GameState {
-  const location = context.locations[locationId];
-  const target = location?.targets[0];
-  return target ? startCombatTarget(game, locationId, target.enemyId, stats, context) : game;
+  return enemyId ? startCombatTarget(game, locationId, enemyId, stats, context) : game;
 }
 
 /** DEV-only entry point that still uses the canonical combat instance/session setup. */

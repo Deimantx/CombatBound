@@ -13,8 +13,6 @@ export function CombatScreen() {
   const game = useGameStore((state) => state.game);
   const startHunt = useGameStore((state) => state.startHunt);
   const stopHunt = useGameStore((state) => state.stopHunt);
-  const selectedTargetId = useGameStore((state) => state.selectedTargetId);
-  const selectedCombatLocationId = useGameStore((state) => state.selectedCombatLocationId);
   const executeAction = useGameStore((state) => state.executeAction);
   const usePotion = useGameStore((state) => state.usePotion);
   const overviewTab = useGameStore((state) => state.combatOverviewTab);
@@ -53,7 +51,7 @@ export function CombatScreen() {
           onStartHunt={startHunt}
           onStopHunt={stopHunt}
         />
-        <SelectedEnemyPanel game={game} stats={stats} selectedEnemy={selectedEnemy} selectedEnemyId={selectedTargetId} previewLocationId={selectedCombatLocationId} />
+        <SelectedEnemyPanel game={game} stats={stats} selectedEnemy={selectedEnemy} />
       </div>
       <HuntSessionOverview
         game={game}

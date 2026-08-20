@@ -507,7 +507,7 @@ export const useGameStore = create<GameStoreState>((set, get) => {
       const location = combatLocationById[state.selectedCombatLocationId];
       const targetId = location?.targets.some((target) => target.enemyId === state.selectedTargetId)
         ? state.selectedTargetId
-        : location?.targets[0]?.enemyId;
+        : undefined;
       if (!targetId) return state;
       const prepared = { ...state.game, combat: { ...state.game.combat, stopReason: null } };
       const game = mode === "switch"

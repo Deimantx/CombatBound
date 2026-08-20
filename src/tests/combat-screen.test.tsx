@@ -40,7 +40,7 @@ describe('combat screen dashboard', () => {
     expect(screen.getByText('Proficiency progress appears after this Hunt awards XP.')).toBeInTheDocument()
     fireEvent.click(screen.getByRole('tab', { name: 'Session Summary' }))
     expect(screen.getByRole('progressbar', { name: 'Player attack progress' })).toBeInTheDocument()
-    expect(screen.getByText('NO ACTIVE HUNT')).toBeInTheDocument()
+    expect(screen.getByText('Collecting rate data -- hourly projections appear after 10 seconds.')).toBeInTheDocument()
     expect(screen.getByText('COMBAT ACTIONS')).toBeInTheDocument()
     expect(screen.queryByText('RETURN TO COMBAT')).not.toBeInTheDocument()
   })
@@ -48,7 +48,7 @@ describe('combat screen dashboard', () => {
   it('keeps live hunt controls explicit with one shared ability row', () => {
     openCombat()
     fireEvent.click(screen.getByRole('button', { name: 'Start hunt' }))
-    expect(screen.getByText('ENEMY GROUP')).toBeInTheDocument()
+    expect(screen.getByText(/TARGET Grey Wolf/)).toBeInTheDocument()
     expect(screen.getByText('YOUR ATTACK')).toBeInTheDocument()
     expect(screen.getByText(/Healing Potion/)).toBeInTheDocument()
     expect(screen.queryByText('AUTOMATION')).not.toBeInTheDocument()
@@ -64,7 +64,7 @@ describe('combat screen dashboard', () => {
     expect(screen.queryByText(/Net Stamina:/)).not.toBeInTheDocument()
     expect(screen.queryByText(/regen/)).not.toBeInTheDocument()
 
-    expect(document.querySelectorAll('[data-debug-kind="combat-ability"], [data-debug-kind="weapon-skill"], [data-debug-kind="spell"], [data-debug-kind="combat-ability-empty-slot"]')).toHaveLength(5)
+    expect(document.querySelectorAll('[data-debug-kind="combat-ability"], [data-debug-kind="weapon-skill"], [data-debug-kind="spell"], [data-debug-kind="combat-ability-empty-slot"]')).toHaveLength(4)
     expect(screen.queryByText(/Net Stamina:/)).not.toBeInTheDocument()
   })
 
