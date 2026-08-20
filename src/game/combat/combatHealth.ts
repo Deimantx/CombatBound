@@ -16,7 +16,7 @@ export interface EnemyDamageApplication extends Omit<PlayerDamageApplication, "w
 
 export function applyEnemyHealthDamage(combat: CombatState, instanceId: string, requestedDamage: number, context: CombatContext): EnemyDamageApplication {
   const requested = Math.max(0, Number.isFinite(requestedDamage) ? requestedDamage : 0);
-  const enemy = combat.enemies.find((candidate) => candidate.instanceId === instanceId);
+  const enemy = combat.enemy?.instanceId === instanceId ? combat.enemy : undefined;
   if (!enemy || enemy.defeated) return { combat, requestedDamage: requested, appliedDamage: 0, preventedLethalDamage: 0, wouldHaveDied: false, targetDied: false };
   const immortal = context.debugHooks?.isEnemyImmortal?.(instanceId) === true;
   if (!immortal) {
@@ -40,7 +40,7 @@ export function applyEnemyHealthDamage(combat: CombatState, instanceId: string, 
   const targetDied = !immortal && nextHealth <= 0;
   const nextCombat = {
       ...combat,
-      enemies: combat.enemies.map((candidate) => candidate.instanceId === instanceId ? { ...candidate, currentHealth: nextHealth, defeated: targetDied, currentAction: targetDied ? null : candidate.currentAction } : candidate),
+      enemy: enemy?.instanceId === instanceId ? { ...enemy, currentHealth: nextHealth, defeated: targetDied, preparedAbility: targetDied ? null : enemy.preparedAbility } : enemy,
       session: { ...combat.session, damageDealt: combat.session.damageDealt + appliedDamage, highestHit: Math.max(combat.session.highestHit, appliedDamage) },
     };
   return {

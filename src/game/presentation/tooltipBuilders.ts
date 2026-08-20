@@ -96,7 +96,7 @@ export function buildItemTooltip(
     if (options.hunterRank !== undefined && options.hunterRank < item.requiredHunterRank)
       rows.unshift({
         label: "Availability",
-        value: `Requires Hunter Rank ${item.requiredHunterRank} · Current Hunter Rank ${options.hunterRank}`,
+        value: `Requires Hunter Rank ${item.requiredHunterRank} ÃƒÆ’Ã¢â‚¬Å¡Â· Current Hunter Rank ${options.hunterRank}`,
         tone: "red",
       });
   }
@@ -106,7 +106,7 @@ export function buildItemTooltip(
     id: item.id,
     icon: item.icon,
     title: item.name,
-    subtitle: `${itemTypeLabel(item)} · ${rarityLabels[item.rarity]}`,
+    subtitle: `${itemTypeLabel(item)} ÃƒÆ’Ã¢â‚¬Å¡Â· ${rarityLabels[item.rarity]}`,
     tone:
       item.rarity === "rare"
         ? "gold"
@@ -147,7 +147,7 @@ export function buildItemInstanceTooltip(
       if (typeof roll !== "number") continue;
       const label = modifier.scope === "local" ? modifier.target : modifier.stat;
       const formatted = modifier.roll.valueType === "integer" ? `${roll >= 0 ? "+" : ""}${roll}` : `${roll >= 0 ? "+" : ""}${(roll * 100).toFixed(0)}%`;
-      modificationRows.push({ label: `${affix.kind === "prefix" ? "Prefix" : "Suffix"}: ${affix.name} · ${label}`, value: formatted, tone: "blue" });
+      modificationRows.push({ label: `${affix.kind === "prefix" ? "Prefix" : "Suffix"}: ${affix.name} ÃƒÆ’Ã¢â‚¬Å¡Â· ${label}`, value: formatted, tone: "blue" });
     }
   }
   return { ...tooltip, id: `item-instance.${resolved.instance.id}`, rows: [...modificationRows, ...(tooltip.rows ?? [])], notes: [...(tooltip.notes ?? []), ...resolved.contributions.map((contribution) => `${contribution.sourceLabel}: ${contribution.target} ${contribution.operation} ${contribution.value}`)] };
@@ -166,7 +166,7 @@ export function buildPlayerItemInstanceTooltip(
   const presentation = buildItemPresentation(resolved, { equipped: options.equipped });
   const tooltip = buildItemTooltip({ ...resolved.definition, stats: resolved.effectiveStats }, options);
   const modifierRows = presentation.modifiers.map((modifier) => ({
-    label: `${modifier.kind ? `${modifier.kind === "prefix" ? "Prefix" : "Suffix"} · ` : ""}${modifier.label}${modifier.source === "affix" && modifier.tier ? ` (T${modifier.tier})` : ""}`,
+    label: `${modifier.kind ? `${modifier.kind === "prefix" ? "Prefix" : "Suffix"} ÃƒÆ’Ã¢â‚¬Å¡Â· ` : ""}${modifier.label}${modifier.source === "affix" && modifier.tier ? ` (T${modifier.tier})` : ""}`,
     value: modifier.value,
     tone: modifier.tone ?? "default",
   }));
@@ -317,7 +317,7 @@ export function buildEffectTooltip(
     const value = modifier.value * instance.stacks;
     rows.push({
       label: `${damageLabel}${sourceLabel} Damage`,
-      value: modifier.operation === "increased" ? formatPercent(value, true) : `×${formatCompactDecimal(1 + value, 2)}`,
+      value: modifier.operation === "increased" ? formatPercent(value, true) : `ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â${formatCompactDecimal(1 + value, 2)}`,
       tone: toneForValue(value),
     });
   }
@@ -335,7 +335,7 @@ export function buildEffectTooltip(
     id: `${definition.id}.${instance.instanceId}`,
     icon: definition.icon,
     title: definition.name,
-    subtitle: `${kindLabels[definition.kind]} · ${definition.tags.join(" · ")}`,
+    subtitle: `${kindLabels[definition.kind]} ÃƒÆ’Ã¢â‚¬Å¡Â· ${definition.tags.join(" ÃƒÆ’Ã¢â‚¬Å¡Â· ")}`,
     tone:
       definition.kind === "debuff" || definition.kind === "status"
         ? "red"
@@ -366,7 +366,7 @@ export function buildEffectDefinitionTooltip(definition: EffectDefinition): Tool
   for (const modifier of definition.outgoingDamageModifiers ?? []) {
     const damageLabel = modifier.damageType ? damageLabels[modifier.damageType] : "All";
     const sourceLabel = modifier.sourceKind === "magic-art" ? " Magic Art" : modifier.sourceKind === "attack" ? " Attack" : "";
-    rows.push({ label: `${damageLabel}${sourceLabel} Damage`, value: modifier.operation === "increased" ? formatPercent(modifier.value, true) : `×${formatCompactDecimal(1 + modifier.value, 2)}`, tone: toneForValue(modifier.value) });
+    rows.push({ label: `${damageLabel}${sourceLabel} Damage`, value: modifier.operation === "increased" ? formatPercent(modifier.value, true) : `ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â${formatCompactDecimal(1 + modifier.value, 2)}`, tone: toneForValue(modifier.value) });
   }
   for (const modifier of definition.resistanceModifiers ?? []) rows.push({ label: `${damageLabels[modifier.damageType]} resistance`, value: modifier.operation === "flat" ? formatSignedNumber(modifier.value) : `${modifier.value > 0 ? "+" : ""}${Math.round(modifier.value * 100)}%`, tone: toneForValue(modifier.value) });
   return {
@@ -402,7 +402,11 @@ export function buildEnemyDefinitionTooltip(enemy: EnemyDefinition, options: { d
     subtitle: `${enemy.family} - ${enemy.id}`,
     tone: enemy.accent,
     rows,
-    notes: [enemy.traits.length ? `Traits: ${getEnemyResolvedTraits(enemy).map((trait) => `${trait.definition.name} · Rank ${trait.assignment.rank}`).join(", ")}` : "", enemy.actions.length ? `Actions: ${enemy.actions.map((action) => action.name).join(", ")}` : "", options.sourceLocations?.length ? `Source locations: ${options.sourceLocations.join(", ")}` : ""].filter(Boolean),
+    notes: [
+      enemy.traits.length ? `Traits: ${getEnemyResolvedTraits(enemy).map((trait) => `${trait.definition.name} - Rank ${trait.assignment.rank}`).join(", ")}` : "",
+      enemy.combatAbilityIds?.length ? `Combat abilities: ${enemy.combatAbilityIds.join(", ")}` : "",
+      options.sourceLocations?.length ? `Source locations: ${options.sourceLocations.join(", ")}` : "",
+    ].filter(Boolean),
   };
 }
 
@@ -511,7 +515,7 @@ export function buildCombatAbilityTooltip(
       id: `combat-ability.${entry.id}`,
       icon: entry.icon,
       title: entry.name,
-      subtitle: "Core Combat · Always Available",
+      subtitle: "Core Combat ÃƒÆ’Ã¢â‚¬Å¡Â· Always Available",
       description: entry.description,
       rows: [
         { label: "Resource", value: "None" },
@@ -549,9 +553,6 @@ export function buildCombatAbilityTooltip(
           : []),
         ...(skill.targetEffectId
           ? [{ label: "Target effect", value: effectById[skill.targetEffectId]?.name ?? skill.targetEffectId, tone: "red" as const }]
-          : []),
-        ...(skill.cleave
-          ? [{ label: "Cleave", value: `Up to ${skill.cleave.maxSecondaryTargets} additional targets at ${Math.round(skill.cleave.primaryResolvedDamageFraction * 100)}% resolved primary damage`, tone: "blue" as const }]
           : []),
       ]
     : [];

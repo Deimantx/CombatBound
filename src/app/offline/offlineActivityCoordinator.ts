@@ -69,7 +69,7 @@ export function getOfflineActivityPanelState(game = useGameStore.getState().game
 }
 
 function seedForState(game: GameState): number {
-  return (game.combat.eventSequence ^ (game.combat.groupNumber * 2654435761)) >>> 0;
+  return (game.combat.eventSequence ^ (game.combat.encounterSequence * 2654435761)) >>> 0;
 }
 
 export function requestOfflineSkip(requestedSeconds: number): OfflineActivityTransactionResult<CombatHuntOfflineSummary> {

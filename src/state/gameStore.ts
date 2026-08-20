@@ -4,9 +4,9 @@ import {
   createCombatContext,
   executePlayerAction as engineExecutePlayerAction,
   forceDefeatPlayerForDebug,
-  selectEnemy as engineSelectEnemy,
-  startHunt as engineStartHunt,
+  startCombatTarget as engineStartCombatTarget,
   startDebugEncounter as engineStartDebugEncounter,
+  switchCombatTarget as engineSwitchCombatTarget,
   stopHunt as engineStopHunt,
   syncCombatStats,
   useHealingPotion,
@@ -59,13 +59,10 @@ import {
   addAutomationRule,
   deleteAutomationRule,
   moveAutomationRule,
-  moveTargetPriority,
   normalizeCombatAutomation,
   removeAutomationCondition,
   setAutomationEnabled,
-  setAutomationOverrideManualTarget,
   setAutomationRuleEnabled,
-  setTargetPriorityEnabled,
   updateAutomationCondition,
   updateAutomationRule,
 } from "../game/automation/automationLogic";
@@ -76,7 +73,7 @@ import {
   debugAddGold,
   debugAddHunterRankPoints,
   debugApplyEffect,
-  debugCancelEnemyActions,
+  debugCancelEnemyAbilities,
   debugClearAllEnemyEffects,
   debugClearPlayerEffects,
   debugClearSelectedEnemyEffects,
@@ -97,7 +94,7 @@ import {
   debugGrantPerkPoints,
   debugResetBonusPerkPoints,
   debugHealPlayer,
-  debugKillCurrentGroup,
+  debugKillCurrentEnemy,
   debugKillSelectedEnemy,
   debugHealSelectedEnemyToFull,
   debugLearnAllMagicArts,
@@ -151,7 +148,6 @@ interface GameStoreState {
   enemyHp: number;
   playerAttackProgress: number;
   enemyAttackProgress: number;
-  round: number;
   kills: number;
   combatLog: GameState["combat"]["log"];
   inventoryFilter: string;
@@ -176,7 +172,8 @@ interface GameStoreState {
   startCombat: () => void;
   stopCombat: () => void;
   tickCombat: (delta: number) => void;
-  selectTarget: (instanceId: string) => void;
+  selectCombatTargetPreview: (enemyId: string) => void;
+  selectTarget: (enemyId: string) => void;
   executeAction: (actionId: string) => void;
   setCombatAbilitySlot: (slot: number, actionId: string | null) => void;
   equipCombatAbility: (actionId: string, slot: number) => void;
@@ -185,7 +182,6 @@ interface GameStoreState {
   toggleAutomation: () => void;
   toggleAutomationRule: (ruleId: string) => void;
   setAutomationEnabled: (enabled: boolean) => void;
-  setAutomationOverrideManualTarget: (enabled: boolean) => void;
   addAutomationRule: (rule: Partial<AutomationRule> & Pick<AutomationRule, "actionId">) => void;
   updateAutomationRule: (ruleId: string, patch: Partial<Omit<AutomationRule, "id">>) => void;
   deleteAutomationRule: (ruleId: string) => void;
@@ -194,8 +190,6 @@ interface GameStoreState {
   addAutomationCondition: (ruleId: string, condition: AutomationCondition) => void;
   updateAutomationCondition: (ruleId: string, index: number, condition: AutomationCondition) => void;
   removeAutomationCondition: (ruleId: string, index: number) => void;
-  setTargetPriorityEnabled: (priorityId: string, enabled: boolean) => void;
-  moveTargetPriority: (priorityId: string, direction: "up" | "down") => void;
   saveAutomationPreset: (slot: number, name?: string) => void;
   loadAutomationPreset: (slot: number) => void;
   renameAutomationPreset: (slot: number, name: string) => void;
@@ -255,7 +249,7 @@ export interface DebugStoreApi {
   setPlayerResource: (resource: DebugResource, value: number) => void;
   resetPlayerCooldowns: () => void;
   resetEnemyCooldowns: () => void;
-  cancelEnemyActions: () => void;
+  cancelEnemyAbilities: () => void;
   clearPlayerEffects: () => void;
   clearSelectedEnemyEffects: () => void;
   clearAllEnemyEffects: () => void;
@@ -263,7 +257,7 @@ export interface DebugStoreApi {
   applyPlayerMaxHpBarrier: () => void;
   killSelectedEnemy: () => void;
   healSelectedEnemyToFull: () => void;
-  killCurrentGroup: () => void;
+  killCurrentEnemy: () => void;
   suicide: () => void;
   revive: () => void;
   damagePlayer: (amount: number) => void;
@@ -331,6 +325,7 @@ type UiState = Pick<
   | "selectedRegionId"
   | "selectedAreaId"
   | "selectedCombatLocationId"
+  | "selectedTargetId"
   | "inventoryFilter"
   | "selectedInventoryEntry"
   | "selectedEquipmentSlot"
@@ -361,7 +356,6 @@ function flatState(
   | "enemyHp"
   | "playerAttackProgress"
   | "enemyAttackProgress"
-  | "round"
   | "kills"
   | "combatLog"
   | "inventoryFilter"
@@ -374,10 +368,7 @@ function flatState(
   | "showInspectorButton"
 > {
   const combat = game.combat;
-  const target =
-    combat.enemies.find(
-      (enemy) => enemy.instanceId === combat.selectedEnemyInstanceId,
-    ) ?? combat.enemies[0];
+  const target = combat.enemy;
   const active = combat.phase === "active" || combat.phase === "recovery";
   return {
     ...ui,
@@ -385,8 +376,7 @@ function flatState(
     activeCombatLocationId: combat.combatLocationId,
     combatActive: active,
     activity: active ? "combat" : "idle",
-    selectedTargetId:
-      combat.selectedEnemyInstanceId ?? ui.selectedCombatLocationId,
+    selectedTargetId: ui.selectedTargetId,
     playerHp: Math.round(combat.playerHp),
     enemyHp: Math.round(target?.currentHealth ?? 0),
     playerAttackProgress:
@@ -396,7 +386,6 @@ function flatState(
     enemyAttackProgress: target
       ? 1 - target.attackTimer / target.attackInterval
       : 0,
-    round: combat.groupNumber,
     kills: Object.values(game.collection.targets).reduce(
       (sum, entry) => sum + entry.defeats,
       0,
@@ -433,6 +422,7 @@ function selectionUi(
     selectedRegionId: selection.regionId,
     selectedAreaId: selection.areaId,
     selectedCombatLocationId: selection.combatLocationId,
+    selectedTargetId: state.selectedTargetId,
     inventoryFilter: state.inventoryFilter,
     selectedInventoryEntry: state.selectedInventoryEntry,
     selectedEquipmentSlot: state.selectedEquipmentSlot,
@@ -453,6 +443,7 @@ function freshUi(state: GameStoreState): UiState {
     selectedRegionId: defaultSelection.regionId,
     selectedAreaId: defaultSelection.areaId,
     selectedCombatLocationId: defaultSelection.combatLocationId,
+    selectedTargetId: combatLocationById[defaultSelection.combatLocationId]?.targets[0]?.enemyId ?? "",
     inventoryFilter: "All",
     selectedInventoryEntry: { kind: "instance", instanceId: Object.values(initial.inventory.instances)[0]?.id ?? "" },
     selectedEquipmentSlot: "weapon",
@@ -472,6 +463,7 @@ export const useGameStore = create<GameStoreState>((set, get) => {
     selectedRegionId: defaultSelection.regionId,
     selectedAreaId: defaultSelection.areaId,
     selectedCombatLocationId: defaultSelection.combatLocationId,
+    selectedTargetId: combatLocationById[defaultSelection.combatLocationId]?.targets[0]?.enemyId ?? "",
     inventoryFilter: "All",
     selectedInventoryEntry: { kind: "instance", instanceId: Object.values(initial.inventory.instances)[0]?.id ?? "" },
     selectedEquipmentSlot: "weapon",
@@ -498,7 +490,7 @@ export const useGameStore = create<GameStoreState>((set, get) => {
     });
     return flatState(game, state);
   };
-  const runHunt = () => {
+  const runHunt = (mode: "start" | "switch" = "start") => {
     useDevToolsRuntimeStore.getState().clearEnemyImmortality();
     useDevToolsRuntimeStore.getState().resetSimulationAccumulator();
     return set((state) => {
@@ -512,16 +504,15 @@ export const useGameStore = create<GameStoreState>((set, get) => {
         state.game.inventory,
         state.game.progression,
       );
-      const prepared = {
-        ...state.game,
-        combat: { ...state.game.combat, stopReason: null },
-      };
-      const game = engineStartHunt(
-        prepared,
-        state.selectedCombatLocationId,
-        stats,
-        context,
-      );
+      const location = combatLocationById[state.selectedCombatLocationId];
+      const targetId = location?.targets.some((target) => target.enemyId === state.selectedTargetId)
+        ? state.selectedTargetId
+        : location?.targets[0]?.enemyId;
+      if (!targetId) return state;
+      const prepared = { ...state.game, combat: { ...state.game.combat, stopReason: null } };
+      const game = mode === "switch"
+        ? engineSwitchCombatTarget(prepared, state.selectedCombatLocationId, targetId, stats, context)
+        : engineStartCombatTarget(prepared, state.selectedCombatLocationId, targetId, stats, context);
       captureDebugCombatEvents(state.game, game);
       return flatState(game, state);
     });
@@ -574,7 +565,7 @@ export const useGameStore = create<GameStoreState>((set, get) => {
     setPlayerResource: (resource, value) => commitDebug((game) => debugSetPlayerResource(game, resource, value)),
     resetPlayerCooldowns: () => commitDebug(debugResetPlayerCooldowns),
     resetEnemyCooldowns: () => commitDebug(debugResetEnemyCooldowns),
-    cancelEnemyActions: () => commitDebug(debugCancelEnemyActions),
+    cancelEnemyAbilities: () => commitDebug(debugCancelEnemyAbilities),
     clearPlayerEffects: () => commitDebug(debugClearPlayerEffects),
     clearSelectedEnemyEffects: () => commitDebug(debugClearSelectedEnemyEffects),
     clearAllEnemyEffects: () => commitDebug(debugClearAllEnemyEffects),
@@ -582,7 +573,7 @@ export const useGameStore = create<GameStoreState>((set, get) => {
     applyPlayerMaxHpBarrier: () => commitDebug(debugApplyPlayerMaxHpBarrier),
     killSelectedEnemy: () => commitDebug(debugKillSelectedEnemy),
     healSelectedEnemyToFull: () => commitDebug(debugHealSelectedEnemyToFull),
-    killCurrentGroup: () => commitDebug(debugKillCurrentGroup),
+    killCurrentEnemy: () => commitDebug(debugKillCurrentEnemy),
     suicide: () => commitDebug((game) => forceDefeatPlayerForDebug(game)),
     revive: () => commitDebug(debugRevivePlayer),
     damagePlayer: (amount) => commitDebug((game) => debugDamagePlayer(game, amount)),
@@ -665,10 +656,15 @@ export const useGameStore = create<GameStoreState>((set, get) => {
     selectRegion: (id) => selectWorldNode({ regionId: id }),
     selectArea: (id) => selectWorldNode({ areaId: id }),
     selectCombatLocation: (id) => {
-      if (combatLocationById[id]) selectWorldNode(selectionForLocation(id));
+      const location = combatLocationById[id];
+      if (!location) return;
+      set((state) => flatState(state.game, {
+        ...selectionUi(selectionForLocation(id), state),
+        selectedTargetId: location.targets[0]?.enemyId ?? "",
+      }));
     },
-    startHunt: runHunt,
-    switchHunt: runHunt,
+    startHunt: () => runHunt("start"),
+    switchHunt: () => runHunt("switch"),
     stopHunt: () => {
       useDevToolsRuntimeStore.getState().clearEnemyImmortality();
       set((state) =>
@@ -681,7 +677,7 @@ export const useGameStore = create<GameStoreState>((set, get) => {
         ),
       );
     },
-    startCombat: runHunt,
+    startCombat: () => runHunt("start"),
     stopCombat: () => get().stopHunt(),
     tickCombat: (delta) =>
       set((state) => {
@@ -705,16 +701,8 @@ export const useGameStore = create<GameStoreState>((set, get) => {
           });
         return flatState(game, state);
       }),
-    selectTarget: (instanceId) =>
-      set((state) =>
-        flatState(
-          {
-            ...state.game,
-            combat: engineSelectEnemy(state.game.combat, instanceId),
-          },
-          state,
-        ),
-      ),
+    selectCombatTargetPreview: (enemyId) => set({ selectedTargetId: enemyId }),
+    selectTarget: (enemyId) => set({ selectedTargetId: enemyId }),
     executeAction: (actionId) =>
       set((state) => {
         const stats = calculateHunterCombatStats(
@@ -790,16 +778,6 @@ export const useGameStore = create<GameStoreState>((set, get) => {
           setAutomationEnabled(state.game.combatAutomation, enabled),
         ),
       ),
-    setAutomationOverrideManualTarget: (enabled) =>
-      set((state) =>
-        commitAutomation(
-          state,
-          setAutomationOverrideManualTarget(
-            state.game.combatAutomation,
-            enabled,
-          ),
-        ),
-      ),
     addAutomationRule: (rule) =>
       set((state) =>
         commitAutomation(
@@ -859,24 +837,6 @@ export const useGameStore = create<GameStoreState>((set, get) => {
         commitAutomation(
           state,
           removeAutomationCondition(state.game.combatAutomation, ruleId, index),
-        ),
-      ),
-    setTargetPriorityEnabled: (priorityId, enabled) =>
-      set((state) =>
-        commitAutomation(
-          state,
-          setTargetPriorityEnabled(
-            state.game.combatAutomation,
-            priorityId,
-            enabled,
-          ),
-        ),
-      ),
-    moveTargetPriority: (priorityId, direction) =>
-      set((state) =>
-        commitAutomation(
-          state,
-          moveTargetPriority(state.game.combatAutomation, priorityId, direction),
         ),
       ),
     saveAutomationPreset: (slot, name) =>

@@ -21,7 +21,7 @@ export type EnemyCombatAbilityCondition =
 
 export interface EnemyCombatAbilityDamageMechanic {
   type: "damage";
-  sourceCategory: Exclude<CombatSourceCategory, "secondary">;
+  sourceCategory: CombatSourceCategory;
   damageType: DamageType;
   attackDamageMultiplier: number;
   canCrit: boolean;
@@ -71,6 +71,7 @@ export interface EnemyCombatAbilityDefinition {
   tags: readonly string[];
   allowedEnemyTiers: readonly EnemyTier[];
   target: EnemyCombatAbilityTarget;
+  preparationSeconds: number;
   cooldownSeconds: number;
   weight?: number;
   conditions?: readonly EnemyCombatAbilityCondition[];

@@ -16,7 +16,6 @@ export interface DamagePacket extends DamageComponent {
   progressionSource?: DamageProgressionSource;
   sourceActionId?: string;
   weaponSkillId?: string;
-  cleave?: { maxSecondaryTargets: number; primaryResolvedDamageFraction: number };
   damageMultiplier?: number;
   criticalStrikeMultiplier?: number;
   criticalStrikeChance?: number;
@@ -136,7 +135,6 @@ export function componentFromAttack(damageType: DamageComponent["damageType"], m
 export function getDamageSourceCategory(packet: Pick<DamagePacket, "sourceKind" | "sourceCategory" | "progressionSource">): CombatSourceCategory {
   if (packet.sourceCategory) return packet.sourceCategory;
   if (packet.sourceKind === "spell" || packet.sourceKind === "magic-art" || packet.progressionSource?.type === "magic-art") return "magic";
-  if (packet.sourceKind === "secondary") return "secondary";
   return "melee";
 }
 

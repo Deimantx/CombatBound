@@ -237,22 +237,16 @@ export function getWeaponHitAdvanceHooks(progression: ProgressionState, proficie
 export interface WeaponAttackModifiers {
   armorPenetrationPercent: number
   armorPenetrationFlat: number
-  secondaryTargetFraction: number
-  secondaryTargetCount: number
 }
 
 /** Aggregates attack-local weapon effects. These are applied to one hit only. */
 export function getWeaponAttackModifiers(progression: ProgressionState, proficiencyId: WeaponProficiencyId | null, definitions: Record<string, ProficiencyPerkDefinition> = perkById, equipmentContext?: DefensiveEquipmentContext): WeaponAttackModifiers {
-  const result: WeaponAttackModifiers = { armorPenetrationPercent: 0, armorPenetrationFlat: 0, secondaryTargetFraction: 0, secondaryTargetCount: 0 }
+  const result: WeaponAttackModifiers = { armorPenetrationPercent: 0, armorPenetrationFlat: 0 }
   if (!proficiencyId) return result
   for (const { effect, rank } of activeEffects(progression, proficiencyId, definitions)) {
     if (effect.type === 'weaponArmorPenetrationModifier') {
       if (effect.mode === 'percent') result.armorPenetrationPercent += effect.valuePerRank * rank
       else result.armorPenetrationFlat += effect.valuePerRank * rank
-    }
-    if (effect.type === 'weaponSecondaryTargetDamage') {
-      result.secondaryTargetFraction += effect.fractionPerRank * rank
-      result.secondaryTargetCount = Math.max(result.secondaryTargetCount, effect.maxAdditionalTargets)
     }
   }
   return result
@@ -348,12 +342,10 @@ export interface EffectiveMagicModifiers {
   damageBasedManaRestoreFraction: number
   spellArmorPenetrationPercent: number
   spellArmorPenetrationFlat: number
-  spellSecondaryTargetFraction: number
-  spellSecondaryTargetCount: number
 }
 
 export function getEffectiveMagicModifiers(progression: ProgressionState, proficiencyId: MagicProficiencyId, definitions: Record<string, ProficiencyPerkDefinition> = perkById, equipmentContext?: DefensiveEquipmentContext): EffectiveMagicModifiers {
-  const result: EffectiveMagicModifiers = { spellDamagePercent: 0, spellFlatDamage: 0, manaCostPercent: 0, cooldownPercent: 0, barrierAmountPercent: 0, barrierAmountFlat: 0, barrierDurationBonus: 0, barrierDurationPercent: 0, canCrit: false, spellCriticalDamagePercent: 0, conditionalCriticalChance: 0, effectPeriodicPowerPercent: {}, effectDurationBonus: {}, effectMaxStacksBonus: {}, spellCriticalChance: 0, healingPercent: 0, healingOverTimePercent: 0, lifeDrainFraction: 0, damageBasedManaRestoreFraction: 0, spellArmorPenetrationPercent: 0, spellArmorPenetrationFlat: 0, spellSecondaryTargetFraction: 0, spellSecondaryTargetCount: 0 }
+  const result: EffectiveMagicModifiers = { spellDamagePercent: 0, spellFlatDamage: 0, manaCostPercent: 0, cooldownPercent: 0, barrierAmountPercent: 0, barrierAmountFlat: 0, barrierDurationBonus: 0, barrierDurationPercent: 0, canCrit: false, spellCriticalDamagePercent: 0, conditionalCriticalChance: 0, effectPeriodicPowerPercent: {}, effectDurationBonus: {}, effectMaxStacksBonus: {}, spellCriticalChance: 0, healingPercent: 0, healingOverTimePercent: 0, lifeDrainFraction: 0, damageBasedManaRestoreFraction: 0, spellArmorPenetrationPercent: 0, spellArmorPenetrationFlat: 0 }
   for (const { effect, rank } of activeMagicEffects(progression, proficiencyId, definitions)) {
     if (effect.type === 'spellDamageModifier') result.spellDamagePercent += effect.valuePerRank * rank
     if (effect.type === 'spellFlatDamageModifier') result.spellFlatDamage += effect.valuePerRank * rank
@@ -375,10 +367,6 @@ export function getEffectiveMagicModifiers(progression: ProgressionState, profic
     if (effect.type === 'spellArmorPenetrationModifier') {
       if (effect.mode === 'percent') result.spellArmorPenetrationPercent += effect.valuePerRank * rank
       else result.spellArmorPenetrationFlat += effect.valuePerRank * rank
-    }
-    if (effect.type === 'spellSecondaryTargetDamage') {
-      result.spellSecondaryTargetFraction += effect.fractionPerRank * rank
-      result.spellSecondaryTargetCount = Math.max(result.spellSecondaryTargetCount, effect.maxAdditionalTargets)
     }
     if (effect.type === 'appliedEffectPeriodicPowerModifier' || effect.type === 'appliedEffectPeriodicDamageModifier') result.effectPeriodicPowerPercent[effect.effectId] = (result.effectPeriodicPowerPercent[effect.effectId] ?? 0) + effect.valuePerRank * rank
     if (effect.type === 'appliedEffectDurationModifier') result.effectDurationBonus[effect.effectId] = (result.effectDurationBonus[effect.effectId] ?? 0) + effect.valuePerRank * rank
@@ -434,7 +422,7 @@ export function getSpellCastEffectHooks(progression: ProgressionState, proficien
 }
 
 export function getSpellHitEffectHooks(progression: ProgressionState, proficiencyId: MagicProficiencyId, definitions: Record<string, ProficiencyPerkDefinition> = perkById) {
-  return activeMagicEffects(progression, proficiencyId, definitions).flatMap(({ effect, rank }) => effect.type === 'onSpellHitApplyEffect' ? [{ effectId: effect.effectId, chance: Math.min(1, effect.chancePerRank * rank), secondaryOnly: effect.secondaryOnly }] : [])
+  return activeMagicEffects(progression, proficiencyId, definitions).flatMap(({ effect, rank }) => effect.type === 'onSpellHitApplyEffect' ? [{ effectId: effect.effectId, chance: Math.min(1, effect.chancePerRank * rank) }] : [])
 }
 
 export function getMagicCleanseHooks(progression: ProgressionState, proficiencyId: MagicProficiencyId, definitions: Record<string, ProficiencyPerkDefinition> = perkById) {

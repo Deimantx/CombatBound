@@ -63,82 +63,6 @@ export interface PlayerActionRuntimeDependencies extends PlayerDamageRuntimeDepe
   discoverCombatProficiency: (game: GameState, proficiencyId: CombatProficiencyId) => GameState;
 }
 
-function applyDerivedCleaveDamage(
-  game: GameState,
-  target: EnemyCombatInstance,
-  amount: number,
-  source: CombatantRef,
-  sourceActionId: string,
-  proficiencyId: CombatProficiencyId | null,
-  context: CombatContext,
-  prefix: string,
-  dependencies: PlayerDamageRuntimeDependencies,
-) {
-  const current = game.combat.enemies.find(
-    (enemy) => enemy.instanceId === target.instanceId,
-  );
-  if (!current || current.defeated)
-    return {
-      game,
-      progressionResult: null as ReturnType<typeof awardProficiencyXp> | null,
-    };
-  const targetRef: CombatantRef = {
-    kind: "enemy",
-    instanceId: current.instanceId,
-  };
-  const barrierResult = absorbDamage(
-    game.combat,
-    targetRef,
-    Math.max(0, amount),
-    context.effects,
-  );
-  const healthDamage = Math.max(0, amount - barrierResult.absorbed);
-  const damageApplication = applyEnemyHealthDamage(
-    barrierResult.combat,
-    current.instanceId,
-    healthDamage,
-    context,
-  );
-  const appliedHealthDamage = damageApplication.appliedDamage;
-  let next: GameState = {
-    ...game,
-    combat: damageApplication.combat,
-  };
-  next = dependencies.awardBarrierCredits(next, barrierResult.absorptions);
-  let progressionResult: ReturnType<typeof awardProficiencyXp> | null = null;
-  if (proficiencyId && appliedHealthDamage > 0) {
-    const awarded = awardCombatXp(
-      next,
-      proficiencyId,
-      calculateProficiencyXpAward({
-        type: "effective-hp-damage",
-        amount: appliedHealthDamage,
-      }),
-    );
-    next = awarded.game;
-    progressionResult = awarded.result;
-  }
-  next.combat = event(next.combat, {
-    text:
-      `${prefix} for ${appliedHealthDamage} damage${barrierResult.absorbed > 0 ? ` (${barrierResult.absorbed} absorbed)` : ""}.`,
-    type: "player",
-    eventType: appliedHealthDamage > 0 ? "damageDealt" : "damageAbsorbed",
-    source,
-    target: targetRef,
-    data: {
-      actionId: sourceActionId,
-      damage: appliedHealthDamage,
-      absorbed: barrierResult.absorbed,
-      requestedDamage: healthDamage,
-      appliedDamage: appliedHealthDamage,
-      immortalPrevented: damageApplication.preventedLethalDamage,
-      derived: true,
-      critical: false,
-    },
-  });
-  return { game: next, progressionResult };
-}
-
 export function damageEnemy(
   game: GameState,
   target: EnemyCombatInstance,
@@ -152,7 +76,6 @@ export function damageEnemy(
     options?: {
       progressionCredit?: ProgressionCredit;
       sourceProficiencyId?: CombatProficiencyId;
-      secondaryOnly?: boolean;
       targetMode?: "source" | "target";
       requireHpDamage?: boolean;
       durationBonusSeconds?: number;
@@ -162,12 +85,8 @@ export function damageEnemy(
     };
   }> = [],
   dependencies: PlayerDamageRuntimeDependencies,
-  allowSecondary = true,
-  isSecondary = false,
 ) {
-  const current = game.combat.enemies.find(
-    (enemy) => enemy.instanceId === target.instanceId,
-  );
+  const current = game.combat.enemy?.instanceId === target.instanceId ? game.combat.enemy : undefined;
   if (!current || current.defeated) return game;
   const defenderStats = getEnemyStats(game.combat, current, context);
   const weaponProficiencyId =
@@ -199,20 +118,15 @@ export function damageEnemy(
     perkById,
     equipmentContext,
   );
-  const secondaryFraction = packet.weaponSkillId ? 0 : weaponAttack.secondaryTargetFraction;
-  const secondaryCount = packet.weaponSkillId ? 0 : weaponAttack.secondaryTargetCount;
   const armorPenetrationPercent = weaponAttack.armorPenetrationPercent;
   const armorPenetrationFlat = weaponAttack.armorPenetrationFlat;
   let resolution = resolveDamageWithEffectModifiers(
     {
       ...packet,
-      sourceCategory: isSecondary ? "secondary" : getDamageSourceCategory(packet),
-      incomingDamageMultiplier: (packet.incomingDamageMultiplier ?? 1) * getEnemyTraitIncomingDamageMultiplier(current, { damageType: packet.damageType, deliveryKind: packet.deliveryKind, sourceCategory: isSecondary ? "secondary" : getDamageSourceCategory(packet) }, game.combat.maxPlayerHp > 0 ? game.combat.playerHp / game.combat.maxPlayerHp : 1, context.enemies, context.enemyTraits),
+      sourceCategory: getDamageSourceCategory(packet),
+      incomingDamageMultiplier: (packet.incomingDamageMultiplier ?? 1) * getEnemyTraitIncomingDamageMultiplier(current, { damageType: packet.damageType, deliveryKind: packet.deliveryKind, sourceCategory: getDamageSourceCategory(packet) }, game.combat.maxPlayerHp > 0 ? game.combat.playerHp / game.combat.maxPlayerHp : 1, context.enemies, context.enemyTraits),
       criticalDamageResistance: getEnemyTraitCriticalDamageResistance(current, context.enemies, context.enemyTraits),
-      damageMultiplier:
-        (packet.damageMultiplier ?? 1) *
-        conditionalMultiplier *
-        (isSecondary ? secondaryFraction : 1),
+       damageMultiplier: (packet.damageMultiplier ?? 1) * conditionalMultiplier,
       armorPenetrationPercent,
       armorPenetrationFlat,
     },
@@ -329,7 +243,7 @@ export function damageEnemy(
     next = processEnemyTraitEvent(next, current.instanceId, "enemy-damaged", { sourceCategory, actualDamage: effectiveHealthDamage, critical: resolution.critical, successful: true }, context);
     if (resolution.critical) next = processEnemyTraitEvent(next, current.instanceId, "enemy-critical-hit-taken", { sourceCategory, critical: true, actualDamage: effectiveHealthDamage }, context);
     if (resolution.blocked) next = processEnemyTraitEvent(next, current.instanceId, "enemy-successful-block", { sourceCategory }, context);
-    const reflectionFraction = !isSecondary && resolution.healthDamage > 0 ? getEnemyTraitReflectionFraction(current, sourceCategory, context.enemies, context.enemyTraits) : 0;
+    const reflectionFraction = resolution.healthDamage > 0 ? getEnemyTraitReflectionFraction(current, sourceCategory, context.enemies, context.enemyTraits) : 0;
     if (reflectionFraction > 0) {
       const reflected = resolution.healthDamage * reflectionFraction;
       const reflectedBarrier = absorbDamage(next.combat, { kind: "player" }, reflected, context.effects);
@@ -344,7 +258,6 @@ export function damageEnemy(
   if (resolution.outcome === "hit") {
     for (const applied of effectsToApply)
       if (
-        !(applied.options?.secondaryOnly && !isSecondary) &&
         (!applied.options?.requireHpDamage || effectiveHealthDamage > 0) &&
         (applied.chance >= 1 || nextCombatRandom(context.rng, "effect") < applied.chance)
       ) {
@@ -416,67 +329,6 @@ export function damageEnemy(
                 next.combat.playerAttackInterval * hook.fraction,
             ),
           };
-    }
-  }
-  if (
-    allowSecondary &&
-    !packet.cleave &&
-    !packet.weaponSkillId &&
-    weaponProficiencyId &&
-    secondaryCount > 0 &&
-    resolution.outcome === "hit"
-  ) {
-    const secondaryTargets = next.combat.enemies
-      .filter(
-        (enemy) => enemy.instanceId !== current.instanceId && !enemy.defeated,
-      )
-      .slice(0, secondaryCount);
-    for (const secondaryTarget of secondaryTargets) {
-        next = damageEnemy(
-        next,
-        secondaryTarget,
-        {
-          ...packet,
-          target: { kind: "enemy", instanceId: secondaryTarget.instanceId },
-        },
-        attackerStats,
-        context,
-        `${prefix} (secondary)`,
-        [],
-        dependencies,
-        false,
-        true,
-      );
-    }
-  }
-  if (
-    allowSecondary &&
-    packet.cleave &&
-    effectiveHealthDamage > 0 &&
-    resolution.outcome === "hit"
-  ) {
-    const secondaryTargets = next.combat.enemies
-      .filter(
-        (enemy) => enemy.instanceId !== current.instanceId && !enemy.defeated,
-      )
-      .slice(0, Math.max(0, Math.floor(packet.cleave.maxSecondaryTargets)));
-    const derivedDamage =
-      effectiveHealthDamage * packet.cleave.primaryResolvedDamageFraction;
-    for (const secondaryTarget of secondaryTargets) {
-      const derived = applyDerivedCleaveDamage(
-        next,
-        secondaryTarget,
-        derivedDamage,
-        packet.source,
-        packet.sourceActionId ?? packet.weaponSkillId ?? "weapon-skill",
-        proficiencyId,
-        context,
-        `${prefix} (cleave)`,
-        dependencies,
-      );
-      next = derived.game;
-      if (derived.progressionResult)
-        progressionResults.push(derived.progressionResult);
     }
   }
   for (const progressionResult of progressionResults) {
@@ -613,7 +465,7 @@ export function castMagicArt(
     });
   }
   if (art.damage) {
-    const target = next.combat.enemies.find((enemy) => enemy.instanceId === next.combat.selectedEnemyInstanceId && !enemy.defeated);
+    const target = next.combat.enemy && !next.combat.enemy.defeated ? next.combat.enemy : undefined;
     if (target) {
       const targetRef: CombatantRef = { kind: "enemy", instanceId: target.instanceId };
       next = damageEnemy(
@@ -655,11 +507,7 @@ function executeWeaponSkill(
   source: "manual" | "automation",
 ): GameState {
   if (!skill) return game;
-  const target = game.combat.enemies.find(
-    (enemy) =>
-      enemy.instanceId === game.combat.selectedEnemyInstanceId &&
-      !enemy.defeated,
-  );
+  const target = game.combat.enemy && !game.combat.enemy.defeated ? game.combat.enemy : undefined;
   if (!target) return game;
   const cost = getEffectivePlayerActionCost(game, action, stats, context);
   const attackerStats = getPlayerStats(
@@ -740,7 +588,6 @@ function executeWeaponSkill(
       weaponSkillId: skill.id,
       damageMultiplier: skill.damageMultiplier,
       attackerAccuracy: (attackerStats.accuracyRating ?? 0) + skill.accuracyModifier,
-      cleave: skill.cleave,
       defensiveEligibility: {
         canMiss: true,
         canBeEvaded: true,
@@ -772,7 +619,7 @@ export function useHealingPotion(
     context,
   );
   if (!validation.valid || game.combat.potionCooldownRemaining > 0) return game;
-  const engagedEnemy = game.combat.enemies.find((enemy) => enemy.instanceId === game.combat.selectedEnemyInstanceId && !enemy.defeated);
+  const engagedEnemy = game.combat.enemy && !game.combat.enemy.defeated ? game.combat.enemy : undefined;
   const healingMultiplier = getPlayerHealingReceivedMultiplier(game.combat, context, engagedEnemy);
   const missingHealth = Math.max(0, (stats.maxLife ?? 0) - game.combat.playerHp);
   const amount = Math.min(

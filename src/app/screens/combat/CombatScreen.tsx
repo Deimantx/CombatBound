@@ -13,7 +13,8 @@ export function CombatScreen() {
   const game = useGameStore((state) => state.game);
   const startHunt = useGameStore((state) => state.startHunt);
   const stopHunt = useGameStore((state) => state.stopHunt);
-  const selectTarget = useGameStore((state) => state.selectTarget);
+  const selectedTargetId = useGameStore((state) => state.selectedTargetId);
+  const selectedCombatLocationId = useGameStore((state) => state.selectedCombatLocationId);
   const executeAction = useGameStore((state) => state.executeAction);
   const usePotion = useGameStore((state) => state.usePotion);
   const overviewTab = useGameStore((state) => state.combatOverviewTab);
@@ -22,10 +23,7 @@ export function CombatScreen() {
   const location = combat.combatLocationId
     ? combatLocationById[combat.combatLocationId]
     : undefined;
-  const selectedEnemy =
-    combat.enemies.find(
-      (enemy) => enemy.instanceId === combat.selectedEnemyInstanceId,
-    ) ?? combat.enemies.find((enemy) => !enemy.defeated);
+  const selectedEnemy = combat.enemy ?? undefined;
   const selectedDefinition = selectedEnemy
     ? enemyById[selectedEnemy.enemyId]
     : undefined;
@@ -50,13 +48,12 @@ export function CombatScreen() {
           location={location}
           selectedEnemy={selectedEnemy}
           selectedDefinition={selectedDefinition}
-          onSelectTarget={selectTarget}
           onUseAction={executeAction}
           onUsePotion={usePotion}
           onStartHunt={startHunt}
           onStopHunt={stopHunt}
         />
-        <SelectedEnemyPanel game={game} stats={stats} selectedEnemy={selectedEnemy} />
+        <SelectedEnemyPanel game={game} stats={stats} selectedEnemy={selectedEnemy} selectedEnemyId={selectedTargetId} previewLocationId={selectedCombatLocationId} />
       </div>
       <HuntSessionOverview
         game={game}

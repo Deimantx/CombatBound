@@ -10,11 +10,11 @@ const profile: WeaponTreeProfile = {
     { name: 'Guard / Execution', kind: 'guard', names: ['Two-Handed Guard', 'Deflecting Steel', 'Punishing Guard', 'Lasting Counter', 'Execution Arc', "Warrior's Sentence", "King's Execution"] },
   ],
   crossNodes: [
-    { name: 'Sweeping Execution', links: [[2, 6], [4, 6]], effects: [{ type: 'weaponSecondaryTargetDamage', fractionPerRank: .15, maxAdditionalTargets: 2 }, conditional(.2, { type: 'targetHpBelow', fraction: .35 })] },
+    { name: 'Sweeping Execution', links: [[2, 6], [4, 6]], effects: [damage(.12), conditional(.2, { type: 'targetHpBelow', fraction: .35 })] },
     { name: "Titan's Discipline", links: [[0, 6], [3, 6]], effects: [damage(.12), { type: 'statModifier', stat: 'staminaRegen', operation: 'flat', valuePerRank: 1 }] },
-    { name: 'Perfect Greatblade', links: [[1, 6], [2, 6]], effects: [{ type: 'statModifier', stat: 'criticalStrikeMultiplier', operation: 'flat', valuePerRank: .15 }, { type: 'weaponSecondaryTargetDamage', fractionPerRank: .1, maxAdditionalTargets: 2 }] },
+    { name: 'Perfect Greatblade', links: [[1, 6], [2, 6]], effects: [{ type: 'statModifier', stat: 'criticalStrikeMultiplier', operation: 'flat', valuePerRank: .15 }, damage(.1)] },
   ],
-  apexEffects: [damage(.2), { type: 'statModifier', stat: 'criticalStrikeMultiplier', operation: 'flat', valuePerRank: .2 }, { type: 'weaponSecondaryTargetDamage', fractionPerRank: .2, maxAdditionalTargets: 2 }, interval(-.05)],
+  apexEffects: [damage(.2), { type: 'statModifier', stat: 'criticalStrikeMultiplier', operation: 'flat', valuePerRank: .2 }, damage(.1), interval(-.05)],
 }
 
 export const twoHandedSwordPerks = createWeaponTree(profile)

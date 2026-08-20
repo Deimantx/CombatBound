@@ -41,22 +41,9 @@ export interface AreaDefinition {
   presentation: WorldPresentation
 }
 
-export interface CombatLocationEnemyEntry {
+export interface CombatLocationTargetEntry {
   enemyId: string
-  weight: number
-  minCopiesPerGroup?: number
-  maxCopiesPerGroup?: number
   minHunterRank?: number
-  role?: 'common' | 'support' | 'dangerous' | 'elite'
-}
-
-export interface CombatGroupGenerationDefinition {
-  minGroupSize: number
-  maxGroupSize: number
-  allowDuplicateEnemyTypes: boolean
-  minimumDistinctTypes?: number
-  guaranteedEnemyIds?: string[]
-  generationMode: 'weighted-random'
 }
 
 export interface CombatLocationDefinition {
@@ -65,8 +52,7 @@ export interface CombatLocationDefinition {
   name: string
   description: string
   familyId: string
-  enemyPool: CombatLocationEnemyEntry[]
-  groupGeneration: CombatGroupGenerationDefinition
+  targets: CombatLocationTargetEntry[]
   availability: ContentAvailability
   requiredHunterRank: number
   recommendedHunterRank: [number, number]

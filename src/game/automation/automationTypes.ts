@@ -20,7 +20,7 @@ export type AutomationCondition =
   | { type: AutomationEffectConditionType; effectId: string }
   | { type: "barrier-below"; fraction: number }
   | { type: "barrier-missing" }
-  | { type: "alive-enemies-at-least"; count: number };
+  ;
 
 export interface AutomationRule {
   id: string;
@@ -30,25 +30,9 @@ export interface AutomationRule {
   conditions: AutomationCondition[];
 }
 
-export type TargetPriorityCriterion =
-  | "elite"
-  | "lowest-health-percent"
-  | "lowest-health"
-  | "lowest-evasion"
-  | "first-living";
-
-export interface TargetPriorityRule {
-  id: string;
-  criterion: TargetPriorityCriterion;
-  enabled: boolean;
-  priority: number;
-}
-
 export interface CombatAutomationState {
   enabled: boolean;
   rules: AutomationRule[];
-  targetPriorityRules: TargetPriorityRule[];
-  overrideManualTarget: boolean;
 }
 
 export interface AutomationConditionTrace {
@@ -80,18 +64,5 @@ export function createInitialCombatAutomation(): CombatAutomationState {
         conditions: [{ type: "player-hp-below", fraction: 0.35 }],
       },
     ],
-    targetPriorityRules: ([
-      "elite",
-      "lowest-health-percent",
-      "lowest-health",
-      "lowest-evasion",
-      "first-living",
-    ] as TargetPriorityCriterion[]).map((criterion, index) => ({
-      id: `target-priority.${criterion}`,
-      criterion,
-      enabled: true,
-      priority: (index + 1) * 10,
-    })),
-    overrideManualTarget: false,
   };
 }

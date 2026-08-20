@@ -114,7 +114,7 @@ function CombatAbilityDetails({ game, entry, stats, context, selectedSlot, locke
   }
   const skill = action?.sourceWeaponSkillId ? weaponSkillById[action.sourceWeaponSkillId] : undefined;
   const cost = action ? getEffectivePlayerActionCost(game, action, stats, context) : { stamina: 0, mana: 0 };
-  const target = game.combat.enemies.find((enemy) => enemy.instanceId === game.combat.selectedEnemyInstanceId && !enemy.defeated);
+  const target = game.combat.enemy && !game.combat.enemy.defeated ? game.combat.enemy : undefined;
   const effectivePlayer = getPlayerEffectiveCombatStats(game.combat, stats, game.progression);
   const effectiveTarget = target ? getEnemyEffectiveCombatStats(target) : undefined;
   const hitChance = skill && effectiveTarget ? calculateHitChance((effectivePlayer.accuracyRating ?? 0) + skill.accuracyModifier, effectiveTarget.evasionRating ?? 0) : undefined;

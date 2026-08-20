@@ -29,13 +29,17 @@ describe('enemy preview presentation', () => {
     ])
   })
 
-  it('shows dangerous special action timing and accent tone for Bandit Archer', () => {
+  it('shows rankless enemy combat ability preparation and cooldown for Bandit Archer', () => {
     const tooltip = enemyTooltipModel('enemy.bandit-archer')
     const coreStats = tooltip.sections?.find((section) => section.id === 'enemy-stats')
-    const actionNotes = tooltip.sections?.find((section) => section.id === 'enemy-actions')?.notes ?? []
+    const abilityNotes = tooltip.sections?.find((section) => section.id === 'enemy-abilities')?.notes ?? []
 
     expect(tooltip.tone).toBe('gold')
     expect(coreStats?.rows?.some((row) => row.label === 'Block Chance')).toBe(false)
-    expect(actionNotes).toEqual(['Charged Shot [HIGH] \u2014 A high-danger ranged attack. Prep 3.5s \u00b7 Cooldown 7.0s'])
+    expect(abilityNotes).toHaveLength(1)
+    expect(abilityNotes[0]).toContain('Charged Shot')
+    expect(abilityNotes[0]).toContain('Preparation 3.0s')
+    expect(abilityNotes[0]).toContain('Cooldown 10.0s')
+    expect(abilityNotes[0]).not.toContain('DANGER')
   })
 })

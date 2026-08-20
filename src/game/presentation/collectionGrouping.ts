@@ -13,7 +13,7 @@ function enemyEntries(locationIds: string[], allSourceLocations: Map<string, str
   for (const locationId of locationIds) {
     const location = combatLocationDefinitions.find((entry) => entry.id === locationId);
     if (!location) continue;
-    for (const poolEntry of location.enemyPool) {
+    for (const poolEntry of location.targets) {
       const enemy = enemyById[poolEntry.enemyId];
       if (!enemy) continue;
       sourceLocations.set(enemy.id, [...(sourceLocations.get(enemy.id) ?? []), location.name]);
@@ -25,7 +25,7 @@ function enemyEntries(locationIds: string[], allSourceLocations: Map<string, str
 export function buildCollectionGrouping(): CollectionGroupNode[] {
   const usedEnemyIds = new Set<string>();
   const allSourceLocations = new Map<string, string[]>();
-  for (const location of combatLocationDefinitions) for (const poolEntry of location.enemyPool) if (enemyById[poolEntry.enemyId]) allSourceLocations.set(poolEntry.enemyId, [...new Set([...(allSourceLocations.get(poolEntry.enemyId) ?? []), location.name])]);
+  for (const location of combatLocationDefinitions) for (const poolEntry of location.targets) if (enemyById[poolEntry.enemyId]) allSourceLocations.set(poolEntry.enemyId, [...new Set([...(allSourceLocations.get(poolEntry.enemyId) ?? []), location.name])]);
   const continents: CollectionGroupNode[] = [];
   for (const continent of continentDefinitions) {
     const regions: CollectionGroupNode[] = [];

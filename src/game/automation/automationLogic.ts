@@ -2,7 +2,6 @@ import type { HunterCombatStats } from "../equipment/derivedStats";
 import type { GameState } from "../gameState";
 import type { CombatContext, EnemyCombatInstance } from "../combat/combatTypes";
 import { validatePlayerAction, actionBarrier } from "../combat/playerActions";
-import { getEnemyEffectiveCombatStats } from "../combat/combatSelectors";
 import { effectById } from "../data/effects";
 import type {
   AutomationCondition,
@@ -10,18 +9,9 @@ import type {
   AutomationEvaluationTrace,
   AutomationRule,
   CombatAutomationState,
-  TargetPriorityCriterion,
-  TargetPriorityRule,
 } from "./automationTypes";
 import { createInitialCombatAutomation } from "./automationTypes";
 
-const targetCriteria: TargetPriorityCriterion[] = [
-  "elite",
-  "lowest-health-percent",
-  "lowest-health",
-  "lowest-evasion",
-  "first-living",
-];
 function clampFraction(value: unknown, fallback = 0.5) {
   return typeof value === "number" && Number.isFinite(value)
     ? Math.max(0, Math.min(1, value))
@@ -59,12 +49,6 @@ function normalizeCondition(value: unknown): AutomationCondition | null {
   if (type === "barrier-below")
     return { type, fraction: clampFraction(raw.fraction ?? raw.value) };
   if (type === "barrier-missing") return { type };
-  if (type === "alive-enemies-at-least") {
-    const count = Number(raw.count ?? raw.value);
-    return Number.isFinite(count)
-      ? { type, count: Math.max(1, Math.floor(count)) }
-      : null;
-  }
   return null;
 }
 
@@ -93,26 +77,6 @@ function normalizeRule(value: unknown, index: number, usedIds: Set<string>) {
   } satisfies AutomationRule;
 }
 
-function normalizeTargetPriority(value: unknown, index: number, usedIds: Set<string>): TargetPriorityRule | null {
-  const raw = typeof value === "string"
-    ? { criterion: value }
-    : value && typeof value === "object"
-      ? (value as Record<string, unknown>)
-      : null;
-  if (!raw || !targetCriteria.includes(raw.criterion as TargetPriorityCriterion)) return null;
-  const criterion = raw.criterion as TargetPriorityCriterion;
-  let id = typeof raw.id === "string" && raw.id.trim() ? raw.id : `target-priority.${criterion}`;
-  while (usedIds.has(id)) id = `${id}-${index + 1}`;
-  usedIds.add(id);
-  const priority = Number(raw.priority);
-  return {
-    id,
-    criterion,
-    enabled: raw.enabled !== false,
-    priority: Number.isFinite(priority) ? Math.max(1, Math.round(priority)) : (index + 1) * 10,
-  };
-}
-
 export function normalizeCombatAutomation(value: unknown): CombatAutomationState {
   const defaults = createInitialCombatAutomation();
   const raw = value && typeof value === "object" ? (value as Record<string, unknown>) : {};
@@ -120,17 +84,9 @@ export function normalizeCombatAutomation(value: unknown): CombatAutomationState
   const rules = Array.isArray(raw.rules)
     ? raw.rules.map((rule, index) => normalizeRule(rule, index, usedRuleIds)).filter((rule): rule is AutomationRule => Boolean(rule))
     : defaults.rules;
-  const usedTargetIds = new Set<string>();
-  const targetPriorityRules = Array.isArray(raw.targetPriorityRules)
-    ? raw.targetPriorityRules
-        .map((priority, index) => normalizeTargetPriority(priority, index, usedTargetIds))
-        .filter((priority): priority is TargetPriorityRule => Boolean(priority))
-    : defaults.targetPriorityRules;
   return {
     enabled: raw.enabled !== false,
     rules,
-    targetPriorityRules: targetPriorityRules.length ? targetPriorityRules : defaults.targetPriorityRules,
-    overrideManualTarget: raw.overrideManualTarget === true,
   };
 }
 
@@ -148,7 +104,6 @@ export function getAutomationSummary(
     totalRuleCount: automation.rules.length,
     invalidRuleCount,
     missingActionRuleCount: automation.rules.filter((rule) => !rule.actionId || (knownActionIds.size > 0 && !knownActionIds.has(rule.actionId))).length,
-    overrideManualTarget: automation.overrideManualTarget,
     highestPriorityActionId: highest?.actionId,
   };
 }
@@ -209,66 +164,9 @@ function conditionMatches(
       return hasEffect(targetEffects, condition.effectId);
     case "target-missing-effect":
       return !hasEffect(targetEffects, condition.effectId);
-    case "alive-enemies-at-least":
-      return (
-        game.combat.enemies.filter((enemy) => !enemy.defeated).length >= condition.count
-      );
     default:
       return false;
   }
-}
-
-function criterionScore(
-  enemy: EnemyCombatInstance,
-  criterion: TargetPriorityCriterion,
-  context: CombatContext,
-): number {
-  if (enemy.defeated) return -Infinity;
-  const definition = context.enemies[enemy.enemyId];
-  if (criterion === "elite") return definition?.accent === "gold" ? 1 : 0;
-  if (criterion === "lowest-health-percent")
-    return 1 - enemy.currentHealth / Math.max(1, enemy.maxHealth);
-  if (criterion === "lowest-health")
-    return 1 / Math.max(1, enemy.currentHealth);
-  if (criterion === "lowest-evasion")
-    return (
-      1 /
-      Math.max(
-        1,
-        getEnemyEffectiveCombatStats(enemy, context.effects, context.enemies)
-          .evasionRating ?? 0,
-      )
-    );
-  return 0;
-}
-
-export function selectAutomationTarget(
-  game: GameState,
-  context: CombatContext,
-) {
-  const alive = game.combat.enemies.filter((enemy) => !enemy.defeated);
-  if (!alive.length) return undefined;
-  let best = alive[0];
-  const priorities = [...game.combatAutomation.targetPriorityRules]
-    .filter((rule) => rule.enabled)
-    .sort((a, b) => a.priority - b.priority || a.id.localeCompare(b.id));
-  for (const priority of priorities) {
-    const criterion = priority.criterion;
-    const candidate = [...alive].sort(
-      (a, b) =>
-        criterionScore(b, criterion, context) -
-          criterionScore(a, criterion, context) ||
-        a.instanceId.localeCompare(b.instanceId),
-    )[0];
-    if (
-      criterionScore(candidate, criterion, context) > 0 ||
-      criterion === "first-living"
-    ) {
-      best = candidate;
-      break;
-    }
-  }
-  return best;
 }
 
 export interface AutomationDecision {
@@ -282,7 +180,6 @@ function describeCondition(condition: AutomationCondition, game: GameState, targ
   if (condition.type === "mana-below" || condition.type === "mana-above") return { actual: game.combat.maxMana > 0 ? game.combat.mana / game.combat.maxMana : 0, expected: condition.fraction };
   if (condition.type === "stamina-below" || condition.type === "stamina-above") return { actual: game.combat.maxStamina > 0 ? game.combat.stamina / game.combat.maxStamina : 0, expected: condition.fraction };
   if (condition.type === "target-hp-below" || condition.type === "target-hp-above") return { actual: target ? target.currentHealth / Math.max(1, target.maxHealth) : "no target", expected: condition.fraction };
-  if (condition.type === "alive-enemies-at-least") return { actual: game.combat.enemies.filter((enemy) => !enemy.defeated).length, expected: condition.count };
   return { actual: condition.type === "always" ? true : "state", expected: condition.type };
 }
 
@@ -294,13 +191,7 @@ export function evaluateAutomation(
 ): AutomationDecision {
   if (!game.combatAutomation.enabled || game.combat.phase !== "active")
     return {};
-  const target = game.combatAutomation.overrideManualTarget
-    ? selectAutomationTarget(game, context)
-    : game.combat.enemies.find(
-        (enemy) =>
-          enemy.instanceId === game.combat.selectedEnemyInstanceId &&
-          !enemy.defeated,
-      );
+  const target = game.combat.enemy && !game.combat.enemy.defeated ? game.combat.enemy : undefined;
   const rules = [...game.combatAutomation.rules]
     .filter((rule) => rule.enabled)
     .sort((a, b) => a.priority - b.priority || a.id.localeCompare(b.id));
@@ -312,13 +203,7 @@ export function evaluateAutomation(
       continue;
     }
     const validation = validatePlayerAction(
-      {
-        ...game,
-        combat:
-          target && game.combat.selectedEnemyInstanceId !== target.instanceId
-            ? { ...game.combat, selectedEnemyInstanceId: target.instanceId }
-            : game.combat,
-      },
+      game,
       rule.actionId,
       stats,
       context,
@@ -442,34 +327,4 @@ export function removeAutomationCondition(
 
 export function setAutomationEnabled(automation: CombatAutomationState, enabled: boolean) {
   return { ...automation, enabled };
-}
-
-export function setAutomationOverrideManualTarget(automation: CombatAutomationState, enabled: boolean) {
-  return { ...automation, overrideManualTarget: enabled };
-}
-
-export function setTargetPriorityEnabled(
-  automation: CombatAutomationState,
-  priorityId: string,
-  enabled: boolean,
-) {
-  return {
-    ...automation,
-    targetPriorityRules: automation.targetPriorityRules.map((rule) =>
-      rule.id === priorityId ? { ...rule, enabled } : rule,
-    ),
-  };
-}
-
-export function moveTargetPriority(
-  automation: CombatAutomationState,
-  priorityId: string,
-  direction: "up" | "down",
-) {
-  const priorities = [...automation.targetPriorityRules].sort((a, b) => a.priority - b.priority || a.id.localeCompare(b.id));
-  const index = priorities.findIndex((rule) => rule.id === priorityId);
-  const destination = direction === "up" ? index - 1 : index + 1;
-  if (index < 0 || destination < 0 || destination >= priorities.length) return automation;
-  [priorities[index], priorities[destination]] = [priorities[destination], priorities[index]];
-  return { ...automation, targetPriorityRules: reorderWithPriorities(priorities) };
 }

@@ -90,14 +90,16 @@ export function selectNextEnemyCombatAbility(enemy: EnemyCombatInstance, definit
 }
 
 export function tickEnemyCombatAbilityCooldowns(game: GameState, step: number): GameState {
+  const enemy = game.combat.enemy;
+  if (!enemy) return game;
   return {
     ...game,
     combat: {
       ...game.combat,
-      enemies: game.combat.enemies.map((enemy) => ({
+      enemy: {
         ...enemy,
         abilityCooldowns: Object.fromEntries(Object.entries(enemy.abilityCooldowns ?? {}).map(([id, remaining]) => [id, Math.max(0, remaining - step)])),
-      })),
+      },
     },
   };
 }

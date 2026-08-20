@@ -124,12 +124,13 @@ export function getAutomationConditionBoundary(
 }
 
 /** Pure readiness inspection. It deliberately does not call weighted selection or RNG. */
-export function enemyActionReady(
+export function enemyAbilityReady(
   enemy: EnemyCombatInstance,
   game: GameState,
   context: CombatContext,
 ): boolean {
   if (enemy.defeated) return false;
+  if (enemy.preparedAbility) return enemy.preparedAbility.remainingSeconds <= 0;
   const definition = context.enemies[enemy.enemyId];
   if (!definition) return false;
   return getEnemyCombatAbilities(definition, context).some((ability) => isEnemyCombatAbilityEligible(enemy, ability, game, context));
@@ -138,6 +139,7 @@ export function enemyActionReady(
 function enemyBoundary(enemy: EnemyCombatInstance): number {
   if (enemy.defeated) return Number.POSITIVE_INFINITY;
   let boundary = timerBoundary(enemy.attackTimer);
+  if (enemy.preparedAbility) boundary = Math.min(boundary, timerBoundary(enemy.preparedAbility.remainingSeconds));
   for (const remaining of Object.values(enemy.abilityCooldowns ?? {})) boundary = Math.min(boundary, cooldownBoundary(remaining));
   return Math.min(boundary, effectBoundary(enemy.effects));
 }
@@ -187,12 +189,12 @@ export function getNextOfflineCombatBoundary(
     automationResourceBoundary(game, stats, context),
     getAutomationConditionBoundary(game, stats, context),
   );
-  for (const remaining of Object.values(combat.actionCooldowns)) boundary = Math.min(boundary, cooldownBoundary(remaining));
   const staminaRate = getPlayerStats(combat, stats, context, game.progression).staminaRegen;
   if (staminaRate < 0) boundary = Math.min(boundary, timerBoundary(combat.stamina / -staminaRate));
-  for (const enemy of combat.enemies) {
+  const enemy = combat.enemy;
+  if (enemy) {
     boundary = Math.min(boundary, enemyBoundary(enemy));
-    if (enemyActionReady(enemy, game, context)) boundary = Math.min(boundary, OFFLINE_COMBAT_TIME_QUANTUM_SECONDS);
+    if (enemyAbilityReady(enemy, game, context)) boundary = Math.min(boundary, OFFLINE_COMBAT_TIME_QUANTUM_SECONDS);
   }
 
   // Automation is checked by the canonical step at every live quantum. If it

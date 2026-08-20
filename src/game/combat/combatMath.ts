@@ -47,7 +47,7 @@ export function resolveDefensiveOutcome(
   defender: DefensiveStats,
   eligibility: DefensiveEligibility,
   rng: CombatRng,
-  options: { sourceKind?: "attack" | "magic-art" | "secondary"; deliveryKind?: "hit" | "damage-over-time" } = {},
+  options: { sourceKind?: "attack" | "magic-art"; deliveryKind?: "hit" | "damage-over-time" } = {},
 ): DefensiveOutcome {
   const sourceKind = options.sourceKind ?? "attack";
   const deliveryKind = options.deliveryKind ?? "hit";

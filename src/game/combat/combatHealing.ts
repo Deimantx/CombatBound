@@ -11,7 +11,7 @@ export function getPlayerHealingReceivedMultiplier(
   context: CombatContext,
   sourceEnemy?: EnemyCombatInstance,
 ) {
-  const enemy = sourceEnemy ?? combat.enemies.find((candidate) => candidate.instanceId === combat.selectedEnemyInstanceId && !candidate.defeated)
+  const enemy = sourceEnemy ?? (combat.enemy && !combat.enemy.defeated ? combat.enemy : undefined)
   const traitMultiplier = enemy
     ? getEnemyTraitHealingReceivedMultiplier(enemy, context.enemies, context.enemyTraits)
     : 1

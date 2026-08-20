@@ -5,9 +5,24 @@ import type { EnemyCombatAbilityDefinition, EnemyCombatAbilityMechanic, EnemyCom
 const general = ["normal", "elite", "boss"] as const;
 const elite = ["elite"] as const;
 const boss = ["boss"] as const;
+const preparationSeconds: Record<string, number> = {
+  "heavy-slam": 2.5, "crushing-strike": 2, "savage-bite": 1.2, maul: 1.5, "triple-rend": 2,
+  "shield-bash": 1.5, "armour-breaker": 2, "headlong-charge": 3, "execution-blow": 2, groundbreaker: 2.5,
+  "charged-shot": 3, "quick-shot": .7, "piercing-shot": 2, "barbed-arrow": 2, "poisoned-arrow": 1.5,
+  volley: 2, "sniper-shot": 3, "suppressive-fire": 1.5, "toxic-spit": 1.5, "venom-burst": 2,
+  "rending-bite": 1.5, "infectious-wound": 1.8, bloodletting: 1.3, fireball: 2, "flame-burst": 1.7,
+  "frost-lance": 1.8, "deep-freeze": 2.5, "lightning-bolt": 1.2, "static-surge": 1.5, "chain-shock": 2,
+  "shadow-bolt": 2, "withering-blast": 1.8, "cursed-strike": 1.8, "guard-stance": 1, "evasive-stance": .8,
+  "battle-cry": 1, frenzy: .8, "stone-skin": 1.2, "arcane-ward": 1.5, "elemental-ward": 1,
+  "mend-wounds": 2.5, "regenerative-roar": 1.5, "blood-feast": 1.8, "desperate-recovery": 2.5,
+  "desperate-lunge": 1.8, "blood-frenzy": 1, finisher: 2, "elite-overpower": 3, "elite-rally": 1.2,
+  "elite-recovery": 2.5, "elite-barrage": 2.2, "devastating-blow": 4, enrage: 2, "mass-barrier": 2,
+  "life-drain": 3, cataclysm: 5, "doom-mark": 2.5, "phase-shift": 0, "berserk-assault": 2,
+  "execution-protocol": 3,
+};
 const damage = (sourceCategory: "melee" | "ranged" | "magic", damageType: DamageType, attackDamageMultiplier: number, extra: Partial<Omit<EnemyCombatAbilityDamageMechanic, "type" | "sourceCategory" | "damageType" | "attackDamageMultiplier">> = {}): EnemyCombatAbilityDamageMechanic => ({ type: "damage", sourceCategory, damageType, attackDamageMultiplier, canCrit: true, ...extra });
 const effect = (effectId: string, chance = 1, stacks?: number, target: "player" | "self" = "player", extra: Partial<Omit<EnemyCombatAbilityApplyEffectMechanic, "type" | "effectId" | "chance" | "target" | "stacks">> = {}): EnemyCombatAbilityApplyEffectMechanic => ({ type: "apply-effect", effectId, chance, target, ...(stacks === undefined ? {} : { stacks }), ...extra });
-const ability = (id: string, name: string, description: string, category: EnemyCombatAbilityDefinition["category"], target: "player" | "self", cooldownSeconds: number, mechanics: readonly EnemyCombatAbilityMechanic[], options: Partial<Pick<EnemyCombatAbilityDefinition, "conditions" | "weight" | "usageLimitPerFight" | "allowedEnemyTiers" | "tags" | "draft">> = {}): EnemyCombatAbilityDefinition => ({ id: id as `enemy-ability.${string}`, name, description, category, tags: options.tags ?? [category], allowedEnemyTiers: options.allowedEnemyTiers ?? general, target, cooldownSeconds, mechanics, ...options });
+const ability = (id: string, name: string, description: string, category: EnemyCombatAbilityDefinition["category"], target: "player" | "self", cooldownSeconds: number, mechanics: readonly EnemyCombatAbilityMechanic[], options: Partial<Pick<EnemyCombatAbilityDefinition, "conditions" | "weight" | "usageLimitPerFight" | "allowedEnemyTiers" | "tags" | "draft">> = {}): EnemyCombatAbilityDefinition => ({ id: id as `enemy-ability.${string}`, name, description, category, tags: options.tags ?? [category], allowedEnemyTiers: options.allowedEnemyTiers ?? general, target, preparationSeconds: preparationSeconds[id.replace(/^enemy-ability\./, "")] ?? 0, cooldownSeconds, mechanics, ...options });
 const multi = (hits: number, hit: EnemyCombatAbilityDamageMechanic, perHitEffects?: readonly EnemyCombatAbilityApplyEffectMechanic[]): EnemyCombatAbilityMechanic => ({ type: "multi-hit", hits, hit, ...(perHitEffects ? { perHitEffects } : {}) });
 const hp = (type: "self-hp-below" | "player-hp-below", fraction: number) => ({ type, fraction } as const);
 

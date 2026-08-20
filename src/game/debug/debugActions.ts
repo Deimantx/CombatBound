@@ -275,23 +275,23 @@ export function debugResetPlayerCooldowns(game: GameState): GameState {
 }
 
 export function debugResetEnemyCooldowns(game: GameState): GameState {
+  if (!game.combat.enemy) return game;
   return {
     ...game,
     combat: {
       ...game.combat,
-      enemies: game.combat.enemies.map((enemy) => ({ ...enemy, actionCooldowns: {} })),
+      enemy: { ...game.combat.enemy, abilityCooldowns: {} },
     },
   };
 }
 
-export function debugCancelEnemyActions(game: GameState): GameState {
+export function debugCancelEnemyAbilities(game: GameState): GameState {
+  if (!game.combat.enemy) return game;
   return {
     ...game,
     combat: {
       ...game.combat,
-      enemies: game.combat.enemies.map((enemy) => enemy.defeated
-        ? enemy
-        : { ...enemy, currentAction: null, attackTimer: enemy.attackInterval }),
+      enemy: game.combat.enemy.defeated ? game.combat.enemy : { ...game.combat.enemy, preparedAbility: null, attackTimer: game.combat.enemy.attackInterval },
     },
   };
 }
@@ -301,19 +301,19 @@ export function debugClearPlayerEffects(game: GameState): GameState {
 }
 
 export function debugClearSelectedEnemyEffects(game: GameState): GameState {
-  const selectedId = game.combat.selectedEnemyInstanceId;
-  if (!selectedId) return game;
+  const selectedId = game.combat.enemy?.instanceId;
+  if (!selectedId || !game.combat.enemy) return game;
   return {
     ...game,
     combat: {
       ...game.combat,
-      enemies: game.combat.enemies.map((enemy) => enemy.instanceId === selectedId ? { ...enemy, effects: [] } : enemy),
+      enemy: { ...game.combat.enemy, effects: [] },
     },
   };
 }
 
 export function debugClearAllEnemyEffects(game: GameState): GameState {
-  return { ...game, combat: { ...game.combat, enemies: game.combat.enemies.map((enemy) => ({ ...enemy, effects: [] })) } };
+  return { ...game, combat: game.combat.enemy ? { ...game.combat, enemy: { ...game.combat.enemy, effects: [] } } : game.combat };
 }
 
 export function debugApplyEffect(game: GameState, effectId: string, target: DebugEffectTarget): GameState {
@@ -324,7 +324,7 @@ export function debugApplyEffect(game: GameState, effectId: string, target: Debu
     const result = applyEffectById(game.combat, effectId, effectById, source, source);
     return { ...game, combat: result.combat };
   }
-  const selected = game.combat.enemies.find((enemy) => enemy.instanceId === game.combat.selectedEnemyInstanceId && !enemy.defeated);
+  const selected = game.combat.enemy && !game.combat.enemy.defeated ? game.combat.enemy : undefined;
   if (!selected) return game;
   const targetRef: CombatantRef = { kind: "enemy", instanceId: selected.instanceId };
   const result = applyEffectById(game.combat, effectId, effectById, source, targetRef);
@@ -337,24 +337,21 @@ export function debugApplyPlayerMaxHpBarrier(game: GameState): GameState {
 }
 
 export function debugKillSelectedEnemy(game: GameState): GameState {
-  const selected = game.combat.selectedEnemyInstanceId;
+  const selected = game.combat.enemy?.instanceId;
   return selected ? forceDefeatEnemiesForDebug(game, [selected], debugContext) : game;
 }
 
 export function debugHealSelectedEnemyToFull(game: GameState): GameState {
-  const selectedId = game.combat.selectedEnemyInstanceId;
+  const selectedId = game.combat.enemy?.instanceId;
   if (!selectedId) return game;
-  const selected = game.combat.enemies.find((enemy) => enemy.instanceId === selectedId);
+  const selected = game.combat.enemy;
   if (!selected || selected.defeated) return game;
-  return { ...game, combat: { ...game.combat, enemies: game.combat.enemies.map((enemy) => enemy.instanceId === selectedId ? { ...enemy, currentHealth: enemy.maxHealth } : enemy) } };
+  return { ...game, combat: game.combat.enemy ? { ...game.combat, enemy: { ...game.combat.enemy, currentHealth: game.combat.enemy.maxHealth } } : game.combat };
 }
 
-export function debugKillCurrentGroup(game: GameState): GameState {
-  return forceDefeatEnemiesForDebug(
-    game,
-    game.combat.enemies.filter((enemy) => !enemy.defeated).map((enemy) => enemy.instanceId),
-    debugContext,
-  );
+export function debugKillCurrentEnemy(game: GameState): GameState {
+  const instanceId = game.combat.enemy?.instanceId;
+  return instanceId ? forceDefeatEnemiesForDebug(game, [instanceId], debugContext) : game;
 }
 
 export function debugRevivePlayer(game: GameState): GameState {
@@ -369,7 +366,7 @@ export function debugRevivePlayer(game: GameState): GameState {
       stamina: game.combat.maxStamina,
       mana: game.combat.maxMana,
       playerEffects: [],
-      enemies: game.combat.enemies.map((enemy) => ({ ...enemy, currentAction: null })),
+      enemy: game.combat.enemy ? { ...game.combat.enemy, preparedAbility: null } : null,
     },
   };
 }
@@ -382,7 +379,6 @@ export function debugResetSessionMetrics(game: GameState): GameState {
       session: {
         ...game.combat.session,
         elapsedSeconds: 0,
-        groupClears: 0,
         enemiesDefeated: 0,
         damageDealt: 0,
         damageTaken: 0,

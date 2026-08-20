@@ -119,12 +119,11 @@ export type ProficiencyPerkEffect =
     }
   | { type: 'spellCriticalChanceModifier' | 'spellHealingModifier' | 'spellHealingOverTimeModifier' | 'spellLifeDrainModifier' | 'spellDamageBasedManaRestore'; valuePerRank: number }
   | { type: 'spellArmorPenetrationModifier'; mode: 'flat' | 'percent'; valuePerRank: number }
-  | { type: 'spellSecondaryTargetDamage'; fractionPerRank: number; maxAdditionalTargets: number }
   | { type: 'spellOnEffectiveHealingResourceRestore'; resource: 'mana' | 'stamina'; amountPerRank: number; divisor?: number }
   | { type: 'onSuccessfulCleanseRestoreResource'; resource: 'mana' | 'stamina'; amountPerRank: number }
   | { type: 'onSuccessfulCleanseApplyEffect'; effectId: string; durationSeconds?: number }
   | { type: 'sourceEffectOutgoingDamageModifier'; effectId: string; valuePerRank: number }
-  | { type: 'onSpellHitApplyEffect'; effectId: string; chancePerRank: number; secondaryOnly?: boolean }
+  | { type: 'onSpellHitApplyEffect'; effectId: string; chancePerRank: number }
   | {
       type: 'appliedEffectPeriodicPowerModifier' | 'appliedEffectDurationModifier'
       effectId: string
@@ -155,7 +154,6 @@ export type ProficiencyPerkEffect =
     }
   | { type: 'weaponDamageModifier' | 'weaponAttackSpeedModifier'; valuePerRank: number }
   | { type: 'weaponArmorPenetrationModifier'; mode: 'flat' | 'percent'; valuePerRank: number }
-  | { type: 'weaponSecondaryTargetDamage'; fractionPerRank: number; maxAdditionalTargets: number }
   | { type: 'onBlockApplyEffect'; effectId: string; durationSeconds?: number }
   | { type: 'weaponFlatDamageModifier'; valuePerRank: number }
   | { type: 'weaponOnHitResourceRestore'; resource: 'stamina' | 'mana'; amountPerRank: number; chancePerRank?: number }

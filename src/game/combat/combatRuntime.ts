@@ -13,7 +13,7 @@ export const clone = <T>(value: T): T => JSON.parse(JSON.stringify(value)) as T;
 export function combatEvent(state: CombatState, item: CombatEvent) {
   const nextSequence = state.eventSequence + 1;
   const log: CombatLogEntry = { id: nextSequence, text: item.text, type: item.type, time: `T+${Math.floor(state.session.elapsedSeconds)}s` };
-  const record = { id: nextSequence, type: item.eventType ?? ("actionResolved" as CombatEventType), source: item.source, target: item.target, data: item.data };
+  const record = { id: nextSequence, type: item.eventType ?? ("system" as CombatEventType), source: item.source, target: item.target, data: item.data };
   return { ...state, eventSequence: nextSequence, log: [log, ...state.log].slice(0, 30), events: [...state.events, record].slice(-100) };
 }
 
@@ -75,7 +75,12 @@ export function awardCombatXp(game: GameState, proficiencyId: CombatProficiencyI
 export function clearEndedHuntEffects(combat: CombatState, definitions: Record<string, EffectDefinition>) {
   const shouldKeep = (effect: ActiveEffectInstance) => {
     const persistence = definitions[effect.effectId]?.persistence;
-    return persistence !== "hunt" && persistence !== "between-enemies";
+    return persistence !== "hunt" && persistence !== "between-enemies" && persistence !== "enemy-life";
   };
-  return { ...combat, playerEffects: combat.playerEffects.filter(shouldKeep), enemies: combat.enemies.map((enemy) => ({ ...enemy, effects: [] })) };
+  return { ...combat, playerEffects: combat.playerEffects.filter(shouldKeep), enemy: combat.enemy ? { ...combat.enemy, effects: [] } : null };
+}
+
+export function clearEndedEnemyEncounterEffects(combat: CombatState, definitions: Record<string, EffectDefinition>) {
+  const shouldKeep = (effect: ActiveEffectInstance) => definitions[effect.effectId]?.persistence !== "enemy-life";
+  return { ...combat, playerEffects: combat.playerEffects.filter(shouldKeep), enemy: combat.enemy ? { ...combat.enemy, effects: [] } : null };
 }

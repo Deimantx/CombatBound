@@ -5,17 +5,18 @@ export type CombatStopReason =
   | "defeat"
   | "consumablesDepleted"
   | "victoryLimit"
-  | "completed";
+  | "completed"
+  | "inventoryFull";
 export type DamageType =
   | "physical"
   | "fire"
   | "cold"
   | "lightning"
   | "chaos";
-export type DamageSourceKind = "attack" | "magic-art" | "secondary";
+export type DamageSourceKind = "attack" | "magic-art";
 /** Historical packet spelling accepted only when decoding old combat fixtures. */
 export type LegacyDamageSourceKind = "spell";
-export type CombatSourceCategory = "melee" | "ranged" | "magic" | "secondary";
+export type CombatSourceCategory = "melee" | "ranged" | "magic";
 export type DamageDeliveryKind = "hit" | "damage-over-time";
 export type ResistanceDamageType = Exclude<DamageType, "physical">;
 export type PlayerActionKind =
@@ -205,66 +206,8 @@ export type DamageProgressionSource =
       proficiencyEligible: boolean;
     };
 
-export interface CombatActionDefinition {
-  id: string;
-  name: string;
-  description: string;
-  icon?: string;
-  sourceType: "player" | "enemy";
-  targetMode: "self" | "selectedEnemy" | "player";
-  preparationSeconds: number;
-  cooldownSeconds: number;
-  danger?: "low" | "medium" | "high" | "critical";
-  weight?: number;
-  accuracyModifier?: number;
-  guaranteedHit?: boolean;
-  defensiveEligibility: Omit<DefensiveEligibility, "canMiss">;
-  damage?: DamageComponent[];
-  applyEffects?: Array<{ effectId: string; chance: number }>;
-}
-
-export interface EnemyActionDefinition extends DefensiveEligibility {
-  id: string;
-  name: string;
-  description: string;
-  preparationSeconds: number;
-  cooldownSeconds: number;
-  damageMultiplier: number;
-  danger: "low" | "medium" | "high" | "critical";
-  weight?: number;
-  damage?: DamageComponent[];
-  applyEffects?: Array<{ effectId: string; chance: number }>;
-  targetMode?:
-    | "player"
-    | "self"
-    | "lowest-health-ally"
-    | "random-living-ally"
-    | "all-living-allies";
-  conditions?: Array<{
-    type:
-      | "player-hp-below"
-      | "self-hp-below"
-      | "has-effect"
-      | "missing-effect"
-      | "allies-at-least"
-      | "phase";
-    value?: number | string;
-  }>;
-  healing?: number;
-  effects?: Array<{
-    effectId: string;
-    chance: number;
-    targetMode?:
-      | "player"
-      | "self"
-      | "lowest-health-ally"
-      | "random-living-ally"
-      | "all-living-allies";
-  }>;
-}
-
-export interface EnemyActionRuntime {
-  actionId: string;
+export interface EnemyPreparedAbilityRuntime {
+  abilityId: EnemyCombatAbilityId;
   remainingSeconds: number;
   totalSeconds: number;
   source?: CombatantRef;
@@ -297,13 +240,12 @@ export interface EnemyDefinition {
   enemyTier: EnemyTier;
   traits: EnemyTraitAssignment[];
   combatAbilityIds: EnemyCombatAbilityId[];
-  actions: EnemyActionDefinition[];
   phases?: Array<{
     phaseId: string;
     hpThreshold: number;
     onEnterEffectIds?: string[];
     statModifiers?: StatModifier[];
-    actionIds?: string[];
+    combatAbilityIds?: EnemyCombatAbilityId[];
   }>;
   loot: LootEntry[];
   icon: string;
@@ -318,12 +260,11 @@ export interface EnemyCombatInstance {
   maxHealth: number;
   attackTimer: number;
   attackInterval: number;
-  actionCooldowns: Record<string, number>;
   abilityCooldowns: Record<EnemyCombatAbilityId, number>;
   abilityRuntime: EnemyAbilityRuntimeState;
+  preparedAbility: EnemyPreparedAbilityRuntime | null;
   phaseId: string | null;
   phaseStatModifiers?: StatModifier[];
-  currentAction: EnemyActionRuntime | null;
   effects: import("./combatEffectTypes").ActiveEffectInstance[];
   defeated: boolean;
   rewardResolved: boolean;
@@ -331,9 +272,9 @@ export interface EnemyCombatInstance {
 }
 
 export type CombatEventType =
+  | "system"
+  | "enemyAbilityPreparationStarted"
   | "enemyAbilityResolved"
-  | "actionStarted"
-  | "actionResolved"
   | "attackMissed"
   | "attackEvaded"
   | "attackBlocked"
@@ -350,7 +291,6 @@ export type CombatEventType =
   | "effectCleansed"
   | "combatantDefeated"
   | "enemyDefeated"
-  | "groupCleared"
   | "recoveryStarted"
   | "huntStopped"
   | "playerActionUsed"
@@ -375,7 +315,6 @@ export interface CombatEventRecord {
 
 export interface CombatSession {
   elapsedSeconds: number;
-  groupClears: number;
   enemiesDefeated: number;
   damageDealt: number;
   damageTaken: number;
@@ -391,9 +330,9 @@ export interface CombatSession {
 export interface CombatState {
   phase: CombatPhase;
   combatLocationId: string | null;
-  groupNumber: number;
-  enemies: EnemyCombatInstance[];
-  selectedEnemyInstanceId: string | null;
+  targetEnemyId: string | null;
+  enemy: EnemyCombatInstance | null;
+  encounterSequence: number;
   playerEffects: import("./combatEffectTypes").ActiveEffectInstance[];
   playerHp: number;
   maxPlayerHp: number;
@@ -405,7 +344,6 @@ export interface CombatState {
   maxMana: number;
   actionCooldowns: Record<string, number>;
   globalCooldownRemaining: number;
-  enemyActionsStartedThisStep?: string[];
   potionCooldownRemaining: number;
   recoveryRemaining: number;
   stopReason: CombatStopReason | null;

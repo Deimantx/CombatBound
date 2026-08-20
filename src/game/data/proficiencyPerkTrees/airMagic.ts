@@ -11,7 +11,7 @@ const profile: MagicTreeProfile = {
   ],
   crossNodes: [
     { name: 'Thunderstep', links: [[0, 5], [4, 5]], effects: [{ type: 'spellConditionalDamageModifier', operation: 'increased', valuePerRank: .1, condition: { type: 'targetHasEffect', effectId: 'effect.shocked' } }, { type: 'statModifier', stat: 'evasionRating', operation: 'flat', valuePerRank: 3 }] },
-    { name: 'Chain Interference', links: [[1, 5], [3, 5]], effects: [{ type: 'spellSecondaryTargetDamage', fractionPerRank: .1, maxAdditionalTargets: 1 }, { type: 'spellDamageModifier', valuePerRank: .05 }] },
+    { name: 'Chain Interference', links: [[1, 5], [3, 5]], effects: [{ type: 'spellDamageModifier', valuePerRank: .05 }] },
     { name: 'Perfect Storm', links: [[2, 5], [0, 5]], effects: [{ type: 'spellDamageModifier', valuePerRank: .1 }, { type: 'spellCooldownModifier', valuePerRank: -.08 }, { type: 'spellCriticalDamageModifier', valuePerRank: .1 }] },
   ],
   apexName: 'Stormlord', apexEffects: [{ type: 'spellDamageModifier', valuePerRank: .15 }, { type: 'spellCooldownModifier', valuePerRank: -.15 }, { type: 'statModifier', stat: 'evasionRating', operation: 'flat', valuePerRank: 5 }, { type: 'appliedEffectDurationModifier', effectId: 'effect.shocked', valuePerRank: .15 }, { type: 'spellCriticalDamageModifier', valuePerRank: .15 }],

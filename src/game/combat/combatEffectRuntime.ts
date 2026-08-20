@@ -9,7 +9,6 @@ import { perkById } from "../data/proficiencyPerks";
 import { getEnemyTraitEffectPolicy } from "../enemyTraits/enemyTraitRuntime";
 
 export interface ApplyEffectToGameOptions extends EffectApplyOptions {
-  secondaryOnly?: boolean;
   targetMode?: "source" | "target";
   requireHpDamage?: boolean;
 }
@@ -17,7 +16,7 @@ export interface ApplyEffectToGameOptions extends EffectApplyOptions {
 export function applyEffectToGameResult(game: GameState, effectId: string, source: CombatantRef, target: CombatantRef, context: CombatContext, options: ApplyEffectToGameOptions = {}) {
   const definition = context.effects[effectId];
   if (!definition) return { game, applied: false as const, outcome: "rejected" as const };
-  const enemy = target.kind === "enemy" ? game.combat.enemies.find((candidate) => candidate.instanceId === target.instanceId) : undefined;
+  const enemy = target.kind === "enemy" && game.combat.enemy?.instanceId === target.instanceId ? game.combat.enemy : undefined;
   const policy = enemy ? getEnemyTraitEffectPolicy(enemy, definition.tags, context.enemies, context.enemyTraits, definition.kind === "debuff" || definition.tags.includes("harmful")) : { allow: true, durationMultiplier: 1 };
   if (!policy.allow) return { game, applied: false as const, outcome: "rejected" as const };
   const result = applyEffectById(game.combat, effectId, context.effects, source, target, { ...options, durationMultiplier: (options.durationMultiplier ?? 1) * policy.durationMultiplier, rng: context.rng });
@@ -27,7 +26,7 @@ export function applyEffectToGameResult(game: GameState, effectId: string, sourc
   const nextGame = {
     ...game,
     combat: combatEvent(result.combat, {
-      text: `${definition.name}${suffix} applied to ${target.kind === "player" ? "you" : (game.combat.enemies.find((enemy) => enemy.instanceId === target.instanceId)?.displayName ?? "target")}.`,
+      text: `${definition.name}${suffix} applied to ${target.kind === "player" ? "you" : (game.combat.enemy?.instanceId === target.instanceId ? game.combat.enemy.displayName : "target")}.`,
       type: source.kind === "player" ? "player" : "enemy",
       eventType,
       source,

@@ -24,14 +24,12 @@ export function validateWorldContent() {
   for (const location of combatLocationDefinitions) {
     if (!areaById[location.areaId]) errors.push(`Location ${location.id} has no area`)
     if (!enemyFamilyById[location.familyId]) errors.push(`Location ${location.id} has no family`)
-    if (location.enemyPool.length < 3 || location.enemyPool.length > 5) errors.push(`Location ${location.id} should have 3-5 enemy definitions`)
-    if (location.groupGeneration.minGroupSize > location.groupGeneration.maxGroupSize) errors.push(`Location ${location.id} has invalid group size range`)
-    for (const entry of location.enemyPool) {
+    if (location.targets.length === 0) errors.push(`Location ${location.id} must expose at least one target`)
+    if (new Set(location.targets.map((entry) => entry.enemyId)).size !== location.targets.length) errors.push(`Location ${location.id} contains duplicate targets`)
+    for (const entry of location.targets) {
       if (!enemyById[entry.enemyId]) errors.push(`Location ${location.id} references missing enemy ${entry.enemyId}`)
       else if (enemyById[entry.enemyId].familyId !== location.familyId) errors.push(`Location ${location.id} mixes enemy family ${entry.enemyId}`)
-      if (entry.weight <= 0) errors.push(`Location ${location.id} has non-positive weight`)
-      if (entry.minCopiesPerGroup && entry.maxCopiesPerGroup && entry.minCopiesPerGroup > entry.maxCopiesPerGroup) errors.push(`Location ${location.id} has invalid copy range`)
-      if ((entry.minCopiesPerGroup ?? 0) > location.groupGeneration.maxGroupSize) errors.push(`Location ${location.id} requires more copies than its maximum group size`)
+      if (entry.minHunterRank !== undefined && (!Number.isFinite(entry.minHunterRank) || entry.minHunterRank < 1)) errors.push(`Location ${location.id} has invalid target rank requirement`)
     }
   }
   return errors

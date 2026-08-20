@@ -25,7 +25,7 @@ export type EnemyTraitCategory =
   | "anti-magic"
   | "anti-melee"
   | "hp-threshold"
-  | "action-cooldown"
+  | "combat-ability-cooldown"
   | "fight-duration"
   | "elite"
   | "boss";
@@ -35,7 +35,6 @@ export type EnemyTraitEvent =
   | "time-step"
   | "enemy-normal-attack-resolved"
   | "player-attack-resolved"
-  | "enemy-action-resolved"
   | "enemy-combat-ability-resolved"
   | "enemy-damaged"
   | "enemy-damage-dealt"
@@ -180,21 +179,21 @@ export interface TraitHealingReceivedMechanic {
   value: number;
 }
 
-export interface TraitActionCooldownMechanic {
+export interface TraitCombatAbilityCooldownMechanic {
   type:
-    | "action-cooldown-on-normal-hit"
-    | "action-cooldown-on-action-hit"
-    | "action-cooldown-on-action-use"
+    | "combat-ability-cooldown-on-normal-hit"
+    | "combat-ability-cooldown-on-ability-hit"
+    | "combat-ability-cooldown-on-ability-use"
     | "combat-ability-cooldown-on-use"
-    | "action-cooldown-below-threshold"
-    | "action-cooldown-static";
+    | "combat-ability-cooldown-below-threshold"
+    | "combat-ability-cooldown-static";
   value: number;
   cap?: number;
   threshold?: number;
 }
 
-export interface TraitActionDamageMechanic {
-  type: "action-damage-modifier" | "combat-ability-damage-modifier";
+export interface TraitCombatAbilityDamageMechanic {
+  type: "combat-ability-damage-modifier";
   value: number;
 }
 
@@ -211,7 +210,7 @@ export interface TraitFightStageMechanic {
 }
 
 export interface TraitEffectPolicyMechanic {
-  type: "effect-duration-modifier" | "hard-cc-immunity" | "action-interruption-immunity";
+  type: "effect-duration-modifier" | "hard-cc-immunity" | "combat-ability-interruption-immunity";
   value?: number;
 }
 
@@ -237,8 +236,8 @@ export type EnemyTraitMechanic =
   | TraitDamageLeechMechanic
   | TraitReflectionMechanic
   | TraitHealingReceivedMechanic
-  | TraitActionCooldownMechanic
-  | TraitActionDamageMechanic
+  | TraitCombatAbilityCooldownMechanic
+  | TraitCombatAbilityDamageMechanic
   | TraitFightStackMechanic
   | TraitFightStageMechanic
   | TraitEffectPolicyMechanic
@@ -276,9 +275,9 @@ export interface EnemyTraitRuntimeState {
 export const ENEMY_TIERS: readonly EnemyTier[] = ["normal", "elite", "boss"];
 export const ENEMY_TRAIT_CATEGORIES: readonly EnemyTraitCategory[] = [
   "offense", "ailment", "defense", "survival", "tempo", "anti-crit",
-  "anti-magic", "anti-melee", "hp-threshold", "action-cooldown",
+  "anti-magic", "anti-melee", "hp-threshold", "combat-ability-cooldown",
   "fight-duration", "elite", "boss",
 ];
 export const COMBAT_SOURCE_CATEGORIES: readonly CombatSourceCategory[] = [
-  "melee", "ranged", "magic", "secondary",
+  "melee", "ranged", "magic",
 ];

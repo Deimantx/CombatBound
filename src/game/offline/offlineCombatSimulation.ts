@@ -20,7 +20,6 @@ import { perHour } from "./offlineResultMetrics";
 
 export interface CombatHuntOfflineSummary {
   enemiesDefeated: number;
-  groupClears: number;
   damageDealt: number;
   damageTaken: number;
   healing: number;
@@ -116,7 +115,6 @@ function summaryFor(
   }
   return {
     enemiesDefeated: delta(finalSession.enemiesDefeated, initialSession.enemiesDefeated),
-    groupClears: delta(finalSession.groupClears, initialSession.groupClears),
     damageDealt: delta(finalSession.damageDealt, initialSession.damageDealt),
     damageTaken: delta(finalSession.damageTaken, initialSession.damageTaken),
     healing: delta(finalSession.healing, initialSession.healing),

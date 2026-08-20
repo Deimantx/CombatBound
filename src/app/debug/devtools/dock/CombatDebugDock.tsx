@@ -129,7 +129,7 @@ function DockBody() {
 function DockMinimizedSummary() {
   const hp = useGameStore((state) => state.game.combat.playerHp);
   const maxHp = useGameStore((state) => state.game.combat.maxPlayerHp);
-  const selected = useGameStore((state) => state.game.combat.enemies.find((enemy) => enemy.instanceId === state.game.combat.selectedEnemyInstanceId)?.displayName ?? "No enemy");
+  const selected = useGameStore((state) => state.game.combat.enemy?.displayName ?? "No target");
   const immortal = useDevToolsRuntimeStore((state) => state.playerImmortal);
   const timeScale = useDevToolsRuntimeStore((state) => state.timeScale);
   return <span className="debug-dock-minimized-summary">HP {Math.round(maxHp > 0 ? hp / maxHp * 100 : 0)}% · {selected} · {immortal ? "IMMORTAL · " : ""}{timeScale}x</span>;
@@ -145,10 +145,10 @@ function DockPlayerSummary() {
 }
 
 function DockEnemySummary() {
-  const selectedId = useGameStore((state) => state.game.combat.selectedEnemyInstanceId);
-  const name = useGameStore((state) => state.game.combat.enemies.find((enemy) => enemy.instanceId === state.game.combat.selectedEnemyInstanceId)?.displayName);
-  const currentHealth = useGameStore((state) => state.game.combat.enemies.find((enemy) => enemy.instanceId === state.game.combat.selectedEnemyInstanceId)?.currentHealth ?? 0);
-  const maxHealth = useGameStore((state) => state.game.combat.enemies.find((enemy) => enemy.instanceId === state.game.combat.selectedEnemyInstanceId)?.maxHealth ?? 0);
+  const selectedId = useGameStore((state) => state.game.combat.enemy?.instanceId);
+  const name = useGameStore((state) => state.game.combat.enemy?.displayName);
+  const currentHealth = useGameStore((state) => state.game.combat.enemy?.currentHealth ?? 0);
+  const maxHealth = useGameStore((state) => state.game.combat.enemy?.maxHealth ?? 0);
   const immortal = useDevToolsRuntimeStore((state) => Boolean(selectedId && state.immortalEnemyInstanceIds.includes(selectedId)));
   return <span>{name ? `${name} · ${Math.round(maxHealth > 0 ? currentHealth / maxHealth * 100 : 0)}%${immortal ? " · IMMORTAL" : ""}` : "None"}</span>;
 }
@@ -179,11 +179,11 @@ function DockPlayer() {
 }
 
 function DockEnemy() {
-  const selectedId = useGameStore((state) => state.game.combat.selectedEnemyInstanceId);
-  const selectedName = useGameStore((state) => state.game.combat.enemies.find((enemy) => enemy.instanceId === state.game.combat.selectedEnemyInstanceId)?.displayName);
-  const currentHealth = useGameStore((state) => state.game.combat.enemies.find((enemy) => enemy.instanceId === state.game.combat.selectedEnemyInstanceId)?.currentHealth ?? 0);
-  const maxHealth = useGameStore((state) => state.game.combat.enemies.find((enemy) => enemy.instanceId === state.game.combat.selectedEnemyInstanceId)?.maxHealth ?? 0);
-  const defeated = useGameStore((state) => state.game.combat.enemies.find((enemy) => enemy.instanceId === state.game.combat.selectedEnemyInstanceId)?.defeated ?? true);
+  const selectedId = useGameStore((state) => state.game.combat.enemy?.instanceId);
+  const selectedName = useGameStore((state) => state.game.combat.enemy?.displayName);
+  const currentHealth = useGameStore((state) => state.game.combat.enemy?.currentHealth ?? 0);
+  const maxHealth = useGameStore((state) => state.game.combat.enemy?.maxHealth ?? 0);
+  const defeated = useGameStore((state) => state.game.combat.enemy?.defeated ?? true);
   const kill = useGameStore((state) => state.debug.killSelectedEnemy);
   const heal = useGameStore((state) => state.debug.healSelectedEnemyToFull);
   const immortal = useDevToolsRuntimeStore((state) => Boolean(selectedId && state.immortalEnemyInstanceIds.includes(selectedId)));
@@ -194,15 +194,15 @@ function DockEnemy() {
 
 function DockEffectSummary() {
   const playerCount = useGameStore((state) => state.game.combat.playerEffects.length);
-  const enemyCount = useGameStore((state) => state.game.combat.enemies.find((enemy) => enemy.instanceId === state.game.combat.selectedEnemyInstanceId)?.effects.length ?? 0);
+  const enemyCount = useGameStore((state) => state.game.combat.enemy?.effects.length ?? 0);
   return <span>P{playerCount} · E{enemyCount}</span>;
 }
 
 function DockEffects() {
   const playerEffects = useGameStore((state) => state.game.combat.playerEffects);
-  const selectedEnemyId = useGameStore((state) => state.game.combat.selectedEnemyInstanceId);
-  const selectedEnemyDefeated = useGameStore((state) => state.game.combat.enemies.find((enemy) => enemy.instanceId === state.game.combat.selectedEnemyInstanceId)?.defeated ?? true);
-  const selectedEnemyInstance = useGameStore((state) => state.game.combat.enemies.find((enemy) => enemy.instanceId === state.game.combat.selectedEnemyInstanceId));
+  const selectedEnemyId = useGameStore((state) => state.game.combat.enemy?.instanceId);
+  const selectedEnemyDefeated = useGameStore((state) => state.game.combat.enemy?.defeated ?? true);
+  const selectedEnemyInstance = useGameStore((state) => state.game.combat.enemy ?? undefined);
   const selectedEnemyEffects = selectedEnemyInstance?.effects ?? EMPTY_ACTIVE_EFFECTS;
   const clearPlayer = useGameStore((state) => state.debug.clearPlayerEffects);
   const clearSelectedEnemy = useGameStore((state) => state.debug.clearSelectedEnemyEffects);
@@ -215,8 +215,8 @@ function DockEffects() {
 function DockCooldownsActions() {
   const resetPlayer = useGameStore((state) => state.debug.resetPlayerCooldowns);
   const resetEnemy = useGameStore((state) => state.debug.resetEnemyCooldowns);
-  const cancelEnemy = useGameStore((state) => state.debug.cancelEnemyActions);
-  return <div className="debug-dock-actions"><button type="button" onClick={resetPlayer}>RESET PLAYER COOLDOWNS</button><GameTooltip content={{ id: "debug-dock-reset-enemy-cooldowns", title: "RESET ENEMY COOLDOWNS", description: "Clears cooldown timers on enemy actions without changing their current action or phase.", rows: [] }}><button type="button" onClick={resetEnemy}>RESET ENEMY COOLDOWNS</button></GameTooltip><GameTooltip content={{ id: "debug-dock-cancel-enemy-actions", title: "CANCEL ENEMY ACTIONS", description: "Cancels current Enemy special actions/casts and restarts each living Enemy's basic attack timer from a full interval. Does not reset special-action cooldowns.", rows: [] }}><button type="button" onClick={cancelEnemy}>CANCEL ENEMY ACTIONS</button></GameTooltip></div>;
+  const cancelEnemy = useGameStore((state) => state.debug.cancelEnemyAbilities);
+  return <div className="debug-dock-actions"><button type="button" onClick={resetPlayer}>RESET PLAYER COOLDOWNS</button><GameTooltip content={{ id: "debug-dock-reset-enemy-cooldowns", title: "RESET ENEMY COOLDOWNS", description: "Clears cooldown timers on the current enemy's combat abilities without changing its phase.", rows: [] }}><button type="button" onClick={resetEnemy}>RESET ENEMY COOLDOWNS</button></GameTooltip><GameTooltip content={{ id: "debug-dock-cancel-enemy-abilities", title: "CANCEL ENEMY ABILITY", description: "Cancels the current enemy combat ability preparation and resets its normal attack timer to a full interval.", rows: [] }}><button type="button" onClick={cancelEnemy}>CANCEL ENEMY ABILITY</button></GameTooltip></div>;
 }
 
 function DockAutomation() {

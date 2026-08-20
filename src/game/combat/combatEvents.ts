@@ -5,6 +5,6 @@ export function appendCombatEvent(state: CombatState, item: CombatEvent) {
   return {
     ...state,
     eventSequence: id,
-    events: [...state.events, { id, type: item.eventType ?? 'actionResolved', source: item.source, target: item.target, data: item.data }].slice(-100),
+    events: [...state.events, { id, type: item.eventType ?? 'system', source: item.source, target: item.target, data: item.data }].slice(-100),
   }
 }

@@ -167,7 +167,7 @@ export function TimeBankPopover() {
               <span className="eyebrow">LAST SKIP</span>
               <strong>{formatCompactDuration(lastResult.simulation.requestedSeconds)} — {stopReasonLabel(lastResult.simulation.stopReason)}</strong>
               <small>Active {formatCompactDuration(lastResult.simulation.activitySeconds)} · Wasted {formatCompactDuration(lastResult.simulation.wastedSeconds)}</small>
-              {summary && <small>{summary.enemiesDefeated ?? 0} enemies · {summary.groupClears ?? 0} groups</small>}
+              {summary && <small>{summary.enemiesDefeated ?? 0} enemies defeated</small>}
               <button type="button" className="button button-ghost button-small" onClick={openResults}>VIEW LAST RESULTS</button>
             </div>
           )}

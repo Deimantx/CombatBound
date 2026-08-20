@@ -3,7 +3,6 @@ import type {
   AutomationCondition,
   AutomationRule,
   CombatAutomationState,
-  TargetPriorityRule,
 } from "./automationTypes";
 
 export const AUTOMATION_PRESET_SLOT_COUNT = 10;
@@ -11,8 +10,6 @@ export const MAX_AUTOMATION_PRESET_NAME_LENGTH = 32;
 
 export interface CombatAutomationPresetConfig {
   rules: AutomationRule[];
-  targetPriorityRules: TargetPriorityRule[];
-  overrideManualTarget: boolean;
 }
 
 export interface CombatAutomationPreset {
@@ -42,23 +39,15 @@ function cloneRule(rule: AutomationRule): AutomationRule {
   };
 }
 
-function cloneTargetPriorityRule(rule: TargetPriorityRule): TargetPriorityRule {
-  return { ...rule };
-}
-
 export function cloneAutomationPresetConfig(config: CombatAutomationPresetConfig): CombatAutomationPresetConfig {
   return {
     rules: config.rules.map(cloneRule),
-    targetPriorityRules: config.targetPriorityRules.map(cloneTargetPriorityRule),
-    overrideManualTarget: config.overrideManualTarget,
   };
 }
 
 export function snapshotAutomationConfig(automation: CombatAutomationState): CombatAutomationPresetConfig {
   return {
     rules: automation.rules.map(cloneRule),
-    targetPriorityRules: automation.targetPriorityRules.map(cloneTargetPriorityRule),
-    overrideManualTarget: automation.overrideManualTarget,
   };
 }
 
@@ -70,8 +59,6 @@ export function applyAutomationPresetConfig(
   return {
     enabled: current.enabled,
     rules: cloned.rules,
-    targetPriorityRules: cloned.targetPriorityRules,
-    overrideManualTarget: cloned.overrideManualTarget,
   };
 }
 
@@ -80,8 +67,6 @@ export function normalizeAutomationPresetConfig(value: unknown): CombatAutomatio
   const normalized = normalizeCombatAutomation({
     enabled: true,
     rules: raw.rules,
-    targetPriorityRules: raw.targetPriorityRules,
-    overrideManualTarget: raw.overrideManualTarget,
   });
   return snapshotAutomationConfig({
     ...normalized,
@@ -212,8 +197,6 @@ export function clearAutomationPreset(
 function comparableConfig(config: CombatAutomationPresetConfig) {
   return JSON.stringify({
     rules: config.rules.map(cloneRule),
-    targetPriorityRules: config.targetPriorityRules.map(cloneTargetPriorityRule),
-    overrideManualTarget: config.overrideManualTarget,
   });
 }
 

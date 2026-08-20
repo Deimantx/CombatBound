@@ -37,7 +37,7 @@ function validateMechanic(mechanic: EnemyTraitMechanic, trait: EnemyTraitDefinit
     if (!finite(mechanic.perStack) || !finite(mechanic.cap) || mechanic.perStack < 0 || mechanic.cap < 0 || mechanic.perStack > mechanic.cap || mechanic.cap > 1) add(result, `${trait.id}: invalid Critical Damage Resistance.`);
   }
   if (mechanic.type === "linear-hp-stat-scaling" && (!finite(mechanic.maxBonus) || !finite(mechanic.fullEffectAtHpFraction) || mechanic.fullEffectAtHpFraction < 0 || mechanic.fullEffectAtHpFraction > 1)) add(result, `${trait.id}: invalid HP scaling values.`);
-  if (mechanic.type === "threshold-heal" || mechanic.type === "threshold-barrier" || mechanic.type === "threshold-timed-stat-modifier" || mechanic.type === "lethal-intercept" || mechanic.type === "action-cooldown-below-threshold") {
+  if (mechanic.type === "threshold-heal" || mechanic.type === "threshold-barrier" || mechanic.type === "threshold-timed-stat-modifier" || mechanic.type === "lethal-intercept" || mechanic.type === "combat-ability-cooldown-below-threshold") {
     const threshold = mechanic.threshold;
     if (!finite(threshold) || (threshold ?? 0) < 0 || (threshold ?? 0) > 1) add(result, `${trait.id}: invalid HP threshold.`);
     if ("durationSeconds" in mechanic && mechanic.durationSeconds !== undefined && (!finite(mechanic.durationSeconds) || mechanic.durationSeconds < 0)) add(result, `${trait.id}: invalid duration.`);
@@ -45,11 +45,11 @@ function validateMechanic(mechanic: EnemyTraitMechanic, trait: EnemyTraitDefinit
     if ("barrierFraction" in mechanic && mechanic.barrierFraction !== undefined && (!finite(mechanic.barrierFraction) || mechanic.barrierFraction < 0 || mechanic.barrierFraction > 1)) add(result, `${trait.id}: invalid barrier fraction.`);
   }
   if (mechanic.type === "timed-stat-modifier" && (!finite(mechanic.durationSeconds) || mechanic.durationSeconds < 0)) add(result, `${trait.id}: invalid duration.`);
-  if (mechanic.type === "action-cooldown-on-normal-hit" || mechanic.type === "action-cooldown-on-action-hit" || mechanic.type === "action-cooldown-on-action-use" || mechanic.type === "action-cooldown-below-threshold" || mechanic.type === "action-cooldown-static") if (!finite(mechanic.value) || mechanic.value < 0 || mechanic.value > 1) add(result, `${trait.id}: invalid cooldown percentage.`);
-  if (mechanic.type === "action-cooldown-on-action-use" && mechanic.cap !== undefined && (!finite(mechanic.cap) || mechanic.cap < 0 || mechanic.cap > 1)) add(result, `${trait.id}: invalid cooldown cap.`);
+  if (mechanic.type === "combat-ability-cooldown-on-normal-hit" || mechanic.type === "combat-ability-cooldown-on-ability-hit" || mechanic.type === "combat-ability-cooldown-on-ability-use" || mechanic.type === "combat-ability-cooldown-on-use" || mechanic.type === "combat-ability-cooldown-below-threshold" || mechanic.type === "combat-ability-cooldown-static") if (!finite(mechanic.value) || mechanic.value < 0 || mechanic.value > 1) add(result, `${trait.id}: invalid cooldown percentage.`);
+  if (mechanic.type === "combat-ability-cooldown-on-ability-use" && mechanic.cap !== undefined && (!finite(mechanic.cap) || mechanic.cap < 0 || mechanic.cap > 1)) add(result, `${trait.id}: invalid cooldown cap.`);
   if (mechanic.type === "stack-stat-modifier" && (!Number.isInteger(mechanic.maxStacks) || mechanic.maxStacks < 0)) add(result, `${trait.id}: invalid stack cap.`);
   if (mechanic.type === "fight-stack" && (!finite(mechanic.intervalSeconds) || mechanic.intervalSeconds <= 0 || !Number.isInteger(mechanic.maxStacks) || mechanic.maxStacks < 0)) add(result, `${trait.id}: invalid fight stack timing or cap.`);
-  if (mechanic.type === "action-damage-modifier" && (!finite(mechanic.value) || mechanic.value < 0)) add(result, `${trait.id}: invalid action damage modifier.`);
+  if (mechanic.type === "combat-ability-damage-modifier" && (!finite(mechanic.value) || mechanic.value < 0)) add(result, `${trait.id}: invalid combat ability damage modifier.`);
   if (mechanic.type === "effect-duration-modifier") { const value = mechanic.value; if (!finite(value) || (value ?? 0) < 0 || (value ?? 0) > 1) add(result, `${trait.id}: invalid duration multiplier.`); }
 }
 

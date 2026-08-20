@@ -75,12 +75,11 @@ export function validateContent(): ContentValidationIssue[] {
     addIssue(issues, "itemAffix", "catalogue", "INVALID_ITEM_AFFIX", message);
   for (const item of itemDefinitions) if (!item.icon) issues.push({ severity: "warning", code: "UNKNOWN_ICON", entityType: "item", entityId: item.id, message: "Item has no icon key." });
   for (const art of magicArtDefinitions) if (art.barrier && !effectById[art.barrier.effectId]) addIssue(issues, "magicArt", art.id, "MISSING_EFFECT_REFERENCE", `Missing effect reference: ${art.barrier.effectId}`);
-  for (const location of combatLocationDefinitions) for (const entry of location.enemyPool) if (!enemyById[entry.enemyId]) issues.push({ severity: "error", code: "MISSING_ENEMY_REFERENCE", entityType: "location", entityId: location.id, message: `Missing enemy in location: ${entry.enemyId}` });
+  for (const location of combatLocationDefinitions) for (const entry of location.targets) if (!enemyById[entry.enemyId]) issues.push({ severity: "error", code: "MISSING_ENEMY_REFERENCE", entityType: "location", entityId: location.id, message: `Missing enemy in location: ${entry.enemyId}` });
   for (const enemy of enemyDefinitions) {
     if (!Number.isFinite(enemy.baseAttackDamageMin) || !Number.isFinite(enemy.baseAttackDamageMax) || enemy.baseAttackDamageMin > enemy.baseAttackDamageMax)
       addIssue(issues, "enemy", enemy.id, "INVALID_DAMAGE_RANGE", "Enemy baseAttackDamageMin/baseAttackDamageMax must be finite and ordered.");
   }
-  for (const enemy of enemyDefinitions) visitEffectReferences(enemy.actions, (effectId) => { if (!effectById[effectId]) addIssue(issues, "enemy", enemy.id, "MISSING_EFFECT_REFERENCE", `Missing effect reference: ${effectId}`); });
   for (const enemy of enemyDefinitions) visitEffectReferences(enemy.phases, (effectId) => { if (!effectById[effectId]) addIssue(issues, "enemy", enemy.id, "MISSING_EFFECT_REFERENCE", `Missing effect reference: ${effectId}`); });
   for (const skill of weaponSkillDefinitions) visitEffectReferences(skill, (effectId) => { if (!effectById[effectId]) addIssue(issues, "weaponSkill", skill.id, "MISSING_EFFECT_REFERENCE", `Missing effect reference: ${effectId}`); });
   for (const perk of proficiencyPerkDefinitions) for (const rule of perk.prerequisiteRules ?? []) for (const requirement of rule.requirements) if (!perkById[requirement.perkId]) issues.push({ severity: "error", code: "MISSING_PERK_PREREQUISITE", entityType: "perk", entityId: perk.id, message: `Missing prerequisite: ${requirement.perkId}` });

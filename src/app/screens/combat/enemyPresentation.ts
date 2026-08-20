@@ -1,5 +1,6 @@
 import type { EnemyDefinition } from '../../../game/combat/combatTypes'
 import { enemyById } from '../../../game/data/enemies'
+import { itemById } from '../../../game/data/items'
 import { formatDamageRange, formatPercent, formatSeconds } from '../../../game/presentation/statFormatting'
 import { getEnemyResolvedTraits } from '../../../game/enemyTraits/enemyTraitSelectors'
 import { enemyCombatAbilityById } from '../../../game/data/enemyCombatAbilities'
@@ -34,7 +35,8 @@ export function enemyTooltipModel(enemyId: string): TooltipModel {
   const traits = getEnemyResolvedTraits(enemy)
   if (traits.length > 0) sections.push({ id: 'enemy-traits', title: 'TRAITS', notes: traits.map((trait) => `${trait.definition.name} - Rank ${trait.assignment.rank} - ${trait.rank.description}`) })
   const abilities = (enemy.combatAbilityIds ?? []).map((id) => enemyCombatAbilityById[id]).filter(Boolean)
-  if (abilities.length > 0) sections.push({ id: 'enemy-abilities', title: 'COMBAT ABILITIES', notes: abilities.map((ability) => `${ability.name} - ${ability.description} Cooldown ${formatSeconds(ability.cooldownSeconds)}`) })
+  if (abilities.length > 0) sections.push({ id: 'enemy-abilities', title: 'COMBAT ABILITIES', notes: abilities.map((ability) => `${ability.name} - ${ability.description} Preparation ${formatSeconds(ability.preparationSeconds)} Cooldown ${formatSeconds(ability.cooldownSeconds)}`) })
+  if (enemy.loot.length > 0) sections.push({ id: 'enemy-loot', title: 'INDIVIDUAL LOOT', notes: enemy.loot.map((drop) => `${itemById[drop.itemId]?.name ?? drop.itemId} - ${formatPercent(drop.chance)}`) })
 
   const resistances = Object.entries(enemy.resistances).filter(([, value]) => value !== 0)
   if (resistances.length > 0) sections.push({

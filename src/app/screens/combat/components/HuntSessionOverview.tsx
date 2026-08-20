@@ -52,7 +52,6 @@ export function HuntSessionOverview({ game, tab, onTabChange }: { game: GameStat
   const summaryMetrics = [
     metric('Elapsed', formatElapsed(session.elapsedSeconds), 'elapsed', 'Current Hunt elapsed time, including combat and recovery.'),
     metric('Kills', session.enemiesDefeated, 'kills', 'Enemies defeated during this Hunt.'),
-    metric('Groups', session.groupClears, 'groups', 'Enemy groups cleared during this Hunt.'),
     metric('DPS', formatRate(rates.dps), 'dps', 'Average damage dealt per second across the current Hunt, including recovery periods.'),
     metric('Kills / hr', sampleValue(formatRate(rates.killsPerHour)), 'kills-per-hour', 'Projected enemy defeats per hour based on the current Hunt session. Rate estimates appear after 10 seconds of Hunt data.'),
     metric('Avg Kill', rates.averageKillSeconds === null ? '--' : formatDuration(rates.averageKillSeconds), 'average-kill-seconds', 'Average elapsed Hunt time per defeated enemy.'),

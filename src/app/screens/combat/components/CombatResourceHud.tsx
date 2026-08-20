@@ -3,6 +3,7 @@ import type { ReactNode } from "react";
 import { effectById } from "../../../../game/data/effects";
 import { getBarrierAmount } from "../../../../game/combat/combatEffects";
 import type { GameState } from "../../../../game/gameState";
+import type { EnemyCombatInstance } from "../../../../game/combat/combatTypes";
 import type { HunterCombatStats } from "../../../../game/equipment/derivedStats";
 import { buildStatTooltip } from "../../../../game/presentation/tooltipBuilders";
 import { formatHealthWithBarrier } from "../../../../game/presentation/statFormatting";
@@ -11,7 +12,7 @@ import { ProgressBar } from "../../../components/ProgressBar";
 import { LayeredHealthBar } from "./LayeredHealthBar";
 import { CombatMatchupReadout } from "./CombatMatchupReadout";
 
-export function CombatResourceHud({ game, stats, selectedEnemy }: { game: GameState; stats: HunterCombatStats; selectedEnemy?: GameState["combat"]["enemies"][number] }) {
+export function CombatResourceHud({ game, stats, selectedEnemy }: { game: GameState; stats: HunterCombatStats; selectedEnemy?: EnemyCombatInstance }) {
   const combat = game.combat;
   const absorbShield = getBarrierAmount(combat.playerEffects, effectById);
   return <div className="combat-resource-hud" data-debug-kind="combat-resource-hud" data-debug-layout="vertical">

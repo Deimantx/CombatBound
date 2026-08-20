@@ -36,7 +36,6 @@ const conditionOptions: Array<{ value: AutomationCondition["type"]; label: strin
   { value: "target-missing-effect", label: "Target missing Effect" },
   { value: "barrier-missing", label: "Barrier missing" },
   { value: "barrier-below", label: "Barrier below %" },
-  { value: "alive-enemies-at-least", label: "Alive enemies at least" },
 ];
 
 export function AutomationWindow({ game, initialActionId, createRule = false }: { game: GameState; initialActionId?: string; createRule?: boolean }) {
@@ -52,14 +51,11 @@ export function AutomationWindow({ game, initialActionId, createRule = false }: 
     },
   }), [actions, context, game, stats]);
   const setAutomationEnabled = useGameStore((state) => state.setAutomationEnabled);
-  const setAutomationOverride = useGameStore((state) => state.setAutomationOverrideManualTarget);
   const addRule = useGameStore((state) => state.addAutomationRule);
   const deleteRule = useGameStore((state) => state.deleteAutomationRule);
   const setRuleEnabled = useGameStore((state) => state.setAutomationRuleEnabled);
   const moveRule = useGameStore((state) => state.moveAutomationRule);
   const updateRule = useGameStore((state) => state.updateAutomationRule);
-  const setPriorityEnabled = useGameStore((state) => state.setTargetPriorityEnabled);
-  const movePriority = useGameStore((state) => state.moveTargetPriority);
   const [selectedRuleId, setSelectedRuleId] = useState<string | null>(game.combatAutomation.rules[0]?.id ?? null);
   const [draftRule, setDraftRule] = useState<AutomationRule | null>(null);
   const [pendingDeleteRuleId, setPendingDeleteRuleId] = useState<string | null>(null);
@@ -117,7 +113,6 @@ export function AutomationWindow({ game, initialActionId, createRule = false }: 
       <div className="automation-master-controls">
         <button className="button button-ghost automation-instructions-button" onClick={() => setView("instructions")} data-debug-kind="automation-instructions-button"><BookOpen size={13} /> INSTRUCTIONS</button>
         <button className={`button ${game.combatAutomation.enabled ? "button-primary" : "button-ghost"}`} onClick={() => setAutomationEnabled(!game.combatAutomation.enabled)} data-debug-kind="automation-master-toggle">MASTER AUTOMATION · {game.combatAutomation.enabled ? "ENABLED" : "DISABLED"}</button>
-        <button className={`button ${game.combatAutomation.overrideManualTarget ? "button-primary" : "button-ghost"}`} onClick={() => setAutomationOverride(!game.combatAutomation.overrideManualTarget)}>AUTO TARGET OVERRIDE · {game.combatAutomation.overrideManualTarget ? "ON" : "OFF"}</button>
         <span className="muted-copy">{summary.enabledRuleCount} / {summary.totalRuleCount} rules active · {summary.invalidRuleCount} need attention</span>
       </div>
       <AutomationPresetsPanel game={game} actions={actions} onLoaded={handlePresetLoaded} />
@@ -138,7 +133,6 @@ export function AutomationWindow({ game, initialActionId, createRule = false }: 
                 : "INACTIVE · ABILITY NOT EQUIPPED";
             return <button key={rule.id} className={`automation-rule-card ${selectedRuleId === rule.id && !draftRule ? "is-selected" : ""} ${rule.enabled ? "is-enabled" : "is-disabled"}`} onClick={() => { setDraftRule(null); setSelectedRuleId(rule.id); }} data-debug-kind="automation-rule" data-debug-rule-id={rule.id} data-debug-action-id={rule.actionId} data-debug-priority={rule.priority} data-debug-enabled={rule.enabled} data-debug-config-valid={Boolean(action)}>{(action?.name ?? rule.actionId) || "Missing action"}<small>{!action ? "INVALID CONFIG · MISSING ACTION" : inactive ? inactiveLabel : rule.enabled ? "READY" : "DISABLED"}</small></button>;
           })}
-          <div className="target-priority-list"><div className="section-title"><span className="tiny-label">TARGET PRIORITY</span></div>{[...game.combatAutomation.targetPriorityRules].sort((a, b) => a.priority - b.priority).map((priority, index, list) => <div className="target-priority-row" key={priority.id}><span>{priority.priority} {targetCriterionLabel(priority.criterion)}</span><button className={`button button-ghost compact ${priority.enabled ? "is-active" : ""}`} onClick={() => setPriorityEnabled(priority.id, !priority.enabled)}>{priority.enabled ? "ON" : "OFF"}</button><button className="icon-button compact" aria-label="Move target priority up" disabled={index === 0} onClick={() => movePriority(priority.id, "up")}><ArrowUp size={12} /></button><button className="icon-button compact" aria-label="Move target priority down" disabled={index === list.length - 1} onClick={() => movePriority(priority.id, "down")}><ArrowDown size={12} /></button></div>)}</div>
         </section>
         <section className="automation-editor combatbound-scroll" aria-label="Automation rule editor">
           {draftRule ? <RuleEditor key={draftRule.id} rule={draftRule} actions={actions} catalogue={actionCatalogue} isDraft onSave={saveDraft} onCancel={() => setDraftRule(null)} /> : selectedRule ? <RuleEditor key={selectedRule.id} rule={selectedRule} actions={actions} catalogue={actionCatalogue} onSave={(patch) => updateRule(selectedRule.id, patch)} onDelete={() => setPendingDeleteRuleId(selectedRule.id)} onToggle={(enabled) => setRuleEnabled(selectedRule.id, enabled)} onMove={(direction) => moveRule(selectedRule.id, direction)} onCancel={() => undefined} /> : <span className="muted-copy">Select a rule or add one to begin.</span>}
@@ -168,13 +162,12 @@ function RuleEditor({ rule, actions, catalogue, isDraft = false, onSave, onDelet
 
 function ConditionEditor({ condition, onChange, onRemove }: { condition: AutomationCondition; onChange: (condition: AutomationCondition) => void; onRemove: () => void }) {
   const updateType = (type: AutomationCondition["type"]) => onChange(defaultCondition(type));
-  return <div className="automation-condition-row" data-debug-kind="automation-condition" data-debug-condition-type={condition.type}><select value={condition.type} onChange={(event) => updateType(event.target.value as AutomationCondition["type"])}>{conditionOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}</select>{fractionTypes.has(condition.type) && "fraction" in condition && <input type="number" min="0" max="100" step="1" value={Math.round(condition.fraction * 100)} onChange={(event) => onChange({ ...condition, fraction: Math.max(0, Math.min(1, Number(event.target.value) / 100)) })} />}{"effectId" in condition && <select value={condition.effectId} onChange={(event) => onChange({ ...condition, effectId: event.target.value })}>{effectDefinitions.map((effect) => <option key={effect.id} value={effect.id}>{effect.name}</option>)}</select>}{condition.type === "alive-enemies-at-least" && <input type="number" min="1" step="1" value={condition.count} onChange={(event) => onChange({ ...condition, count: Math.max(1, Math.floor(Number(event.target.value))) })} />}<button className="icon-button compact" onClick={onRemove} aria-label="Remove condition"><Trash2 size={12} /></button><span className="condition-readable">{conditionLabel(condition)}</span></div>;
+  return <div className="automation-condition-row" data-debug-kind="automation-condition" data-debug-condition-type={condition.type}><select value={condition.type} onChange={(event) => updateType(event.target.value as AutomationCondition["type"])}>{conditionOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}</select>{fractionTypes.has(condition.type) && "fraction" in condition && <input type="number" min="0" max="100" step="1" value={Math.round(condition.fraction * 100)} onChange={(event) => onChange({ ...condition, fraction: Math.max(0, Math.min(1, Number(event.target.value) / 100)) })} />}{"effectId" in condition && <select value={condition.effectId} onChange={(event) => onChange({ ...condition, effectId: event.target.value })}>{effectDefinitions.map((effect) => <option key={effect.id} value={effect.id}>{effect.name}</option>)}</select>}<button className="icon-button compact" onClick={onRemove} aria-label="Remove condition"><Trash2 size={12} /></button><span className="condition-readable">{conditionLabel(condition)}</span></div>;
 }
 
 function defaultCondition(type: AutomationCondition["type"]): AutomationCondition {
   if (fractionTypes.has(type)) return { type: type as never, fraction: 0.5 };
   if (type === "barrier-missing" || type === "always") return { type };
-  if (type === "alive-enemies-at-least") return { type, count: 1 };
   return { type: type as "player-has-effect", effectId: "effect.ignite" };
 }
 
@@ -182,12 +175,7 @@ function conditionLabel(condition: AutomationCondition) {
   if (condition.type === "always") return "Always";
   if ("fraction" in condition) return `${conditionOptions.find((option) => option.value === condition.type)?.label ?? condition.type} ${Math.round(condition.fraction * 100)}%`;
   if ("effectId" in condition) return `${conditionOptions.find((option) => option.value === condition.type)?.label ?? condition.type}: ${effectDefinitions.find((effect) => effect.id === condition.effectId)?.name ?? condition.effectId}`;
-  if (condition.type === "alive-enemies-at-least") return `Alive enemies at least ${condition.count}`;
   return conditionOptions.find((option) => option.value === condition.type)?.label ?? condition.type;
-}
-
-function targetCriterionLabel(criterion: string) {
-  return criterion.split("-").map((part) => part.charAt(0).toUpperCase() + part.slice(1)).join(" ");
 }
 
 function getActionCatalogueItemState(game: GameState, action: PlayerActionDefinition) {

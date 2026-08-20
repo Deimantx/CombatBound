@@ -68,8 +68,8 @@ export function advanceCombatEffects(
   for (const tick of playerTimers.ticks)
     next = resolvePeriodicEffect(next, tick.effect, tick.definition, stats, context, dependencies);
 
-  for (const enemy of next.combat.enemies) {
-    if (enemy.defeated) continue;
+  const enemy = next.combat.enemy;
+  if (enemy && !enemy.defeated) {
     const timers = advanceEffectTimers(
       enemy.effects,
       step,
@@ -133,10 +133,10 @@ export function resolvePeriodicEffect(
     }
     if (effect.target.kind === "enemy") {
       const targetId = effect.target.instanceId;
-      const enemy = game.combat.enemies.find((candidate) => candidate.instanceId === targetId);
+      const enemy = game.combat.enemy?.instanceId === targetId ? game.combat.enemy : undefined;
       if (!enemy) return game;
       const healed = Math.min(enemy.maxHealth - enemy.currentHealth, (operation.maxLifeFraction ? enemy.maxHealth * operation.maxLifeFraction : amount) * effect.stacks);
-      return healed > 0 ? { ...game, combat: { ...game.combat, enemies: game.combat.enemies.map((candidate) => candidate.instanceId === targetId ? { ...candidate, currentHealth: candidate.currentHealth + healed } : candidate) } } : game;
+      return healed > 0 && enemy ? { ...game, combat: { ...game.combat, enemy: { ...enemy, currentHealth: enemy.currentHealth + healed } } } : game;
     }
     return game;
   }
@@ -144,10 +144,10 @@ export function resolvePeriodicEffect(
   const sourceEnemyId = effect.source.kind === "enemy" ? effect.source.instanceId : null;
   const targetEnemyId = effect.target.kind === "enemy" ? effect.target.instanceId : null;
   const sourceEnemy = sourceEnemyId
-    ? game.combat.enemies.find((enemy) => enemy.instanceId === sourceEnemyId)
+    ? game.combat.enemy?.instanceId === sourceEnemyId ? game.combat.enemy : undefined
     : undefined;
   const targetEnemy = targetEnemyId
-    ? game.combat.enemies.find((enemy) => enemy.instanceId === targetEnemyId)
+    ? game.combat.enemy?.instanceId === targetEnemyId ? game.combat.enemy : undefined
     : undefined;
   if (effect.source.kind === "enemy" && (!sourceEnemy || sourceEnemy.defeated)) {
     // Enemy-origin effects do not snapshot a fallback attacker in Combat 2.0.1.
@@ -164,7 +164,7 @@ export function resolvePeriodicEffect(
     : getEnemyStats(game.combat, targetEnemy!, context);
   const packet: DamagePacket = {
     ...componentFromAttack(operation.damageType, 0, operation.canCrit ?? false),
-    sourceKind: effect.source.kind === "player" && effect.sourceProficiencyId === "magic-arts" ? "magic-art" : "secondary",
+    sourceKind: effect.source.kind === "player" && effect.sourceProficiencyId === "magic-arts" ? "magic-art" : "attack",
     deliveryKind: "damage-over-time",
     source: effect.source,
     target: effect.target,

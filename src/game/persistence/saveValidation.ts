@@ -108,7 +108,6 @@ export function isGameSave(value: unknown): value is GameSaveV14 {
   if (
     typeof automation.enabled !== "boolean" ||
     !Array.isArray(automation.rules) ||
-    !Array.isArray(automation.targetPriorityRules) ||
     !Array.isArray(automationPresets.slots) ||
     !Array.isArray(combatAbilities.slots) ||
     combatAbilities.slots.length !== COMBAT_ABILITY_SLOT_COUNT ||
@@ -171,7 +170,7 @@ export function isGameSaveV15(value: unknown): value is GameSaveV15 {
   const automation = value.combatAutomation;
   const presets = value.combatAutomationPresets;
   const abilities = value.combatAbilities;
-  if (typeof automation.enabled !== "boolean" || !Array.isArray(automation.rules) || !Array.isArray(automation.targetPriorityRules) || !Array.isArray(presets.slots) || !Array.isArray(abilities.slots) || abilities.slots.length !== COMBAT_ABILITY_SLOT_COUNT) return false;
+  if (typeof automation.enabled !== "boolean" || !Array.isArray(automation.rules) || !Array.isArray(presets.slots) || !Array.isArray(abilities.slots) || abilities.slots.length !== COMBAT_ABILITY_SLOT_COUNT) return false;
   const validActionIds = new Set([...getActiveAbilityActionDefinitions().map((action) => action.id), ...magicArtDefinitions.map((art) => art.id)]);
   const used = new Set<string>();
   for (const actionId of abilities.slots) {

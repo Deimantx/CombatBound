@@ -48,7 +48,6 @@ export interface HuntSessionRates {
   damageTakenPerSecond: number;
   healingPerSecond: number;
   killsPerHour: number;
-  groupsPerHour: number;
   proficiencyXpPerHour: number;
   goldPerHour: number;
   itemsPerHour: number;
@@ -180,7 +179,6 @@ export function getHuntSessionRates(
     damageTakenPerSecond: perSecond(session.damageTaken),
     healingPerSecond: perSecond(session.healing),
     killsPerHour: perHour(session.enemiesDefeated),
-    groupsPerHour: perHour(session.groupClears),
     proficiencyXpPerHour: perHour(totalProficiencyXp),
     goldPerHour: perHour(session.goldGained),
     itemsPerHour: perHour(session.itemsGained),

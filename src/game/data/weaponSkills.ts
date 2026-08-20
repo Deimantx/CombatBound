@@ -21,10 +21,6 @@ export interface WeaponSkillDefinition {
   canCrit: boolean;
   selfEffectId?: string;
   targetEffectId?: string;
-  cleave?: {
-    maxSecondaryTargets: number;
-    primaryResolvedDamageFraction: number;
-  };
   tags: string[];
 }
 
@@ -101,8 +97,7 @@ export const weaponSkillDefinitions = deepFreeze<WeaponSkillDefinition[]>([
     damageMultiplier: 0.9,
     accuracyModifier: 10,
     canCrit: true,
-    cleave: { maxSecondaryTargets: 2, primaryResolvedDamageFraction: 0.2 },
-    tags: ["3-target-cleave", "weapon-skill"],
+    tags: ["weapon-skill"],
   },
   {
     id: "weapon-skill.one-handed-sword.opening-feint",
@@ -127,4 +122,3 @@ export const weaponSkillDefinitions = deepFreeze<WeaponSkillDefinition[]>([
 export const weaponSkillById = Object.fromEntries(
   weaponSkillDefinitions.map((skill) => [skill.id, skill]),
 ) as Record<string, WeaponSkillDefinition>;
-

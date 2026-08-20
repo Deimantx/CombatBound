@@ -102,7 +102,6 @@ export function OfflineSimulationResultsModal() {
               <div className="offline-results-section-heading"><Swords size={15} /><h3>Combat Summary</h3></div>
               <div className="offline-results-stat-grid">
                 <div><span>Enemies Defeated</span><strong>{summary.enemiesDefeated.toLocaleString()} <small>{rateText(summary.enemiesDefeated, simulation.requestedSeconds, 1)}</small></strong></div>
-                <div><span>Groups Cleared</span><strong>{summary.groupClears.toLocaleString()} <small>{rateText(summary.groupClears, simulation.requestedSeconds, 1)}</small></strong></div>
                 <div><span>Damage Dealt</span><strong>{Math.floor(summary.damageDealt).toLocaleString()}</strong></div>
                 <div><span>Damage Taken</span><strong>{Math.floor(summary.damageTaken).toLocaleString()}</strong></div>
                 <div><span>Healing</span><strong>{Math.floor(summary.healing).toLocaleString()}</strong></div>

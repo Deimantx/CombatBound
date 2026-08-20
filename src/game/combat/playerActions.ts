@@ -213,9 +213,7 @@ export function validatePlayerAction(
     return { valid: false, reason: "insufficient-mana", action };
   if (combat.stamina < stamina)
     return { valid: false, reason: "insufficient-stamina", action };
-  const target = combat.enemies.find(
-    (enemy) => enemy.instanceId === combat.selectedEnemyInstanceId,
-  );
+  const target = combat.enemy;
   if (action.targetMode === "selected-enemy" && !target)
     return { valid: false, reason: "no-target", action };
   if (action.targetMode === "selected-enemy" && target?.defeated)

@@ -60,7 +60,7 @@ export const useDebugTelemetryStore = create<DebugTelemetryState>(() => ({
     pending.events.push({
       id: nextTelemetryId++,
       sequence: nextTelemetrySequence++,
-      eventType: event.eventType ?? "actionResolved",
+      eventType: event.eventType ?? "system",
       source: event.source,
       target: event.target,
       data: event.data,

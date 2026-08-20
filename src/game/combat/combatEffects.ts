@@ -25,11 +25,11 @@ export interface EffectApplicationResult {
 
 const aliveRef = (combat: CombatState, target: CombatantRef) => target.kind === 'player'
   ? combat.playerHp > 0
-  : combat.enemies.some((enemy) => enemy.instanceId === target.instanceId && !enemy.defeated && enemy.currentHealth > 0)
+  : Boolean(combat.enemy && combat.enemy.instanceId === target.instanceId && !combat.enemy.defeated && combat.enemy.currentHealth > 0)
 
 export function getActiveEffects(combat: CombatState, target: CombatantRef): ActiveEffectInstance[] {
   if (target.kind === 'player') return combat.playerEffects
-  return combat.enemies.find((enemy) => enemy.instanceId === target.instanceId)?.effects ?? []
+  return combat.enemy?.instanceId === target.instanceId ? combat.enemy.effects : []
 }
 
 export function calculateOutgoingEffectDamageMultiplier(effects: ActiveEffectInstance[], definitions: Record<string, EffectDefinition>, packet: Pick<DamageComponent, 'sourceKind' | 'deliveryKind' | 'damageType'>) {
@@ -92,7 +92,7 @@ export function calculateHealingReceivedMultiplier(
 
 export function updateActiveEffects(combat: CombatState, target: CombatantRef, effects: ActiveEffectInstance[]): CombatState {
   if (target.kind === 'player') return { ...combat, playerEffects: effects }
-  return { ...combat, enemies: combat.enemies.map((enemy) => enemy.instanceId === target.instanceId ? { ...enemy, effects } : enemy) }
+  return combat.enemy?.instanceId === target.instanceId ? { ...combat, enemy: { ...combat.enemy, effects } } : combat
 }
 
 export function calculateEffectDuration(definition: EffectDefinition, durationBonusSeconds = 0, durationMultiplier = 1) {
@@ -242,5 +242,5 @@ export function absorbDamage(combat: CombatState, target: CombatantRef, amount: 
 
 export function removeEffectsByPersistence(combat: CombatState, persistence: 'enemy-life' | 'between-enemies' | 'hunt', definitions: Record<string, EffectDefinition>) {
   const keep = (effect: ActiveEffectInstance, definitions: Record<string, EffectDefinition>) => definitions[effect.effectId]?.persistence !== persistence
-  return updateActiveEffects({ ...combat, enemies: combat.enemies.map((enemy) => ({ ...enemy, effects: enemy.effects.filter((effect) => keep(effect, definitions)) })) }, { kind: 'player' }, combat.playerEffects.filter((effect) => keep(effect, definitions)))
+  return updateActiveEffects({ ...combat, enemy: combat.enemy ? { ...combat.enemy, effects: combat.enemy.effects.filter((effect) => keep(effect, definitions)) } : null }, { kind: 'player' }, combat.playerEffects.filter((effect) => keep(effect, definitions)))
 }

@@ -1,49 +1,42 @@
 import { combatBalance } from "./combatBalance";
 import type { CombatState, EnemyCombatInstance } from "./combatTypes";
 import { enemyById } from "../data/enemies";
+import { createEnemyAbilityRuntimeState } from "../enemyAbilities/enemyAbilityRuntime";
 import { createEnemyTraitRuntimeState } from "../enemyTraits/enemyTraitRuntime";
 
-export function instantiateEnemies(
-  enemyIds: string[],
-  groupNumber: number,
-): EnemyCombatInstance[] {
-  const counts = new Map<string, number>();
-  return enemyIds.map((enemyId, index) => {
-    const definition = enemyById[enemyId];
-    const duplicateNumber = (counts.get(enemyId) ?? 0) + 1;
-    counts.set(enemyId, duplicateNumber);
-    const suffix =
-      duplicateNumber > 1
-        ? ` ${String.fromCharCode(64 + duplicateNumber)}`
-        : "";
-    return {
-      instanceId: `${enemyId}#group-${groupNumber}-${index + 1}`,
-      enemyId,
-      displayName: `${definition.name}${suffix}`,
-      currentHealth: definition.maxLife,
-      maxHealth: definition.maxLife,
-      attackTimer: definition.baseAttackTime,
-      attackInterval: definition.baseAttackTime,
-      actionCooldowns: {},
-      abilityCooldowns: {},
-      abilityRuntime: { usedThisFight: {} },
-      phaseId: null,
-      currentAction: null,
-      effects: [],
-      defeated: false,
-      rewardResolved: false,
-      traitRuntime: createEnemyTraitRuntimeState(definition.traits),
-    };
-  });
+export function instantiateCombatTarget(
+  enemyId: string,
+  encounterSequence: number,
+): EnemyCombatInstance | null {
+  const definition = enemyById[enemyId];
+  if (!definition) return null;
+  return {
+    instanceId: `${enemyId}#encounter-${encounterSequence}`,
+    enemyId,
+    displayName: definition.name,
+    currentHealth: definition.maxLife,
+    maxHealth: definition.maxLife,
+    attackTimer: definition.baseAttackTime,
+    attackInterval: definition.baseAttackTime,
+    abilityCooldowns: {},
+    abilityRuntime: createEnemyAbilityRuntimeState(),
+    preparedAbility: null,
+    phaseId: null,
+    phaseStatModifiers: [],
+    effects: [],
+    defeated: false,
+    rewardResolved: false,
+    traitRuntime: createEnemyTraitRuntimeState(definition.traits),
+  };
 }
 
 export function createCombatState(): CombatState {
   return {
     phase: "inactive",
     combatLocationId: null,
-    groupNumber: 0,
-    enemies: [],
-    selectedEnemyInstanceId: null,
+    targetEnemyId: null,
+    enemy: null,
+    encounterSequence: 0,
     playerHp: combatBalance.baseMaxLife,
     maxPlayerHp: combatBalance.baseMaxLife,
     playerAttackTimer: combatBalance.baseAttackInterval,
@@ -63,7 +56,6 @@ export function createCombatState(): CombatState {
     events: [],
     session: {
       elapsedSeconds: 0,
-      groupClears: 0,
       enemiesDefeated: 0,
       damageDealt: 0,
       damageTaken: 0,

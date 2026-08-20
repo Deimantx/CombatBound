@@ -18,8 +18,10 @@ import {
 import {
   awardCombatXp,
   clearEndedHuntEffects,
+  clearEndedEnemyEncounterEffects,
   clone,
   combatEvent as event,
+  getEnemyStats,
   getPlayerStats,
   playerBaseStats,
   recoverOutOfCombatResources,
@@ -33,17 +35,8 @@ import {
   useHealingPotion as runPlayerUseHealingPotion,
 } from "./combatPlayerActionsRuntime";
 export { applyEnemyHealthDamage, applyPlayerHealthDamage } from "./combatHealth";
-import { instantiateEnemies } from "./combatState";
-import { generateCombatGroup } from "./combatGroupGenerator";
-import {
-  firstLivingEnemy,
-  livingEnemies,
-  selectNextTarget,
-} from "./combatTargeting";
-import {
-  resolveEnemyReward,
-  resolveLocationClearReward,
-} from "./combatRewards";
+import { instantiateCombatTarget } from "./combatState";
+import { resolveEnemyKillRewards } from "./combatRewards";
 import { calculateProficiencyXpAward, discoverProficiency } from "../progression/proficiencyProgression";
 import { hunterRankForPoints } from "../progression/hunterRankProgression";
 import {
@@ -58,7 +51,6 @@ import {
 } from "../equipment/defensiveEquipment";
 import {
   evaluateAutomation,
-  selectAutomationTarget,
 } from "../automation/automationLogic";
 import type { GameState } from "../gameState";
 import type {
@@ -99,7 +91,7 @@ export function createCombatPreviewContext(): CombatContext {
 }
 
 /** Canonical defensive progression hook: invoke once after a direct enemy action resolves. */
-export function resolveDefensiveTrainingForEnemyAction(
+export function resolveDefensiveTrainingForCombatEvent(
   game: GameState,
   trainingEvent: DefensiveTrainingEvent,
   items = itemById,
@@ -125,7 +117,7 @@ function applyEffectiveHealing(
   label: string,
   awardProgression = true,
 ) {
-  const selectedEnemy = game.combat.enemies.find((enemy) => enemy.instanceId === game.combat.selectedEnemyInstanceId && !enemy.defeated);
+  const selectedEnemy = game.combat.enemy && !game.combat.enemy.defeated ? game.combat.enemy : undefined;
   const healingMultiplier = getPlayerHealingReceivedMultiplier(game.combat, {
     enemies: enemyById,
     locations: combatLocationById,
@@ -255,6 +247,11 @@ const playerActionRuntimeDependencies = {
   discoverCombatProficiency,
 };
 
+/** Extension point for future inventory-capacity and other continuation rules. */
+export function canCombatContinue(_game: GameState): boolean {
+  return true;
+}
+
 export function startHunt(
   game: GameState,
   locationId: string,
@@ -262,33 +259,8 @@ export function startHunt(
   context: CombatContext,
 ): GameState {
   const location = context.locations[locationId];
-  if (!location) return game;
-  const group = generateCombatGroup(
-    location,
-    context.rng,
-    hunterRankForPoints(game.progression.hunterRankPoints),
-  );
-  const session = {
-    ...game.combat.session,
-    elapsedSeconds: 0,
-    groupClears: 0,
-    enemiesDefeated: 0,
-    damageDealt: 0,
-    damageTaken: 0,
-    healing: 0,
-    proficiencyXpGained: {},
-    itemsGained: 0,
-    lootGained: {},
-    itemInstanceIdsGained: [],
-    goldGained: 0,
-    highestHit: 0,
-  };
-  const clean = clearEndedHuntEffects(
-    { ...game.combat, session },
-    context.effects,
-  );
-  const combat = applyEnemyTraitCombatStart(createActiveCombat(clean, locationId, group, stats, 1, false), context);
-  return { ...game, combat };
+  const target = location?.targets[0];
+  return target ? startCombatTarget(game, locationId, target.enemyId, stats, context) : game;
 }
 
 /** DEV-only entry point that still uses the canonical combat instance/session setup. */
@@ -299,60 +271,73 @@ export function startDebugEncounter(
   stats: HunterCombatStats,
   context: CombatContext,
 ): GameState {
-  if (!context.locations[locationId]) return game;
-  const validEnemyIds = enemyIds.filter((enemyId) => Boolean(context.enemies[enemyId])).slice(0, 12);
-  if (validEnemyIds.length === 0) return game;
-  const session = { ...game.combat.session, elapsedSeconds: 0, groupClears: 0, enemiesDefeated: 0, damageDealt: 0, damageTaken: 0, healing: 0, proficiencyXpGained: {}, itemsGained: 0, lootGained: {}, itemInstanceIdsGained: [], goldGained: 0, highestHit: 0 };
-  const clean = clearEndedHuntEffects({ ...game.combat, session }, context.effects);
-  return { ...game, combat: applyEnemyTraitCombatStart(createActiveCombat(clean, locationId, validEnemyIds, stats, Math.max(1, game.combat.groupNumber + 1), false), context) };
+  const enemyId = enemyIds.find((candidate) => context.enemies[candidate]);
+  return enemyId ? startCombatTarget(game, locationId, enemyId, stats, context) : game;
 }
 
-function createActiveCombat(
-  previous: CombatState,
-  locationId: string,
-  enemyIds: string[],
-  stats: HunterCombatStats,
-  groupNumber: number,
-  resetResources = false,
-): CombatState {
-  const enemies = instantiateEnemies(enemyIds, groupNumber);
+function createActiveCombat(previous: CombatState, locationId: string, enemyId: string, stats: HunterCombatStats): CombatState {
+  const enemy = instantiateCombatTarget(enemyId, previous.encounterSequence + 1);
+  if (!enemy) return previous;
   const base = playerBaseStats(stats);
   return {
     ...previous,
     phase: "active",
     combatLocationId: locationId,
-    groupNumber,
-    enemies,
-    selectedEnemyInstanceId: enemies[0]?.instanceId ?? null,
+    targetEnemyId: enemyId,
+    enemy,
+    encounterSequence: previous.encounterSequence + 1,
     maxPlayerHp: base.maxLife ?? 0,
-    playerHp: resetResources
-      ? base.maxLife ?? 0
-      : Math.min(previous.playerHp, base.maxLife ?? 0),
+    playerHp: Math.min(previous.playerHp, base.maxLife ?? 0),
     playerAttackInterval: base.attackInterval,
-    playerAttackTimer: Math.min(
-      previous.playerAttackTimer,
-      base.attackInterval,
-    ),
-    stamina: resetResources
-      ? base.maxStamina
-      : clamp(previous.stamina, 0, base.maxStamina),
+    playerAttackTimer: base.attackInterval,
+    stamina: clamp(previous.stamina, 0, base.maxStamina),
     maxStamina: base.maxStamina,
-    mana: resetResources ? base.maxMana : clamp(previous.mana, 0, base.maxMana),
+    mana: clamp(previous.mana, 0, base.maxMana),
     maxMana: base.maxMana,
-    actionCooldowns: {},
-    globalCooldownRemaining: 0,
     recoveryRemaining: 0,
     stopReason: null,
     lastDamageSource: null,
   };
 }
 
-export function selectEnemy(combat: CombatState, instanceId: string) {
-  return combat.enemies.some(
-    (enemy) => enemy.instanceId === instanceId && !enemy.defeated,
-  )
-    ? { ...combat, selectedEnemyInstanceId: instanceId }
-    : combat;
+function createFreshEncounter(previous: CombatState, locationId: string, enemyId: string, stats: HunterCombatStats, context: CombatContext): CombatState {
+  const started = createActiveCombat(previous, locationId, enemyId, stats);
+  if (!started.enemy) return started;
+  const withTraits = applyEnemyTraitCombatStart(started, context);
+  const playerStats = getPlayerStats(withTraits, stats, context);
+  const enemy = withTraits.enemy;
+  if (!enemy) return withTraits;
+  const enemyStats = getEnemyStats(withTraits, enemy, context);
+  return {
+    ...withTraits,
+    playerAttackInterval: playerStats.attackInterval,
+    playerAttackTimer: playerStats.attackInterval,
+    enemy: {
+      ...enemy,
+      attackInterval: enemyStats.attackInterval,
+      attackTimer: enemyStats.attackInterval,
+    },
+  };
+}
+
+export function startCombatTarget(game: GameState, locationId: string, enemyId: string, stats: HunterCombatStats, context: CombatContext): GameState {
+  const location = context.locations[locationId];
+  const target = location?.targets.find((entry) => entry.enemyId === enemyId);
+  const hunterRank = hunterRankForPoints(game.progression.hunterRankPoints);
+  if (!location || !target || !context.enemies[enemyId] || (target.minHunterRank ?? 0) > hunterRank) return game;
+  const clean = clearEndedHuntEffects({ ...game.combat, session: { ...game.combat.session, elapsedSeconds: 0, enemiesDefeated: 0, damageDealt: 0, damageTaken: 0, healing: 0, proficiencyXpGained: {}, itemsGained: 0, lootGained: {}, itemInstanceIdsGained: [], goldGained: 0, highestHit: 0 }, enemy: null }, context.effects);
+  const started = createFreshEncounter(clean, locationId, enemyId, stats, context);
+  return started.enemy ? { ...game, combat: started } : game;
+}
+
+export function switchCombatTarget(game: GameState, locationId: string, enemyId: string, stats: HunterCombatStats, context: CombatContext): GameState {
+  const location = context.locations[locationId];
+  const target = location?.targets.find((entry) => entry.enemyId === enemyId);
+  const hunterRank = hunterRankForPoints(game.progression.hunterRankPoints);
+  if (!location || !target || !context.enemies[enemyId] || (target.minHunterRank ?? 0) > hunterRank) return game;
+  const ended = clearEndedHuntEffects({ ...game.combat, enemy: null }, context.effects);
+  const started = createFreshEncounter(ended, locationId, enemyId, stats, context);
+  return started.enemy ? { ...game, combat: started } : game;
 }
 
 export function executePlayerAction(
@@ -388,8 +373,6 @@ function damageEnemy(
   context: CombatContext,
   prefix: string,
   effectsToApply: Parameters<typeof runPlayerDamageEnemy>[6] = [],
-  allowSecondary = true,
-  isSecondary = false,
 ) {
   return runPlayerDamageEnemy(
     game,
@@ -400,8 +383,6 @@ function damageEnemy(
     prefix,
     effectsToApply,
     playerDamageRuntimeDependencies,
-    allowSecondary,
-    isSecondary,
   );
 }
 
@@ -456,23 +437,9 @@ export function advanceCombatStep(
     };
     if (combat.recoveryRemaining <= 0 && combat.combatLocationId) {
       const location = context.locations[combat.combatLocationId];
-      const group = location
-        ? generateCombatGroup(
-            location,
-            context.rng,
-            hunterRankForPoints(game.progression.hunterRankPoints),
-          )
-        : [];
-      combat =
-        location && group.length > 0
-          ? applyEnemyTraitCombatStart(createActiveCombat(
-              combat,
-              location.id,
-              group,
-              stats,
-              combat.groupNumber + 1,
-            ), context)
-          : { ...combat, phase: "stopped", stopReason: "completed" };
+      combat = location && combat.targetEnemyId
+        ? createFreshEncounter(combat, location.id, combat.targetEnemyId, stats, context)
+        : { ...combat, phase: "stopped", stopReason: "completed", enemy: null };
     } else if (combat.recoveryRemaining <= 0)
       combat = { ...combat, phase: "stopped", stopReason: "completed" };
     return { ...game, combat };
@@ -522,7 +489,7 @@ export function advanceCombatStep(
   combat = game.combat;
   if (combat.phase !== "active") return game;
   const effective = getPlayerStats(combat, stats, context, game.progression);
-  const engagedEnemy = combat.enemies.find((enemy) => enemy.instanceId === combat.selectedEnemyInstanceId && !enemy.defeated);
+  const engagedEnemy = combat.enemy && !combat.enemy.defeated ? combat.enemy : undefined;
   const healingMultiplier = getPlayerHealingReceivedMultiplier(combat, context, engagedEnemy);
   const requestedRegen = Math.max(0, effective.lifeRegenFlat ?? 0) * step * healingMultiplier;
   const effectiveHealing = Math.min(
@@ -542,28 +509,19 @@ export function advanceCombatStep(
         : combat.session,
   };
   game = { ...game, combat };
-  game = advanceEnemySpecials(
+  game = runEnemyRuntime(
     { ...game, combat },
     step,
     context,
     stats,
-    "start",
+    {
+      applyEffectiveHealing,
+      awardBarrierCredits,
+      resolveDefensiveTrainingForCombatEvent,
+    },
   );
   combat = game.combat;
   if (combat.phase !== "active") return game;
-  const automationTarget = game.combatAutomation.overrideManualTarget
-    ? selectAutomationTarget(game, context)
-    : undefined;
-  if (
-    automationTarget &&
-    automationTarget.instanceId !== combat.selectedEnemyInstanceId
-  ) {
-    combat = {
-      ...combat,
-      selectedEnemyInstanceId: automationTarget.instanceId,
-    };
-    game = { ...game, combat };
-  }
   const decision = evaluateAutomation(game, stats, context, context.debugHooks?.onAutomationTrace);
   if (decision.actionId) {
     const beforeGame = game;
@@ -601,16 +559,8 @@ export function advanceCombatStep(
       },
     };
   }
-  game = advanceEnemySpecials(game, step, context, stats, "advance");
-  combat = game.combat;
-  if (combat.phase !== "active") return game;
   if (combat.playerAttackTimer <= 0 && !isPlayerStunned(combat, context.effects)) {
-    const target =
-      combat.enemies.find(
-        (enemy) =>
-          enemy.instanceId === combat.selectedEnemyInstanceId &&
-          !enemy.defeated,
-      ) ?? firstLivingEnemy(combat.enemies);
+    const target = combat.enemy && !combat.enemy.defeated ? combat.enemy : undefined;
     if (target) {
       combat = {
         ...combat,
@@ -651,7 +601,7 @@ export function advanceCombatStep(
   return runEnemyNormalAttacks(game, step, context, stats, {
     applyEffectiveHealing,
     awardBarrierCredits,
-    resolveDefensiveTrainingForEnemyAction,
+    resolveDefensiveTrainingForCombatEvent,
   });
 }
 
@@ -668,159 +618,46 @@ function advanceCombatEffects(
   });
 }
 
-function advanceEnemySpecials(
-  game: GameState,
-  step: number,
-  context: CombatContext,
-  stats: HunterCombatStats,
-  mode: "both" | "start" | "advance" = "both",
-): GameState {
-  if (mode === "advance") return game;
-  return runEnemyRuntime(game, step, context, stats, {
-    applyEffectiveHealing,
-    awardBarrierCredits,
-    resolveDefensiveTrainingForEnemyAction,
-  });
-}
-
 function resolveDefeatedEnemies(
   game: GameState,
   context: CombatContext,
 ): GameState {
-  let next = game;
-  for (const enemy of next.combat.enemies) {
-    if (!enemy.defeated || enemy.rewardResolved) continue;
-    const reward = resolveEnemyReward(next, next.combat, enemy, context);
-    next = reward.game;
-    next.combat = {
-      ...reward.combat,
-      enemies: next.combat.enemies.map((candidate) =>
-        candidate.instanceId === enemy.instanceId
-          ? {
-              ...candidate,
-              currentHealth: 0,
-              defeated: true,
-              rewardResolved: true,
-              currentAction: null,
-              effects: [],
-            }
-          : candidate,
-      ),
-    };
-    next.combat = event(next.combat, {
-      text: `${enemy.displayName} was defeated.`,
-      type: "system",
-      eventType: "enemyDefeated",
-      target: { kind: "enemy", instanceId: enemy.instanceId },
-      data: { enemyId: enemy.enemyId },
-    });
-    for (const itemId of reward.droppedItemIds)
-      next.combat = event(next.combat, {
-        text: `Received ${context.items[itemId]?.name ?? itemId}.`,
-        type: "system",
-      });
+  const enemy = game.combat.enemy;
+  if (!enemy || !enemy.defeated || enemy.rewardResolved) return game;
+  const location = game.combat.combatLocationId ? context.locations[game.combat.combatLocationId] : undefined;
+  const reward = resolveEnemyKillRewards(game, game.combat, enemy, location, context);
+  let next = reward.game;
+  const encounterEnded = clearEndedEnemyEncounterEffects({ ...reward.combat, enemy: { ...enemy, currentHealth: 0, defeated: true, rewardResolved: true, preparedAbility: null, effects: [] } }, context.effects);
+  next.combat = event(encounterEnded, { text: `${enemy.displayName} was defeated.`, type: "system", eventType: "enemyDefeated", target: { kind: "enemy", instanceId: enemy.instanceId }, data: { enemyId: enemy.enemyId } });
+  for (const roll of reward.rolls) next.combat = event(next.combat, { text: `${roll.source === "location" ? "Zone shared loot" : "Target loot"}: ${context.items[roll.itemId]?.name ?? roll.itemId}.`, type: "system" });
+  if (!canCombatContinue(next)) {
+    return { ...next, combat: event({ ...next.combat, phase: "stopped", stopReason: "inventoryFull", enemy: null, recoveryRemaining: 0 }, { text: "Combat stopped because the inventory is full.", type: "system", eventType: "huntStopped" }) };
   }
-  const alive = livingEnemies(next.combat.enemies);
-  if (
-    next.combat.phase === "active" &&
-    alive.length === 0 &&
-    next.combat.enemies.length > 0
-  ) {
-    const location = next.combat.combatLocationId
-      ? context.locations[next.combat.combatLocationId]
-      : undefined;
-    if (location) {
-      const locationReward = resolveLocationClearReward(
-        next,
-        next.combat,
-        location,
-        context,
-      );
-      next = locationReward.game;
-      next.combat = locationReward.combat;
-      for (const itemId of locationReward.droppedItemIds)
-        next.combat = event(next.combat, {
-          text: `Location bonus: ${context.items[itemId]?.name ?? itemId}.`,
-          type: "system",
-        });
-    }
-    const cleared = {
-      ...next.combat,
-      selectedEnemyInstanceId: null,
-      session: {
-        ...next.combat.session,
-        groupClears: next.combat.session.groupClears + 1,
-      },
-    };
-    next.combat = event(
-      {
-        ...cleared,
-        phase: "recovery",
-        recoveryRemaining: combatBalance.recoverySeconds,
-      },
-      {
-        text: `Group ${cleared.groupNumber} cleared. Recovery begins.`,
-        type: "system",
-        eventType: "recoveryStarted",
-      },
-    );
-  } else if (
-    next.combat.phase === "active" &&
-    (!next.combat.selectedEnemyInstanceId ||
-      !alive.some(
-        (enemy) => enemy.instanceId === next.combat.selectedEnemyInstanceId,
-      ))
-  )
-    next.combat = {
-      ...next.combat,
-      selectedEnemyInstanceId: selectNextTarget(next.combat.enemies),
-    };
+  next.combat = event({ ...next.combat, phase: "recovery", enemy: null, recoveryRemaining: combatBalance.recoverySeconds }, { text: `Recovery begins. ${combatBalance.recoverySeconds}s until ${enemy.displayName} returns.`, type: "system", eventType: "recoveryStarted" });
   return next;
 }
 
-/** Debug-only entry point that still resolves rewards and group state canonically. */
+/** Debug-only entry point that still uses the canonical target encounter path. */
 export function forceDefeatEnemiesForDebug(
   game: GameState,
   instanceIds: string[],
   context: CombatContext,
 ): GameState {
-  const ids = new Set(instanceIds);
-  if (!ids.size) return game;
-  const marked = {
-    ...game,
-    combat: {
-      ...game.combat,
-      enemies: game.combat.enemies.map((enemy) =>
-        ids.has(enemy.instanceId) && !enemy.defeated
-          ? {
-              ...enemy,
-              currentHealth: 0,
-              defeated: true,
-              currentAction: null,
-            }
-          : enemy,
-      ),
-    },
-  };
-  return resolveDefeatedEnemies(marked, context);
+  const enemy = game.combat.enemy;
+  if (!enemy || !instanceIds.includes(enemy.instanceId) || enemy.defeated) return game;
+  return resolveDefeatedEnemies({ ...game, combat: { ...game.combat, enemy: { ...enemy, currentHealth: 0, defeated: true, preparedAbility: null } } }, context);
 }
 
 /** Debug-only player defeat that emits the same canonical defeat event as combat. */
 export function forceDefeatPlayerForDebug(game: GameState): GameState {
   if (game.combat.phase === "defeat") return game;
+  const defeated = clearEndedHuntEffects({ ...game.combat, playerHp: 0, phase: "defeat", stopReason: "defeat", recoveryRemaining: 0, enemy: game.combat.enemy ? { ...game.combat.enemy, preparedAbility: null } : null }, effectById);
   return {
     ...game,
     combat: event(
       {
-        ...game.combat,
-        playerHp: 0,
-        phase: "defeat",
-        stopReason: "defeat",
-        recoveryRemaining: 0,
-        enemies: game.combat.enemies.map((enemy) => ({
-          ...enemy,
-          currentAction: null,
-        })),
+        ...defeated,
+        enemy: null,
       },
       {
         text: "The Hunter was defeated by a debug action.",
@@ -838,18 +675,15 @@ export function stopHunt(
 ) {
   const shouldKeep = (effect: ActiveEffectInstance) =>
     definitions[effect.effectId]?.persistence !== "hunt" &&
-    definitions[effect.effectId]?.persistence !== "between-enemies";
+    definitions[effect.effectId]?.persistence !== "between-enemies" &&
+    definitions[effect.effectId]?.persistence !== "enemy-life";
   return {
     ...combat,
     phase: "stopped" as const,
     stopReason: "manual" as const,
     recoveryRemaining: 0,
     playerEffects: combat.playerEffects.filter(shouldKeep),
-    enemies: combat.enemies.map((enemy) => ({
-      ...enemy,
-      currentAction: null,
-      effects: [],
-    })),
+    enemy: null,
   };
 }
 

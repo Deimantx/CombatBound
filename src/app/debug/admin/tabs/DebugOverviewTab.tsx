@@ -14,7 +14,7 @@ import { useGameStore } from "../../../../state/gameStore";
 
 export function DebugOverviewTab({ debug, run, setTab }: DebugTabProps & { setTab: (tab: DebugTab) => void; selectedEnemy?: string }) {
   const game = useGameStore((state) => state.game);
-  const selectedEnemy = game.combat.enemies.find((enemy) => enemy.instanceId === game.combat.selectedEnemyInstanceId)?.displayName;
+  const selectedEnemy = game.combat.enemy?.displayName;
   const rankProgress = getHunterRankProgress(game.progression.hunterRankPoints);
   const perkPoints = getPerkPointSummary(game.progression, perkById);
   return <div className="debug-tab-content">
@@ -33,10 +33,10 @@ export function DebugOverviewTab({ debug, run, setTab }: DebugTabProps & { setTa
       <DebugButton action="grant-all-equipment" onClick={() => run("Granted all prototype equipment x1.", () => debug.grantAllEquipment(1))}>GRANT ALL TEST GEAR</DebugButton>
       <DebugButton action="set-hunter-rank" onClick={() => run("Set Hunter Rank to 10.", () => debug.setHunterRank(10))}>SET HUNTER RANK 10</DebugButton>
       <DebugButton action="discover-all-collection" onClick={() => run("Discovered all items and targets.", () => { debug.discoverAllItems(); debug.discoverAllTargets(); })}>DISCOVER ALL COLLECTION</DebugButton>
-      <DebugButton action="kill-current-group" onClick={() => run("Resolved the current enemy group through canonical defeat handling.", debug.killCurrentGroup)}>KILL CURRENT GROUP</DebugButton>
+      <DebugButton action="kill-current-enemy" onClick={() => run("Resolved the current target through canonical defeat handling.", debug.killCurrentEnemy)}>DEFEAT CURRENT TARGET</DebugButton>
     </div></DebugSection>
     <DebugSection title="Simulation" subtitle="Shared clock controls used by the in-game dock."><DebugSimulationControls /></DebugSection>
     <div className="debug-shortcuts"><button type="button" onClick={() => setTab("items")}><Package size={14} /> Items <span>Grant and normalize quantities</span></button><button type="button" onClick={() => setTab("progression")}>Progression <span>Hunter Rank, proficiency, and perk setup</span></button><button type="button" onClick={() => setTab("combat")}><Crosshair size={14} /> Combat <span>Effects, resources, casts, and defeat</span></button></div>
-    <p className="debug-note">Automation: <strong>{game.combatAutomation.enabled ? "ON" : "OFF"}</strong> · Location: <strong>{game.combat.combatLocationId ?? "none"}</strong> · Group: <strong>{game.combat.groupNumber}</strong> · Hunter Rank: <strong>{rankProgress.rank}</strong></p>
+    <p className="debug-note">Automation: <strong>{game.combatAutomation.enabled ? "ON" : "OFF"}</strong> · Location: <strong>{game.combat.combatLocationId ?? "none"}</strong> · Target: <strong>{selectedEnemy ?? "none"}</strong> · Hunter Rank: <strong>{rankProgress.rank}</strong></p>
   </div>;
 }
