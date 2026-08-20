@@ -175,7 +175,10 @@ function MagicArtSkillTreeContent({ pan, setPan, selectedNode, setSelectedNode }
 
 function MagicArtPerkInspector({ selectedNode }: { selectedNode: string | null }) {
   const selectedPlaceholder = earthShieldSpecializationNodes.find((node) => node.id === selectedNode);
-  if (selectedPlaceholder) return <><div className="magic-art-context-icon is-muted"><Sparkles size={17} /></div><span className="tiny-label magic-arts-inspector-kicker">FUTURE PERK</span><h3>Future Perk</h3><p>Not available yet.</p></>;
+  if (selectedPlaceholder) {
+    const prerequisite = selectedPlaceholder.prerequisiteIds[0] === "earth-shield.root" ? "Earth Shield base art" : "Previous Perk Rank X";
+    return <><div className="magic-art-context-icon is-muted"><Sparkles size={17} /></div><span className="tiny-label magic-arts-inspector-kicker">FUTURE PERK</span><h3>Future Perk</h3><p>Not available yet.</p><div className="magic-arts-perk-requirement"><span>Requires</span><strong>{prerequisite}</strong></div></>;
+  }
 
   return <><div className="magic-art-context-icon"><Shield size={18} /></div><span className="tiny-label magic-arts-inspector-kicker">BASE MAGIC ART</span><h3>Earth Shield</h3><MagicArtStats art={earthShield} /></>;
 }

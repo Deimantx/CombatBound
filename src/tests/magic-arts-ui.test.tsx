@@ -52,6 +52,8 @@ describe("Magic Arts browser", () => {
     expect(JSON.stringify(useGameStore.getState().game)).toBe(before);
     expect(within(inspector).getByText("Future Perk", { exact: true })).toBeInTheDocument();
     expect(within(inspector).getByText("Not available yet.", { exact: true })).toBeInTheDocument();
+    expect(within(inspector).getByText("Requires", { exact: true })).toBeInTheDocument();
+    expect(within(inspector).getByText("Earth Shield base art", { exact: true })).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Back to Magic Arts" }));
     expect(workspace).toHaveAttribute("data-debug-view", "browser");
     expect(workspace.querySelector('[data-debug-kind="magic-arts-primary-stage"]')).toHaveClass("magic-arts-atlas-stage", "is-browser");
