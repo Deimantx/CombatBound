@@ -564,51 +564,46 @@ html[data-reduced-motion="true"] .equipment-stat-group-chevron { transition: non
 @media (max-width: 600px) { .hero-identity { align-items: flex-start; flex-wrap: wrap; } .hero-identity .hero-resource-summary { margin-left: 0; width: 100%; } .hero-build-system-grid { grid-template-columns: 1fr; } .hero-build-systems-heading { align-items: flex-start; flex-direction: column; gap: 2px; } }
 .proficiencies-layout.is-magic-arts { grid-template-columns: minmax(220px, .72fr) minmax(0, 2.28fr); }
 .magic-arts-panel { min-width: 0; }
-.magic-arts-workspace { display: grid; gap: 16px; min-width: 0; }
-.magic-arts-workspace-heading, .magic-art-specialization-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; }
-.magic-arts-workspace-heading h3, .magic-art-specialization-header h3 { margin: 3px 0 2px; }
+.magic-arts-workspace { display: grid; gap: 16px; max-width: 100%; min-width: 0; }
+.magic-arts-workspace-heading { align-items: center; display: flex; gap: 10px; max-width: 100%; min-width: 0; }
+.magic-arts-workspace-heading h3 { margin: 3px 0 2px; }
 .magic-arts-workspace-heading p { margin: 0; color: var(--text-muted); font-size: .82rem; }
-.magic-arts-browser-layout { display: grid; grid-template-columns: minmax(0, 1fr) 250px; gap: 14px; min-height: 620px; }
-.magic-arts-context-panel, .magic-art-specialization-details { padding: 18px; border: 1px solid rgba(148,163,184,.16); border-radius: 12px; background: linear-gradient(160deg, rgba(26,34,41,.94), rgba(13,18,24,.98)); }
-.magic-arts-context-panel h3, .magic-art-specialization-details h3 { margin: 8px 0 4px; color: var(--text-primary); }
-.magic-arts-context-panel p, .magic-art-specialization-details p { color: var(--text-muted); font-size: .82rem; line-height: 1.55; }
+.magic-arts-browser-layout { display: grid; gap: 14px; grid-template-columns: minmax(0, 1fr) 250px; max-width: 100%; min-height: 600px; min-width: 0; }
+.magic-arts-primary-view { max-width: 100%; min-width: 0; }
+.magic-arts-view-transition { max-width: 100%; min-width: 0; }
+.magic-arts-context-panel { align-self: start; background: linear-gradient(160deg, rgba(26,34,41,.94), rgba(13,18,24,.98)); border: 1px solid rgba(148,163,184,.16); border-radius: 12px; min-width: 0; padding: 16px; }
+.magic-arts-context-panel h3 { color: var(--text-primary); margin: 10px 0 10px; }
+.magic-arts-context-panel p { color: var(--text-muted); font-size: .82rem; line-height: 1.55; margin: 0 0 14px; }
+.magic-arts-inspector-kicker { display: block; margin-top: 10px; }
 .magic-arts-detail-grid { display: grid; grid-template-columns: 1fr auto; gap: 8px 12px; margin: 18px 0; font-size: .78rem; }
 .magic-arts-detail-grid span { color: var(--text-muted); }
 .magic-arts-detail-grid strong { color: var(--text-primary); }
-.magic-art-specialization { gap: 14px; }
-.magic-art-specialization-stats { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 8px; color: var(--text-muted); font-size: .7rem; }
-.magic-art-specialization-stats strong { padding: 6px 8px; border: 1px solid rgba(148,163,184,.16); border-radius: 7px; font-weight: 600; }
-.magic-art-specialization-body { display: grid; grid-template-columns: minmax(0, 1fr) 250px; gap: 14px; min-height: 600px; }
 .magic-art-specialization-camera { position: absolute; inset: 0; transition: transform .18s ease-out; }
 .magic-art-specialization-controls { position: absolute; z-index: 3; left: 14px; right: 14px; bottom: 14px; display: flex; align-items: center; justify-content: space-between; gap: 10px; color: var(--text-muted); font-size: .65rem; pointer-events: none; }
 .magic-art-specialization-controls button { pointer-events: auto; }
-@media (max-width: 1050px) { .proficiencies-layout.is-magic-arts, .magic-arts-browser-layout, .magic-art-specialization-body { grid-template-columns: 1fr; } .magic-arts-context-panel, .magic-art-specialization-details { min-height: 0; } }
-@media (max-width: 700px) { .magic-art-specialization-header { flex-wrap: wrap; } .magic-art-specialization-stats { justify-content: flex-start; } }
+@media (max-width: 1050px) { .proficiencies-layout.is-magic-arts, .magic-arts-browser-layout { grid-template-columns: 1fr; } .magic-arts-context-panel { min-height: 0; } }
 
 /* Magic Arts uses the Combat Atlas presentation language without inheriting its world-navigation rules. */
-.magic-arts-atlas-stage { isolation: isolate; min-height: 600px; overflow: hidden; position: relative; border: 1px solid rgba(148,163,184,.18); border-radius: 7px; background: #121619; box-shadow: inset 0 0 80px rgba(0,0,0,.45); }
+.magic-arts-atlas-stage { background: #121619; border: 1px solid rgba(148,163,184,.18); border-radius: 7px; box-shadow: inset 0 0 80px rgba(0,0,0,.45); isolation: isolate; max-width: 100%; min-height: 600px; min-width: 0; overflow: hidden; position: relative; width: 100%; }
 .magic-arts-atlas-stage::after { background: radial-gradient(ellipse at center, transparent 38%, rgba(5,10,12,.66) 100%); content: ''; inset: 0; pointer-events: none; position: absolute; z-index: 1; }
 .magic-arts-atlas-stage .combat-atlas-backdrop { z-index: 0; }
+.magic-arts-atlas-stage.is-skill-tree { cursor: grab; touch-action: none; }
+.magic-arts-atlas-stage.is-skill-tree:active { cursor: grabbing; }
+.magic-arts-view-transition { animation: magic-arts-view-enter 280ms cubic-bezier(.2,.75,.25,1) both; }
+@keyframes magic-arts-view-enter { from { opacity: .72; transform: translateY(3px) scale(.985); } to { opacity: 1; transform: translateY(0) scale(1); } }
 .magic-art-atlas-node { --atlas-accent-rgb: var(--atlas-node-rgb, var(--atlas-focus-rgb)); }
 .magic-art-atlas-node .combat-atlas-node-label strong { font-size: 10px; letter-spacing: .11em; }
 .magic-art-atlas-node .combat-atlas-node-label em { font-size: 7px; }
 .magic-art-atlas-node.is-dimmed { opacity: .62; }
-.magic-arts-context-panel { align-self: start; min-height: 0; padding: 16px; }
 .magic-art-context-icon { align-items: center; background: rgba(182,151,91,.1); border: 1px solid rgba(182,151,91,.42); border-radius: 50%; color: var(--gold-bright); display: inline-flex; height: 38px; justify-content: center; width: 38px; }
 .magic-art-context-icon.is-muted { background: rgba(122,130,136,.08); border-color: rgba(122,130,136,.28); color: var(--muted); }
 .magic-arts-context-panel h3 { margin: 12px 0 16px; }
 .magic-arts-context-panel p { margin: 0; }
 .magic-art-open-tree { align-items: center; background: rgba(31,28,21,.82); border: 1px solid rgba(213,170,98,.45); border-radius: 6px; color: var(--gold-bright); cursor: pointer; display: inline-flex; font: inherit; font-size: 9px; font-weight: 800; gap: 6px; letter-spacing: .1em; padding: 8px 10px; transition: background .18s ease, border-color .18s ease, box-shadow .18s ease, transform .18s ease; }
 .magic-art-open-tree:hover, .magic-art-open-tree:focus-visible { background: var(--gold-soft); border-color: rgba(213,170,98,.8); box-shadow: 0 0 16px rgba(213,170,98,.12); outline: none; transform: translateY(-1px); }
-.magic-art-specialization { gap: 14px; }
-.magic-art-specialization-header { align-items: center; }
-.magic-art-specialization-header h3 { margin: 2px 0 0; }
 .magic-art-back-button, .magic-art-center-button { align-items: center; background: rgba(7,14,16,.76); border: 1px solid rgba(220,193,117,.3); border-radius: 5px; color: var(--muted); cursor: pointer; display: inline-flex; font: inherit; font-size: 8px; font-weight: 800; gap: 5px; justify-content: center; letter-spacing: .1em; min-height: 33px; padding: 0 9px; transition: background .18s ease, border-color .18s ease, color .18s ease, transform .18s ease; }
 .magic-art-back-button { padding: 0; width: 33px; }
 .magic-art-back-button:hover, .magic-art-back-button:focus-visible, .magic-art-center-button:hover, .magic-art-center-button:focus-visible { background: var(--gold-soft); border-color: rgba(213,170,98,.72); color: var(--gold); outline: none; transform: translateY(-1px); }
-.magic-art-specialization-body { display: grid; grid-template-columns: minmax(0, 1fr) 220px; gap: 14px; min-height: 600px; }
-.magic-art-specialization .magic-arts-atlas-stage { cursor: grab; touch-action: none; }
-.magic-art-specialization .magic-arts-atlas-stage:active { cursor: grabbing; }
 .magic-art-specialization-camera { height: 100%; inset: 0; position: absolute; transform-origin: center; transition: transform .25s ease; width: 100%; z-index: 2; }
 .magic-art-specialization-connections { height: 100%; inset: 0; overflow: visible; pointer-events: none; position: absolute; width: 100%; z-index: 0; }
 .magic-art-specialization-connections line { fill: none; stroke: rgba(186,173,125,.42); stroke-dasharray: 3 5; stroke-linecap: round; stroke-width: .24; vector-effect: non-scaling-stroke; transition: opacity .18s ease, stroke .18s ease, stroke-width .18s ease; }
@@ -627,13 +622,8 @@ html[data-reduced-motion="true"] .equipment-stat-group-chevron { transition: non
 .magic-art-tree-node-label strong { font-size: 9px; letter-spacing: .1em; }
 .magic-art-tree-node-label em { color: rgba(var(--atlas-accent-rgb),.9); font-size: 7px; font-style: normal; font-weight: 800; letter-spacing: .13em; }
 .magic-art-tree-root .magic-art-tree-node-label em { color: var(--gold); }
-.magic-art-specialization-controls { align-items: center; bottom: 10px; display: flex; justify-content: space-between; left: 10px; pointer-events: none; position: absolute; right: 10px; z-index: 4; }
+.magic-art-specialization-controls { align-items: center; bottom: 10px; display: flex; justify-content: flex-end; left: 10px; pointer-events: none; position: absolute; right: 10px; z-index: 4; }
 .magic-art-specialization-controls button { pointer-events: auto; }
-.magic-art-specialization-controls > span { color: var(--muted); font-size: 8px; font-weight: 800; letter-spacing: .1em; }
-.magic-art-specialization-details { align-self: start; min-height: 0; padding: 16px; }
-.magic-art-specialization-details h3 { margin: 10px 0 14px; }
-.magic-art-specialization-details p { margin: 0; }
-@media (max-width: 1050px) { .magic-art-specialization-body { grid-template-columns: 1fr; } .magic-art-specialization-details { min-height: 0; } }
-@media (max-width: 700px) { .magic-arts-atlas-stage { min-height: 500px; } .magic-art-specialization-header { align-items: flex-start; flex-wrap: wrap; } .magic-art-specialization-stats { justify-content: flex-start; } .magic-art-atlas-node { width: 150px; } .magic-art-tree-node { width: 105px; } }
-html[data-reduced-motion="true"] .magic-arts-atlas-stage .combat-atlas-fog, html[data-reduced-motion="true"] .magic-arts-atlas-stage .combat-atlas-node-halo, html[data-reduced-motion="true"] .magic-art-tree-node, html[data-reduced-motion="true"] .magic-art-specialization-camera { animation: none; transition: none; }
-@media (prefers-reduced-motion: reduce) { .magic-arts-atlas-stage .combat-atlas-fog, .magic-arts-atlas-stage .combat-atlas-node-halo, .magic-art-tree-node, .magic-art-specialization-camera { animation: none; transition: none; } }
+@media (max-width: 700px) { .magic-arts-atlas-stage { min-height: 500px; } .magic-art-atlas-node { width: 150px; } .magic-art-tree-node { width: 105px; } }
+html[data-reduced-motion="true"] .magic-arts-atlas-stage .combat-atlas-fog, html[data-reduced-motion="true"] .magic-arts-atlas-stage .combat-atlas-node-halo, html[data-reduced-motion="true"] .magic-art-tree-node, html[data-reduced-motion="true"] .magic-art-specialization-camera, html[data-reduced-motion="true"] .magic-arts-view-transition { animation: none; transition: none; }
+@media (prefers-reduced-motion: reduce) { .magic-arts-atlas-stage .combat-atlas-fog, .magic-arts-atlas-stage .combat-atlas-node-halo, .magic-art-tree-node, .magic-art-specialization-camera, .magic-arts-view-transition { animation: none; transition: none; } }
