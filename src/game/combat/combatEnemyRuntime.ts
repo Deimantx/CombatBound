@@ -225,7 +225,7 @@ export function advanceEnemyActions(game: GameState, step: number, context: Comb
   const normalizedGame = rawEnemy && rawDefinition
     ? { ...game, combat: { ...game.combat, enemy: { ...rawEnemy, abilityCooldowns: normalizeEnemyAbilityCooldowns(rawEnemy, rawDefinition, context) } } }
     : game;
-  let next = tickEnemyCombatAbilityCooldowns(normalizedGame, Math.max(0, step));
+  let next = normalizedGame;
   const initialEnemy = next.combat.enemy;
   if (!initialEnemy || initialEnemy.defeated) return next;
   const definition = context.enemies[initialEnemy.enemyId];
@@ -248,24 +248,29 @@ export function advanceEnemyActions(game: GameState, step: number, context: Comb
     if (current.preparedAbility) {
       const prepared = { ...current.preparedAbility, remainingSeconds: Math.max(0, current.preparedAbility.remainingSeconds) };
       const consumed = Math.min(remaining, prepared.remainingSeconds);
+      if (consumed > 0.000001) next = tickEnemyCombatAbilityCooldowns(next, consumed);
       remaining -= consumed;
+      const timedEnemy = next.combat.enemy;
+      if (!timedEnemy) return next;
       const updated = { ...prepared, remainingSeconds: prepared.remainingSeconds - consumed };
       if (updated.remainingSeconds > 0.000001) {
-        return { ...next, combat: { ...next.combat, enemy: { ...current, attackTimer: attackInterval, preparedAbility: updated } } };
+        return { ...next, combat: { ...next.combat, enemy: { ...timedEnemy, attackTimer: attackInterval, preparedAbility: updated } } };
       }
       const ability = context.enemyCombatAbilities?.[updated.abilityId];
       if (!ability) {
-        next = { ...next, combat: { ...next.combat, enemy: { ...current, attackTimer: attackInterval, preparedAbility: null } } };
+        next = { ...next, combat: { ...next.combat, enemy: { ...timedEnemy, attackTimer: attackInterval, preparedAbility: null } } };
         continue;
       }
       if (prepared.remainingSeconds <= 0.000001) zeroTimeSpecials += 1;
-      next = resolveEnemyCombatAbility({ ...next, combat: { ...next.combat, enemy: { ...current, attackTimer: attackInterval, preparedAbility: updated } } }, current.instanceId, ability, context, stats, dependencies);
+      next = resolveEnemyCombatAbility({ ...next, combat: { ...next.combat, enemy: { ...timedEnemy, attackTimer: attackInterval, preparedAbility: updated } } }, timedEnemy.instanceId, ability, context, stats, dependencies);
       next = resolveEnemyPlayerDefeat(next, current.displayName, context);
       continue;
     }
 
     if (isCombatantStunned(current.effects, context.effects)) {
-      return { ...next, combat: { ...next.combat, enemy: { ...current, attackTimer: attackInterval } } };
+      if (remaining > 0.000001) next = tickEnemyCombatAbilityCooldowns(next, remaining);
+      const timedEnemy = next.combat.enemy;
+      return timedEnemy ? { ...next, combat: { ...next.combat, enemy: { ...timedEnemy, attackTimer: attackInterval } } } : next;
     }
 
     const atActionBoundary = current.attackTimer >= attackInterval - 0.000001;
@@ -286,23 +291,16 @@ export function advanceEnemyActions(game: GameState, step: number, context: Comb
 
     const timer = Math.max(0, Math.min(attackInterval, current.attackTimer));
     const consumed = Math.min(remaining, timer);
+    if (consumed > 0.000001) next = tickEnemyCombatAbilityCooldowns(next, consumed);
     remaining -= consumed;
+    const timedEnemy = next.combat.enemy;
+    if (!timedEnemy) return next;
     const updatedTimer = timer - consumed;
     if (updatedTimer > 0.000001) {
-      return { ...next, combat: { ...next.combat, enemy: { ...current, attackTimer: updatedTimer } } };
+      return { ...next, combat: { ...next.combat, enemy: { ...timedEnemy, attackTimer: updatedTimer } } };
     }
-    next = resolveEnemyNormalAttack({ ...next, combat: { ...next.combat, enemy: { ...current, attackTimer: 0 } } }, context, stats, dependencies);
+    next = resolveEnemyNormalAttack({ ...next, combat: { ...next.combat, enemy: { ...timedEnemy, attackTimer: 0 } } }, context, stats, dependencies);
     if (next.combat.phase !== "active" || next.combat.playerHp <= 0) return next;
   }
   return next;
-}
-
-/** @deprecated Use advanceEnemyActions so Basic and Special share one action lane. */
-export function advanceEnemyCombatAbilities(game: GameState, step: number, context: CombatContext, stats: HunterCombatStats, dependencies: EnemyRuntimeDependencies) {
-  return advanceEnemyActions(game, step, context, stats, dependencies);
-}
-
-/** @deprecated Use advanceEnemyActions so Basic and Special share one action lane. */
-export function advanceEnemyNormalAttacks(game: GameState, step: number, context: CombatContext, stats: HunterCombatStats, dependencies: EnemyRuntimeDependencies) {
-  return advanceEnemyActions(game, step, context, stats, dependencies);
 }

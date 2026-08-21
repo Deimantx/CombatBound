@@ -61,7 +61,7 @@ describe("single-target combat foundation", () => {
     expect(preparing.combat.enemy?.preparedAbility?.remainingSeconds).toBeCloseTo(2.9, 6);
     const resolved = advanceCombatStep(preparing, 3, context, stats);
     expect(resolved.combat.enemy?.preparedAbility).toBeNull();
-    expect(resolved.combat.enemy?.abilityCooldowns["enemy-ability.charged-shot"]).toBe(10);
+    expect(resolved.combat.enemy?.abilityCooldowns["enemy-ability.charged-shot"]).toBeCloseTo(9.9, 6);
   });
 
   it("does not interrupt an active Basic attack for a ready Combat Ability", () => {

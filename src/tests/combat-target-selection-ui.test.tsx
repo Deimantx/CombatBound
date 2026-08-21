@@ -31,17 +31,25 @@ describe('combat target selection UI', () => {
     const cards = [...document.querySelectorAll('[data-debug-kind="combat-target-preview"]')]
     expect(cards).toHaveLength(4)
     expect(cards.every((card) => card.classList.contains('location-target-card'))).toBe(true)
+    expect(screen.getByText('RANK REQUIRED')).toBeInTheDocument()
+    expect(screen.queryByText('TARGETS')).not.toBeInTheDocument()
+    expect(screen.queryByText('4 targets')).not.toBeInTheDocument()
     expect(screen.getByText('SELECTED TARGET')).toBeInTheDocument()
     expect(screen.getByText('ZONE SHARED LOOT')).toBeInTheDocument()
+    expect(screen.queryByText('TARGET LOOT')).not.toBeInTheDocument()
+    expect(screen.queryByText('NO DROPS')).not.toBeInTheDocument()
     expect(screen.getByText('NO CURRENT ENEMY')).toBeInTheDocument()
     expect(document.querySelectorAll('.location-preview-action button')).toHaveLength(1)
+    expect(document.querySelector('[data-debug-kind="combat-target-inspector"] .combat-target-preview-heading')?.children).toHaveLength(2)
+    expect(document.querySelector('[data-debug-kind="combat-target-inspector"] .combat-target-preview-copy')).toBeInTheDocument()
+    expect(document.querySelector('[data-debug-kind="combat-target-inspector"] .combat-target-preview-icon .art-small')).toBeInTheDocument()
     expect(document.querySelectorAll('.combat-inspector-tile')).not.toHaveLength(0)
     expect(screen.queryByText(/Every kill in this arena/i)).not.toBeInTheDocument()
     expect(screen.queryByText(/No traits|No combat abilities/i)).not.toBeInTheDocument()
     expect(screen.queryByText(/Drop chance/i)).not.toBeInTheDocument()
   })
 
-  it('changes the preview without changing combat and keeps locked targets uncommittable', () => {
+  it('changes the preview without changing combat and keeps arena target selection available', () => {
     openDeepWoods()
     const stalker = screen.getByRole('button', { name: /Wolf Stalker.*available/i })
     fireEvent.click(stalker)
@@ -51,6 +59,16 @@ describe('combat target selection UI', () => {
     const alpha = screen.getByRole('button', { name: /Alpha Wolf.*available/i })
     expect(alpha).not.toBeDisabled()
     expect(alpha).not.toHaveClass('is-locked')
+  })
+
+  it('shows individual target loot only when authored and keeps shared loot visible', () => {
+    openDeepWoods()
+    const alpha = screen.getByRole('button', { name: /Alpha Wolf.*available/i })
+    fireEvent.click(alpha)
+    expect(alpha).toHaveTextContent('1 TARGET DROP')
+    expect(screen.getByText('TARGET LOOT')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Alpha Fang' })).toBeInTheDocument()
+    expect(screen.getByText('ZONE SHARED LOOT')).toBeInTheDocument()
   })
 
   it('starts only the highlighted target through the primary action', () => {

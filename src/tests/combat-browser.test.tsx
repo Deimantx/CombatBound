@@ -1,6 +1,7 @@
 import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import App from '../../App'
+import { combatLocationById } from '../game/data/world/combatLocations'
 import { totalHunterRankPointsForRank } from '../game/progression/hunterRankProgression'
 import { useGameStore } from '../state/gameStore'
 
@@ -34,6 +35,11 @@ function clickAtlas(name: string) {
   act(() => vi.advanceTimersByTime(190))
 }
 
+function arenaButtonName(locationId: string, status: 'Select arena' | 'Locked') {
+  const location = combatLocationById[locationId]
+  return `${location.name} - ${status} - RANK ${location.requiredHunterRank}`
+}
+
 function openDeepWoods() {
   clickAtlas('Open Greenvale')
   clickAtlas('Open Northwood')
@@ -53,12 +59,12 @@ describe('combat world atlas browser', () => {
     expect(screen.getByText('Deep Woods')).toBeInTheDocument()
     const wolfDen = screen.getByRole('button', { name: /^Wolfscar Hollow/ })
     expect(wolfDen).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Wolfscar Hollow - Select arena - RANK 1' })).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Ironback Riverbed - Select arena - RANK 1' })).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Fallen Watch Ruins - Locked - RANK 2' })).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Blackroot Cemetery - Locked - RANK 3' })).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Blighted Grove - Locked - RANK 5' })).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Hollow Bell Temple - Locked - RANK 8' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: arenaButtonName('location.wolfscar-hollow', 'Select arena') })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: arenaButtonName('location.ironback-riverbed', 'Select arena') })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: arenaButtonName('location.fallen-watch-ruins', 'Locked') })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: arenaButtonName('location.blackroot-cemetery', 'Locked') })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: arenaButtonName('location.blighted-grove', 'Locked') })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: arenaButtonName('location.hollow-bell-temple', 'Locked') })).toBeInTheDocument()
     expect(wolfDen).toHaveAttribute('data-debug-tooltip-id', 'combat-arena:location.wolfscar-hollow')
     expect(wolfDen).not.toHaveAttribute('title')
     expect(screen.queryByRole('button', { name: /^Bandit Camp/ })).not.toBeInTheDocument()

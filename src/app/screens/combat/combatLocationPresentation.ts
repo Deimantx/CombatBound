@@ -1,6 +1,4 @@
-import { itemById } from '../../../game/data/items'
 import { enemyById } from '../../../game/data/enemies'
-import { formatPercent } from '../../../game/presentation/statFormatting'
 import { combatLocationById } from '../../../game/data/world/combatLocations'
 import { enemyFamilyById } from '../../../game/data/world/enemyFamilies'
 import type { CombatLocationDefinition } from '../../../game/world/worldTypes'
@@ -10,10 +8,7 @@ import { enemyPresentation, type EnemyPresentation } from './enemyPresentation'
 export interface CombatLocationPresentation {
   familyName: string
   enemies: Array<EnemyPresentation & { enemy: NonNullable<EnemyPresentation['enemy']> }>
-  sharedLootNames: string[]
-  recommendedHunterRankLabel: string
   requiredHunterRankLabel: string
-  targetCountLabel: string
 }
 
 export interface CombatTargetPresentation {
@@ -48,10 +43,7 @@ export function combatLocationPresentation(location: CombatLocationDefinition): 
   return {
     familyName: enemyFamilyById[location.familyId]?.name ?? 'Unknown Family',
     enemies: location.targets.map((entry) => enemyPresentation(entry.enemyId)).filter((entry): entry is EnemyPresentation & { enemy: NonNullable<EnemyPresentation['enemy']> } => Boolean(entry.enemy)),
-    sharedLootNames: location.sharedLoot?.map((drop) => `${itemById[drop.itemId]?.name ?? 'Unknown Item'} - ${formatPercent(drop.chance)}`) ?? [],
-    recommendedHunterRankLabel: location.recommendedHunterRank ? `Hunter Rank ${location.recommendedHunterRank[0]}-${location.recommendedHunterRank[1]}` : `Hunter Rank ${location.requiredHunterRank}`,
     requiredHunterRankLabel: `Hunter Rank ${location.requiredHunterRank}`,
-    targetCountLabel: `${location.targets.length} target${location.targets.length === 1 ? '' : 's'}`,
   }
 }
 

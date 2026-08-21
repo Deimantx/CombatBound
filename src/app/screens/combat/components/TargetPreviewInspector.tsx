@@ -1,4 +1,3 @@
-import { Eye, Lock, Swords } from 'lucide-react'
 import type { ReactNode } from 'react'
 import { enemyById } from '../../../../game/data/enemies'
 import { enemyCombatAbilityById } from '../../../../game/data/enemyCombatAbilities'
@@ -11,33 +10,27 @@ import { getEnemyResolvedTraits } from '../../../../game/enemyTraits/enemyTraitS
 import { formatDamageRange, formatPercent, formatSeconds } from '../../../../game/presentation/statFormatting'
 import { PlaceholderArt } from '../../../components/PlaceholderArt'
 import { GameTooltip } from '../../../components/tooltip/GameTooltip'
-import { isCombatTargetUnlocked } from '../combatLocationPresentation'
 
 interface TargetPreviewInspectorProps {
   location: CombatLocationDefinition
   selectedTargetId: string
-  hunterRank: number
-  locationAvailable: boolean
   activeLocationId?: string
   activeTargetId?: string | null
   combatActive: boolean
 }
 
-export function TargetPreviewInspector({ location, selectedTargetId, hunterRank, locationAvailable, activeLocationId, activeTargetId, combatActive }: TargetPreviewInspectorProps) {
+export function TargetPreviewInspector({ location, selectedTargetId, activeLocationId, activeTargetId, combatActive }: TargetPreviewInspectorProps) {
   const definition = enemyById[selectedTargetId]
   const preview = instantiateCombatTarget(selectedTargetId, 0)
   if (!definition || !preview) return null
   const stats = getEnemyEffectiveCombatStats(preview)
   const isActive = combatActive && activeLocationId === location.id && activeTargetId === selectedTargetId
-  const unlocked = isCombatTargetUnlocked(location, selectedTargetId, hunterRank, locationAvailable)
   const loot = getCombatTargetLootPreview(location, definition)
-  const actionLabel = !unlocked ? 'LOCKED' : isActive ? 'FIGHTING' : combatActive ? 'SWITCH TARGET' : 'FIGHT TARGET'
 
   return <div className="combat-target-preview" data-debug-kind="combat-target-inspector" data-debug-enemy-id={selectedTargetId}>
     <div className="combat-target-preview-heading">
-      <div className={`combat-target-preview-icon ${isActive ? 'is-active' : ''}`}><PlaceholderArt icon={definition.icon} size="medium" variant={definition.accent} /></div>
-      <div><span className="tiny-label">SELECTED TARGET</span><h4>{definition.name}</h4><p>{definition.enemyTier.toUpperCase()} - {definition.family}</p></div>
-      <span className={`combat-target-preview-state ${isActive ? 'is-fighting' : unlocked ? 'is-selected' : 'is-locked'}`}>{isActive ? <Swords size={11} /> : !unlocked ? <Lock size={11} /> : <Eye size={11} />}{actionLabel}</span>
+      <div className={`combat-target-preview-icon ${isActive ? 'is-active' : ''}`}><PlaceholderArt icon={definition.icon} size="small" variant={definition.accent} /></div>
+      <div className="combat-target-preview-copy"><span className="tiny-label">SELECTED TARGET</span><h4>{definition.name}</h4><p>{definition.enemyTier.toUpperCase()} - {definition.family}</p></div>
     </div>
     <div className="combat-target-detail-grid" data-debug-kind="combat-target-static-stats"><span>HP</span><strong>{definition.maxLife}</strong><span>Attack</span><strong>{formatDamageRange(stats.attackDamageMin ?? definition.baseAttackDamageMin, stats.attackDamageMax ?? definition.baseAttackDamageMax)}</strong><span>Attack Interval</span><strong>{formatSeconds(stats.attackInterval ?? definition.baseAttackTime)}</strong><span>Armour</span><strong>{Math.round(stats.armour ?? definition.armour)}</strong><span>Accuracy</span><strong>{Math.round(stats.accuracyRating ?? definition.accuracyRating)}</strong><span>Evasion</span><strong>{Math.round(stats.evasionRating ?? definition.evasionRating)}</strong></div>
     <InspectorTileSection title="TRAITS" empty={!definition.traits.length}>{getEnemyResolvedTraits(definition).map((trait) => <InspectorTile key={trait.assignment.traitId} icon="shield" label={trait.definition.name} tooltip={{ id: `trait:${trait.assignment.traitId}`, icon: 'shield', title: trait.definition.name, subtitle: `Rank ${trait.assignment.rank}`, description: trait.rank.description }} />)}</InspectorTileSection>
@@ -56,5 +49,6 @@ function InspectorTile({ icon, label, tooltip }: { icon: string; label: string; 
 }
 
 function TargetPreviewLoot({ title, drops, source }: { title: string; drops: Array<{ itemId: string; chance: number; minQuantity: number; maxQuantity: number }>; source: string }) {
-  return <div className="combat-target-preview-section combat-target-preview-loot"><span className="tiny-label">{title}</span><div className="combat-inspector-tile-grid" data-debug-kind="combat-loot-tile-grid">{drops.length ? drops.map((drop) => { const item = itemById[drop.itemId]; if (!item) return null; const purpose = item.purpose === 'sell-only' ? 'Sell-only' : item.purpose === 'loot-container' ? 'Loot container' : undefined; return <InspectorTile key={drop.itemId} icon={item.icon} label={item.name} tooltip={{ id: item.id, icon: item.icon, title: item.name, subtitle: `${item.category} - ${source}`, description: item.description, rows: [{ label: 'Drop chance', value: formatPercent(drop.chance), tone: 'gold' }, { label: 'Quantity', value: drop.minQuantity === drop.maxQuantity ? `x${drop.minQuantity}` : `x${drop.minQuantity}-${drop.maxQuantity}` }, ...(purpose ? [{ label: 'Purpose', value: purpose, tone: purpose === 'Sell-only' ? 'gold' as const : 'blue' as const }] : [])] }} /> }) : <small className="combat-target-muted">-</small>}</div></div>
+  if (drops.length === 0) return null
+  return <div className="combat-target-preview-section combat-target-preview-loot"><span className="tiny-label">{title}</span><div className="combat-inspector-tile-grid" data-debug-kind="combat-loot-tile-grid">{drops.map((drop) => { const item = itemById[drop.itemId]; if (!item) return null; const purpose = item.purpose === 'sell-only' ? 'Sell-only' : item.purpose === 'loot-container' ? 'Loot container' : undefined; return <InspectorTile key={drop.itemId} icon={item.icon} label={item.name} tooltip={{ id: item.id, icon: item.icon, title: item.name, subtitle: `${item.category} - ${source}`, description: item.description, rows: [{ label: 'Drop chance', value: formatPercent(drop.chance), tone: 'gold' }, { label: 'Quantity', value: drop.minQuantity === drop.maxQuantity ? `x${drop.minQuantity}` : `x${drop.minQuantity}-${drop.maxQuantity}` }, ...(purpose ? [{ label: 'Purpose', value: purpose, tone: purpose === 'Sell-only' ? 'gold' as const : 'blue' as const }] : [])] }} /> })}</div></div>
 }

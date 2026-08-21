@@ -1,8 +1,11 @@
 import { describe, expect, it } from "vitest";
 import { createInitialGameState } from "../game/gameState";
+import type { GameState } from "../game/gameState";
 import { calculateHunterCombatStats } from "../game/equipment/derivedStats";
 import { advanceCombatStep, createCombatContext, startCombatTarget } from "../game/combat/combatEngine";
 import { advanceEnemyActions, type EnemyRuntimeDependencies } from "../game/combat/combatEnemyRuntime";
+import { createDeterministicOfflineRng } from "../game/offline/offlineActivityContract";
+import { simulateCombatHuntOffline } from "../game/offline/offlineCombatSimulation";
 import { getNextOfflineCombatBoundary } from "../game/offline/offlineCombatScheduler";
 
 const dependencies: EnemyRuntimeDependencies = {
@@ -40,6 +43,87 @@ describe("enemy action scheduler", () => {
     const progressed = advanceCombatStep(preparing, 0.5, context, stats);
     expect(progressed.combat.enemy?.attackTimer).toBe(progressed.combat.enemy?.attackInterval);
     expect(progressed.combat.enemy?.preparedAbility?.remainingSeconds).toBeCloseTo(2.4, 6);
+  });
+
+  it("ticks the reset Special cooldown through the remainder of its step", () => {
+    const { game, stats, context } = active();
+    const enemy = game.combat.enemy!;
+    const prepared = {
+      abilityId: "enemy-ability.charged-shot",
+      remainingSeconds: 0.06,
+      totalSeconds: 3,
+      source: { kind: "enemy", instanceId: enemy.instanceId },
+      target: { kind: "player" },
+      startedSequence: game.combat.eventSequence,
+    } as never;
+    const next = advanceEnemyActions({
+      ...game,
+      combat: {
+        ...game.combat,
+        enemy: {
+          ...enemy,
+          preparedAbility: prepared,
+          abilityCooldowns: { ...enemy.abilityCooldowns, "enemy-ability.charged-shot": 0 },
+        },
+      },
+    }, 0.1, context, stats, dependencies);
+    expect(next.combat.enemy?.preparedAbility).toBeNull();
+    expect(next.combat.enemy?.abilityCooldowns["enemy-ability.charged-shot"]).toBeCloseTo(9.96, 6);
+  });
+
+  it("carries elapsed time past a Basic resolution into the next Basic lane", () => {
+    const { game, stats, context } = active();
+    const enemy = game.combat.enemy!;
+    const next = advanceEnemyActions({
+      ...game,
+      combat: {
+        ...game.combat,
+        enemy: { ...enemy, attackTimer: 0.03 },
+      },
+    }, 0.1, context, stats, dependencies);
+    expect(next.combat.enemy?.attackTimer).toBeCloseTo(enemy.attackInterval - 0.07, 6);
+    expect(next.combat.enemy?.preparedAbility).toBeNull();
+    expect(next.combat.events.some((event) => event.type === "enemyAbilityResolved")).toBe(false);
+  });
+
+  it("keeps live and offline action timing aligned across a non-round boundary", () => {
+    const { game, stats } = active();
+    const enemy = game.combat.enemy!;
+    const prepared = {
+      abilityId: "enemy-ability.charged-shot",
+      remainingSeconds: 0.06,
+      totalSeconds: 3,
+      source: { kind: "enemy", instanceId: enemy.instanceId },
+      target: { kind: "player" },
+      startedSequence: game.combat.eventSequence,
+    } as never;
+    const snapshot: GameState = {
+      ...game,
+      combat: {
+        ...game.combat,
+        enemy: {
+          ...enemy,
+          preparedAbility: prepared,
+          abilityCooldowns: { ...enemy.abilityCooldowns, "enemy-ability.charged-shot": 0 },
+        },
+      },
+    };
+    const liveContext = createCombatContext(createDeterministicOfflineRng(1234));
+    let live = snapshot;
+    for (let index = 0; index < 340; index += 1) live = advanceCombatStep(live, 0.01, liveContext, stats);
+    const offline = simulateCombatHuntOffline(snapshot, { requestedSeconds: 3.4 }, createDeterministicOfflineRng(1234));
+    const liveEnemy = live.combat.enemy!;
+    const offlineEnemy = offline.state.combat.enemy!;
+    expect(offline.summary.virtualElapsedSeconds).toBeCloseTo(3.4, 6);
+    expect(live.combat.playerHp).toBeCloseTo(offline.state.combat.playerHp, 6);
+    expect(liveEnemy.currentHealth).toBeCloseTo(offlineEnemy.currentHealth, 6);
+    expect(liveEnemy.attackTimer).toBeCloseTo(offlineEnemy.attackTimer, 6);
+    expect(liveEnemy.preparedAbility).toEqual(offlineEnemy.preparedAbility);
+    expect(Object.keys(liveEnemy.abilityCooldowns)).toEqual(Object.keys(offlineEnemy.abilityCooldowns));
+    for (const abilityId of Object.keys(liveEnemy.abilityCooldowns) as Array<keyof typeof liveEnemy.abilityCooldowns>)
+      expect(liveEnemy.abilityCooldowns[abilityId]).toBeCloseTo(offlineEnemy.abilityCooldowns[abilityId], 10);
+    expect(liveEnemy.abilityRuntime.usedThisFight).toEqual(offlineEnemy.abilityRuntime.usedThisFight);
+    expect(live.combat.events.map((event) => event.type)).toEqual(offline.state.combat.events.map((event) => event.type));
   });
 
   it("resets Basic progress during stun and gives the Special priority after stun", () => {
