@@ -11,9 +11,8 @@ import { EquipmentCandidateBrowser } from "./EquipmentCandidateBrowser";
 import { EquipmentCurrentCard } from "./EquipmentCurrentCard";
 import { EquipmentItemComparison } from "./EquipmentItemComparison";
 import { buildEquipmentItemDifferenceRows } from "../../../../../game/presentation/equipmentItemComparison";
-import { UpgradeTreePanel } from "./UpgradeTreePanel";
 
-export function EquipmentSlotInspector({ slotId, equipment, inventory, progression, defensiveContext, combatLocked, models, previewState, pinned, hovered, onSelectCandidate, onHoverCandidate, onLeaveCandidate, onClearPreview, onEquip, onUnequip, onUnlockUpgradeNode }: {
+export function EquipmentSlotInspector({ slotId, equipment, inventory, progression, defensiveContext, combatLocked, models, previewState, pinned, hovered, onSelectCandidate, onHoverCandidate, onLeaveCandidate, onClearPreview, onEquip, onUnequip }: {
   slotId: EquipmentSlotId;
   equipment: EquipmentState;
   inventory: InventoryState;
@@ -30,7 +29,6 @@ export function EquipmentSlotInspector({ slotId, equipment, inventory, progressi
   onClearPreview: () => void;
   onEquip: (instanceId: string) => void;
   onUnequip: () => void;
-  onUnlockUpgradeNode: (instanceId: string, nodeId: string) => void;
 }) {
   const definition = EQUIPMENT_SLOT_DEFINITIONS.find((slot) => slot.id === slotId)!;
   const current = equipment.slots[slotId] ? resolveItemInstance(inventory, equipment.slots[slotId]!) : null;
@@ -44,7 +42,6 @@ export function EquipmentSlotInspector({ slotId, equipment, inventory, progressi
   const actionLabel = replacement?.action === "move" ? `MOVE TO ${replacement.slotLabel.toUpperCase()}` : "EQUIP";
   const hunterRank = hunterRankForPoints(progression.hunterRankPoints);
   const itemRows = buildEquipmentItemDifferenceRows(current ?? undefined, activeCandidate);
-  const upgradeInstance = activeCandidate ?? current;
   return (
     <section className="hero-equipment-options hero-equipment-slot-inspector" data-debug-kind="hero-equipment-selected" data-debug-options="true" data-debug-slot-id={slotId} data-debug-expanded="true" data-debug-compatible-count={models.length}>
       <div className="equipment-compatible-workspace" data-debug-kind="equipment-compatible-workspace">
@@ -55,7 +52,6 @@ export function EquipmentSlotInspector({ slotId, equipment, inventory, progressi
         </div>
         <EquipmentItemComparison slotLabel={definition.label} current={current} candidate={activeCandidate} itemRows={itemRows} buildRows={activeCandidate && !isCurrent ? previewState.comparison : []} combatLocked={combatLocked} hunterRankLocked={Boolean(activeModel?.hunterRankLocked)} proficiencyLocked={Boolean(activeModel?.proficiencyLocked)} proficiencyId={activeModel?.validation.proficiencyId} requiredProficiencyLevel={activeModel?.validation.requiredLevel} actionLabel={actionLabel} canEquip={canCommit} onEquip={() => { if (activeCandidate) onEquip(activeCandidate.instance.id); }} />
       </div>
-      {upgradeInstance?.definition.upgradeTreeId && <UpgradeTreePanel inventory={inventory} instanceId={upgradeInstance.instance.id} combatLocked={combatLocked} onUnlock={onUnlockUpgradeNode} />}
     </section>
   );
 }

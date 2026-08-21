@@ -1,23 +1,30 @@
 import { describe, expect, it } from "vitest";
 import { createInitialGameState } from "../game/gameState";
-import { gameStateToSaveV15, parseGameSaveJson } from "../game/persistence/saveGame";
-import { isGameSaveV16 } from "../game/persistence/saveValidation";
+import { gameStateToSaveV14, gameStateToSaveV17, parseGameSaveJson } from "../game/persistence/saveGame";
+import { isGameSaveV17 } from "../game/persistence/saveValidation";
 import { grantItem } from "../game/items/itemOwnership";
-import { getUpgradeNodeState, purchaseItemUpgradeNode } from "../game/items/itemUpgradeLogic";
+import { getItemUpgradeSpecialization, getUpgradeNodeState, purchaseItemUpgradeNode } from "../game/items/itemUpgradeLogic";
 import { normalizeItemInstance, validateItemInstance } from "../game/items/itemInstanceValidation";
 import { resolveItemInstance } from "../game/items/itemResolver";
 import { validateEquipmentChange } from "../game/equipment/equipmentRules";
 import { getProficiencyLevel } from "../game/progression/proficiencyProgression";
-import { ironSwordUpgradeTree, itemUpgradeNodeById } from "../game/data/gear/itemUpgradeTrees";
+import { ironSwordUpgradeBranches, ironSwordUpgradeTree, itemUpgradeNodeById } from "../game/data/gear/itemUpgradeTrees";
 import { itemById } from "../game/data/items";
+import { debugGrantIronSwordMaterials } from "../game/debug/debugActions";
 import { resolveWeaponMechanicParameters } from "../game/weapons/weaponMechanicResolver";
 import { applySuccessfulPlayerBlock, advanceWeaponMechanicRuntime, consumeRiposteForBasicAttempt, observeBasicWeaponResult, syncPlayerWeaponRuntime, weaponMechanicStatModifiers } from "../game/weapons/weaponMechanicRuntime";
 import type { DamagePacket, DamageResolution } from "../game/combat/combatDamage";
 
 const settings = { reducedMotion: false, showInspectorButton: true };
 const p1 = "upgrade-node.iron-sword.tempered-edge-1";
+const p2 = "upgrade-node.iron-sword.tempered-edge-2";
+const r1 = "upgrade-node.iron-sword.balanced-grip";
+const r2 = "upgrade-node.iron-sword.honed-point";
+const r3 = "upgrade-node.iron-sword.duelist-flow";
+const r4 = "upgrade-node.iron-sword.perfect-rhythm";
+const g1 = "upgrade-node.iron-sword.guarded-hilt";
 
-describe("Iron Sword gear foundation V16", () => {
+describe("Iron Sword gear foundation V17", () => {
   it("bootstraps one clean sword, ten potions, and equips the sword", () => {
     const game = createInitialGameState();
     const instances = Object.values(game.inventory.instances);
@@ -45,7 +52,7 @@ describe("Iron Sword gear foundation V16", () => {
 
   it("migrates V15 retired instances to one Iron Sword and is idempotent", () => {
     const game = createInitialGameState();
-    const base = gameStateToSaveV15(game, settings);
+    const base = gameStateToSaveV14(game, settings);
     const legacy = {
       ...base,
       inventory: {
@@ -56,8 +63,8 @@ describe("Iron Sword gear foundation V16", () => {
       equipment: { slots: { weapon: "item-instance-00000009" } },
     };
     const migrated = parseGameSaveJson(JSON.stringify(legacy));
-    expect(migrated?.version).toBe(16);
-    expect(migrated && isGameSaveV16(migrated)).toBe(true);
+    expect(migrated?.version).toBe(17);
+    expect(migrated && isGameSaveV17(migrated)).toBe(true);
     expect(Object.values(migrated!.inventory.instances)).toHaveLength(1);
     expect(Object.values(migrated!.inventory.instances)[0]).toMatchObject({ definitionId: "item.iron-sword", version: 3, unlockedUpgradeNodeIds: [] });
     expect(Object.values(migrated!.inventory.instances)[0]).not.toHaveProperty("quality");
@@ -104,6 +111,71 @@ describe("Iron Sword gear foundation V16", () => {
     expect(getProficiencyLevel(game.progression, "one-handed-sword")).toBe(1);
     expect(validateEquipmentChange({ instanceId: swordId, slotId: "weapon", inventory: game.inventory, equipment: game.equipment, hunterRank: 1, progression: { ...game.progression, proficiencies: {} } }).reason).toBe("proficiency-level");
     expect(validateEquipmentChange({ instanceId: swordId, slotId: "weapon", inventory: game.inventory, equipment: game.equipment, hunterRank: 1, progression: game.progression }).valid).toBe(true);
+  });
+
+  it("authors exactly three single-branch specializations with four nodes each", () => {
+    expect(ironSwordUpgradeTree.selectionMode).toBe("single-branch");
+    expect(ironSwordUpgradeTree.branchIds).toEqual(ironSwordUpgradeBranches.map((branch) => branch.id));
+    expect(ironSwordUpgradeBranches.map((branch) => branch.name)).toEqual(["Tempered", "Duelist", "Counterguard"]);
+    expect(ironSwordUpgradeTree.nodeIds).toHaveLength(12);
+    for (const branch of ironSwordUpgradeBranches) {
+      expect(ironSwordUpgradeTree.nodeIds.filter((nodeId) => itemUpgradeNodeById[nodeId].branchId === branch.id)).toHaveLength(4);
+    }
+  });
+
+  it("makes all roots available before specialization and permanently locks other branches after the first purchase", () => {
+    const game = debugGrantIronSwordMaterials(createInitialGameState());
+    const instanceId = Object.keys(game.inventory.instances)[0];
+    expect(getUpgradeNodeState(game.inventory, instanceId, p1)).toBe("available");
+    expect(getUpgradeNodeState(game.inventory, instanceId, r1)).toBe("available");
+    expect(getUpgradeNodeState(game.inventory, instanceId, g1)).toBe("available");
+    const purchased = purchaseItemUpgradeNode({ inventory: game.inventory, instanceId, nodeId: r1 });
+    expect(getItemUpgradeSpecialization(purchased.inventory.instances[instanceId], ironSwordUpgradeTree)).toEqual({ state: "specialized", branchId: "upgrade-branch.iron-sword.duelist" });
+    expect(getUpgradeNodeState(purchased.inventory, instanceId, p1)).toBe("branch-locked");
+    expect(getUpgradeNodeState(purchased.inventory, instanceId, g1)).toBe("branch-locked");
+    const beforeMaterials = purchased.inventory.stackables["item.iron-bar"];
+    const rejected = purchaseItemUpgradeNode({ inventory: purchased.inventory, instanceId, nodeId: p1 });
+    expect(rejected.outcome).toBe("branch-locked");
+    expect(rejected.inventory).toBe(purchased.inventory);
+    expect(rejected.inventory.stackables["item.iron-bar"]).toBe(beforeMaterials);
+  });
+
+  it("progresses only the selected branch to four nodes and rejects cross-branch current instances", () => {
+    const game = debugGrantIronSwordMaterials(createInitialGameState());
+    const instanceId = Object.keys(game.inventory.instances)[0];
+    let inventory = game.inventory;
+    for (const nodeId of [r1, r2, r3, r4]) inventory = purchaseItemUpgradeNode({ inventory, instanceId, nodeId }).inventory;
+    expect(inventory.instances[instanceId].unlockedUpgradeNodeIds).toEqual([r1, r2, r3, r4]);
+    expect(getItemUpgradeSpecialization(inventory.instances[instanceId], ironSwordUpgradeTree)).toEqual({ state: "specialized", branchId: "upgrade-branch.iron-sword.duelist" });
+    expect(inventory.instances[instanceId].unlockedUpgradeNodeIds).toHaveLength(4);
+    expect(validateItemInstance({ ...inventory.instances[instanceId], unlockedUpgradeNodeIds: [p1, r1] }).valid).toBe(false);
+  });
+
+  it("keeps specialization, stats, and mechanic parameters isolated per exact copy", () => {
+    const game = debugGrantIronSwordMaterials(createInitialGameState());
+    const granted = grantItem(game.inventory, "item.iron-sword", 1);
+    let inventory = granted.inventory;
+    const first = Object.keys(inventory.instances)[0]!;
+    const second = granted.createdInstanceIds[0]!;
+    inventory = purchaseItemUpgradeNode({ inventory, instanceId: first, nodeId: p1 }).inventory;
+    inventory = purchaseItemUpgradeNode({ inventory, instanceId: second, nodeId: r1 }).inventory;
+    const tempered = resolveItemInstance(inventory, first)!;
+    const fresh = resolveItemInstance(inventory, second)!;
+    expect(tempered.effectiveStats.baseDamageMin ?? 0).toBeGreaterThan(fresh.effectiveStats.baseDamageMin ?? 0);
+    expect(resolveWeaponMechanicParameters(itemById["item.iron-sword"], inventory.instances[first]!)?.rhythm?.maxStacks).toBe(3);
+    expect(resolveWeaponMechanicParameters(itemById["item.iron-sword"], inventory.instances[second]!)?.rhythm?.maxStacks).toBe(3);
+    expect(getItemUpgradeSpecialization(inventory.instances[first], ironSwordUpgradeTree).branchId).not.toBe(getItemUpgradeSpecialization(inventory.instances[second], ironSwordUpgradeTree).branchId);
+  });
+
+  it("migrates V16 multi-branch nodes with deterministic winning-branch preservation", () => {
+    const game = createInitialGameState();
+    const current = gameStateToSaveV17(game, settings);
+    const swordId = Object.keys(game.inventory.instances)[0];
+    const legacy = { ...current, version: 16 as const, inventory: { ...current.inventory, instances: { [swordId]: { ...current.inventory.instances[swordId], unlockedUpgradeNodeIds: [p1, p2, r1, g1] } } } };
+    const migrated = parseGameSaveJson(JSON.stringify(legacy));
+    expect(migrated?.version).toBe(17);
+    expect(migrated?.inventory.instances[swordId].unlockedUpgradeNodeIds).toEqual([p1, p2]);
+    expect(getItemUpgradeSpecialization(migrated!.inventory.instances[swordId], ironSwordUpgradeTree).branchId).toBe("upgrade-branch.iron-sword.tempered");
   });
 
   it("resolves Longsword mechanics by archetype and keeps transient state simulation-time only", () => {

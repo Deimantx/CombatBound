@@ -4,7 +4,7 @@ import { resolveItemInstance } from '../items/itemResolver'
 import type { CombatProficiencyId, DefensiveProficiencyId } from '../progression/progressionTypes'
 import { ARMOR_TRAINING_SLOT_IDS, EQUIPMENT_SLOT_DEFINITIONS, type EquipmentSlotId, type EquipmentState } from './equipmentTypes'
 import { canEquipItemToSlot } from './equipmentRules'
-import type { ResolvedEquippedItem } from '../items/itemModifierTypes'
+import type { ResolvedEquippedItem } from '../items/itemTypes'
 
 export const BASE_ARMOR_TRAINING_XP = 1
 export const BASE_SHIELD_TRAINING_XP = 1

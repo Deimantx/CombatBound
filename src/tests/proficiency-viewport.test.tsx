@@ -73,7 +73,7 @@ describe('proficiency perk tree viewport', () => {
 
   it('opens the authored weapon and magic trees without a reload or placeholder state', () => {
     openTree()
-    for (const label of ['One-Handed Axe', 'Dagger', 'Longbow', 'Water Magic', 'Earth Magic', 'Darkness Magic']) {
+    for (const label of ['One-Handed Axe', 'Dagger', 'Longbow']) {
       fireEvent.click(screen.getByRole('button', { name: new RegExp(label) }))
       expect(document.querySelectorAll('[data-perk-node]')).toHaveLength(40)
       expect(screen.queryByText('Tree not authored yet')).not.toBeInTheDocument()

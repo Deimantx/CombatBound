@@ -68,14 +68,10 @@ describe("Combat Rework 1.1 explicit damage ranges", () => {
     expect(result.rawDamage).toBe(42);
   });
 
-  it("keeps prototype weapon and spell averages while authoring visible ranges", () => {
-    expect(itemById["item.training-sword"].stats).toMatchObject({ baseDamageMin: 24, baseDamageMax: 32 });
-    expect(itemById["item.hunter-sword"].stats).toMatchObject({ baseDamageMin: 29, baseDamageMax: 39 });
-    expect(itemById["item.vanguard-sword"].stats).toMatchObject({ baseDamageMin: 34, baseDamageMax: 46 });
+  it("keeps the authored Iron Sword and spell averages while exposing visible ranges", () => {
+    expect(itemById["item.iron-sword"].stats).toMatchObject({ baseDamageMin: 24, baseDamageMax: 32 });
     expect(formatDamageRange(24, 32)).toBe("24-32");
-    expect((itemById["item.training-sword"].stats!.baseDamageMin! + itemById["item.training-sword"].stats!.baseDamageMax!) / 2).toBe(28);
-    expect((itemById["item.hunter-sword"].stats!.baseDamageMin! + itemById["item.hunter-sword"].stats!.baseDamageMax!) / 2).toBe(34);
-    expect((itemById["item.vanguard-sword"].stats!.baseDamageMin! + itemById["item.vanguard-sword"].stats!.baseDamageMax!) / 2).toBe(40);
+    expect((itemById["item.iron-sword"].stats!.baseDamageMin! + itemById["item.iron-sword"].stats!.baseDamageMax!) / 2).toBe(28);
     expect(spellById["spell.flame-blast"]).toMatchObject({ baseDamageMin: 30, baseDamageMax: 40 });
     expect(spellById["spell.ice-shard"]).toMatchObject({ baseDamageMin: 24, baseDamageMax: 32 });
     expect(spellById["spell.stone-spike"]).toMatchObject({ baseDamageMin: 27, baseDamageMax: 37 });
@@ -86,10 +82,10 @@ describe("Combat Rework 1.1 explicit damage ranges", () => {
 
 describe("Combat Rework 1.1 range presentation and cleanup", () => {
   it("combines item damage endpoints into one player-facing row", () => {
-    const rows = formatItemStats(itemById["item.training-sword"].stats!);
+    const rows = formatItemStats(itemById["item.iron-sword"].stats!);
     expect(rows).toEqual(expect.arrayContaining([{ label: "Physical Damage", value: "24-32", tone: "gold" }]));
     expect(rows.some((row) => row.label === "Base Damage Min" || row.label === "Base Damage Max")).toBe(false);
-    expect(buildItemTooltip(itemById["item.training-sword"]).rows?.filter((row) => row.label === "Physical Damage")).toHaveLength(1);
+    expect(buildItemTooltip(itemById["item.iron-sword"]).rows?.filter((row) => row.label === "Physical Damage")).toHaveLength(1);
   });
 
   it("uses damage type and range in spell and enemy tooltips", () => {
@@ -104,10 +100,10 @@ describe("Combat Rework 1.1 range presentation and cleanup", () => {
     const afterglow = effectById["effect.afterglow"];
     const active = [{ instanceId: "effect.afterglow#1", effectId: afterglow.id, source: { kind: "player" as const }, target: { kind: "player" as const }, stacks: 1, remainingSeconds: 3, nextTickRemaining: null, appliedSequence: 1 }];
     expect(afterglow.statModifiers).toBeUndefined();
-    expect(buildEffectTooltip(active[0], afterglow).rows).toEqual(expect.arrayContaining([{ label: "Fire Spell Damage", value: "+10%", tone: "green" }]));
-    expect(calculateOutgoingEffectDamageMultiplier(active, effectById, { sourceKind: "spell", deliveryKind: "hit", damageType: "fire" })).toBeCloseTo(1.1);
+    expect(buildEffectTooltip(active[0], afterglow).rows).toEqual(expect.arrayContaining([{ label: "Fire Magic Art Damage", value: "+10%", tone: "green" }]));
+    expect(calculateOutgoingEffectDamageMultiplier(active, effectById, { sourceKind: "magic-art", deliveryKind: "hit", damageType: "fire" })).toBeCloseTo(1.1);
     for (const damageType of ["cold", "lightning", "physical", "chaos"] as const)
-      expect(calculateOutgoingEffectDamageMultiplier(active, effectById, { sourceKind: "spell", deliveryKind: "hit", damageType })).toBe(1);
+      expect(calculateOutgoingEffectDamageMultiplier(active, effectById, { sourceKind: "magic-art", deliveryKind: "hit", damageType })).toBe(1);
     const normal = resolveDamage({ damageType: "fire", baseDamage: 100, canCrit: false, guaranteedHit: true, defensiveEligibility: { canMiss: false, canBeEvaded: false, blockable: false }, source: { kind: "player" }, target: { kind: "enemy", instanceId: "target" } }, attacker(), attacker(), fixedRng(0.5));
     const buffed = resolveDamage({ damageType: "fire", baseDamage: 100, damageMultiplier: 1.1, canCrit: false, guaranteedHit: true, defensiveEligibility: { canMiss: false, canBeEvaded: false, blockable: false }, source: { kind: "player" }, target: { kind: "enemy", instanceId: "target" } }, attacker(), attacker(), fixedRng(0.5));
     expect(buffed.healthDamage).toBeGreaterThan(normal.healthDamage);
@@ -116,10 +112,7 @@ describe("Combat Rework 1.1 range presentation and cleanup", () => {
   it("removes orphan effects and the known magic self-debuffs", () => {
     for (const id of ["effect.reactive-weave", "effect.unbroken-cycle", "effect.absorptive-discipline", "effect.reactive-fortification"])
       expect(effectById[id]).toBeUndefined();
-    for (const name of ["Freezing Pressure", "Earthquake", "Blackened Wound"]) {
-      const perk = proficiencyPerkDefinitions.find((candidate) => candidate.name === name);
-      expect(perk, name).toBeDefined();
-      expect(perk?.effects.some((effect) => effect.type === "statModifier" && effect.stat === "evasionRating" && effect.valuePerRank < 0)).toBe(false);
-    }
+    for (const perk of proficiencyPerkDefinitions)
+      expect(perk.effects.some((effect) => effect.type === "statModifier" && effect.stat === "evasionRating" && effect.valuePerRank < 0), perk.name).toBe(false);
   });
 });

@@ -2,24 +2,7 @@ import { itemById, type ItemDefinition } from "../data/items";
 import { itemUpgradeNodeById, itemUpgradeTreeById } from "../data/gear/itemUpgradeTrees";
 import type { ItemInstance } from "./itemTypes";
 import { isItemInstanceId } from "./itemTypes";
-import type { ItemInstanceValidationResult } from "./itemModifierTypes";
-import type { ItemAffixDefinition, ItemAffixInstance, ItemAffixTierDefinition } from "./itemModifierTypes";
-import { itemAffixById } from "../data/itemAffixes";
-
-/** Legacy authoring adapters retained for historical fixtures only. */
-export function isAffixTierApplicable(definition: ItemDefinition, affix: ItemAffixDefinition, tier: ItemAffixTierDefinition) {
-  return affix.tiers.some((candidate) => candidate.id === tier.id) && (!affix.appliesTo.categories?.length || affix.appliesTo.categories.includes(definition.category)) && (!affix.appliesTo.slotKinds?.length || (definition.equipmentSlotKind !== undefined && affix.appliesTo.slotKinds.includes(definition.equipmentSlotKind)));
-}
-export function validateItemAffixInstance(definition: ItemDefinition, affixInstance: ItemAffixInstance, existingAffixes: ItemAffixInstance[] = [], affixes: Record<string, ItemAffixDefinition> = itemAffixById): string[] {
-  const affix = affixes[affixInstance.affixId];
-  if (!affix) return [`Unknown affix ${affixInstance.affixId}`];
-  const tier = affix.tiers.find((candidate) => candidate.id === affixInstance.tierId);
-  if (!tier) return [`Unknown tier ${affixInstance.tierId}`];
-  return [
-    ...(!isAffixTierApplicable(definition, affix, tier) ? [`Affix ${affix.id} is not applicable`] : []),
-    ...(existingAffixes.some((entry) => entry.affixId === affix.id) ? [`Duplicate affix ${affix.id}`] : []),
-  ];
-}
+import type { ItemInstanceValidationResult } from "./itemTypes";
 
 export function validateItemInstance(value: unknown, items: Record<string, ItemDefinition> = itemById): ItemInstanceValidationResult {
   const errors: string[] = [];
@@ -31,10 +14,7 @@ export function validateItemInstance(value: unknown, items: Record<string, ItemD
   if (!definition) errors.push(`Unknown instance definition ${String(instance.definitionId)}`);
   else if (definition.inventoryMode !== "instance") errors.push(`Instance definition ${definition.id} is not instance-owned`);
   if (instance.version !== 3) errors.push("Instance version must be 3");
-  if (instance.version === 3) {
-    const legacyFields = ["quality", "upgradeLevel", "affixes"] as const;
-    if (legacyFields.some((field) => field in (value as object))) errors.push("Legacy item modifier fields are not valid on v3 instances");
-  }
+  if (instance.version === 3 && Object.keys(value as object).some((field) => !["id", "definitionId", "version", "unlockedUpgradeNodeIds"].includes(field))) errors.push("Unexpected fields are not valid on v3 instances");
   if (!Array.isArray(instance.unlockedUpgradeNodeIds)) errors.push("Unlocked upgrade nodes must be an array");
   if (Array.isArray(instance.unlockedUpgradeNodeIds)) {
     const nodeIds = instance.unlockedUpgradeNodeIds;
@@ -44,21 +24,15 @@ export function validateItemInstance(value: unknown, items: Record<string, ItemD
     if (nodeIds.some((nodeId) => !tree?.nodeIds.includes(nodeId) || itemUpgradeNodeById[nodeId]?.treeId !== tree.id)) errors.push("Upgrade node does not belong to item tree");
     const unlocked = new Set(nodeIds.filter((nodeId): nodeId is string => typeof nodeId === "string"));
     for (const nodeId of unlocked) for (const prerequisite of itemUpgradeNodeById[nodeId]?.prerequisiteNodeIds ?? []) if (!unlocked.has(prerequisite)) errors.push(`Upgrade node ${nodeId} is missing prerequisite ${prerequisite}`);
+    if (tree?.selectionMode === "single-branch" && new Set(nodeIds.map((nodeId) => itemUpgradeNodeById[nodeId]?.branchId).filter(Boolean)).size > 1) errors.push("Single-branch item contains upgrades from multiple branches");
   }
   return { valid: errors.length === 0, errors };
-}
-
-/** Structural validator for the frozen V12/V15 pre-foundation instance shape. */
-export function isLegacyItemInstanceV2(value: unknown): value is import("./itemTypes").LegacyItemInstanceV2 {
-  if (!value || typeof value !== "object" || Array.isArray(value)) return false;
-  const instance = value as Record<string, unknown>;
-  return isItemInstanceId(instance.id) && typeof instance.definitionId === "string" && instance.version === 2 && Array.isArray(instance.affixes);
 }
 
 /** Discards malformed descendants rather than auto-purchasing their prerequisites. */
 export function normalizeItemInstance(value: unknown, items: Record<string, ItemDefinition> = itemById): ItemInstance | null {
   if (!value || typeof value !== "object" || Array.isArray(value)) return null;
-  const raw = value as Partial<ItemInstance>;
+  const raw = value as Partial<ItemInstance> & { version?: unknown; unlockedUpgradeNodeIds?: unknown };
   const id = raw.id;
   const definitionId = raw.definitionId;
   if (!isItemInstanceId(id) || typeof definitionId !== "string" || items[definitionId]?.inventoryMode !== "instance") return null;
@@ -80,5 +54,11 @@ export function normalizeItemInstance(value: unknown, items: Record<string, Item
       progressed = true;
     }
   }
-  return { id, definitionId, version: 3, unlockedUpgradeNodeIds: unlocked } as ItemInstance;
+  if (tree?.selectionMode === "single-branch") {
+    const validBranches = tree.branchIds.map((branchId) => candidateIds.filter((nodeId) => itemUpgradeNodeById[nodeId]?.branchId === branchId));
+    const winning = validBranches.find((branchNodes) => branchNodes.length > 0);
+    const allowed = new Set(winning ?? []);
+    return { id, definitionId, version: 3, unlockedUpgradeNodeIds: unlocked.filter((nodeId) => allowed.has(nodeId)) };
+  }
+  return { id, definitionId, version: 3, unlockedUpgradeNodeIds: unlocked };
 }

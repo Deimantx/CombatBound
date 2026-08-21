@@ -492,6 +492,7 @@ export function advanceCombatStep(
     ),
   };
   game = { ...game, combat };
+  let basicAttackAttempted = false;
   game = advanceEnemyTraitRuntime(game, step, context);
   combat = game.combat;
   game = advanceCombatEffects(game, step, context, stats);
@@ -558,13 +559,7 @@ export function advanceCombatStep(
   if (combat.playerAttackTimer <= 0 && !isPlayerStunned(combat, context.effects)) {
     const target = combat.enemy && !combat.enemy.defeated ? combat.enemy : undefined;
     if (target) {
-      combat = {
-        ...combat,
-        playerAttackTimer: Math.max(
-          combatBalance.minimumAttackInterval,
-          effective.attackInterval,
-        ),
-      };
+      basicAttackAttempted = true;
       const packet: DamagePacket = {
         ...componentFromAttack("physical", 1, true),
         sourceCategory: proficiencyById[stats.weaponProficiencyId ?? ""]?.category === "ranged" ? "ranged" : "melee",
@@ -596,6 +591,16 @@ export function advanceCombatStep(
   game = resolveDefeatedEnemies({ ...game, combat }, context);
   combat = game.combat;
   if (combat.phase !== "active") return game;
+  if (basicAttackAttempted && combat.enemy && !combat.enemy.defeated) {
+    const postAttempt = getPlayerStats(combat, stats, context, game.progression);
+    const elapsedPastAttackBoundary = Math.max(0, -combat.playerAttackTimer);
+    combat = {
+      ...combat,
+      playerAttackInterval: Math.max(combatBalance.minimumAttackInterval, postAttempt.attackInterval),
+      playerAttackTimer: Math.max(combatBalance.minimumAttackInterval, postAttempt.attackInterval - elapsedPastAttackBoundary),
+    };
+    game = { ...game, combat };
+  }
   return advanceEnemyActions(game, step, context, stats, {
     applyEffectiveHealing,
     awardBarrierCredits,

@@ -12,7 +12,7 @@ const context = createCombatContext({ next: () => 0.5 });
 function activeGame() {
   const game = createInitialGameState();
   const stats = calculateHunterCombatStats(game.equipment, game.inventory, game.progression);
-  return { game: startHunt({ ...game, combat: { ...game.combat, mana: 100 } }, "location.wolf-den", stats, context), stats };
+  return { game: startHunt({ ...game, combat: { ...game.combat, mana: 100 } }, "location.wolf-den", stats, context, "enemy.grey-wolf"), stats };
 }
 
 describe("Magic Arts", () => {

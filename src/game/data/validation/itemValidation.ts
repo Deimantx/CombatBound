@@ -1,4 +1,4 @@
-import { prototypeEquipmentDefinitions, type ItemDefinition } from "../items";
+import { equipmentDefinitions, type ItemDefinition } from "../items";
 import { COMBAT_ITEM_STAT_KEYS, isKnownCombatItemStatKey } from "../../presentation/statFormatting";
 import { EQUIPMENT_SLOT_DEFINITIONS } from "../../equipment/equipmentTypes";
 
@@ -76,7 +76,7 @@ export function validateItemDefinition(item: ItemDefinition): ItemValidationResu
   return { errors, warnings };
 }
 
-export function validateEquipmentDefinitions(items: readonly ItemDefinition[] = prototypeEquipmentDefinitions): ItemValidationResult {
+export function validateEquipmentDefinitions(items: readonly ItemDefinition[] = equipmentDefinitions): ItemValidationResult {
   return items.reduce<ItemValidationResult>((result, item) => {
     const next = validateItemDefinition(item);
     result.errors.push(...next.errors);

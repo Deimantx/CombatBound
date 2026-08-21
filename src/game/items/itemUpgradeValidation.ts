@@ -1,5 +1,5 @@
 import { itemById } from "../data/items";
-import { itemUpgradeNodeById, itemUpgradeTreeById, itemUpgradeTreeDefinitions } from "../data/gear/itemUpgradeTrees";
+import { itemUpgradeBranchById, itemUpgradeNodeById, itemUpgradeTreeById, itemUpgradeTreeDefinitions } from "../data/gear/itemUpgradeTrees";
 import type { ItemUpgradeTreeDefinition } from "./itemUpgradeTypes";
 import { RHYTHM_MECHANIC_ID, RIPOSTE_MECHANIC_ID } from "../weapons/weaponMechanicTypes";
 
@@ -15,6 +15,14 @@ export function validateItemUpgradeTrees(
   for (const tree of trees) {
     if (treeIds.has(tree.id)) errors.push(`Duplicate upgrade tree ID ${tree.id}`);
     treeIds.add(tree.id);
+    if (tree.selectionMode !== "single-branch") errors.push(`Unsupported upgrade selection mode ${tree.selectionMode}`);
+    if (new Set(tree.branchIds).size !== tree.branchIds.length) errors.push(`Duplicate branch ID in ${tree.id}`);
+    const treeBranchIds = new Set(tree.branchIds);
+    for (const branchId of tree.branchIds) {
+      const branch = itemUpgradeBranchById[branchId];
+      if (!branch) errors.push(`${tree.id} references unknown branch ${branchId}`);
+      else if (branch.treeId !== tree.id) errors.push(`${tree.id} references cross-tree branch ${branchId}`);
+    }
     const item = itemById[tree.itemDefinitionId];
     if (!item) errors.push(`Upgrade tree ${tree.id} references unknown item ${tree.itemDefinitionId}`);
     else if (item.upgradeTreeId !== tree.id) errors.push(`${tree.itemDefinitionId} does not reference ${tree.id}`);
@@ -25,11 +33,13 @@ export function validateItemUpgradeTrees(
       if (treeNodeIds.has(nodeId)) errors.push(`Duplicate node ID ${nodeId} in ${tree.id}`);
       treeNodeIds.add(nodeId);
       if (nodes[nodeId]?.treeId !== tree.id) errors.push(`Unknown or cross-tree node ${nodeId} in ${tree.id}`);
+      else if (!treeBranchIds.has(nodes[nodeId].branchId)) errors.push(`${nodeId} references an unknown branch`);
     }
     for (const nodeId of tree.nodeIds) {
       const node = nodes[nodeId];
       if (!node) continue;
       for (const prerequisite of node.prerequisiteNodeIds) if (!treeNodeIds.has(prerequisite)) errors.push(`${nodeId} has unknown prerequisite ${prerequisite}`);
+      for (const prerequisite of node.prerequisiteNodeIds) if (treeNodeIds.has(prerequisite) && nodes[prerequisite]?.branchId !== node.branchId) errors.push(`${nodeId} has a cross-branch prerequisite`);
       for (const cost of node.costs) {
         const material = itemById[cost.itemId];
         if (!material) errors.push(`${nodeId} has unknown cost item ${cost.itemId}`);
@@ -63,6 +73,7 @@ export function validateItemUpgradeTrees(
       }
       if (!Number.isInteger(node.presentation.column) || node.presentation.column < 0 || !Number.isInteger(node.presentation.row) || node.presentation.row < 0) errors.push(`${nodeId} has invalid presentation coordinates`);
     }
+    for (const branchId of tree.branchIds) if (!tree.nodeIds.some((nodeId) => nodes[nodeId]?.branchId === branchId && nodes[nodeId]?.prerequisiteNodeIds.every((prerequisite) => !treeNodeIds.has(prerequisite) || nodes[prerequisite]?.branchId !== branchId))) errors.push(`${tree.id} branch ${branchId} has no root`);
     const visiting = new Set<string>();
     const visited = new Set<string>();
     const visit = (nodeId: string) => {

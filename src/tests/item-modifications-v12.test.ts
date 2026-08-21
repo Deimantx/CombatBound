@@ -1,186 +1,39 @@
-
 import { describe, expect, it } from "vitest";
-import { itemAffixById } from "../game/data/itemAffixes";
-import { itemById } from "../game/data/items";
-import { calculateHunterCombatStats } from "../game/equipment/derivedStats";
-import { equipItemInstance, previewEquipmentChange } from "../game/equipment/equipmentRules";
 import { createInitialGameState } from "../game/gameState";
-import { addItemAffix, rerollItemAffix, setItemQuality, setItemUpgradeLevel } from "../game/items/itemMutations";
-import { allocateItemInstanceId, grantItem } from "../game/items/itemOwnership";
-import { resolveItemInstance } from "../game/items/itemResolver";
-import { MAX_ITEM_QUALITY } from "../game/items/itemQuality";
+import { gameStateToSaveV14, parseGameSaveJson } from "../game/persistence/saveGame";
+import { isGameSaveV17 } from "../game/persistence/saveValidation";
 import { validateItemInstance } from "../game/items/itemInstanceValidation";
-import { migrateV10Save, migrateV11Save } from "../game/persistence/saveMigration";
-import { parseGameSaveJson } from "../game/persistence/saveGame";
-import { isGameSave } from "../game/persistence/saveValidation";
-import { buildStatBreakdown } from "../game/presentation/statBreakdown";
-import { buildItemInstanceTooltip } from "../game/presentation/tooltipBuilders";
-import { debugGrantItem, debugGrantIronSwordMaterials, debugSetOwnedItemCount } from "../game/debug/debugActions";
-import type { InventoryState } from "../game/inventory/inventoryTypes";
 
-const midpointRng = { next: () => 0.5 };
-
-function twoSwords() {
-  const game = createInitialGameState();
-  const inventory = grantItem(game.inventory, "item.hunter-sword", 2).inventory;
-  const swords = Object.values(inventory.instances).filter((instance) => instance.definitionId === "item.hunter-sword");
-  return { game: { ...game, inventory }, first: swords[0], second: swords[1] };
-}
-
-function legacySpellbook(game: ReturnType<typeof createInitialGameState>) {
-  return {
-    knownSpellIds: game.spellbook.knownSpellIds,
-    equippedSpellSlots: game.combatAbilities.slots.filter((id) => id?.startsWith("spell.")).slice(0, 5),
-  };
-}
-
-function legacyCombatAbilities(game: ReturnType<typeof createInitialGameState>) {
-  return {
-    activeSlots: game.combatAbilities.slots.map((id) => id?.startsWith("spell.") ? null : id),
-    techniqueSlots: [null, null],
-  };
-}
-
-function saveFor(game: ReturnType<typeof createInitialGameState>, inventory = game.inventory, equipment = game.equipment) {
-  return { version: 12 as const, progression: game.progression, inventory, equipment, collection: game.collection, gold: game.gold, settings: { reducedMotion: false, showInspectorButton: true }, spellbook: legacySpellbook(game), combatAutomation: game.combatAutomation, combatAutomationPresets: game.combatAutomationPresets, combatAbilities: legacyCombatAbilities(game) };
-}
-
-describe("ItemInstance V2 modification foundation", () => {
-  it("creates clean V2 defaults and keeps duplicate definitions independent", () => {
-    const { first, second, game } = twoSwords();
-    expect(first).toMatchObject({ version: 2, quality: 0, upgradeLevel: 0, affixes: [] });
-    const changed = setItemQuality(game.inventory, first.id, 12);
-    expect(changed.changed).toBe(true);
-    expect(changed.inventory.instances[first.id].quality).toBe(12);
-    expect(changed.inventory.instances[second.id].quality).toBe(0);
-    expect(itemById[first.definitionId].stats?.baseDamageMin).toBe(29);
-  });
-
-  it("applies quality, upgrade, and local physical damage additively", () => {
-    const { first, game } = twoSwords();
-    let inventory = setItemQuality(game.inventory, first.id, 10).inventory;
-    inventory = setItemUpgradeLevel(inventory, first.id, 6).inventory;
-    inventory = addItemAffix(inventory, first.id, "affix.sharpened", "affix.sharpened.t1", { next: () => 1 / 3 }).inventory;
-    const resolved = resolveItemInstance(inventory, first.id)!;
-    expect(resolved.contributions.filter((entry) => entry.target === "physicalDamage").map((entry) => entry.value)).toEqual([0.1, 0.18, 0.14]);
-    expect(resolved.effectiveStats.baseDamageMin).toBeCloseTo(29 * 1.42, 10);
-    expect(resolved.effectiveStats.baseDamageMax).toBeCloseTo(39 * 1.42, 10);
-  });
-
-  it("uses inverse local attack speed and supports global stats on a statless base", () => {
-    const { first, game } = twoSwords();
-    const swift = addItemAffix(game.inventory, first.id, "affix.swift", "affix.swift.t1", midpointRng);
-    const stalwart = addItemAffix(swift.inventory, first.id, "affix.stalwart", "affix.stalwart.t1", midpointRng);
-    const precise = addItemAffix(stalwart.inventory, first.id, "affix.precise", "affix.precise.t1", midpointRng);
-    const resolved = resolveItemInstance(precise.inventory, first.id)!;
-    expect(resolved.effectiveStats.baseAttackTime).toBeCloseTo(2.2 / 1.06, 10);
-    expect(resolved.effectiveStats.maxLife).toBe(17);
-    expect(resolved.effectiveStats.accuracyRating).toBe(18);
-  });
-
-  it("feeds the exact modified instance into combat and leaves the sibling at base", () => {
-    const { first, second, game } = twoSwords();
-    const modifiedInventory = addItemAffix(setItemQuality(game.inventory, first.id, 20).inventory, first.id, "affix.sharpened", "affix.sharpened.t1", { next: () => 1 }).inventory;
-    const firstStats = calculateHunterCombatStats({ slots: { weapon: first.id } }, modifiedInventory, game.progression);
-    const secondStats = calculateHunterCombatStats({ slots: { weapon: second.id } }, modifiedInventory, game.progression);
-    expect(firstStats.attackDamageMin).toBeCloseTo(29 * 1.38, 10);
-    expect(secondStats.attackDamageMin).toBe(29);
-    const breakdown = buildStatBreakdown({ equipment: { slots: { weapon: first.id } }, inventory: modifiedInventory, progression: game.progression, playerEffects: [], combatPhase: "inactive" }, "attackDamage", "build");
-    expect(breakdown.finalValue).toBeCloseTo(firstStats.attackDamage, 10);
-    expect(breakdown.contributions.some((entry) => entry.sourceId === first.id)).toBe(true);
-  });
-
-  it("rejects invalid applicability, duplicates, capacities, tiers, and rolls", () => {
-    const { first, game } = twoSwords();
-    const ringGrant = grantItem(game.inventory, "item.copper-signet", 1);
-    const ring = ringGrant.createdInstanceIds[0];
-    expect(addItemAffix(ringGrant.inventory, ring, "affix.sharpened", "affix.sharpened.t1", midpointRng)).toMatchObject({ changed: false, reason: "affix-not-applicable" });
-    const one = addItemAffix(game.inventory, first.id, "affix.sharpened", "affix.sharpened.t1", midpointRng);
-    expect(addItemAffix(one.inventory, first.id, "affix.sharpened", "affix.sharpened.t1", midpointRng)).toMatchObject({ changed: false, reason: "duplicate-affix" });
-    const invalid = { ...one.inventory.instances[first.id], affixes: [{ affixId: "affix.sharpened", tierId: "affix.sharpened.t1", rolls: { "local-physical": 9 } }] };
-    expect(validateItemInstance({ ...invalid, id: first.id })).toMatchObject({ valid: false });
-    expect(validateItemInstance({ ...one.inventory.instances[first.id], affixes: [{ affixId: "affix.sharpened", tierId: "affix.swift.t1", rolls: { "local-physical": 0.15 } }] })).toMatchObject({ valid: false });
-    expect(itemAffixById["affix.sharpened"]).toBeDefined();
-  });
-
-  it("rerolls only selected rolls while preserving instance and affix identity", () => {
-    const { first, game } = twoSwords();
-    const added = addItemAffix(game.inventory, first.id, "affix.sharpened", "affix.sharpened.t1", { next: () => 0 });
-    const rerolled = rerollItemAffix(added.inventory, first.id, "affix.sharpened", { next: () => 1 });
-    expect(rerolled.inventory.instances[first.id]).toMatchObject({ id: first.id, affixes: [{ affixId: "affix.sharpened", tierId: "affix.sharpened.t1", rolls: { "local-physical": 0.18 } }] });
-    expect(rerolled.inventory.instances[first.id].definitionId).toBe("item.hunter-sword");
-  });
-
-  it("keeps definition tooltips base while instance tooltips expose modifications", () => {
-    const { first, game } = twoSwords();
-    const inventory = addItemAffix(setItemQuality(game.inventory, first.id, 12).inventory, first.id, "affix.sharpened", "affix.sharpened.t1", { next: () => 0 }).inventory;
-    const resolved = resolveItemInstance(inventory, first.id)!;
-    const tooltip = buildItemInstanceTooltip(resolved);
-    expect(tooltip.rows?.map((row) => row.label)).toEqual(expect.arrayContaining(["Instance", "Quality", "Upgrade", expect.stringContaining("Prefix: Sharpened")]));
-    expect(resolved.definition.stats?.baseDamageMin).toBe(29);
-  });
-
-  it("preserves exact item identity through V11 migration and V12 round trip", () => {
+describe("retired item modifier boundary", () => {
+  it("creates only strict V3 item instances", () => {
     const game = createInitialGameState();
-    const v11 = migrateV10Save({ version: 10, progression: game.progression, inventory: { quantities: { "item.hunter-sword": 2 } }, equipment: { slots: { weapon: "item.hunter-sword" } }, collection: game.collection, gold: 0, settings: { reducedMotion: false, showInspectorButton: true }, spellbook: legacySpellbook(game), combatAutomation: game.combatAutomation, combatAutomationPresets: game.combatAutomationPresets, combatAbilities: legacyCombatAbilities(game) })!;
-    const migrated = migrateV11Save(v11)!;
-    const id = migrated.equipment.slots.weapon!;
-    expect(migrated.version).toBe(12);
-    expect(migrated.inventory.instances[id]).toMatchObject({ id, version: 2, quality: 0, upgradeLevel: 0, affixes: [] });
-    expect(migrated.inventory.nextInstanceSequence).toBe(v11.inventory.nextInstanceSequence);
-    const modifiedInventory = setItemQuality(migrated.inventory, id, MAX_ITEM_QUALITY).inventory;
-    const modified = { ...migrated, inventory: modifiedInventory };
-    const loaded = parseGameSaveJson(JSON.stringify(modified))!;
-    expect(loaded.inventory.instances[id]).toEqual(modifiedInventory.instances[id]);
-    expect(loaded.equipment.slots.weapon).toBe(id);
+    const instance = Object.values(game.inventory.instances)[0];
+    expect(instance).toEqual({ id: instance.id, definitionId: "item.iron-sword", version: 3, unlockedUpgradeNodeIds: [] });
+    expect(validateItemInstance(instance)).toEqual({ valid: true, errors: [] });
   });
 
-  it("migrates duplicate ring ownership one-to-one and drops over-equipped copies", () => {
+  it("accepts frozen V15 legacy fields only at migration and discards them", () => {
     const game = createInitialGameState();
-    const migrated = migrateV10Save({ version: 10, progression: game.progression, inventory: { quantities: { "item.copper-signet": 2 } }, equipment: { slots: { ring1: "item.copper-signet", ring2: "item.copper-signet" } }, collection: game.collection, gold: 0, settings: { reducedMotion: false, showInspectorButton: true }, spellbook: legacySpellbook(game), combatAutomation: game.combatAutomation, combatAutomationPresets: game.combatAutomationPresets, combatAbilities: legacyCombatAbilities(game) })!;
-    expect(new Set(Object.values(migrated.inventory.instances).map((instance) => instance.id)).size).toBe(2);
-    expect(new Set(Object.values(migrated.equipment.slots))).toHaveLength(2);
-    const corrupt = migrateV10Save({ version: 10, progression: game.progression, inventory: { quantities: { "item.copper-signet": 1 } }, equipment: { slots: { ring1: "item.copper-signet", ring2: "item.copper-signet" } }, collection: game.collection, gold: 0, settings: { reducedMotion: false, showInspectorButton: true }, spellbook: legacySpellbook(game), combatAutomation: game.combatAutomation, combatAutomationPresets: game.combatAutomationPresets, combatAbilities: legacyCombatAbilities(game) })!;
-    expect(Object.values(corrupt.equipment.slots)).toHaveLength(1);
-  });
-
-  it("rejects malformed current saves and preserves collision safety", () => {
-    const inventory: InventoryState = { stackables: {}, instances: { "item-instance-00000015": { id: "item-instance-00000015", definitionId: "item.hunter-sword", version: 2, quality: 0, upgradeLevel: 0, affixes: [] } }, nextInstanceSequence: 15 };
-    const allocated = allocateItemInstanceId(inventory);
-    expect(allocated.id).toBe("item-instance-00000016");
-    expect(allocated.nextInstanceSequence).toBe(17);
-    const game = createInitialGameState();
-    const bad = saveFor(game, { ...game.inventory, instances: { ...game.inventory.instances, [game.equipment.slots.weapon!]: { ...game.inventory.instances[game.equipment.slots.weapon!], quality: 21 } } });
-    expect(isGameSave(bad)).toBe(false);
-  });
-
-  it("moves exact instances in preview and committed equipment without double counting", () => {
-    const game = createInitialGameState();
-    const granted = grantItem(game.inventory, "item.copper-signet", 2);
-    const ids = granted.createdInstanceIds;
-    const firstEquip = equipItemInstance({ inventory: granted.inventory, equipment: game.equipment, instanceId: ids[0], slotId: "ring1", hunterRank: 10 });
-    const bothEquip = equipItemInstance({ inventory: granted.inventory, equipment: firstEquip.equipment, instanceId: ids[1], slotId: "ring2", hunterRank: 10 });
-    const preview = previewEquipmentChange({ inventory: granted.inventory, equipment: bothEquip.equipment, instanceId: ids[0], slotId: "ring2", hunterRank: 10 });
-    expect(preview.equipment.slots.ring1).toBeUndefined();
-    expect(preview.equipment.slots.ring2).toBe(ids[0]);
-    const stats = calculateHunterCombatStats(preview.equipment, granted.inventory, game.progression);
-    expect(stats.accuracyRating).toBe(78);
-  });
-
-  it("debug materials target the new authored tree", () => {
-    const game = createInitialGameState();
-    const changed = debugGrantIronSwordMaterials(game);
-    expect(changed.inventory.stackables["item.iron-bar"]).toBe(100);
-    expect(changed.inventory.stackables["item.black-stone"]).toBe(100);
-  });
-
-  it("keeps equipped gear when debug owned-count cleanup removes siblings", () => {
-    const game = createInitialGameState();
-    const granted = debugGrantItem(game, "item.hunter-cap", 2);
-    const ids = Object.values(granted.inventory.instances).filter((instance) => instance.definitionId === "item.hunter-cap").map((instance) => instance.id);
-    const equipped = equipItemInstance({ inventory: granted.inventory, equipment: granted.equipment, instanceId: ids[0], slotId: "head", hunterRank: 10 });
-    const reduced = debugSetOwnedItemCount({ ...granted, equipment: equipped.equipment }, "item.hunter-cap", 1);
-    expect(reduced.inventory.instances[ids[0]]).toBeDefined();
-    expect(Object.values(reduced.inventory.instances).filter((instance) => instance.definitionId === "item.hunter-cap")).toHaveLength(1);
+    const base = gameStateToSaveV14(game, { reducedMotion: false, showInspectorButton: true });
+    const migrated = parseGameSaveJson(JSON.stringify({
+      ...base,
+      version: 15,
+      magicArts: { knownArtIds: ["magic-art.earth-shield"] },
+      inventory: {
+        stackables: { "item.healing-potion": 7 },
+        instances: {
+          "item-instance-00000009": { id: "item-instance-00000009", definitionId: "item.hunter-sword", version: 2, quality: 20, upgradeLevel: 4, affixes: [{ affixId: "legacy.prefix", tierId: "legacy.prefix.t1", rolls: { physical: 0.2 } }] },
+        },
+        nextInstanceSequence: 10,
+      },
+      equipment: { slots: { weapon: "item-instance-00000009" } },
+    }));
+    expect(migrated?.version).toBe(17);
+    expect(isGameSaveV17(migrated)).toBe(true);
+    const instance = Object.values(migrated!.inventory.instances)[0];
+    expect(instance).toEqual({ id: instance.id, definitionId: "item.iron-sword", version: 3, unlockedUpgradeNodeIds: [] });
+    expect(instance).not.toHaveProperty("quality");
+    expect(instance).not.toHaveProperty("upgradeLevel");
+    expect(instance).not.toHaveProperty("affixes");
   });
 });

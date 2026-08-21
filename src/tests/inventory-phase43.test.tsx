@@ -1,101 +1,56 @@
-
-
 import { cleanup, render } from "@testing-library/react";
 import { afterEach, describe, expect, it } from "vitest";
 import { InventoryCard } from "../app/screens/inventory/InventoryCard";
 import { TooltipProvider } from "../app/components/tooltip/TooltipProvider";
 import { createInitialGameState } from "../game/gameState";
 import { grantItem } from "../game/items/itemOwnership";
-import { addItemAffix, setItemQuality, setItemUpgradeLevel } from "../game/items/itemMutations";
+import { purchaseItemUpgradeNode } from "../game/items/itemUpgradeLogic";
 import { selectInventoryEntries, type InventoryFilters } from "../game/inventory/inventorySelectors";
 import { inventorySortOptions } from "../game/inventory/inventorySorting";
-import { buildDebugItemInstanceTooltip, buildPlayerItemInstanceTooltip } from "../game/presentation/tooltipBuilders";
+import { buildPlayerItemInstanceTooltip } from "../game/presentation/tooltipBuilders";
 import { resolveItemInstance } from "../game/items/itemResolver";
 
 afterEach(cleanup);
 
-const equipmentFilters: InventoryFilters = {
-  category: "equipment",
-  rarity: "all",
-  equipmentState: "all",
-  modification: "all",
-  availability: "all",
-};
+const filters: InventoryFilters = { category: "equipment", rarity: "all", equipmentState: "all", modification: "all", availability: "all" };
 
-function buildModifiedInventory() {
+function buildCopies() {
   const game = createInitialGameState();
-  const granted = grantItem(game.inventory, "item.hunter-sword", 3);
-  const [affixedId, upgradedId, qualityId] = granted.createdInstanceIds;
-  const withLocked = grantItem(granted.inventory, "item.vanguard-sword", 1);
-  let inventory = withLocked.inventory;
-  inventory = addItemAffix(inventory, affixedId, "affix.sharpened", "affix.sharpened.t1", { next: () => 0 }).inventory;
-  inventory = setItemUpgradeLevel(inventory, upgradedId, 2).inventory;
-  inventory = setItemQuality(inventory, qualityId, 12).inventory;
-  return { game: { ...game, inventory }, ids: { affixedId, upgradedId, qualityId } };
+  let inventory = grantItem(game.inventory, "item.iron-sword", 2).inventory;
+  for (const [itemId, quantity] of [["item.iron-bar", 20], ["item.weapon-scrap", 2], ["item.wolf-fang", 3]] as const) inventory = grantItem(inventory, itemId, quantity).inventory;
+  const ids = Object.values(inventory.instances).map((instance) => instance.id);
+  inventory = purchaseItemUpgradeNode({ inventory, instanceId: ids[0], nodeId: "upgrade-node.iron-sword.tempered-edge-1" }).inventory;
+  inventory = purchaseItemUpgradeNode({ inventory, instanceId: ids[1], nodeId: "upgrade-node.iron-sword.balanced-grip" }).inventory;
+  return { game: { ...game, inventory }, ids };
 }
 
-describe("Phase 4.3 inventory information hierarchy", () => {
-  it("keeps player tooltips useful without training formulas or ownership/technical notes", () => {
-    const game = createInitialGameState();
-    const granted = grantItem(game.inventory, "item.hunter-armor", 1);
-    const resolved = resolveItemInstance(granted.inventory, granted.createdInstanceIds[0])!;
-    const player = buildPlayerItemInstanceTooltip(resolved, {
-      equipped: true,
-      hunterRank: 5,
-      defensiveContext: { lightArmorPieces: 0, mediumArmorPieces: 1, heavyArmorPieces: 0, shieldEquipped: false },
-    });
-    const text = JSON.stringify(player);
-    expect(player.subtitle).toBe("Medium Armor · Uncommon");
-    expect(text).not.toMatch(/Training|Current training|matching armor piece|Shield XP|Owned item|Currently equipped|item-instance-|item\.hunter-armor/);
-    expect(text).toContain("Max Life");
-
-    const debug = buildDebugItemInstanceTooltip(resolved);
-    expect(JSON.stringify(debug)).toContain(resolved.instance.id);
-    expect(debug.rows?.some((row) => row.label === "Instance")).toBe(true);
+describe("current inventory information hierarchy", () => {
+  it("shows exact specialization and progress without retired modifier language", () => {
+    const { game, ids } = buildCopies();
+    const resolved = resolveItemInstance(game.inventory, ids[1])!;
+    const tooltip = buildPlayerItemInstanceTooltip(resolved, { equipped: false, hunterRank: 1 });
+    const text = JSON.stringify(tooltip);
+    expect(text).toContain("Duelist");
+    expect(text).toContain("1 / 4");
+    expect(text).not.toMatch(/quality|upgradeLevel|affix/i);
   });
 
-  it("offers only truthful sort options for each inventory context", () => {
-    expect(inventorySortOptions("equipment").map((option) => option.label)).toEqual([
-      "Manual", "Name", "Rarity", "Hunter Rank", "Quality", "Upgrade Level", "Affix Count", "Acquired",
-    ]);
-    expect(inventorySortOptions("materials").map((option) => option.label)).toEqual(["Manual", "Name", "Rarity", "Quantity"]);
-    expect(inventorySortOptions("all").map((option) => option.label)).toEqual(["Manual", "Name", "Rarity", "Category"]);
+  it("offers current truthful equipment sort options", () => {
+    expect(inventorySortOptions("equipment").map((option) => option.label)).toEqual(["Manual", "Name", "Rarity", "Hunter Rank", "Upgrade Nodes", "Acquired"]);
   });
 
-  it("sorts affix count in both directions with deterministic sequence ties", () => {
-    const { game, ids } = buildModifiedInventory();
-    let inventory = addItemAffix(game.inventory, ids.affixedId, "affix.swift", "affix.swift.t1", { next: () => 0 }).inventory;
-    const entries = selectInventoryEntries({ ...game.inventory, ...inventory }, game.equipment, equipmentFilters, "", { key: "affix-count", direction: "desc" }, { hunterRank: 5 })
-      .filter((entry) => entry.definition.id === "item.hunter-sword");
-    expect(entries.map((entry) => entry.instanceId)).toEqual([ids.affixedId, ids.upgradedId, ids.qualityId]);
-    const ascending = selectInventoryEntries({ ...game.inventory, ...inventory }, game.equipment, equipmentFilters, "", { key: "affix-count", direction: "asc" }, { hunterRank: 5 })
-      .filter((entry) => entry.definition.id === "item.hunter-sword");
-    expect(ascending.map((entry) => entry.instanceId)).toEqual([ids.upgradedId, ids.qualityId, ids.affixedId]);
+  it("filters and sorts exact copies by deterministic upgrade progress", () => {
+    const { game, ids } = buildCopies();
+    const entries = selectInventoryEntries(game.inventory, game.equipment, filters, "", { key: "upgrade", direction: "desc" }, { hunterRank: 1 }).filter((entry) => entry.definition.id === "item.iron-sword");
+    expect(entries.map((entry) => entry.instanceId)).toEqual([ids[0], ids[1], ids[2]]);
+    expect(selectInventoryEntries(game.inventory, game.equipment, { ...filters, modification: "upgraded" }, "", { key: "name", direction: "asc" }, { hunterRank: 1 })).toHaveLength(2);
   });
 
-  it("filters equipment by Hunter Rank availability and each modification mode", () => {
-    const { game, ids } = buildModifiedInventory();
-    const available = selectInventoryEntries(game.inventory, game.equipment, { ...equipmentFilters, availability: "usable" }, "", { key: "name", direction: "asc" }, { hunterRank: 5 });
-    expect(available.some((entry) => entry.definition.id === "item.hunter-sword")).toBe(true);
-    expect(available.some((entry) => entry.definition.id === "item.vanguard-sword")).toBe(false);
-    const locked = selectInventoryEntries(game.inventory, game.equipment, { ...equipmentFilters, availability: "locked" }, "", { key: "name", direction: "asc" }, { hunterRank: 5 });
-    expect(locked.every((entry) => (entry.definition.requiredHunterRank ?? 0) > 5)).toBe(true);
-
-    expect(selectInventoryEntries(game.inventory, game.equipment, { ...equipmentFilters, modification: "affixed" }, "", { key: "name", direction: "asc" }, { hunterRank: 5 }).map((entry) => entry.instanceId)).toContain(ids.affixedId);
-    expect(selectInventoryEntries(game.inventory, game.equipment, { ...equipmentFilters, modification: "upgraded" }, "", { key: "name", direction: "asc" }, { hunterRank: 5 }).map((entry) => entry.instanceId)).toContain(ids.upgradedId);
-    expect(selectInventoryEntries(game.inventory, game.equipment, { ...equipmentFilters, modification: "quality" }, "", { key: "name", direction: "asc" }, { hunterRank: 5 }).map((entry) => entry.instanceId)).toContain(ids.qualityId);
-    expect(selectInventoryEntries(game.inventory, game.equipment, { ...equipmentFilters, modification: "unmodified" }, "", { key: "name", direction: "asc" }, { hunterRank: 5 }).some((entry) => entry.instanceId === ids.affixedId || entry.instanceId === ids.upgradedId || entry.instanceId === ids.qualityId)).toBe(false);
-  });
-
-  it("uses an icon-only affix marker and a Hunter Rank lock on cards", () => {
-    const { game, ids } = buildModifiedInventory();
-    const affixed = selectInventoryEntries(game.inventory, game.equipment, equipmentFilters, "", { key: "name", direction: "asc" }, { hunterRank: 5 }).find((entry) => entry.instanceId === ids.affixedId)!;
-    const lockedInventory = grantItem(game.inventory, "item.vanguard-sword", 1).inventory;
-    const lockedGame = { ...game, inventory: lockedInventory };
-    const locked = selectInventoryEntries(lockedGame.inventory, lockedGame.equipment, equipmentFilters, "", { key: "name", direction: "asc" }, { hunterRank: 5 }).find((entry) => entry.definition.id === "item.vanguard-sword")!;
-    render(<TooltipProvider><><InventoryCard entry={affixed} hunterRank={5} selected={false} onSelect={() => undefined} /><InventoryCard entry={locked} hunterRank={5} selected={false} onSelect={() => undefined} /></></TooltipProvider>);
-    expect(document.querySelector('[data-debug-kind="item-affix-marker"]')).toBeInTheDocument();
-    expect(document.body).not.toHaveTextContent(/\d+ Mods|\d+ Affixes/);
-    expect(document.querySelector(".item-hunter-rank-lock")).toHaveAttribute("aria-label", "Requires Hunter Rank 10; Current Hunter Rank 5");
+  it("renders an upgrade marker rather than an affix marker", () => {
+    const { game, ids } = buildCopies();
+    const entry = selectInventoryEntries(game.inventory, game.equipment, filters, "", { key: "name", direction: "asc" }, { hunterRank: 1 }).find((candidate) => candidate.instanceId === ids[1])!;
+    render(<TooltipProvider><InventoryCard entry={entry} hunterRank={1} selected={false} onSelect={() => undefined} /></TooltipProvider>);
+    expect(document.querySelector(".item-upgrade-marker")).toBeInTheDocument();
+    expect(document.querySelector(".item-affix-marker")).toBeNull();
   });
 });

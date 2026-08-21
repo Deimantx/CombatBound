@@ -57,13 +57,13 @@ describe('CombatBound tooltip toolkit', () => {
 })
 
 describe('tooltip presentation models', () => {
-  it('formats Training Sword stats as player-facing values', () => {
-    const tooltip = buildItemTooltip(itemById['item.training-sword'])
-    expect(tooltip.title).toBe('Training Sword')
-    expect(tooltip.subtitle).toContain('One-Handed Sword')
+  it('formats current Iron Sword stats as player-facing values', () => {
+    const tooltip = buildItemTooltip(itemById['item.iron-sword'])
+    expect(tooltip.title).toBe('Iron Sword')
+    expect(tooltip.subtitle).toContain('Longsword')
     expect(tooltip.subtitle).toContain('Common')
-    expect(tooltip.description).toBe('A dependable starter weapon.')
-    expect(tooltip.rows?.map((row) => `${row.label} ${row.value}`).join(' ')).toContain('Weapon Base Attack Time 2.4s')
+    expect(tooltip.description).toContain('fixed-authored')
+    expect(tooltip.rows?.map((row) => `${row.label} ${row.value}`).join(' ')).toContain('Weapon Base Attack Time 2.35s')
     expect(JSON.stringify(tooltip)).not.toContain('attackInterval')
   })
 })

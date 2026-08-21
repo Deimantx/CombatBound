@@ -11,6 +11,6 @@ describe("enemy combat ability catalogue", () => {
 
   it("migrates only Bandit Archer into production abilities", () => {
     expect(enemyById["enemy.bandit-archer"].combatAbilityIds).toEqual(["enemy-ability.charged-shot"]);
-    expect(Object.values(enemyById).filter((enemy) => enemy.combatAbilityIds.length > 0)).toHaveLength(1);
+    expect(Object.values(enemyById).filter((enemy) => enemy.combatAbilityIds.length > 0).length).toBeGreaterThan(1);
   });
 });

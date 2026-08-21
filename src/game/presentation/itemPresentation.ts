@@ -1,4 +1,5 @@
-import { itemUpgradeTreeById } from "../data/gear/itemUpgradeTrees";
+import { itemUpgradeBranchById, itemUpgradeNodeById, itemUpgradeTreeById } from "../data/gear/itemUpgradeTrees";
+import { getItemUpgradeSpecialization } from "../items/itemUpgradeLogic";
 import { weaponArchetypeById } from "../data/gear/weaponArchetypes";
 import { equipmentSlotKindLabel } from "../equipment/equipmentTypes";
 import type { ResolvedItemInstance, ItemInstance } from "../items/itemTypes";
@@ -23,6 +24,7 @@ export interface ItemPresentation {
   materialTier?: string;
   weaponFamily?: string;
   weaponArchetype?: string;
+  specialization?: { branchId: string; label: string };
   upgradeProgress?: { unlocked: number; total: number };
   equipped: boolean;
   quantity: number;
@@ -52,7 +54,11 @@ export function itemModifierDisplays(resolved: ResolvedItemInstance): ItemModifi
 export function buildItemPresentation(resolved: ResolvedItemInstance, options: { equipped?: boolean; quantity?: number; includeBaseStats?: boolean; technical?: boolean } = {}): ItemPresentation {
   const { definition, instance } = resolved;
   const tree = definition.upgradeTreeId ? itemUpgradeTreeById[definition.upgradeTreeId] : undefined;
-  const unlocked = instance.unlockedUpgradeNodeIds ?? [];
+  const unlocked = instance.unlockedUpgradeNodeIds;
+  const specialization = getItemUpgradeSpecialization(instance, tree);
+  const branch = specialization.state === "specialized" ? itemUpgradeBranchById[specialization.branchId] : undefined;
+  const maxBranchNodeCount = tree ? Math.max(...tree.branchIds.map((branchId) => tree.nodeIds.filter((nodeId) => itemUpgradeNodeById[nodeId]?.branchId === branchId).length), 0) : undefined;
+  const branchNodeCount = branch ? tree?.nodeIds.filter((nodeId) => itemUpgradeNodeById[nodeId]?.branchId === branch.id).length : maxBranchNodeCount;
   return {
     name: definition.name,
     rarity: definition.rarity,
@@ -64,7 +70,8 @@ export function buildItemPresentation(resolved: ResolvedItemInstance, options: {
     materialTier: definition.materialTierId ? `${definition.materialTierId[0].toUpperCase()}${definition.materialTierId.slice(1)}` : undefined,
     weaponFamily: definition.weaponFamilyId ? `${definition.weaponFamilyId[0].toUpperCase()}${definition.weaponFamilyId.slice(1)}` : undefined,
     weaponArchetype: definition.weaponArchetypeId ? weaponArchetypeById[definition.weaponArchetypeId]?.name ?? definition.weaponArchetypeId.replace("weapon-archetype.", "") : undefined,
-    upgradeProgress: tree ? { unlocked: unlocked.length, total: tree.nodeIds.length } : undefined,
+    specialization: branch ? { branchId: branch.id, label: branch.name } : undefined,
+    upgradeProgress: tree ? { unlocked: unlocked.length, total: branchNodeCount ?? tree.nodeIds.length } : undefined,
     equipped: Boolean(options.equipped),
     quantity: options.quantity ?? 1,
     modified: unlocked.length > 0,
@@ -79,4 +86,4 @@ export function buildStackableItemPresentation(definition: ResolvedItemInstance[
   return { name: definition.name, rarity: definition.rarity, typeLabel: definition.category[0].toUpperCase() + definition.category.slice(1), quantity, equipped: false, modified: false, modifiers: [], effectiveStats: undefined, baseStats: undefined };
 }
 
-export function itemInstanceIsModified(instance: ItemInstance) { return (instance.unlockedUpgradeNodeIds ?? []).length > 0; }
+export function itemInstanceIsModified(instance: ItemInstance) { return instance.unlockedUpgradeNodeIds.length > 0; }

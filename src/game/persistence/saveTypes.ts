@@ -32,6 +32,39 @@ export interface LegacyEquipmentStateV10 { slots: Partial<Record<EquipmentSlotId
 export interface LegacyItemInstanceV1 { id: string; definitionId: string; version: 1 }
 export interface LegacyInventoryStateV11 { stackables: Record<string, number>; instances: Record<string, LegacyItemInstanceV1>; nextInstanceSequence: number }
 export interface LegacyEquipmentStateV11 { slots: Partial<Record<EquipmentSlotId, string>> }
+export interface LegacyItemAffixInstanceV15 {
+  affixId: string;
+  tierId: string;
+  rolls: Record<string, number>;
+}
+export interface LegacyItemInstanceV2 {
+  id: string;
+  definitionId: string;
+  version: 2;
+  quality?: number;
+  upgradeLevel?: number;
+  affixes: LegacyItemAffixInstanceV15[];
+}
+export interface LegacyInventoryStateV12 {
+  stackables: Record<string, number>;
+  instances: Record<string, LegacyItemInstanceV2>;
+  nextInstanceSequence: number;
+}
+export interface LegacyEquipmentStateV12 { slots: Partial<Record<EquipmentSlotId, string>> }
+export interface LegacyInventoryStateV15 extends LegacyInventoryStateV12 {}
+export interface LegacyEquipmentStateV15 extends LegacyEquipmentStateV12 {}
+export interface ItemInstanceV16 {
+  id: string;
+  definitionId: string;
+  version: 3;
+  unlockedUpgradeNodeIds: string[];
+}
+export interface InventoryStateV16 {
+  stackables: Record<string, number>;
+  instances: Record<string, ItemInstanceV16>;
+  nextInstanceSequence: number;
+}
+export interface EquipmentStateV16 { slots: Partial<Record<EquipmentSlotId, string>> }
 export interface LegacyProgressionState {
   proficiencies: Partial<Record<CombatProficiencyId, ProficiencyProgress>>;
   masteryXp: number;
@@ -89,7 +122,7 @@ export interface GameSaveV9 {
 }
 export interface GameSaveV10 extends Omit<GameSaveV9, "version"> { version: 10 }
 export interface GameSaveV11 extends Omit<GameSaveV9, "version" | "inventory" | "equipment"> { version: 11; inventory: LegacyInventoryStateV11; equipment: LegacyEquipmentStateV11 }
-export interface GameSaveV12 extends Omit<GameSaveV11, "version" | "inventory" | "equipment"> { version: 12; inventory: InventoryState; equipment: EquipmentState }
+export interface GameSaveV12 extends Omit<GameSaveV11, "version" | "inventory" | "equipment"> { version: 12; inventory: LegacyInventoryStateV12; equipment: LegacyEquipmentStateV12 }
 export interface GameSaveV13 extends Omit<GameSaveV12, "version" | "progression"> { version: 13; progression: LegacyProgressionStateV14 }
 export interface GameSaveV14 extends Omit<GameSaveV13, "version" | "progression" | "spellbook" | "combatAbilities"> {
   version: 14;
@@ -101,8 +134,8 @@ export interface GameSaveV14 extends Omit<GameSaveV13, "version" | "progression"
 export interface GameSaveV15 {
   version: 15;
   progression: ProgressionState;
-  inventory: InventoryState;
-  equipment: EquipmentState;
+  inventory: LegacyInventoryStateV15;
+  equipment: LegacyEquipmentStateV15;
   collection: CollectionState;
   gold: number;
   settings: { reducedMotion: boolean; showInspectorButton: boolean };
@@ -111,7 +144,22 @@ export interface GameSaveV15 {
   combatAutomation: CombatAutomationState;
   combatAutomationPresets: CombatAutomationPresetsState;
 }
-export interface GameSaveV16 extends Omit<GameSaveV15, "version"> {
+export interface GameSaveV16 {
   version: 16;
+  progression: ProgressionState;
+  inventory: InventoryStateV16;
+  equipment: EquipmentStateV16;
+  collection: CollectionState;
+  gold: number;
+  settings: { reducedMotion: boolean; showInspectorButton: boolean };
+  magicArts: MagicArtsState;
+  combatAbilities: CombatAbilityLoadoutState;
+  combatAutomation: CombatAutomationState;
+  combatAutomationPresets: CombatAutomationPresetsState;
+}
+export interface GameSaveV17 extends Omit<GameSaveV16, "version" | "inventory" | "equipment"> {
+  version: 17;
+  inventory: InventoryState;
+  equipment: EquipmentState;
 }
 export type GameSaveV2 = GameSaveV3;

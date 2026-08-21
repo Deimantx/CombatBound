@@ -102,6 +102,16 @@ export function applyCombatStatModifiers(baseStats: CombatStats, modifiers: Stat
     else if (modifier.operation === "set-maximum") maximums[stat] = Math.min(maximums[stat] ?? Infinity, value);
   }
   const applyValue = (value: number, stat: string) => {
+    // `moreAttackSpeed` and `moreCastSpeed` are stored as additive offsets
+    // from the neutral multiplier (0 means 1.0x). A generic "more" operation
+    // must therefore compose against 1.0, not against the stored zero value.
+    if (stat === "moreAttackSpeed" || stat === "moreCastSpeed") {
+      const calculated = (1 + value + (flat[stat] ?? 0))
+        * (1 + (increased[stat] ?? 0) - (reduced[stat] ?? 0))
+        * (more[stat] ?? 1)
+        * (less[stat] ?? 1) - 1;
+      return Math.min(maximums[stat] ?? Infinity, Math.max(minimums[stat] ?? -Infinity, overrides[stat] ?? calculated));
+    }
     const calculated = (value + (flat[stat] ?? 0)) * (1 + (increased[stat] ?? 0) - (reduced[stat] ?? 0)) * (more[stat] ?? 1) * (less[stat] ?? 1);
     return Math.min(maximums[stat] ?? Infinity, Math.max(minimums[stat] ?? -Infinity, overrides[stat] ?? calculated));
   };

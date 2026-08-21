@@ -15,30 +15,28 @@ describe("Phase 4 inventory and debug UI", () => {
     const debug = useGameStore.getState().debug;
     render(<DebugItemsTab debug={debug} run={(_, action) => action()} />);
     const browser = document.querySelector('[data-debug-kind="debug-item-browser"]') as HTMLElement;
-    const weapons = within(browser).getByRole("button", { name: /Weapons/ });
     expect(within(browser).getByRole("button", { name: /One-Handed/ })).toBeVisible();
-    fireEvent.click(weapons);
-    expect(within(browser).queryByRole("button", { name: /One-Handed/ })).toBeNull();
-    fireEvent.change(screen.getByRole("textbox", { name: "Search items" }), { target: { value: "Ring of Precision" } });
-    expect(within(browser).getByRole("button", { name: "Inspect Ring of Precision" })).toBeVisible();
+    const oneHanded = within(browser).getByRole("button", { name: /One-Handed/ });
+    fireEvent.click(oneHanded);
+    fireEvent.change(screen.getByRole("textbox", { name: "Search items" }), { target: { value: "Iron Sword" } });
+    expect(within(browser).getByRole("button", { name: /Iron Sword/ })).toBeVisible();
     fireEvent.change(screen.getByRole("textbox", { name: "Search items" }), { target: { value: "" } });
-    expect(within(browser).queryByRole("button", { name: /One-Handed/ })).toBeNull();
+    expect(within(browser).getByRole("button", { name: /One-Handed/ })).toBeVisible();
   });
 
   it("confirms and deletes the selected exact copy", () => {
     const debug = useGameStore.getState().debug;
-    debug.setOwnedItemCount("item.hunter-sword", 3);
+    debug.setOwnedItemCount("item.iron-sword", 3);
     render(<DebugItemsTab debug={debug} run={(_, action) => action()} />);
     const browser = document.querySelector('[data-debug-kind="debug-item-browser"]') as HTMLElement;
     const weapons = within(browser).getByRole("button", { name: /Weapons/ });
     if (weapons.getAttribute("aria-expanded") === "false") fireEvent.click(weapons);
-    fireEvent.click(screen.getByRole("button", { name: "Inspect Hunter Sword" }));
     const inspector = document.querySelector('[data-debug-kind="debug-item-inspector"]') as HTMLElement;
-    fireEvent.click(within(inspector).getByRole("button", { name: "Inspect Hunter Sword Copy 2" }));
-    fireEvent.click(within(inspector).getByRole("button", { name: "Delete This Copy" }));
-    expect(screen.getByRole("dialog")).toHaveTextContent("Delete Copy 2?");
+    fireEvent.click(within(inspector).getByRole("button", { name: /^Copy 2/ }));
+    fireEvent.click(within(inspector).getByRole("button", { name: "Delete this copy" }));
+    expect(screen.getByRole("dialog")).toHaveTextContent("Delete copy?");
     fireEvent.click(screen.getByRole("button", { name: "Delete Copy" }));
-    expect(within(inspector).getByText("OWNED COPIES").parentElement).toHaveTextContent("2");
+    expect(within(inspector).getByText(/owned/)).toHaveTextContent("2");
   });
 
   it("keeps normal inventory copy cards compact and free of implementation copy", () => {
@@ -86,7 +84,7 @@ describe("Phase 4 inventory and debug UI", () => {
     const categoryButtons = within(navigator.querySelector(".inventory-category-buttons") as HTMLElement);
     expect(categoryButtons.getByRole("button", { name: /^Swords/ })).toHaveClass("is-active");
     expect(within(navigator).getByRole("button", { name: "Equipment" })).toBeVisible();
-    expect(document.querySelectorAll('[data-ui-panel="inventoryBank"] [data-debug-item-id="item.training-sword"]').length).toBe(1);
+    expect(document.querySelectorAll('[data-ui-panel="inventoryBank"] [data-debug-item-id="item.iron-sword"]').length).toBe(1);
   });
 
   it("shows results only for search or advanced filters and changes sort options by category", () => {
@@ -99,7 +97,7 @@ describe("Phase 4 inventory and debug UI", () => {
     fireEvent.click(screen.getByRole("tab", { name: "Materials" }));
     expect(Array.from(sort.options).map((option) => option.text)).toEqual(["Manual", "Name", "Rarity", "Quantity"]);
     fireEvent.click(screen.getByRole("tab", { name: "All" }));
-    fireEvent.change(screen.getByRole("textbox", { name: "Search inventory" }), { target: { value: "Training" } });
+    fireEvent.change(screen.getByRole("textbox", { name: "Search inventory" }), { target: { value: "Iron" } });
     expect(screen.getByText(/results/)).toBeInTheDocument();
   });
 
@@ -128,11 +126,11 @@ describe("Phase 4 inventory and debug UI", () => {
     fireEvent.click(within(navigator).getByRole("button", { name: /One-Handed/ }));
     expect(within(navigator).getByRole("button", { name: /^Swords/ })).toHaveTextContent("1");
 
-    act(() => debug.setOwnedItemCount("item.hunter-sword", 2));
-    expect(within(navigator).getByRole("button", { name: /^Swords/ })).toHaveTextContent("3");
-    const copies = Object.values(useGameStore.getState().game.inventory.instances).filter((instance) => instance.definitionId === "item.hunter-sword");
-    act(() => debug.deleteItemInstance(copies[0].id));
+    act(() => debug.setOwnedItemCount("item.iron-sword", 2));
     expect(within(navigator).getByRole("button", { name: /^Swords/ })).toHaveTextContent("2");
+    const copies = Object.values(useGameStore.getState().game.inventory.instances).filter((instance) => instance.definitionId === "item.iron-sword");
+    act(() => debug.deleteItemInstance(copies[copies.length - 1].id));
+    expect(within(navigator).getByRole("button", { name: /^Swords/ })).toHaveTextContent("1");
   });
 
   it("ignores remembered equipment filters for stackable categories", () => {
@@ -175,20 +173,13 @@ describe("Phase 4 inventory and debug UI", () => {
     expect((screen.getByRole("combobox", { name: "Sort inventory" }) as HTMLSelectElement).value).toBe("upgrade");
   });
 
-  it("uses concrete equipment type metadata and exposes alternate-slot movement", () => {
-    const debug = useGameStore.getState().debug;
-    debug.setOwnedItemCount("item.ring-of-precision", 2);
-    debug.setHunterRank(10);
-    const ringIds = Object.values(useGameStore.getState().game.inventory.instances).filter((instance) => instance.definitionId === "item.ring-of-precision").map((instance) => instance.id);
-    useGameStore.getState().equipItemInstance(ringIds[0], "ring1");
+  it("uses concrete equipment type metadata for the authored weapon", () => {
     render(<TooltipProvider><InventoryScreen /></TooltipProvider>);
-    const ringCard = document.querySelector('[data-debug-item-id="item.ring-of-precision"]') as HTMLElement;
-    fireEvent.click(ringCard);
+    const swordCard = document.querySelector('[data-debug-item-id="item.iron-sword"]') as HTMLElement;
+    fireEvent.click(swordCard);
     const details = document.querySelector('[data-ui-panel="inventoryDetails"]') as HTMLElement;
-    expect(details).not.toHaveTextContent("ACCESSORY");
-    expect(details).toHaveTextContent("RING");
-    fireEvent.click(within(details).getByRole("button", { name: /Ring 2/ }));
-    expect(within(details).getByRole("button", { name: "Move to Ring 2" })).toBeEnabled();
+    expect(details).toHaveTextContent("WEAPON");
+    expect(details).toHaveTextContent("Longsword");
     expect(details).not.toHaveTextContent("COMPARISON");
   });
 });

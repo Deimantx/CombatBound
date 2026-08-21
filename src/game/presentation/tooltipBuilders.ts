@@ -166,6 +166,10 @@ export function buildPlayerItemInstanceTooltip(
     value: modifier.value,
     tone: modifier.tone ?? "default",
   }));
+  const identityRows: TooltipRow[] = [
+    { label: "Specialization", value: presentation.specialization?.label ?? "Unspecialized", tone: presentation.specialization ? "gold" : "default" },
+    ...(presentation.upgradeProgress ? [{ label: "Upgrades", value: `${presentation.upgradeProgress.unlocked} / ${presentation.upgradeProgress.total}`, tone: "green" as const }] : []),
+  ];
   const equippedRows: TooltipRow[] = options.equipped
     ? [{ label: "Equipped", value: options.equippedSlot ? getEquipmentSlotDefinition(options.equippedSlot).label : resolved.definition.equipmentSlotKind ? equipmentSlotKindLabel(resolved.definition.equipmentSlotKind) : "Currently equipped", tone: "green" }]
     : [];
@@ -174,7 +178,7 @@ export function buildPlayerItemInstanceTooltip(
   const statRows = allBaseRows.filter((row) => !requirementRows.includes(row));
   const sections = [
     requirementRows.length ? { id: "requirements", title: "Requirements / State", rows: requirementRows } : undefined,
-    modifierRows.length ? { id: "modifications", title: "Modifications", rows: modifierRows } : undefined,
+    [...identityRows, ...modifierRows].length ? { id: "modifications", title: "Modifications", rows: [...identityRows, ...modifierRows] } : undefined,
     statRows.length ? { id: "item-stats", title: "Item Stats", rows: statRows } : undefined,
   ].filter((section): section is NonNullable<typeof section> => Boolean(section));
   return {

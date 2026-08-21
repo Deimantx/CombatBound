@@ -8,7 +8,7 @@ import { buildEffectCatalogue, classifyEffect } from "../game/presentation/effec
 import { buildItemCatalogue, itemSearchText, nodeItemCount, type ItemCatalogueNode } from "../game/presentation/itemCatalogue";
 import { buildEffectDefinitionTooltip, buildEnemyDefinitionTooltip, buildItemTooltip, buildSpellTooltip } from "../game/presentation/tooltipBuilders";
 import { enemyById } from "../game/data/enemies";
-import { getMagicSchoolPresentation, magicSchoolOrder } from "../game/presentation/magicSchool";
+import { magicSchoolOrder } from "../game/presentation/magicSchool";
 
 function findNode(nodes: ItemCatalogueNode[], id: string): ItemCatalogueNode | undefined {
   for (const node of nodes) {
@@ -32,18 +32,15 @@ describe("debug catalogue presentation", () => {
   it("derives the nested item taxonomy without losing definitions", () => {
     const nodes = buildItemCatalogue(itemDefinitions);
     expect(nodes.reduce((sum, node) => sum + nodeItemCount(node), 0)).toBe(itemDefinitions.length);
-    expect(findNode(nodes, "debug.items.equipment.weapons.one-handed.one-handed-swords")?.items.map((item) => item.name)).toEqual(["Training Sword", "Hunter Sword", "Vanguard Sword"]);
-    expect(findNode(nodes, "debug.items.equipment.offhands.shields")?.items).toHaveLength(3);
-    expect(findNode(nodes, "debug.items.equipment.armor.head.light-armor")?.items).toHaveLength(1);
-    expect(findNode(nodes, "debug.items.equipment.armor.head.medium-armor")?.items).toHaveLength(1);
-    expect(findNode(nodes, "debug.items.equipment.armor.head.heavy-armor")?.items).toHaveLength(1);
-    expect(findNode(nodes, "debug.items.equipment.accessories.ring")?.items.some((item) => item.name === "Ring of Precision")).toBe(true);
-    expect(itemSearchText(itemDefinitions.find((item) => item.name === "Ring of Precision")!)).toContain("precision");
+    expect(findNode(nodes, "debug.items.equipment.weapons.one-handed.one-handed-swords")?.items.map((item) => item.name)).toEqual(["Iron Sword"]);
+    expect(findNode(nodes, "debug.items.equipment.weapons.one-handed.one-handed-swords")?.items.every((item) => item.inventoryMode === "instance")).toBe(true);
+    expect(findNode(nodes, "debug.items.equipment.offhands.shields")?.items ?? []).toHaveLength(0);
+    expect(itemSearchText(itemDefinitions.find((item) => item.name === "Iron Sword")!)).toContain("iron sword");
   });
 
   it("builds the canonical world hierarchy and keeps enemy source locations", () => {
     const nodes = buildCollectionGrouping();
-    expect(nodes.reduce((sum, node) => sum + collectionNodeCount(node), 0)).toBe(enemyById["enemy.grey-wolf"] ? 8 : 0);
+    expect(nodes.reduce((sum, node) => sum + collectionNodeCount(node), 0)).toBe(Object.keys(enemyById).length);
     expect(findWorldNode(nodes, "Greenvale")?.children.some((region) => region.label === "Northwood")).toBe(true);
     expect(findWorldNode(nodes, "Wolfscar Hollow")?.enemies.some((entry) => entry.enemy.name === "Grey Wolf")).toBe(true);
     expect(findWorldNode(nodes, "Bandit Camp")?.enemies.some((entry) => entry.enemy.family === "Bandits")).toBe(true);
@@ -61,11 +58,11 @@ describe("debug catalogue presentation", () => {
   });
 
   it("uses canonical tooltip builders for item, enemy, and spell identities", () => {
-    const item = itemDefinitions.find((entry) => entry.name === "Vanguard Plate")!;
+    const item = itemDefinitions.find((entry) => entry.name === "Iron Sword")!;
     const itemTooltip = buildItemTooltip(item, { quantity: 2, hunterRank: 10, equipped: true });
-    expect(itemTooltip.title).toBe("Vanguard Plate");
-    expect(itemTooltip.description).toContain("heavy torso");
-    expect(itemTooltip.rows?.map((row) => row.label)).toEqual(expect.arrayContaining(["Quantity", "Hunter Rank", "Max Life", "Life Regen", "Armour"]));
+    expect(itemTooltip.title).toBe("Iron Sword");
+    expect(itemTooltip.description).toContain("fixed-authored");
+    expect(itemTooltip.rows?.map((row) => row.label)).toEqual(expect.arrayContaining(["Quantity", "Hunter Rank", "Physical Damage", "Weapon Base Attack Time"]));
     const enemyTooltip = buildEnemyDefinitionTooltip(enemyById["enemy.grey-wolf"], { defeats: 3, sourceLocations: ["Wolfscar Hollow"] });
     expect(enemyTooltip.title).toBe("Grey Wolf");
     expect(enemyTooltip.rows?.map((row) => row.label)).toEqual(expect.arrayContaining(["Family", "Max Life", "Attack Damage", "Accuracy Rating", "Armour", "Evasion Rating"]));
@@ -73,7 +70,7 @@ describe("debug catalogue presentation", () => {
     const spell = spellDefinitions.find((entry) => entry.name === "Flame Blast")!;
     const spellTooltip = buildSpellTooltip(spell);
     expect(spellTooltip.description).toContain("Ignite");
-    expect(spellTooltip.rows?.map((row) => row.value).join(" ")).toContain(getMagicSchoolPresentation("fire-magic").fullLabel);
+    expect(spellTooltip.rows?.map((row) => row.value).join(" ")).toContain("fire-magic");
     expect(magicSchoolOrder).toEqual(["fire-magic", "water-magic", "air-magic", "earth-magic", "darkness-magic"]);
   });
 });

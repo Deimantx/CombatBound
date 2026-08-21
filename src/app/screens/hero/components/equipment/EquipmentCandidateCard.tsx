@@ -7,6 +7,7 @@ import type { EquipmentChangeValidation } from "../../../../../game/equipment/eq
 import type { ResolvedItemInstance } from "../../../../../game/items/itemTypes";
 import { itemRarityArtVariant, itemRarityClass } from "../../../../../game/presentation/itemRarity";
 import { proficiencyById } from "../../../../../game/data/proficiencies";
+import { buildItemPresentation } from "../../../../../game/presentation/itemPresentation";
 
 export interface EquipmentCandidateModel {
   entry: ResolvedItemInstance;
@@ -38,6 +39,7 @@ export function EquipmentCandidateCard({ model, slotId, selected, hovered, hunte
       : undefined;
   const equippedSlotLabel = equippedSlot ? getEquipmentSlotDefinition(equippedSlot).label : undefined;
   const tooltip = buildPlayerItemInstanceTooltip(entry, { equipped, hunterRank });
+  const presentation = buildItemPresentation(entry);
   const canEquip = validation.valid && !combatLocked && !equipped;
   return (
     <GameTooltip content={tooltip}>
@@ -61,6 +63,7 @@ export function EquipmentCandidateCard({ model, slotId, selected, hovered, hunte
         <PlaceholderArt icon={entry.definition.icon} size="small" variant={itemRarityArtVariant(entry.definition.rarity)} />
         <span>
           <strong>{entry.definition.name}</strong>
+          {presentation.upgradeProgress && <small>{presentation.specialization?.label ?? "Unspecialized"} - {presentation.upgradeProgress.unlocked} / {presentation.upgradeProgress.total} upgrades</small>}
           {entry.definition.requiredHunterRank !== undefined && <small>Hunter Rank {entry.definition.requiredHunterRank}</small>}
         </span>
         {(hunterRankLocked || proficiencyLocked) && <span className="equipment-candidate-state is-locked"><LockKeyhole size={13} aria-hidden="true" /><span className="sr-only">{requirementLabel}</span></span>}

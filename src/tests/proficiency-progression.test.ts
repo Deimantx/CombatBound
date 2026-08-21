@@ -37,21 +37,21 @@ describe('weapon proficiency progression', () => {
   })
 
   it('keeps perk availability limited to independent bonus points', () => {
-    const progression = { ...createInitialGameState().progression, bonusPerkPoints: 4, purchasedPerks: { 'perk.one-handed-sword.blade-familiarity': 1 } }
+    const progression = { ...createInitialGameState().progression, bonusPerkPoints: 4, purchasedPerks: { 'perk.one-handed-sword.one-handed-foundations': 1 } }
     expect(calculateAvailablePerkPoints(progression, perkById)).toBe(3)
   })
 
   it('validates perk level, points, max rank, and matching tree membership', () => {
     const base = { ...createInitialGameState().progression, bonusPerkPoints: 1, proficiencies: { 'one-handed-sword': { proficiencyId: 'one-handed-sword' as const, totalXp: 0 } } }
-    expect(purchasePerk(base, 'perk.one-handed-sword.balanced-grip', perkById).outcome).toBe('level-locked')
+    expect(purchasePerk(base, 'perk.one-handed-sword.measured-strikes', perkById).outcome).toBe('level-locked')
     const unlocked = { ...base, proficiencies: { 'one-handed-sword': { proficiencyId: 'one-handed-sword' as const, totalXp: 1 } } }
-    const purchased = purchasePerk(unlocked, 'perk.one-handed-sword.blade-familiarity', perkById)
+    const purchased = purchasePerk(unlocked, 'perk.one-handed-sword.one-handed-foundations', perkById)
     expect(purchased.outcome).toBe('purchased')
   })
 
   it('scopes sword stat perks to the equipped weapon proficiency', () => {
-    const progression = { ...createInitialGameState().progression, purchasedPerks: { 'perk.one-handed-sword.blade-familiarity': 3 } }
-    const active = getActiveProficiencyStatModifiers(progression, 'one-handed-sword', { 'perk.one-handed-sword.blade-familiarity': { id: 'perk.one-handed-sword.blade-familiarity', proficiencyId: 'one-handed-sword', name: 'Blade Familiarity', branch: 'Root', requiredProficiencyLevel: 1, maxRank: 3, costPerRank: 1, description: '', effects: [{ type: 'statModifier', stat: 'accuracyRating', operation: 'flat', valuePerRank: 2 }], prerequisiteRules: [], presentation: { column: 0, row: 0, icon: 'sword' } } })
+    const progression = { ...createInitialGameState().progression, purchasedPerks: { 'perk.one-handed-sword.one-handed-foundations': 3 } }
+    const active = getActiveProficiencyStatModifiers(progression, 'one-handed-sword', { 'perk.one-handed-sword.one-handed-foundations': { id: 'perk.one-handed-sword.one-handed-foundations', proficiencyId: 'one-handed-sword', name: 'One-Handed Foundations', branch: 'Root', requiredProficiencyLevel: 1, maxRank: 5, costPerRank: 1, description: '', effects: [{ type: 'statModifier', stat: 'accuracyRating', operation: 'flat', valuePerRank: 2 }], prerequisiteRules: [], presentation: { column: 0, row: 0, icon: 'sword' } } })
     const baseStats: CombatStats = normalizeCombatStats({ maxLife: 100, attackDamage: 20, accuracyRating: 50, baseAttackTime: 2, armour: 10, evasionRating: 10, criticalStrikeChance: 0.05, criticalStrikeMultiplier: 1.5, maxStamina: 100, staminaRegen: 5, maxMana: 100, manaRegenFlat: 5, resistances: {} })
     expect(applyProficiencyStatModifiers(baseStats, active).accuracyRating).toBe(56)
   })

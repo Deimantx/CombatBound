@@ -23,7 +23,7 @@ describe('enemy preview presentation', () => {
       { label: 'Attack Interval', value: '2.2s', tone: 'blue' },
     ]))
     expect(coreStats?.rows?.some((row) => row.label === 'Block Chance')).toBe(false)
-    expect(tooltip.sections?.find((section) => section.id === 'enemy-traits')).toBeUndefined()
+    expect(tooltip.sections?.find((section) => section.id === 'enemy-traits')).toBeDefined()
     expect(tooltip.sections?.find((section) => section.id === 'enemy-resistances')?.rows).toEqual([
       { label: 'Fire', value: '-20%', tone: 'red' },
     ])

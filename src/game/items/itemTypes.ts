@@ -1,5 +1,5 @@
 import type { ItemDefinition } from "../data/items";
-import type { ItemAffixInstance } from "./itemModifierTypes";
+import type { ItemUpgradeNodeId } from "./itemUpgradeTypes";
 
 /** IDs are intentionally named separately so a definition can never be mistaken for an owned copy. */
 export type ItemDefinitionId = string;
@@ -35,25 +35,8 @@ export interface ItemStats {
 export interface ItemInstance {
   id: ItemInstanceId;
   definitionId: ItemDefinitionId;
-  /** Current runtime instances are version 3; version 2 is accepted only by frozen migration fixtures. */
-  version: 2 | 3;
-  unlockedUpgradeNodeIds?: string[];
-  /** @deprecated legacy save/test compatibility; current v3 instances never write these fields. */
-  quality?: number;
-  /** @deprecated legacy save/test compatibility; current v3 instances never write these fields. */
-  upgradeLevel?: number;
-  /** @deprecated legacy save/test compatibility; current v3 instances never write these fields. */
-  affixes?: ItemAffixInstance[];
-}
-
-/** Frozen pre-gear-foundation shape used only while reading V15 and earlier saves. */
-export interface LegacyItemInstanceV2 {
-  id: ItemInstanceId;
-  definitionId: ItemDefinitionId;
-  version: 2;
-  quality?: number;
-  upgradeLevel?: number;
-  affixes: ItemAffixInstance[];
+  version: 3;
+  unlockedUpgradeNodeIds: ItemUpgradeNodeId[];
 }
 
 export interface ResolvedItemInstance {
@@ -72,6 +55,20 @@ export interface ItemStatContribution {
   target: string;
   operation: "flat" | "increased" | "more";
   value: number;
+}
+
+export interface ItemInstanceValidationResult {
+  valid: boolean;
+  errors: string[];
+}
+
+export interface ResolvedEquippedItem {
+  slotId: import("../equipment/equipmentTypes").EquipmentSlotId;
+  instance: ItemInstance;
+  definition: ItemDefinition;
+  effectiveStats: ItemStats;
+  baseStats: ItemStats;
+  contributions: ItemStatContribution[];
 }
 
 export type InventoryEntryRef =

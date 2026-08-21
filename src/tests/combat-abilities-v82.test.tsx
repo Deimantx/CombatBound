@@ -1,7 +1,7 @@
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import App from "../../App";
-import { createCombatContext, startHunt } from "../game/combat/combatEngine";
+import { createCombatContext, startCombatTarget } from "../game/combat/combatEngine";
 import {
   equipCombatAbility,
   moveCombatAbility,
@@ -20,18 +20,18 @@ const context = createCombatContext({ next: () => 0.5 });
 describe("Combat Abilities V14 domain", () => {
   it("normalizes exactly five shared slots, duplicates, unknown entries, and unknown spells", () => {
     const normalized = normalizeCombatAbilityLoadout({
-      slots: ["defense.guard", "defense.guard", "defense.unknown", "spell.shadow-bolt", "spell.unknown", "defense.brace"],
-    }, ["spell.shadow-bolt"]);
-    expect(normalized.slots).toEqual(["defense.guard", null, null, "spell.shadow-bolt", null]);
+      slots: ["defense.guard", "defense.guard", "defense.unknown", "magic-art.earth-shield", "magic-art.unknown", "defense.brace"],
+    }, ["magic-art.earth-shield"]);
+    expect(normalized.slots).toEqual(["defense.guard", null, null, "magic-art.earth-shield", null]);
     expect(normalized.slots).toHaveLength(5);
   });
 
   it("moves, equips, and unequips any slottable combat ability", () => {
     const initial = createInitialGameState().combatAbilities;
     const moved = moveCombatAbility(initial, 0, 3);
-    expect(moved.slots).toEqual(["spell.flame-blast", "defense.evasive-step", "defense.brace", "defense.guard", "spell.lightning-pulse"]);
+    expect(moved.slots).toEqual(["magic-art.earth-shield", "defense.evasive-step", "defense.brace", "defense.guard", null]);
     const replaced = equipCombatAbility(moved, "defense.guard", 1);
-    expect(replaced.slots).toEqual(["spell.flame-blast", "defense.guard", "defense.brace", null, "spell.lightning-pulse"]);
+    expect(replaced.slots).toEqual(["magic-art.earth-shield", "defense.guard", "defense.brace", null, null]);
     const removed = unequipCombatAbility(replaced, 1);
     expect(removed.slots[1]).toBeNull();
   });
@@ -39,7 +39,7 @@ describe("Combat Abilities V14 domain", () => {
   it("requires one shared slot for every active action kind", () => {
     const game = createInitialGameState();
     const stats = calculateHunterCombatStats(game.equipment, game.inventory, game.progression);
-    const active = startHunt({ ...game, combatAbilities: { slots: ["defense.evasive-step", null, null, null, null] } }, "location.wolf-den", stats, context);
+    const active = startCombatTarget({ ...game, combatAbilities: { slots: ["defense.evasive-step", null, null, null, null] } }, "location.wolf-den", "enemy.grey-wolf", stats, context);
     const result = validatePlayerAction(active, "defense.guard", stats, context);
     expect(result.valid).toBe(false);
     expect(result.reason).toBe("ability-not-equipped");

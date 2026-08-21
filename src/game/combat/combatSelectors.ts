@@ -69,7 +69,8 @@ export function getPlayerEffectiveCombatStats(
     combat.playerEffects,
     effectDefinitions,
   );
-  if (!progression) return base;
+  const mechanicModifiers = weaponMechanicStatModifiers(combat, stats.weaponMechanicParameters);
+  if (!progression) return applyProficiencyStatModifiers(base, mechanicModifiers);
   const barrierActive =
     getBarrierAmount(combat.playerEffects, effectDefinitions) > 0;
   const weapon = stats.weaponProficiencyId ?? null;
@@ -88,7 +89,7 @@ export function getPlayerEffectiveCombatStats(
   return applyProficiencyStatModifiers(base, [
     ...dynamicWeapon,
     ...getConditionalMagicStatModifiers(progression, barrierActive, perkById),
-    ...weaponMechanicStatModifiers(combat, stats.weaponMechanicParameters),
+    ...mechanicModifiers,
   ]);
 }
 

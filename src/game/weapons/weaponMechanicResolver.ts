@@ -12,7 +12,7 @@ export function resolveWeaponMechanicParameters(definition: ItemDefinition, inst
   const archetype = archetypeId ? weaponArchetypeById[archetypeId] : undefined;
   if (!archetype) return null;
   const result: WeaponMechanicParameters = { archetypeId: archetype.id, rhythm: archetype.primaryMechanicId === "weapon-mechanic.duelist-rhythm" ? { ...baseRhythm } : undefined, riposte: archetype.secondaryMechanicId === "weapon-mechanic.riposte" ? { ...baseRiposte } : undefined };
-  for (const nodeId of instance.unlockedUpgradeNodeIds ?? []) {
+  for (const nodeId of instance.unlockedUpgradeNodeIds) {
     for (const effect of itemUpgradeNodeById[nodeId]?.effects ?? []) {
       if (effect.type !== "weaponMechanicModifier") continue;
       if (effect.mechanicId === "weapon-mechanic.duelist-rhythm" && result.rhythm) {

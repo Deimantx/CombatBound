@@ -11,7 +11,7 @@
 ## TEXT / ENCODING
 
 - Keep user-facing Combat UI, tooltips, breadcrumbs, and combat log separators ASCII-safe. Use ` - `, `|`, or `->` instead of Unicode punctuation that can become mojibake.
-- Never commit visible mojibake such as `Ã`, `Â`, `â`, or `ï¿½` in Combat-facing content.
+- Never commit visible mojibake such as `Ã`, `Â`, `â`, or `ï¿½` in any content.
 
 ## COLLAPSIBLE UI
 

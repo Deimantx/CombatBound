@@ -56,7 +56,7 @@ describe("Developer Toolkit V9.2 hotfixes", () => {
       { stat: definition.id, sourceType: "base", sourceId: "base", sourceLabel: "Combat Base", operation: "flat", before: 0, value: 20, after: 20, amount: 20, label: "Combat Base" },
       { stat: definition.id, sourceType: "perk", sourceId: "perk.test", sourceLabel: "Accuracy Perk", operation: "more", before: 20, value: 4, after: 24, amount: 4, label: "Accuracy Perk" },
     ] });
-    expect(tooltip.rows?.map((row) => row.value)).toEqual(["82", "+20", "×1.20"]);
+    expect(tooltip.rows?.map((row) => row.value)).toEqual(["82", "+20", "x1.20"]);
     expect(tooltip.notes).toContain("Click for full breakdown.");
   });
 });

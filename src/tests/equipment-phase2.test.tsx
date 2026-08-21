@@ -55,32 +55,32 @@ describe("Equipment 2.0 Hero workspace", () => {
 
   it("filters exact compatible instances without equipping a candidate", () => {
     const store = useGameStore.getState();
-    store.debug.setOwnedItemCount("item.hunter-sword", 2);
+    store.debug.setOwnedItemCount("item.iron-sword", 2);
     store.debug.setHunterRank(5);
     render(<App />);
     fireEvent.click(screen.getByRole("button", { name: "Hero" }));
 
     const before = useGameStore.getState().game.equipment.slots.weapon;
-    expect(document.querySelectorAll('[data-debug-kind="equipment-candidate"][data-debug-item-id="item.hunter-sword"]')).toHaveLength(2);
-    fireEvent.change(screen.getByRole("textbox", { name: "Search compatible equipment" }), { target: { value: "hunter" } });
-    expect(document.querySelectorAll('[data-debug-kind="equipment-candidate"]')).toHaveLength(2);
-    fireEvent.click(document.querySelector('[data-debug-kind="equipment-candidate"][data-debug-item-id="item.hunter-sword"]') as HTMLElement);
+    expect(document.querySelectorAll('[data-debug-kind="equipment-candidate"][data-debug-item-id="item.iron-sword"]')).toHaveLength(1);
+    fireEvent.change(screen.getByRole("textbox", { name: "Search compatible equipment" }), { target: { value: "iron" } });
+    expect(document.querySelectorAll('[data-debug-kind="equipment-candidate"]')).toHaveLength(1);
+    fireEvent.click(document.querySelector('[data-debug-kind="equipment-candidate"][data-debug-item-id="item.iron-sword"]') as HTMLElement);
     expect(useGameStore.getState().game.equipment.slots.weapon).toBe(before);
     expect(document.querySelector('[data-debug-kind="equipment-item-comparison"]')).toHaveTextContent("ITEM DIFFERENCES");
   });
 
   it("preserves a hovered preview after hover leaves when the candidate is pinned", () => {
     const store = useGameStore.getState();
-    store.debug.setOwnedItemCount("item.hunter-sword", 1);
+    store.debug.setOwnedItemCount("item.iron-sword", 2);
     store.debug.setHunterRank(5);
     render(<App />);
     fireEvent.click(screen.getByRole("button", { name: "Hero" }));
-    const candidate = document.querySelector('[data-debug-kind="equipment-candidate"][data-debug-item-id="item.hunter-sword"]') as HTMLElement;
+    const candidate = document.querySelector('[data-debug-kind="equipment-candidate"][data-debug-item-id="item.iron-sword"]') as HTMLElement;
     fireEvent.mouseEnter(candidate);
-    expect(document.querySelector('[data-debug-kind="hero-combat-stats"]')).toHaveAttribute("data-debug-preview-item-id", "item.hunter-sword");
+    expect(document.querySelector('[data-debug-kind="hero-combat-stats"]')).toHaveAttribute("data-debug-preview-item-id", "item.iron-sword");
     fireEvent.click(candidate);
     fireEvent.mouseLeave(candidate);
-    expect(document.querySelector('[data-debug-kind="hero-combat-stats"]')).toHaveAttribute("data-debug-preview-item-id", "item.hunter-sword");
+    expect(document.querySelector('[data-debug-kind="hero-combat-stats"]')).toHaveAttribute("data-debug-preview-item-id", "item.iron-sword");
     expect(useGameStore.getState().game.equipment.slots.weapon).not.toBe(candidate.getAttribute("data-debug-instance-id"));
   });
 

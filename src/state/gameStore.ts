@@ -40,7 +40,7 @@ import {
   loadProfileGameSave,
 } from "../game/profiles/profileStorage";
 import { getProfileSessionOwnerId, isProfileSessionOwner } from "../game/profiles/profileSessionLease";
-import { gameStateToSaveV16, parseGameSaveJson } from "../game/persistence/saveGame";
+import { gameStateToSaveV17, parseGameSaveJson } from "../game/persistence/saveGame";
 import type { ProfileId } from "../game/profiles/profileTypes";
 import type { InventoryEntryRef } from "../game/items/itemTypes";
 import type { SpellbookState } from "../game/spellbook/spellbookTypes";
@@ -78,6 +78,7 @@ import type { AutomationCondition, AutomationRule } from "../game/automation/aut
 import {
   debugAddGold,
   debugGrantIronSwordMaterials,
+  debugResetItemUpgrades,
   debugAddHunterRankPoints,
   debugApplyEffect,
   debugCancelEnemyAbilities,
@@ -268,6 +269,7 @@ export interface DebugStoreApi {
   setGold: (amount: number) => void;
   addGold: (amount: number) => void;
   grantIronSwordMaterials: () => void;
+  resetItemUpgrades: (instanceId: string) => void;
   loadScenario: (snapshot: DebugScenarioSnapshot) => void;
   startEncounter: (locationId: string, enemyIds: string[]) => void;
   importSave: (raw: string) => { ok: boolean; error?: string };
@@ -399,7 +401,7 @@ function savePermanent(
   const profileId = activeProfileIdForPersistence();
   // A lease check here protects every gameplay save path, including debug and combat mutations.
   if (!profileId || !isProfileSessionOwner(profileId, getProfileSessionOwnerId())) return false;
-  return saveProfileGameSave(profileId, gameStateToSaveV16(game, settings));
+  return saveProfileGameSave(profileId, gameStateToSaveV17(game, settings));
 }
 
 function captureDebugCombatEvents(previous: GameState, next: GameState) {
@@ -578,6 +580,7 @@ export const useGameStore = create<GameStoreState>((set, get) => {
     setGold: (amount) => commitDebug((game) => debugSetGold(game, amount), true),
     addGold: (amount) => commitDebug((game) => debugAddGold(game, amount), true),
     grantIronSwordMaterials: () => commitDebug(debugGrantIronSwordMaterials, true),
+    resetItemUpgrades: (instanceId) => commitDebug((game) => debugResetItemUpgrades(game, instanceId), true),
     loadScenario: (snapshot) => {
       if (!validateDebugScenario(snapshot).valid) return;
       useDevToolsRuntimeStore.getState().clearEnemyImmortality();

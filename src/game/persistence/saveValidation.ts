@@ -1,4 +1,4 @@
-import type { GameSaveV14, GameSaveV15, GameSaveV16 } from "./saveTypes";
+import type { GameSaveV14, GameSaveV15, GameSaveV16, GameSaveV17 } from "./saveTypes";
 import { proficiencyById } from "../data/proficiencies";
 import { perkById } from "../data/proficiencyPerks";
 import { COMBAT_ABILITY_SLOT_COUNT } from "../combatAbilities/combatAbilityTypes";
@@ -7,7 +7,8 @@ import { isEquipmentSlotId } from "../equipment/equipmentTypes";
 import { itemById } from "../data/items";
 import { isItemInstanceId, itemInstanceSequence } from "../items/itemTypes";
 import { canEquipItemToSlot } from "../equipment/equipmentRules";
-import { isLegacyItemInstanceV2, validateItemInstance } from "../items/itemInstanceValidation";
+import { validateItemInstance } from "../items/itemInstanceValidation";
+import { isItemInstanceV16, isLegacyItemInstanceV2 } from "./legacyItemTypes";
 import { magicArtDefinitions } from "../data/magicArts";
 import { isLegacyCombatProficiencyIdV14, normalizeLegacySpellIdV14 } from "./saveMigration";
 
@@ -130,8 +131,7 @@ export function isGameSave(value: unknown): value is GameSaveV14 {
   );
 }
 
-/** Current gear-save validator. V15 remains exported for historical fixtures. */
-function isCurrentGearSave(value: unknown, expectedVersion: 15 | 16): value is GameSaveV15 | GameSaveV16 {
+function isModernSaveScaffold(value: unknown, expectedVersion: 15 | 16 | 17) {
   if (!isRecord(value) || value.version !== expectedVersion || typeof value.gold !== "number" || !Number.isFinite(value.gold) || !isRecord(value.progression) || !isRecord(value.inventory) || !isRecord(value.equipment) || !isRecord(value.collection) || !isRecord(value.settings) || !isRecord(value.magicArts) || !isRecord(value.combatAutomation) || !isRecord(value.combatAutomationPresets) || !isRecord(value.combatAbilities)) return false;
   const progression = value.progression;
   if (!isRecord(progression.proficiencies) || typeof progression.hunterRankPoints !== "number" || progression.hunterRankPoints < 0 || typeof progression.bonusPerkPoints !== "number" || !Number.isInteger(progression.bonusPerkPoints) || progression.bonusPerkPoints < 0 || !isRecord(progression.purchasedPerks)) return false;
@@ -146,28 +146,9 @@ function isCurrentGearSave(value: unknown, expectedVersion: 15 | 16): value is G
   }
   const magicArts = value.magicArts;
   if (!Array.isArray(magicArts.knownArtIds) || new Set(magicArts.knownArtIds).size !== magicArts.knownArtIds.length || magicArts.knownArtIds.some((id) => typeof id !== "string" || !magicArtDefinitions.some((art) => art.id === id))) return false;
-  const inventory = value.inventory as unknown as GameSaveV15["inventory"];
-  const equipment = value.equipment as unknown as GameSaveV15["equipment"];
+  const inventory = value.inventory;
+  const equipment = value.equipment;
   if (!isRecord(inventory.stackables) || !isRecord(inventory.instances) || typeof inventory.nextInstanceSequence !== "number" || !Number.isInteger(inventory.nextInstanceSequence) || inventory.nextInstanceSequence < 1 || !isRecord(equipment.slots) || !Array.isArray(value.collection.discoveredItems) || !isRecord(value.collection.targets)) return false;
-  const instanceIds = new Set<string>();
-  let highestSequence = 0;
-  for (const [definitionId, quantity] of Object.entries(inventory.stackables)) {
-    const definition = itemById[definitionId];
-    if (!definition || definition.inventoryMode !== "stackable" || typeof quantity !== "number" || !Number.isInteger(quantity) || quantity < 0) return false;
-  }
-  for (const [key, instance] of Object.entries(inventory.instances)) {
-    const allowedInstanceKeys = new Set(["id", "definitionId", "version", "unlockedUpgradeNodeIds"]);
-    if (!isRecord(instance) || instance.id !== key || !isItemInstanceId(key) || instance.version !== 3 || typeof instance.definitionId !== "string" || Object.keys(instance).some((field) => !allowedInstanceKeys.has(field)) || !validateItemInstance(instance).valid || !itemById[instance.definitionId] || itemById[instance.definitionId].inventoryMode !== "instance") return false;
-    instanceIds.add(key);
-    highestSequence = Math.max(highestSequence, itemInstanceSequence(key));
-  }
-  if (inventory.nextInstanceSequence <= highestSequence) return false;
-  for (const [slot, instanceId] of Object.entries(equipment.slots)) {
-    if (!isEquipmentSlotId(slot) || typeof instanceId !== "string" || !instanceIds.has(instanceId)) return false;
-    const instance = inventory.instances[instanceId];
-    const definition = instance && typeof instance.definitionId === "string" ? itemById[instance.definitionId] : undefined;
-    if (!definition || !canEquipItemToSlot(definition, slot) || Object.values(equipment.slots).filter((candidate) => candidate === instanceId).length > 1) return false;
-  }
   const automation = value.combatAutomation;
   const presets = value.combatAutomationPresets;
   const abilities = value.combatAbilities;
@@ -189,10 +170,51 @@ function isCurrentGearSave(value: unknown, expectedVersion: 15 | 16): value is G
   return typeof value.settings.reducedMotion === "boolean" && typeof value.settings.showInspectorButton === "boolean";
 }
 
+function validateInventoryBoundary(value: Record<string, unknown>, version: 15 | 16 | 17) {
+  const inventory = value.inventory;
+  const equipment = value.equipment;
+  if (!isRecord(inventory) || !isRecord(equipment) || !isRecord(inventory.stackables) || !isRecord(inventory.instances) || !isRecord(equipment.slots)) return false;
+  const instanceIds = new Set<string>();
+  let highestSequence = 0;
+  for (const [definitionId, quantity] of Object.entries(inventory.stackables)) {
+    if (version === 15) {
+      if (typeof quantity !== "number" || !Number.isInteger(quantity) || quantity < 0) return false;
+    } else {
+      const definition = itemById[definitionId];
+      if (!definition || definition.inventoryMode !== "stackable" || typeof quantity !== "number" || !Number.isInteger(quantity) || quantity < 0) return false;
+    }
+  }
+  for (const [key, instance] of Object.entries(inventory.instances)) {
+    if (!isRecord(instance) || instance.id !== key || !isItemInstanceId(key)) return false;
+    if (version === 15) {
+      if (!isLegacyItemInstanceV2(instance)) return false;
+    } else if (!isItemInstanceV16(instance) || Object.keys(instance).some((field) => !["id", "definitionId", "version", "unlockedUpgradeNodeIds"].includes(field))) return false;
+    if (version === 17 && (!itemById[instance.definitionId] || itemById[instance.definitionId].inventoryMode !== "instance" || !validateItemInstance(instance).valid)) return false;
+    if (version === 16 && (!itemById[instance.definitionId] || itemById[instance.definitionId].inventoryMode !== "instance")) return false;
+    instanceIds.add(key);
+    highestSequence = Math.max(highestSequence, itemInstanceSequence(key));
+  }
+  if (typeof inventory.nextInstanceSequence !== "number" || inventory.nextInstanceSequence <= highestSequence) return false;
+  for (const [slot, instanceId] of Object.entries(equipment.slots)) {
+    if (!isEquipmentSlotId(slot) || typeof instanceId !== "string" || !instanceIds.has(instanceId)) return false;
+    if (version !== 15) {
+      const instance = isRecord(inventory.instances) ? inventory.instances[instanceId] : undefined;
+      const definition = isRecord(instance) && typeof instance.definitionId === "string" ? itemById[instance.definitionId] : undefined;
+      if (!definition || !canEquipItemToSlot(definition, slot)) return false;
+    }
+    if (Object.values(equipment.slots).filter((candidate) => candidate === instanceId).length > 1) return false;
+  }
+  return true;
+}
+
 export function isGameSaveV15(value: unknown): value is GameSaveV15 {
-  return isCurrentGearSave(value, 15);
+  return isModernSaveScaffold(value, 15) && validateInventoryBoundary(value as Record<string, unknown>, 15);
 }
 
 export function isGameSaveV16(value: unknown): value is GameSaveV16 {
-  return isCurrentGearSave(value, 16);
+  return isModernSaveScaffold(value, 16) && validateInventoryBoundary(value as Record<string, unknown>, 16);
+}
+
+export function isGameSaveV17(value: unknown): value is GameSaveV17 {
+  return isModernSaveScaffold(value, 17) && validateInventoryBoundary(value as Record<string, unknown>, 17);
 }

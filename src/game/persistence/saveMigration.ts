@@ -2,7 +2,8 @@ import type { CollectionState } from "../collection/collectionTypes";
 import { normalizeCollectionTargets } from "../collection/collectionLogic";
 import { itemById, itemDefinitions } from "../data/items";
 import { isItemInstanceId, type ItemInstance } from "../items/itemTypes";
-import { isLegacyItemInstanceV2, normalizeItemInstance } from "../items/itemInstanceValidation";
+import { normalizeItemInstance } from "../items/itemInstanceValidation";
+import { isLegacyItemInstanceV2, isItemInstanceV16 } from "./legacyItemTypes";
 import { canEquipItemToSlot, normalizeEquipmentState } from "../equipment/equipmentRules";
 import { grantItem } from "../items/itemOwnership";
 import type { InventoryState } from "../inventory/inventoryTypes";
@@ -12,7 +13,7 @@ import type {
   CombatProficiencyId,
   ProgressionState,
 } from "../progression/progressionTypes";
-import type { GameSaveV3, GameSaveV4, GameSaveV5, GameSaveV6, GameSaveV7, GameSaveV8, GameSaveV9, GameSaveV10, GameSaveV11, GameSaveV12, GameSaveV13, GameSaveV14, GameSaveV15, GameSaveV16, LegacyCombatProficiencyIdV14, LegacyEquipmentStateV10, LegacyInventoryStateV10, LegacyInventoryStateV11, LegacyProgressionState, LegacyProgressionStateV14, LegacySpellbookStateV13, LegacyCombatAbilityLoadoutStateV13 } from "./saveTypes";
+import type { GameSaveV3, GameSaveV4, GameSaveV5, GameSaveV6, GameSaveV7, GameSaveV8, GameSaveV9, GameSaveV10, GameSaveV11, GameSaveV12, GameSaveV13, GameSaveV14, GameSaveV15, GameSaveV16, GameSaveV17, LegacyCombatProficiencyIdV14, LegacyEquipmentStateV10, LegacyInventoryStateV10, LegacyInventoryStateV11, LegacyInventoryStateV12, LegacyProgressionState, LegacyProgressionStateV14, LegacySpellbookStateV13, LegacyCombatAbilityLoadoutStateV13, InventoryStateV16 } from "./saveTypes";
 import { createInitialCombatAutomation } from "../automation/automationTypes";
 import { normalizeCombatAutomation } from "../automation/automationLogic";
 import { getActiveAbilityActionDefinitions } from "../combat/playerActions";
@@ -21,6 +22,7 @@ import { EQUIPMENT_SLOT_IDS } from "../equipment/equipmentTypes";
 import { normalizeCombatAbilityLoadout } from "../combatAbilities/combatAbilityLogic";
 import { normalizeMagicArts } from "../magicArts/magicArtLogic";
 import { enemyDefinitions } from "../data/enemies";
+import { itemUpgradeNodeById, itemUpgradeTreeById } from "../data/gear/itemUpgradeTrees";
 
 interface LegacySkillProgress {
   totalXp?: number;
@@ -508,7 +510,7 @@ export function migrateV11Save(value: unknown): GameSaveV12 | null {
     if (!definition || definition.inventoryMode !== "stackable" || !Number.isInteger(quantity) || quantity < 0) return null;
     if (quantity > 0) stackables[definitionId] = quantity;
   }
-  const instances: Record<string, ItemInstance> = {};
+  const instances: Record<string, LegacyInventoryStateV12["instances"][string]> = {};
   let highest = 0;
   for (const [key, legacy] of Object.entries(old.inventory.instances)) {
     if (!legacy || legacy.id !== key || !isItemInstanceId(key) || legacy.version !== 1) return null;
@@ -666,7 +668,7 @@ export function migrateV15Save(value: unknown): GameSaveV16 | null {
   const savedNext = typeof rawInventory.nextInstanceSequence === "number" && Number.isFinite(rawInventory.nextInstanceSequence)
     ? Math.floor(rawInventory.nextInstanceSequence)
     : 1;
-  let inventory: InventoryState = {
+  let inventory: InventoryStateV16 = {
     stackables,
     instances,
     nextInstanceSequence: Math.max(1, savedNext, highestSequence + 1),
@@ -718,6 +720,100 @@ export function migrateV15Save(value: unknown): GameSaveV16 | null {
     combatAbilities: normalizeCombatAbilityLoadout(value.combatAbilities, magicArts.knownArtIds),
     combatAutomation,
     combatAutomationPresets,
+  };
+}
+
+function normalizeV16Nodes(raw: unknown, definitionId: string): string[] {
+  const definition = itemById[definitionId];
+  const tree = definition?.upgradeTreeId ? itemUpgradeTreeById[definition.upgradeTreeId] : undefined;
+  if (!tree || !Array.isArray(raw)) return [];
+  const candidates = Array.from(new Set(raw.filter((nodeId): nodeId is string => typeof nodeId === "string" && tree.nodeIds.includes(nodeId) && itemUpgradeNodeById[nodeId]?.treeId === tree.id)));
+  const unlocked: string[] = [];
+  const unlockedSet = new Set<string>();
+  let pending = new Set(candidates);
+  let progressed = true;
+  while (pending.size > 0 && progressed) {
+    progressed = false;
+    for (const nodeId of pending) {
+      const node = itemUpgradeNodeById[nodeId];
+      if (!node || !node.prerequisiteNodeIds.every((prerequisite) => unlockedSet.has(prerequisite))) continue;
+      unlocked.push(nodeId);
+      unlockedSet.add(nodeId);
+      pending.delete(nodeId);
+      progressed = true;
+    }
+  }
+  return unlocked;
+}
+
+function migrateV16Item(raw: unknown): ItemInstance | null {
+  if (!isItemInstanceV16(raw)) return null;
+  const definition = itemById[raw.definitionId];
+  if (!definition || definition.inventoryMode !== "instance") return null;
+  const tree = definition.upgradeTreeId ? itemUpgradeTreeById[definition.upgradeTreeId] : undefined;
+  const validNodes = normalizeV16Nodes(raw.unlockedUpgradeNodeIds, raw.definitionId);
+  let unlockedUpgradeNodeIds = validNodes;
+  if (tree?.selectionMode === "single-branch") {
+    const branchProgress = tree.branchIds.map((branchId, order) => {
+      const nodes = validNodes.filter((nodeId) => itemUpgradeNodeById[nodeId]?.branchId === branchId);
+      const nodeSet = new Set(nodes);
+      const depth = (nodeId: string, seen = new Set<string>()): number => {
+        if (seen.has(nodeId)) return 0;
+        const node = itemUpgradeNodeById[nodeId];
+        if (!node) return 0;
+        const nextSeen = new Set(seen).add(nodeId);
+        return 1 + Math.max(0, ...node.prerequisiteNodeIds.filter((id) => nodeSet.has(id)).map((id) => depth(id, nextSeen)));
+      };
+      return { branchId, order, nodes, count: nodes.length, depth: Math.max(0, ...nodes.map((nodeId) => depth(nodeId))) };
+    }).sort((a, b) => b.count - a.count || b.depth - a.depth || a.order - b.order)[0];
+    unlockedUpgradeNodeIds = branchProgress && branchProgress.count > 0 ? validNodes.filter((nodeId) => itemUpgradeNodeById[nodeId]?.branchId === branchProgress.branchId) : [];
+  }
+  return { id: raw.id, definitionId: raw.definitionId, version: 3, unlockedUpgradeNodeIds };
+}
+
+/** V16 -> V17 tightens item specialization without refunding discarded cross-branch nodes. */
+export function migrateV16Save(value: unknown): GameSaveV17 | null {
+  if (!isRecord(value) || value.version !== 16 || !isRecord(value.inventory)) return null;
+  const rawInventory = value.inventory;
+  const stackables: Record<string, number> = {};
+  if (isRecord(rawInventory.stackables)) for (const definition of itemDefinitions) {
+    const quantity = rawInventory.stackables[definition.id];
+    if (definition.inventoryMode === "stackable" && typeof quantity === "number" && Number.isFinite(quantity) && quantity > 0) stackables[definition.id] = Math.floor(quantity);
+  }
+  const instances: Record<string, ItemInstance> = {};
+  if (isRecord(rawInventory.instances)) for (const rawInstance of Object.values(rawInventory.instances)) {
+    const migrated = migrateV16Item(rawInstance);
+    if (migrated) instances[migrated.id] = migrated;
+  }
+  const highestSequence = Object.keys(instances).reduce((max, id) => Math.max(max, Number(id.slice("item-instance-".length)) || 0), 0);
+  const savedNext = typeof rawInventory.nextInstanceSequence === "number" && Number.isFinite(rawInventory.nextInstanceSequence) ? Math.floor(rawInventory.nextInstanceSequence) : 1;
+  let inventory: InventoryState = { stackables, instances, nextInstanceSequence: Math.max(1, savedNext, highestSequence + 1) };
+  if (!Object.values(inventory.instances).some((instance) => instance.definitionId === "item.iron-sword")) inventory = grantItem(inventory, "item.iron-sword", 1).inventory;
+  const normalizedEquipment = normalizeEquipmentState(value.equipment, inventory);
+  const sword = Object.values(inventory.instances).find((instance) => instance.definitionId === "item.iron-sword");
+  const equipment = normalizedEquipment.slots.weapon || !sword ? normalizedEquipment : { slots: { ...normalizedEquipment.slots, weapon: sword.id } };
+  const rawCollection = isRecord(value.collection) ? value.collection : {};
+  const collection = normalizeCollectionTargets({
+    discoveredItems: Array.from(new Set([...(Array.isArray(rawCollection.discoveredItems) ? rawCollection.discoveredItems.filter((id): id is string => typeof id === "string" && Boolean(itemById[id])) : []), "item.iron-sword"])),
+    targets: isRecord(rawCollection.targets) ? rawCollection.targets as GameSaveV17["collection"]["targets"] : {},
+  }, enemyDefinitions.map((enemy) => enemy.id));
+  const progression = isRecord(value.progression) ? normalizeProgressionPerkIds(value.progression as unknown as ProgressionState) : { proficiencies: {}, hunterRankPoints: 0, bonusPerkPoints: 0, purchasedPerks: {} };
+  const magicArts = normalizeMagicArts(value.magicArts);
+  const automation = normalizeCombatAutomation(value.combatAutomation);
+  const stripRetiredSpellRules = <T extends { actionId: string }>(rules: T[]) => rules.filter((rule) => !rule.actionId.startsWith("spell."));
+  const presets = normalizeCombatAutomationPresets(value.combatAutomationPresets);
+  return {
+    version: 17,
+    progression,
+    inventory,
+    equipment,
+    collection,
+    gold: typeof value.gold === "number" && Number.isFinite(value.gold) ? value.gold : 0,
+    settings: isRecord(value.settings) ? { reducedMotion: value.settings.reducedMotion === true, showInspectorButton: value.settings.showInspectorButton === true } : { reducedMotion: false, showInspectorButton: false },
+    magicArts,
+    combatAbilities: normalizeCombatAbilityLoadout(value.combatAbilities, magicArts.knownArtIds),
+    combatAutomation: { ...automation, rules: stripRetiredSpellRules(automation.rules) },
+    combatAutomationPresets: { slots: presets.slots.map((preset) => preset ? { ...preset, config: { ...preset.config, rules: stripRetiredSpellRules(preset.config.rules) } } : null) },
   };
 }
 

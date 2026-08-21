@@ -406,6 +406,12 @@ export function debugGrantIronSwordMaterials(game: GameState): GameState {
   return { ...game, inventory };
 }
 
+export function debugResetItemUpgrades(game: GameState, instanceId: string): GameState {
+  const instance = game.inventory.instances[instanceId];
+  if (!instance) return game;
+  return { ...game, inventory: { ...game.inventory, instances: { ...game.inventory.instances, [instanceId]: { ...instance, unlockedUpgradeNodeIds: [] } } } };
+}
+
 export function debugPermanent(game: GameState, mutation: (game: GameState) => GameState) {
   return mutation(game);
 }

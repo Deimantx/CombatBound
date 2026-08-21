@@ -43,7 +43,7 @@ describe('combat information surfaces', () => {
     render(<App />)
     fireEvent.click(screen.getByRole('button', { name: 'Info' }))
     for (const heading of ['Combat Basics', 'Combat Resolution', 'Combat Stats Reference', 'Damage Types & Resistances', 'Statuses & Effects', 'Combat Proficiencies', 'Hunter Rank & Perks', 'World navigation', 'UI Inspector']) expect(screen.getByText(heading)).toBeInTheDocument()
-    expect(screen.getAllByText('Spells').length).toBeGreaterThan(0)
+    expect(screen.getAllByText('Magic Arts').length).toBeGreaterThan(0)
     expect(screen.getByText('One-Handed Sword')).toBeInTheDocument()
     expect(screen.getAllByText('Earthen Ward').length).toBeGreaterThan(0)
   })

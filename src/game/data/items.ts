@@ -59,4 +59,4 @@ const authoredItemDefinitions: ItemDefinition[] = [
 
 export const itemDefinitions = deepFreeze<ItemDefinition[]>(authoredItemDefinitions);
 export const itemById = Object.fromEntries(itemDefinitions.map((item) => [item.id, item])) as Record<string, ItemDefinition>;
-export const prototypeEquipmentDefinitions = itemDefinitions.filter((item) => Boolean(item.equipmentSlotKind));
+export const equipmentDefinitions = itemDefinitions.filter((item) => Boolean(item.equipmentSlotKind));

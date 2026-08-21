@@ -48,6 +48,6 @@ export function InventoryCard({ entry, hunterRank, selected, onSelect, manualMod
       {hunterRankLocked && <span className="item-hunter-rank-lock" title={lockLabel} aria-label={lockLabel}><Lock size={11} aria-hidden="true" /></span>}
       {upgradeCount > 0 && <em className="item-upgrade-marker" title={`${upgradeCount} unlocked upgrade nodes`} aria-label={`${upgradeCount} unlocked upgrade nodes`}>{upgradeCount}</em>}
     </div>
-    <div className="inventory-card-footer"><strong title={presentation.name}>{presentation.name}</strong></div>
+    <div className="inventory-card-footer"><strong title={presentation.name}>{presentation.name}</strong>{presentation.upgradeProgress && <small>{presentation.specialization?.label ?? "Unspecialized"} - {presentation.upgradeProgress.unlocked}/{presentation.upgradeProgress.total}</small>}</div>
   </button></GameTooltip>;
 }

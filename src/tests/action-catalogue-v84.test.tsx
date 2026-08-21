@@ -18,7 +18,7 @@ describe("Hierarchical action catalogue V8.4", () => {
 
     expect(catalogue.map((group) => group.id)).toEqual(["magic", "weapon-skills", "active-defense", "consumables"]);
     expect(catalogue.find((group) => group.id === "magic")?.children?.map((group) => group.label)).toEqual([
-      "Fire Magic", "Water Magic", "Air Magic", "Earth Magic", "Darkness Magic",
+      "Magic Arts",
     ]);
     expect(catalogue.find((group) => group.id === "weapon-skills")?.children?.[0]).toMatchObject({
       id: "weapon.one-handed-sword",
@@ -86,7 +86,7 @@ describe("Hierarchical action picker UI V8.4", () => {
     expect(document.querySelector('[data-debug-kind="action-picker-group"][data-debug-group-id="weapon.one-handed-sword"]')).toBeInTheDocument();
     expect(document.querySelector('[data-debug-kind="action-picker-item"][data-debug-action-id="weapon-skill.one-handed-sword.opening-feint"]')).toBeInTheDocument();
     fireEvent.click(document.querySelector('[data-debug-kind="action-picker-group-header"][data-debug-group-id="magic"]') as HTMLElement);
-    expect(document.querySelector('[data-debug-kind="action-picker-group"][data-debug-group-id="magic.fire-magic"]')).toBeInTheDocument();
+    expect(document.querySelector('[data-debug-kind="action-picker-group"][data-debug-group-id="magic-arts"]')).toBeInTheDocument();
   });
 
   it("searches action metadata and changes only the draft action", () => {

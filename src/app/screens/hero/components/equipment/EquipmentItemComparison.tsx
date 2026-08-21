@@ -8,6 +8,7 @@ import type { EquipmentComparisonRow } from "../../../../../game/presentation/eq
 import { buildEquipmentItemModifierRows, type EquipmentItemDifferenceRow } from "../../../../../game/presentation/equipmentItemComparison";
 import type { ResolvedItemInstance } from "../../../../../game/items/itemTypes";
 import { proficiencyById } from "../../../../../game/data/proficiencies";
+import { buildItemPresentation } from "../../../../../game/presentation/itemPresentation";
 
 export function EquipmentItemComparison({ slotLabel, current, candidate, itemRows, buildRows, combatLocked, hunterRankLocked, proficiencyLocked, proficiencyId, requiredProficiencyLevel, actionLabel, canEquip, onEquip }: {
   slotLabel: string;
@@ -49,7 +50,8 @@ export function EquipmentItemComparison({ slotLabel, current, candidate, itemRow
 function ComparisonIdentity({ label, item, equipped = false }: { label: string; item?: ResolvedItemInstance | null; equipped?: boolean }) {
   if (!item) return <div className="equipment-comparison-identity is-empty"><span className="tiny-label">{label}</span><div className="equipment-comparison-empty-art"><span>-</span></div><strong>Empty Slot</strong></div>;
   const tooltip = buildPlayerItemInstanceTooltip(item, { equipped });
-  return <GameTooltip content={tooltip}><div className={`equipment-comparison-identity ${itemRarityClass(item.definition.rarity)}`} data-debug-kind="equipment-comparison-identity" data-debug-instance-id={item.instance.id} data-debug-item-id={item.definition.id}><span className="tiny-label">{label}</span><PlaceholderArt icon={item.definition.icon} size="small" variant={itemRarityArtVariant(item.definition.rarity)} /><strong>{item.definition.name}</strong>{equipped && <small>Equipped</small>}</div></GameTooltip>;
+  const presentation = buildItemPresentation(item);
+  return <GameTooltip content={tooltip}><div className={`equipment-comparison-identity ${itemRarityClass(item.definition.rarity)}`} data-debug-kind="equipment-comparison-identity" data-debug-instance-id={item.instance.id} data-debug-item-id={item.definition.id}><span className="tiny-label">{label}</span><PlaceholderArt icon={item.definition.icon} size="small" variant={itemRarityArtVariant(item.definition.rarity)} /><strong>{item.definition.name}</strong>{presentation.upgradeProgress && <small>{presentation.specialization?.label ?? "Unspecialized"} - {presentation.upgradeProgress.unlocked}/{presentation.upgradeProgress.total}</small>}{equipped && <small>Equipped</small>}</div></GameTooltip>;
 }
 
 function DifferenceRows({ rows }: { rows: readonly EquipmentItemDifferenceRow[] }) {

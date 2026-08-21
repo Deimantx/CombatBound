@@ -34,7 +34,7 @@ function applyGlobalContributions(stats: ItemStats, contributions: ItemStatContr
 export function resolveItemStats(definition: ItemDefinition, instance: ItemInstance) {
   const baseStats = cloneStats(definition.stats);
   const contributions: ItemStatContribution[] = [];
-  for (const nodeId of instance.unlockedUpgradeNodeIds ?? []) {
+  for (const nodeId of instance.unlockedUpgradeNodeIds) {
     const node = itemUpgradeNodeById[nodeId];
     if (!node) continue;
     for (const effect of node.effects) {
