@@ -3,7 +3,6 @@ import type { InventoryState } from "../inventory/inventoryTypes";
 import { isItemInstanceId, type ItemDefinitionId, type ItemInstanceId, type ResolvedItemInstance } from "./itemTypes";
 import { validateItemInstance } from "./itemInstanceValidation";
 import { resolveItemStats } from "./itemStatResolver";
-import { itemAffixById } from "../data/itemAffixes";
 
 export function resolveItemInstance(
   inventory: InventoryState,
@@ -11,11 +10,11 @@ export function resolveItemInstance(
   items: Record<ItemDefinitionId, ItemDefinition> = itemById,
 ): ResolvedItemInstance | null {
   const instance = inventory.instances[instanceId];
-  if (!instance || instance.id !== instanceId || !isItemInstanceId(instanceId) || instance.version !== 2) return null;
+  if (!instance || instance.id !== instanceId || !isItemInstanceId(instanceId) || instance.version !== 3) return null;
   const definition = items[instance.definitionId];
   if (!definition || definition.inventoryMode !== "instance") return null;
-  if (!validateItemInstance(instance, items, itemAffixById).valid) return null;
-  const resolved = resolveItemStats(definition, instance, itemAffixById);
+  if (!validateItemInstance(instance, items).valid) return null;
+  const resolved = resolveItemStats(definition, instance);
   return { instance, definition, ...resolved };
 }
 

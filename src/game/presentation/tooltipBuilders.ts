@@ -6,7 +6,6 @@ import type {
   PlayerActionDefinition,
 } from "../combat/combatTypes";
 import type { ItemDefinition } from "../data/items";
-import { itemAffixById } from "../data/itemAffixes";
 import type { ResolvedItemInstance } from "../items/itemTypes";
 import { combatStatReferenceById } from "../data/combatGlossary";
 import { effectById } from "../data/effects";
@@ -14,6 +13,7 @@ import type { SpellDefinition } from "../data/spells";
 import type { ProgressionState } from "../progression/progressionTypes";
 import { calculateEffectiveSpell, type SpellCalculationContext } from "../progression/spellProgression";
 import { proficiencyById } from "../data/proficiencies";
+import { weaponArchetypeById } from "../data/gear/weaponArchetypes";
 import { equipmentSlotKindLabel, getEquipmentSlotDefinition, type EquipmentSlotId } from "../equipment/equipmentTypes";
 import { weaponSkillById } from "../data/weaponSkills";
 import {
@@ -66,6 +66,7 @@ const toneForValue = (value: number): TooltipTone =>
   value > 0 ? "green" : value < 0 ? "red" : "default";
 
 function itemTypeLabel(item: ItemDefinition) {
+  if (item.weaponFamilyId && item.weaponArchetypeId) return `${item.weaponFamilyId[0].toUpperCase()}${item.weaponFamilyId.slice(1)} - ${weaponArchetypeById[item.weaponArchetypeId]?.name ?? item.weaponArchetypeId.replace("weapon-archetype.", "")}`;
   const proficiencyId = item.weaponProficiencyId ?? item.defensiveProficiencyId;
   if (proficiencyId) return proficiencyById[proficiencyId]?.name ?? proficiencyId;
   if (item.equipmentSlotKind) return equipmentSlotKindLabel(item.equipmentSlotKind);
@@ -99,6 +100,12 @@ export function buildItemTooltip(
         tone: "red",
       });
   }
+  if (item.weaponProficiencyId && item.requiredProficiencyLevel !== undefined) {
+    rows.unshift({ label: "Weapon Proficiency", value: `${proficiencyById[item.weaponProficiencyId]?.name ?? item.weaponProficiencyId} Level ${item.requiredProficiencyLevel}`, tone: "gold" as TooltipTone });
+  }
+  if (item.weaponFamilyId) rows.unshift({ label: "Weapon Family", value: `${item.weaponFamilyId[0].toUpperCase()}${item.weaponFamilyId.slice(1)}`, tone: "blue" as TooltipTone });
+  if (item.weaponArchetypeId) rows.unshift({ label: "Weapon Archetype", value: weaponArchetypeById[item.weaponArchetypeId]?.name ?? item.weaponArchetypeId, tone: "blue" as TooltipTone });
+  if (item.materialTierId) rows.unshift({ label: "Material Tier", value: `${item.materialTierId[0].toUpperCase()}${item.materialTierId.slice(1)}`, tone: "gold" as TooltipTone });
   if (options.quantity !== undefined)
     rows.unshift({ label: "Quantity", value: options.quantity.toLocaleString(), tone: "default" as TooltipTone });
   if (item.purpose === "sell-only") rows.unshift({ label: "Purpose", value: "Sell-only", tone: "gold" as TooltipTone });
@@ -134,23 +141,11 @@ export function buildItemInstanceTooltip(
     { ...resolved.definition, stats: resolved.effectiveStats },
     options,
   );
+  const presentation = buildItemPresentation(resolved, { includeBaseStats: true });
   const modificationRows: TooltipRow[] = [
     { label: "Instance", value: resolved.instance.id, tone: "default" },
-    { label: "Quality", value: `${resolved.instance.quality}%`, tone: resolved.instance.quality > 0 ? "green" : "default" },
-    { label: "Upgrade", value: `+${resolved.instance.upgradeLevel}`, tone: resolved.instance.upgradeLevel > 0 ? "green" : "default" },
+    ...(presentation.upgradeProgress ? [{ label: "Upgrades", value: `${presentation.upgradeProgress.unlocked} / ${presentation.upgradeProgress.total}`, tone: "green" as TooltipTone }] : []),
   ];
-  for (const affixInstance of resolved.instance.affixes) {
-    const affix = itemAffixById[affixInstance.affixId];
-    const tier = affix?.tiers.find((candidate) => candidate.id === affixInstance.tierId);
-    if (!affix || !tier) continue;
-    for (const modifier of tier.modifiers) {
-      const roll = affixInstance.rolls[modifier.id];
-      if (typeof roll !== "number") continue;
-      const label = modifier.scope === "local" ? modifier.target : modifier.stat;
-      const formatted = modifier.roll.valueType === "integer" ? `${roll >= 0 ? "+" : ""}${roll}` : `${roll >= 0 ? "+" : ""}${(roll * 100).toFixed(0)}%`;
-      modificationRows.push({ label: `${affix.kind === "prefix" ? "Prefix" : "Suffix"}: ${affix.name} - ${label}`, value: formatted, tone: "blue" });
-    }
-  }
   return { ...tooltip, id: `item-instance.${resolved.instance.id}`, rows: [...modificationRows, ...(tooltip.rows ?? [])], notes: [...(tooltip.notes ?? []), ...resolved.contributions.map((contribution) => `${contribution.sourceLabel}: ${contribution.target} ${contribution.operation} ${contribution.value}`)] };
 }
 
@@ -167,7 +162,7 @@ export function buildPlayerItemInstanceTooltip(
   const presentation = buildItemPresentation(resolved, { equipped: options.equipped });
   const tooltip = buildItemTooltip({ ...resolved.definition, stats: resolved.effectiveStats }, options);
   const modifierRows = presentation.modifiers.map((modifier) => ({
-    label: `${modifier.kind ? `${modifier.kind === "prefix" ? "Prefix" : "Suffix"} - ` : ""}${modifier.label}${modifier.source === "affix" && modifier.tier ? ` (T${modifier.tier})` : ""}`,
+    label: modifier.label,
     value: modifier.value,
     tone: modifier.tone ?? "default",
   }));
@@ -175,7 +170,7 @@ export function buildPlayerItemInstanceTooltip(
     ? [{ label: "Equipped", value: options.equippedSlot ? getEquipmentSlotDefinition(options.equippedSlot).label : resolved.definition.equipmentSlotKind ? equipmentSlotKindLabel(resolved.definition.equipmentSlotKind) : "Currently equipped", tone: "green" }]
     : [];
   const allBaseRows = [...equippedRows, ...(tooltip.rows ?? [])];
-  const requirementRows = allBaseRows.filter((row) => row.label === "Hunter Rank" || row.label === "Availability" || row.label === "Equipped");
+  const requirementRows = allBaseRows.filter((row) => row.label === "Hunter Rank" || row.label === "Availability" || row.label === "Weapon Proficiency" || row.label === "Equipped");
   const statRows = allBaseRows.filter((row) => !requirementRows.includes(row));
   const sections = [
     requirementRows.length ? { id: "requirements", title: "Requirements / State", rows: requirementRows } : undefined,

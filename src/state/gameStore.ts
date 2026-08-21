@@ -15,6 +15,7 @@ import { calculateHunterCombatStats } from "../game/equipment/derivedStats";
 import { equipItemInstance as equipOwnedItemInstance, unequipEquipmentSlot as unequipOwnedEquipmentSlot } from "../game/equipment/equipmentRules";
 import { getItemDefinitionForInstance } from "../game/items/itemResolver";
 import { normalizeInventoryState } from "../game/items/itemOwnership";
+import { purchaseItemUpgradeNode } from "../game/items/itemUpgradeLogic";
 import { normalizeCollectionTargets } from "../game/collection/collectionLogic";
 import { discoverItem } from "../game/collection/collectionLogic";
 import { openLootContainer as resolveLootContainer } from "../game/loot/lootContainerLogic";
@@ -39,7 +40,7 @@ import {
   loadProfileGameSave,
 } from "../game/profiles/profileStorage";
 import { getProfileSessionOwnerId, isProfileSessionOwner } from "../game/profiles/profileSessionLease";
-import { gameStateToSaveV15, parseGameSaveJson } from "../game/persistence/saveGame";
+import { gameStateToSaveV16, parseGameSaveJson } from "../game/persistence/saveGame";
 import type { ProfileId } from "../game/profiles/profileTypes";
 import type { InventoryEntryRef } from "../game/items/itemTypes";
 import type { SpellbookState } from "../game/spellbook/spellbookTypes";
@@ -76,6 +77,7 @@ import type { HeroWindowRequest, ScreenId } from "../shared/types";
 import type { AutomationCondition, AutomationRule } from "../game/automation/automationTypes";
 import {
   debugAddGold,
+  debugGrantIronSwordMaterials,
   debugAddHunterRankPoints,
   debugApplyEffect,
   debugCancelEnemyAbilities,
@@ -92,8 +94,6 @@ import {
   debugFillHealth,
   debugFillMana,
   debugFillStamina,
-  debugGrantAllEquipment,
-  debugGrantEquipmentTier,
   debugGrantItem,
   debugDeleteItemInstance,
   debugGrantPerkPoints,
@@ -117,11 +117,6 @@ import {
   debugSetAllTargetDefeatsToOne,
   debugSetGold,
   debugSetOwnedItemCount,
-  debugSetItemQuality,
-  debugSetItemUpgradeLevel,
-  debugAddItemAffix,
-  debugRemoveItemAffix,
-  debugRerollItemAffix,
   debugSetHunterRank,
   debugSetHunterRankPoints,
   debugSetBonusPerkPoints,
@@ -203,6 +198,7 @@ interface GameStoreState {
   openLootContainer: (itemId: string) => void;
   purchaseProficiencyPerk: (perkId: string) => void;
   equipItemInstance: (instanceId: string, slot: EquipmentSlotId) => void;
+  purchaseItemUpgradeNode: (instanceId: string, nodeId: string) => void;
   unequipEquipmentSlot: (slot: EquipmentSlotId) => void;
   setInventoryFilter: (filter: string) => void;
   selectInventoryEntry: (entry: InventoryEntryRef | null) => void;
@@ -227,13 +223,6 @@ export interface DebugStoreApi {
   grantItem: (itemId: string, quantity: number) => void;
   deleteItemInstance: (instanceId: string) => void;
   setOwnedItemCount: (itemId: string, quantity: number) => void;
-  setItemQuality: (instanceId: string, quality: number) => void;
-  setItemUpgradeLevel: (instanceId: string, upgradeLevel: number) => void;
-  addItemAffix: (instanceId: string, affixId: string, tierId: string) => void;
-  removeItemAffix: (instanceId: string, affixId: string) => void;
-  rerollItemAffix: (instanceId: string, affixId: string) => void;
-  grantAllEquipment: (quantity?: number) => void;
-  grantEquipmentTier: (hunterRank: number) => void;
   setHunterRank: (rank: number) => void;
   setHunterRankPoints: (points: number) => void;
   addHunterRankPoints: (amount: number) => void;
@@ -278,6 +267,7 @@ export interface DebugStoreApi {
   equipSwordSkills: () => void;
   setGold: (amount: number) => void;
   addGold: (amount: number) => void;
+  grantIronSwordMaterials: () => void;
   loadScenario: (snapshot: DebugScenarioSnapshot) => void;
   startEncounter: (locationId: string, enemyIds: string[]) => void;
   importSave: (raw: string) => { ok: boolean; error?: string };
@@ -409,7 +399,7 @@ function savePermanent(
   const profileId = activeProfileIdForPersistence();
   // A lease check here protects every gameplay save path, including debug and combat mutations.
   if (!profileId || !isProfileSessionOwner(profileId, getProfileSessionOwnerId())) return false;
-  return saveProfileGameSave(profileId, gameStateToSaveV15(game, settings));
+  return saveProfileGameSave(profileId, gameStateToSaveV16(game, settings));
 }
 
 function captureDebugCombatEvents(previous: GameState, next: GameState) {
@@ -543,13 +533,6 @@ export const useGameStore = create<GameStoreState>((set, get) => {
     grantItem: (itemId, quantity) => commitDebug((game) => debugGrantItem(game, itemId, quantity), true),
     deleteItemInstance: (instanceId) => commitDebug((game) => debugDeleteItemInstance(game, instanceId), true),
     setOwnedItemCount: (itemId, quantity) => commitDebug((game) => debugSetOwnedItemCount(game, itemId, quantity), true),
-    setItemQuality: (instanceId, quality) => commitDebug((game) => debugSetItemQuality(game, instanceId, quality), true),
-    setItemUpgradeLevel: (instanceId, upgradeLevel) => commitDebug((game) => debugSetItemUpgradeLevel(game, instanceId, upgradeLevel), true),
-    addItemAffix: (instanceId, affixId, tierId) => commitDebug((game) => debugAddItemAffix(game, instanceId, affixId, tierId), true),
-    removeItemAffix: (instanceId, affixId) => commitDebug((game) => debugRemoveItemAffix(game, instanceId, affixId), true),
-    rerollItemAffix: (instanceId, affixId) => commitDebug((game) => debugRerollItemAffix(game, instanceId, affixId), true),
-    grantAllEquipment: (quantity = 1) => commitDebug((game) => debugGrantAllEquipment(game, quantity), true),
-    grantEquipmentTier: (level) => commitDebug((game) => debugGrantEquipmentTier(game, level), true),
     setHunterRank: (rank) => commitDebug((game) => debugSetHunterRank(game, rank), true),
     setHunterRankPoints: (points) => commitDebug((game) => debugSetHunterRankPoints(game, points), true),
     addHunterRankPoints: (amount) => commitDebug((game) => debugAddHunterRankPoints(game, amount), true),
@@ -594,6 +577,7 @@ export const useGameStore = create<GameStoreState>((set, get) => {
     equipSwordSkills: () => commitDebug(debugEquipSwordSkills, true),
     setGold: (amount) => commitDebug((game) => debugSetGold(game, amount), true),
     addGold: (amount) => commitDebug((game) => debugAddGold(game, amount), true),
+    grantIronSwordMaterials: () => commitDebug(debugGrantIronSwordMaterials, true),
     loadScenario: (snapshot) => {
       if (!validateDebugScenario(snapshot).valid) return;
       useDevToolsRuntimeStore.getState().clearEnemyImmortality();
@@ -959,6 +943,7 @@ export const useGameStore = create<GameStoreState>((set, get) => {
           inventory: state.game.inventory,
           equipment: state.game.equipment,
           hunterRank: hunterRankForPoints(state.game.progression.hunterRankPoints),
+          progression: state.game.progression,
         });
         if (!result.validation.valid) return state;
         if (result.equipment === state.game.equipment) return state;
@@ -974,6 +959,18 @@ export const useGameStore = create<GameStoreState>((set, get) => {
           progression,
           equipment: result.equipment,
         });
+        savePermanent(game, {
+          reducedMotion: state.reducedMotion,
+          showInspectorButton: state.showInspectorButton,
+        });
+        return flatState(game, state);
+      }),
+    purchaseItemUpgradeNode: (instanceId, nodeId) =>
+      set((state) => {
+        const combatLocked = state.game.combat.phase === "active" || state.game.combat.phase === "recovery";
+        const result = purchaseItemUpgradeNode({ inventory: state.game.inventory, instanceId, nodeId, combatLocked });
+        if (result.outcome !== "purchased") return state;
+        const game = syncCombatStats({ ...state.game, inventory: result.inventory });
         savePermanent(game, {
           reducedMotion: state.reducedMotion,
           showInspectorButton: state.showInspectorButton,

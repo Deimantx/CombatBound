@@ -38,6 +38,7 @@ import type {
 import type { CombatProficiencyId, ProgressionCredit } from "../progression/progressionTypes";
 import { getEnemyTraitCriticalDamageResistance, getEnemyTraitIncomingDamageMultiplier, getEnemyTraitReflectionFraction, processEnemyTraitEvent, applyEnemyTraitHealthTriggers } from "../enemyTraits/enemyTraitRuntime";
 import { getPlayerHealingReceivedMultiplier } from "./combatHealing";
+import { consumeRiposteForBasicAttempt, observeBasicWeaponResult } from "../weapons/weaponMechanicRuntime";
 
 type BarrierAbsorption = {
   effectId: string;
@@ -86,6 +87,9 @@ export function damageEnemy(
   }> = [],
   dependencies: PlayerDamageRuntimeDependencies,
 ) {
+  const riposteAttempt = consumeRiposteForBasicAttempt(game, packet);
+  game = riposteAttempt.game;
+  packet = riposteAttempt.packet;
   const current = game.combat.enemy?.instanceId === target.instanceId ? game.combat.enemy : undefined;
   if (!current || current.defeated) return game;
   const defenderStats = getEnemyStats(game.combat, current, context);
@@ -171,6 +175,7 @@ export function damageEnemy(
     ...game,
     combat: damageApplication.combat,
   };
+  next = observeBasicWeaponResult(next, packet, resolution, riposteAttempt.consumed);
   next.combat = applyEnemyTraitHealthTriggers(next.combat, current.instanceId, current.currentHealth, context);
   let progressionResults: Array<ReturnType<typeof awardProficiencyXp>> = [];
   if (proficiencyId && effectiveHealthDamage > 0) {

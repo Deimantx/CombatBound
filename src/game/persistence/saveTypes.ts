@@ -111,4 +111,7 @@ export interface GameSaveV15 {
   combatAutomation: CombatAutomationState;
   combatAutomationPresets: CombatAutomationPresetsState;
 }
+export interface GameSaveV16 extends Omit<GameSaveV15, "version"> {
+  version: 16;
+}
 export type GameSaveV2 = GameSaveV3;

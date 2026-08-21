@@ -11,7 +11,7 @@ function valueFor(definition: DebugStatDefinition, value: number) {
 export function formatStatContribution(definition: DebugStatDefinition, contribution: StatContribution) {
   if (contribution.operation === "more") {
     const multiplier = Math.abs(contribution.before) > 1e-9 ? contribution.after / contribution.before : 1;
-    return `×${multiplier.toFixed(2)}`;
+    return `x${multiplier.toFixed(2)}`;
   }
   const value = valueFor(definition, Math.abs(contribution.value));
   return contribution.value > 0 ? `+${value}` : `-${value}`;

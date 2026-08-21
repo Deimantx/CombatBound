@@ -33,14 +33,12 @@ export function EquipmentCandidateBrowser({ models, slotId, hunterRank, totalCou
     const filtered = models.filter((model) => {
       const { entry } = model;
       if (filters.rarity !== "all" && entry.definition.rarity !== filters.rarity) return false;
-      if (filters.availability === "usable" && model.hunterRankLocked) return false;
-      if (filters.availability === "locked" && !model.hunterRankLocked) return false;
+      if (filters.availability === "usable" && (model.hunterRankLocked || model.proficiencyLocked)) return false;
+      if (filters.availability === "locked" && !model.hunterRankLocked && !model.proficiencyLocked) return false;
       const modified = itemInstanceIsModified(entry.instance);
       if (filters.modification === "modified" && !modified) return false;
       if (filters.modification === "unmodified" && modified) return false;
-      if (filters.modification === "affixed" && entry.instance.affixes.length === 0) return false;
-      if (filters.modification === "upgraded" && entry.instance.upgradeLevel <= 0) return false;
-      if (filters.modification === "quality" && entry.instance.quality <= 0) return false;
+      if (filters.modification === "upgraded" && (entry.instance.unlockedUpgradeNodeIds?.length ?? 0) === 0) return false;
       return !normalizedQuery || buildItemInstanceSearchText(entry).includes(normalizedQuery);
     });
     const sortable = filtered.map((model) => ({
@@ -58,7 +56,7 @@ export function EquipmentCandidateBrowser({ models, slotId, hunterRank, totalCou
   const activeFilterChips = [
     filters.rarity !== "all" ? { key: "rarity", label: filters.rarity[0].toUpperCase() + filters.rarity.slice(1) } : undefined,
     filters.availability !== "all" ? { key: "availability", label: filters.availability === "usable" ? "Can Equip Now" : "Locked" } : undefined,
-    filters.modification !== "all" ? { key: "modification", label: { modified: "Modified", unmodified: "Unmodified", affixed: "Has Affixes", upgraded: "Upgraded", quality: "Quality Improved" }[filters.modification] } : undefined,
+    filters.modification !== "all" ? { key: "modification", label: ({ modified: "Modified", unmodified: "Unmodified", upgraded: "Has Upgrade Nodes" } as Record<string, string>)[filters.modification] ?? filters.modification } : undefined,
   ].filter((chip): chip is { key: "rarity" | "availability" | "modification"; label: string } => Boolean(chip));
   const clearFilters = () => setFilters(defaultFilters);
   const removeFilter = (key: "rarity" | "availability" | "modification") => setFilters((current) => ({ ...current, [key]: "all" }));
@@ -75,7 +73,7 @@ export function EquipmentCandidateBrowser({ models, slotId, hunterRank, totalCou
         </div>
       </div>
       {filtersOpen && <InventoryFiltersPopover id="equipment-candidate-filters" category="equipment" filters={filters} setFilters={setFilters} showEquipmentState={false} />}
-      {activeFilterChips.length > 0 && <div className="equipment-active-filter-chips" aria-label="Active equipment filters">{activeFilterChips.map((chip) => <button type="button" key={chip.key} className="equipment-filter-chip" onClick={() => removeFilter(chip.key)} aria-label={`Remove ${chip.label} filter`}>{chip.label} <span aria-hidden="true">×</span></button>)}<button type="button" className="equipment-filter-chip is-clear" onClick={clearFilters}><X size={12} />Clear</button></div>}
+      {activeFilterChips.length > 0 && <div className="equipment-active-filter-chips" aria-label="Active equipment filters">{activeFilterChips.map((chip) => <button type="button" key={chip.key} className="equipment-filter-chip" onClick={() => removeFilter(chip.key)} aria-label={`Remove ${chip.label} filter`}>{chip.label} <span aria-hidden="true">x</span></button>)}<button type="button" className="equipment-filter-chip is-clear" onClick={clearFilters}><X size={12} />Clear</button></div>}
       <div className="hero-equipment-candidate-grid" data-debug-kind="equipment-candidate-grid">
         {filteredModels.length ? filteredModels.map((model) => <EquipmentCandidateCard key={model.entry.instance.id} model={model} slotId={slotId} selected={pinned?.slotId === slotId && pinned.instanceId === model.entry.instance.id} hovered={hovered?.slotId === slotId && hovered.instanceId === model.entry.instance.id} hunterRank={hunterRank} onSelect={() => onSelect(model.entry.instance.id)} onHover={() => onHover(model.entry.instance.id)} onLeave={onLeave} />) : <p className="hero-equipment-empty-copy">{models.length ? "No alternatives match current filters." : "No compatible alternatives."}</p>}
       </div>

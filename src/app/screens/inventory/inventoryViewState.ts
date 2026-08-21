@@ -17,7 +17,7 @@ export function buildActiveInventoryFilterChips(category: InventoryPrimaryCatego
   return [
     filters.rarity !== "all" ? { key: "rarity" as const, label: filters.rarity[0].toUpperCase() + filters.rarity.slice(1) } : undefined,
     equipmentFiltersApply && filters.equipmentState !== "all" ? { key: "equipmentState" as const, label: filters.equipmentState === "equipped" ? "Equipped" : "Unequipped" } : undefined,
-    equipmentFiltersApply && filters.modification !== "all" ? { key: "modification" as const, label: { modified: "Modified", unmodified: "Unmodified", affixed: "Has Affixes", upgraded: "Upgraded", quality: "Quality Improved" }[filters.modification] } : undefined,
+    equipmentFiltersApply && filters.modification !== "all" ? { key: "modification" as const, label: ({ modified: "Modified", unmodified: "Unmodified", upgraded: "Has Upgrade Nodes" } as Record<string, string>)[filters.modification] ?? filters.modification } : undefined,
     equipmentFiltersApply && filters.availability !== "all" ? { key: "availability" as const, label: filters.availability === "usable" ? "Can Equip Now" : "Locked" } : undefined,
   ].filter((chip): chip is ActiveInventoryFilterChip => Boolean(chip));
 }

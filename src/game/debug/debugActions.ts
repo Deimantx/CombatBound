@@ -1,8 +1,7 @@
 import { grantItem, getInstancesByDefinitionId, removeItemInstance } from "../items/itemOwnership";
-import { addItemAffix, removeItemAffix, rerollItemAffix, setItemQuality, setItemUpgradeLevel } from "../items/itemMutations";
 import { discoverItem, discoverTarget } from "../collection/collectionLogic";
 import { createInitialCollection } from "../collection/collectionTypes";
-import { itemById, itemDefinitions, prototypeEquipmentDefinitions } from "../data/items";
+import { itemById, itemDefinitions } from "../data/items";
 import { enemyDefinitions } from "../data/enemies";
 import { effectById } from "../data/effects";
 import { magicArtDefinitions } from "../data/magicArts";
@@ -21,10 +20,8 @@ import type { CombatantRef } from "../combat/combatTypes";
 import type { GameState } from "../gameState";
 import type { DebugEffectTarget, DebugResource } from "./debugTypes";
 import type { ItemInstanceId } from "../items/itemTypes";
-import { createDeterministicItemRng } from "../items/itemRandom";
 
 const debugContext = createCombatContext({ next: () => 0.5 });
-const debugItemRng = createDeterministicItemRng(0x00c0ffee);
 
 function safeInteger(value: number, fallback = 0) {
   return Number.isFinite(value) ? Math.floor(value) : fallback;
@@ -32,13 +29,6 @@ function safeInteger(value: number, fallback = 0) {
 
 function clampInteger(value: number, minimum: number, maximum: number) {
   return Math.max(minimum, Math.min(maximum, safeInteger(value, minimum)));
-}
-
-function prototypeQuantity(itemId: string, quantity: number) {
-  const item = itemById[itemId];
-  return item?.equipmentSlotKind === "ring" || item?.equipmentSlotKind === "earring"
-    ? Math.max(2, quantity)
-    : quantity;
 }
 
 export function debugGrantItem(game: GameState, itemId: string, quantity: number): GameState {
@@ -72,48 +62,6 @@ export function debugDeleteItemInstance(game: GameState, instanceId: string): Ga
   if (!game.inventory.instances[instanceId] || equippedIds.has(instanceId)) return game;
   const inventory = removeItemInstance(game.inventory, instanceId as ItemInstanceId, equippedIds);
   return inventory === game.inventory ? game : syncCombatStats({ ...game, inventory });
-}
-
-function applyItemMutation(game: GameState, mutation: (inventory: GameState["inventory"]) => ReturnType<typeof setItemQuality>) {
-  const result = mutation(game.inventory);
-  return result.changed ? syncCombatStats({ ...game, inventory: result.inventory }) : game;
-}
-
-export function debugSetItemQuality(game: GameState, instanceId: string, quality: number): GameState {
-  return applyItemMutation(game, (inventory) => setItemQuality(inventory, instanceId as ItemInstanceId, quality));
-}
-
-export function debugSetItemUpgradeLevel(game: GameState, instanceId: string, upgradeLevel: number): GameState {
-  return applyItemMutation(game, (inventory) => setItemUpgradeLevel(inventory, instanceId as ItemInstanceId, upgradeLevel));
-}
-
-export function debugAddItemAffix(game: GameState, instanceId: string, affixId: string, tierId: string): GameState {
-  return applyItemMutation(game, (inventory) => addItemAffix(inventory, instanceId as ItemInstanceId, affixId, tierId, debugItemRng));
-}
-
-export function debugRemoveItemAffix(game: GameState, instanceId: string, affixId: string): GameState {
-  return applyItemMutation(game, (inventory) => removeItemAffix(inventory, instanceId as ItemInstanceId, affixId));
-}
-
-export function debugRerollItemAffix(game: GameState, instanceId: string, affixId: string): GameState {
-  return applyItemMutation(game, (inventory) => rerollItemAffix(inventory, instanceId as ItemInstanceId, affixId, debugItemRng));
-}
-
-export function debugGrantAllEquipment(game: GameState, quantity = 1): GameState {
-  return prototypeEquipmentDefinitions.reduce(
-    (current, item) => debugGrantItem(current, item.id, Math.max(0, safeInteger(quantity))),
-    game,
-  );
-}
-
-export function debugGrantEquipmentTier(game: GameState, hunterRank: number): GameState {
-  const tier = clampInteger(hunterRank, 1, MAX_HUNTER_RANK);
-  return prototypeEquipmentDefinitions
-    .filter((item) => item.requiredHunterRank === tier)
-    .reduce(
-      (current, item) => debugGrantItem(current, item.id, prototypeQuantity(item.id, 1)),
-      game,
-    );
 }
 
 export function debugSetHunterRankPoints(game: GameState, points: number): GameState {
@@ -451,13 +399,20 @@ export function debugAddGold(game: GameState, amount: number): GameState {
   return debugSetGold(game, game.gold + safeAmount);
 }
 
+export function debugGrantIronSwordMaterials(game: GameState): GameState {
+  const materialIds = ["item.iron-bar", "item.weapon-scrap", "item.rough-metal-fragment", "item.alpha-fang", "item.captains-blade-fragment", "item.black-stone", "item.wolf-fang", "item.wolf-bone", "item.fallen-watch-insignia", "item.metal-scraps", "item.mineralized-shell-plate", "item.ironback-core"];
+  let inventory = game.inventory;
+  for (const itemId of materialIds) inventory = grantItem(inventory, itemId, 100).inventory;
+  return { ...game, inventory };
+}
+
 export function debugPermanent(game: GameState, mutation: (game: GameState) => GameState) {
   return mutation(game);
 }
 
 export const debugDefinitions = {
   items: itemDefinitions,
-  equipment: prototypeEquipmentDefinitions,
+  equipment: itemDefinitions.filter((item) => Boolean(item.equipmentSlotKind)),
   proficiencies: proficiencyDefinitions,
   perks: Object.values(perkById),
   effects: Object.values(effectById),

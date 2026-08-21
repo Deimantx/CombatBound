@@ -5,7 +5,7 @@ import { perkById } from '../../../../game/data/proficiencyPerks'
 import { proficiencyById } from '../../../../game/data/proficiencies'
 import type { CombatProficiencyId } from '../../../../game/progression/progressionTypes'
 import { calculateAvailablePerkPoints } from '../../../../game/progression/perkProgression'
-import { getProficiencyLevelProgress } from '../../../../game/progression/proficiencyProgression'
+import { getProficiencyLevelProgressForState } from '../../../../game/progression/proficiencyProgression'
 import { getHuntSessionRates, type HuntSessionRates } from '../../../../game/combat/combatSelectors'
 import { Panel } from '../../../components/Panel'
 import { ProgressBar } from '../../../components/ProgressBar'
@@ -22,7 +22,7 @@ interface ProficiencyHuntProgress {
   gainedXp: number
   totalXp: number
   xpPerHour: number
-  progress: ReturnType<typeof getProficiencyLevelProgress>
+  progress: ReturnType<typeof getProficiencyLevelProgressForState>
 }
 
 export function HuntSessionOverview({ game, tab, onTabChange }: { game: GameState; tab: SessionTab; onTabChange: (tab: SessionTab) => void }) {
@@ -43,7 +43,7 @@ export function HuntSessionOverview({ game, tab, onTabChange }: { game: GameStat
         gainedXp: amount,
         totalXp,
         xpPerHour: rates.proficiencyXpPerHourById[proficiencyId] ?? 0,
-        progress: getProficiencyLevelProgress(totalXp, definition.maxLevel),
+        progress: getProficiencyLevelProgressForState(game.progression, proficiencyId),
       }
     })
     .filter((entry): entry is ProficiencyHuntProgress => entry !== null)

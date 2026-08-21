@@ -25,6 +25,7 @@ import type {
 } from "./combatTypes";
 import { enemyTraitById } from "../data/enemyTraits";
 import { getEnemyTraitStatModifiers } from "../enemyTraits/enemyTraitRuntime";
+import { weaponMechanicStatModifiers } from "../weapons/weaponMechanicRuntime";
 
 export const MIN_RATE_SAMPLE_SECONDS = 10;
 
@@ -87,6 +88,7 @@ export function getPlayerEffectiveCombatStats(
   return applyProficiencyStatModifiers(base, [
     ...dynamicWeapon,
     ...getConditionalMagicStatModifiers(progression, barrierActive, perkById),
+    ...weaponMechanicStatModifiers(combat, stats.weaponMechanicParameters),
   ]);
 }
 

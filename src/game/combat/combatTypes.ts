@@ -25,6 +25,7 @@ export type PlayerActionTargetMode = "self" | "selected-enemy";
 export type GlobalCooldownMode = "standard" | "none" | number;
 import type { ItemDefinition } from "../data/items";
 import type { EnemyTier, EnemyTraitAssignment, EnemyTraitId, EnemyTraitRuntimeState } from "../enemyTraits/enemyTraitTypes";
+import type { PlayerWeaponRuntimeState } from "../weapons/weaponMechanicTypes";
 import type { LootEntry } from "../loot/lootTypes";
 
 export type { LootEntry } from "../loot/lootTypes";
@@ -349,6 +350,7 @@ export interface CombatState {
   session: CombatSession;
   eventSequence: number;
   effectSequence: number;
+  weaponRuntime: PlayerWeaponRuntimeState;
   lastAutomationAction?: { actionId: string; elapsedSeconds: number };
   lastAutomationFailure?: string;
 }

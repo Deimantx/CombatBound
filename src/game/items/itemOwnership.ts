@@ -33,7 +33,7 @@ export function createItemInstance(
   if (!definition || definition.inventoryMode !== "instance")
     return { inventory, instance: null };
   const allocated = allocateItemInstanceId(inventory);
-  const instance: ItemInstance = { id: allocated.id, definitionId, version: 2, quality: 0, upgradeLevel: 0, affixes: [] };
+  const instance = { id: allocated.id, definitionId, version: 3 as const, unlockedUpgradeNodeIds: [] as string[] } as ItemInstance;
   return {
     inventory: {
       ...inventory,
@@ -163,11 +163,9 @@ export function normalizeInventoryState(value: unknown): InventoryState {
     instances[id] = {
       id,
       definitionId: instance.definitionId!,
-      version: 2,
-      quality: instance.quality!,
-      upgradeLevel: instance.upgradeLevel!,
-      affixes: instance.affixes!.map((affix) => ({ ...affix, rolls: { ...affix.rolls } })),
-    };
+      version: 3,
+      unlockedUpgradeNodeIds: [...instance.unlockedUpgradeNodeIds!],
+    } as ItemInstance;
   }
   const highest = Object.keys(instances).reduce((max, id) => Math.max(max, itemInstanceSequence(id as ItemInstanceId)), 0);
   const savedNext = typeof raw.nextInstanceSequence === "number" && Number.isFinite(raw.nextInstanceSequence)

@@ -1,88 +1,27 @@
 import { itemById, type ItemDefinition } from "../data/items";
-import { itemAffixById, itemAffixDefinitions } from "../data/itemAffixes";
-import type {
-  ItemAffixDefinition,
-  ItemAffixInstance,
-  ItemAffixTierDefinition,
-  ItemInstanceValidationResult,
-} from "./itemModifierTypes";
-import { isItemInstanceId, type ItemInstance } from "./itemTypes";
-import { isValidItemQuality, MAX_ITEM_QUALITY } from "./itemQuality";
-import { isValidItemUpgradeLevel, MAX_ITEM_UPGRADE_LEVEL } from "./itemUpgradeRules";
+import { itemUpgradeNodeById, itemUpgradeTreeById } from "../data/gear/itemUpgradeTrees";
+import type { ItemInstance } from "./itemTypes";
+import { isItemInstanceId } from "./itemTypes";
+import type { ItemInstanceValidationResult } from "./itemModifierTypes";
+import type { ItemAffixDefinition, ItemAffixInstance, ItemAffixTierDefinition } from "./itemModifierTypes";
+import { itemAffixById } from "../data/itemAffixes";
 
-export const DEFAULT_MAX_PREFIXES = 3; // [TUNING]
-export const DEFAULT_MAX_SUFFIXES = 3; // [TUNING]
-
-function hasApplicableCategory(definition: ItemDefinition, affix: ItemAffixDefinition) {
-  return !affix.appliesTo.categories?.length || affix.appliesTo.categories.includes(definition.category);
-}
-
-function hasApplicableSlot(definition: ItemDefinition, affix: ItemAffixDefinition) {
-  return !affix.appliesTo.slotKinds?.length || (definition.equipmentSlotKind !== undefined && affix.appliesTo.slotKinds.includes(definition.equipmentSlotKind));
-}
-
-function modifierAppliesToDefinition(definition: ItemDefinition, modifier: ItemAffixTierDefinition["modifiers"][number]) {
-  if (modifier.scope === "global") return true;
-  if (modifier.target === "physicalDamage") return definition.stats?.baseDamageMin !== undefined && definition.stats.baseDamageMax !== undefined;
-  if (modifier.target === "attackSpeed") return definition.stats?.baseAttackTime !== undefined;
-  if (modifier.target === "criticalChance") return definition.stats?.criticalStrikeChance !== undefined;
-  if (modifier.target === "armour") return definition.stats?.armour !== undefined;
-  if (modifier.target === "evasion") return definition.stats?.evasionRating !== undefined;
-  return false;
-}
-
+/** Legacy authoring adapters retained for historical fixtures only. */
 export function isAffixTierApplicable(definition: ItemDefinition, affix: ItemAffixDefinition, tier: ItemAffixTierDefinition) {
-  if (!affix.tiers.some((candidate) => candidate.id === tier.id)) return false;
-  if (!hasApplicableCategory(definition, affix) || !hasApplicableSlot(definition, affix)) return false;
-  return tier.modifiers.every((modifier) => modifierAppliesToDefinition(definition, modifier));
+  return affix.tiers.some((candidate) => candidate.id === tier.id) && (!affix.appliesTo.categories?.length || affix.appliesTo.categories.includes(definition.category)) && (!affix.appliesTo.slotKinds?.length || (definition.equipmentSlotKind !== undefined && affix.appliesTo.slotKinds.includes(definition.equipmentSlotKind)));
 }
-
-/** Catalogue/UI helper: true when at least one authored tier is usable. */
-export function isAffixApplicable(definition: ItemDefinition, affix: ItemAffixDefinition) {
-  return affix.tiers.some((tier) => isAffixTierApplicable(definition, affix, tier));
-}
-
-function validRoll(value: unknown, range: { min: number; max: number; step?: number; valueType: "integer" | "decimal" }) {
-  if (typeof value !== "number" || !Number.isFinite(value) || value < range.min - 1e-9 || value > range.max + 1e-9) return false;
-  if (range.valueType === "integer" && !Number.isInteger(value)) return false;
-  if (range.step && range.step > 0) {
-    const steps = (value - range.min) / range.step;
-    if (Math.abs(steps - Math.round(steps)) > 1e-8) return false;
-  }
-  return true;
-}
-
-function findTier(affix: ItemAffixDefinition, tierId: string) {
-  return affix.tiers.find((tier) => tier.id === tierId);
-}
-
-export function validateItemAffixInstance(
-  definition: ItemDefinition,
-  affixInstance: ItemAffixInstance,
-  existingAffixes: ItemAffixInstance[] = [],
-  affixes: Record<string, ItemAffixDefinition> = itemAffixById,
-): string[] {
-  const errors: string[] = [];
+export function validateItemAffixInstance(definition: ItemDefinition, affixInstance: ItemAffixInstance, existingAffixes: ItemAffixInstance[] = [], affixes: Record<string, ItemAffixDefinition> = itemAffixById): string[] {
   const affix = affixes[affixInstance.affixId];
   if (!affix) return [`Unknown affix ${affixInstance.affixId}`];
-  const tier = findTier(affix, affixInstance.tierId);
-  if (!tier) return [...errors, `Unknown tier ${affixInstance.tierId} for ${affix.id}`];
-  if (!isAffixTierApplicable(definition, affix, tier)) errors.push(`Affix ${affix.id} tier ${tier.id} is not applicable to ${definition.id}`);
-  if (existingAffixes.some((entry) => entry.affixId === affix.id)) errors.push(`Duplicate affix ${affix.id}`);
-  const modifierIds = new Set(tier.modifiers.map((modifier) => modifier.id));
-  for (const key of Object.keys(affixInstance.rolls ?? {})) if (!modifierIds.has(key)) errors.push(`Unknown roll key ${key} for ${affix.id}`);
-  for (const modifier of tier.modifiers) {
-    const value = affixInstance.rolls?.[modifier.id];
-    if (!validRoll(value, modifier.roll)) errors.push(`Invalid roll ${modifier.id} for ${affix.id}`);
-  }
-  return errors;
+  const tier = affix.tiers.find((candidate) => candidate.id === affixInstance.tierId);
+  if (!tier) return [`Unknown tier ${affixInstance.tierId}`];
+  return [
+    ...(!isAffixTierApplicable(definition, affix, tier) ? [`Affix ${affix.id} is not applicable`] : []),
+    ...(existingAffixes.some((entry) => entry.affixId === affix.id) ? [`Duplicate affix ${affix.id}`] : []),
+  ];
 }
 
-export function validateItemInstance(
-  value: unknown,
-  items: Record<string, ItemDefinition> = itemById,
-  affixes: Record<string, ItemAffixDefinition> = itemAffixById,
-): ItemInstanceValidationResult {
+export function validateItemInstance(value: unknown, items: Record<string, ItemDefinition> = itemById): ItemInstanceValidationResult {
   const errors: string[] = [];
   if (!value || typeof value !== "object" || Array.isArray(value)) return { valid: false, errors: ["Instance record is malformed"] };
   const instance = value as Partial<ItemInstance>;
@@ -91,26 +30,55 @@ export function validateItemInstance(
   const definition = typeof instance.definitionId === "string" ? items[instance.definitionId] : undefined;
   if (!definition) errors.push(`Unknown instance definition ${String(instance.definitionId)}`);
   else if (definition.inventoryMode !== "instance") errors.push(`Instance definition ${definition.id} is not instance-owned`);
-  if (instance.version !== 2) errors.push("Instance version must be 2");
-  if (typeof instance.quality !== "number" || !isValidItemQuality(instance.quality)) errors.push(`Quality must be an integer from ${0} to ${MAX_ITEM_QUALITY}`);
-  if (typeof instance.upgradeLevel !== "number" || !isValidItemUpgradeLevel(instance.upgradeLevel)) errors.push(`Upgrade level must be an integer from ${0} to ${MAX_ITEM_UPGRADE_LEVEL}`);
-  if (!Array.isArray(instance.affixes)) errors.push("Affixes must be an array");
-  if (definition && Array.isArray(instance.affixes)) {
-    const prefixes = instance.affixes.filter((affix) => Boolean(affix) && typeof affix === "object" && affixes[(affix as ItemAffixInstance).affixId]?.kind === "prefix").length;
-    const suffixes = instance.affixes.filter((affix) => Boolean(affix) && typeof affix === "object" && affixes[(affix as ItemAffixInstance).affixId]?.kind === "suffix").length;
-    if (prefixes > DEFAULT_MAX_PREFIXES) errors.push("Prefix capacity exceeded");
-    if (suffixes > DEFAULT_MAX_SUFFIXES) errors.push("Suffix capacity exceeded");
-    for (let index = 0; index < instance.affixes.length; index += 1) {
-      const affix = instance.affixes[index];
-      if (!affix || typeof affix !== "object" || Array.isArray(affix) || !affix.rolls || typeof affix.rolls !== "object" || Array.isArray(affix.rolls)) errors.push(`Affix ${index} is malformed`);
-      else errors.push(...validateItemAffixInstance(definition, affix, instance.affixes.slice(0, index), affixes));
-    }
+  if (instance.version !== 3) errors.push("Instance version must be 3");
+  if (instance.version === 3) {
+    const legacyFields = ["quality", "upgradeLevel", "affixes"] as const;
+    if (legacyFields.some((field) => field in (value as object))) errors.push("Legacy item modifier fields are not valid on v3 instances");
+  }
+  if (!Array.isArray(instance.unlockedUpgradeNodeIds)) errors.push("Unlocked upgrade nodes must be an array");
+  if (Array.isArray(instance.unlockedUpgradeNodeIds)) {
+    const nodeIds = instance.unlockedUpgradeNodeIds;
+    if (nodeIds.some((nodeId) => typeof nodeId !== "string")) errors.push("Upgrade node IDs must be strings");
+    if (new Set(nodeIds).size !== nodeIds.length) errors.push("Duplicate upgrade node ID");
+    const tree = definition?.upgradeTreeId ? itemUpgradeTreeById[definition.upgradeTreeId] : undefined;
+    if (nodeIds.some((nodeId) => !tree?.nodeIds.includes(nodeId) || itemUpgradeNodeById[nodeId]?.treeId !== tree.id)) errors.push("Upgrade node does not belong to item tree");
+    const unlocked = new Set(nodeIds.filter((nodeId): nodeId is string => typeof nodeId === "string"));
+    for (const nodeId of unlocked) for (const prerequisite of itemUpgradeNodeById[nodeId]?.prerequisiteNodeIds ?? []) if (!unlocked.has(prerequisite)) errors.push(`Upgrade node ${nodeId} is missing prerequisite ${prerequisite}`);
   }
   return { valid: errors.length === 0, errors };
 }
 
-export function getItemAffixTier(affix: ItemAffixDefinition, tierId: string): ItemAffixTierDefinition | undefined {
-  return affix.tiers.find((tier) => tier.id === tierId);
+/** Structural validator for the frozen V12/V15 pre-foundation instance shape. */
+export function isLegacyItemInstanceV2(value: unknown): value is import("./itemTypes").LegacyItemInstanceV2 {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return false;
+  const instance = value as Record<string, unknown>;
+  return isItemInstanceId(instance.id) && typeof instance.definitionId === "string" && instance.version === 2 && Array.isArray(instance.affixes);
 }
 
-export { itemAffixDefinitions };
+/** Discards malformed descendants rather than auto-purchasing their prerequisites. */
+export function normalizeItemInstance(value: unknown, items: Record<string, ItemDefinition> = itemById): ItemInstance | null {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return null;
+  const raw = value as Partial<ItemInstance>;
+  const id = raw.id;
+  const definitionId = raw.definitionId;
+  if (!isItemInstanceId(id) || typeof definitionId !== "string" || items[definitionId]?.inventoryMode !== "instance") return null;
+  const tree = items[definitionId]?.upgradeTreeId ? itemUpgradeTreeById[items[definitionId].upgradeTreeId!] : undefined;
+  const candidates = Array.isArray(raw.unlockedUpgradeNodeIds) ? raw.unlockedUpgradeNodeIds : [];
+  const candidateIds = Array.from(new Set(candidates.filter((nodeId): nodeId is string => typeof nodeId === "string" && Boolean(tree?.nodeIds.includes(nodeId)))));
+  const unlocked: string[] = [];
+  const unlockedSet = new Set<string>();
+  const pending = new Set(candidateIds);
+  let progressed = true;
+  while (pending.size > 0 && progressed) {
+    progressed = false;
+    for (const nodeId of pending) {
+      const node = itemUpgradeNodeById[nodeId];
+      if (!node || !node.prerequisiteNodeIds.every((prerequisite) => unlockedSet.has(prerequisite))) continue;
+      unlocked.push(nodeId);
+      unlockedSet.add(nodeId);
+      pending.delete(nodeId);
+      progressed = true;
+    }
+  }
+  return { id, definitionId, version: 3, unlockedUpgradeNodeIds: unlocked } as ItemInstance;
+}

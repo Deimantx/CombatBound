@@ -74,6 +74,7 @@ import { normalizeCombatLocationId } from "../world/worldMigration";
 import { isCombatLocationAvailable } from "../world/worldSelectors";
 import { hunterRankForPoints } from "../progression/hunterRankProgression";
 import { initializeEnemyAbilityCooldowns } from "../enemyAbilities/enemyAbilityRuntime";
+import { resetPlayerWeaponRuntime, advanceWeaponMechanicRuntime, syncPlayerWeaponRuntime } from "../weapons/weaponMechanicRuntime";
 
 export function createCombatContext(rng: CombatContext["rng"]): CombatContext {
   return {
@@ -299,6 +300,7 @@ function createActiveCombat(previous: CombatState, locationId: string, enemyId: 
     recoveryRemaining: 0,
     stopReason: null,
     lastDamageSource: null,
+    weaponRuntime: resetPlayerWeaponRuntime(previous.weaponRuntime, undefined),
   };
 }
 
@@ -320,6 +322,7 @@ function createFreshEncounter(previous: CombatState, locationId: string, enemyId
       attackTimer: enemyStats.attackInterval,
       abilityCooldowns: initializeEnemyAbilityCooldowns(enemy, context.enemies[enemy.enemyId] ?? { enemyTier: "common" }, context),
     },
+    weaponRuntime: resetPlayerWeaponRuntime(withTraits.weaponRuntime, withTraits.weaponRuntime.equippedInstanceId),
   };
 }
 
@@ -331,7 +334,7 @@ export function startCombatTarget(game: GameState, locationId: string, enemyId: 
   if (!location || !target || !context.enemies[enemyId] || !isCombatLocationAvailable(canonicalLocationId, hunterRank)) return game;
   const clean = clearEndedHuntEffects({ ...game.combat, session: { ...game.combat.session, elapsedSeconds: 0, enemiesDefeated: 0, damageDealt: 0, damageTaken: 0, healing: 0, proficiencyXpGained: {}, itemsGained: 0, lootGained: {}, itemInstanceIdsGained: [], goldGained: 0, highestHit: 0 }, enemy: null }, context.effects);
   const started = createFreshEncounter(clean, canonicalLocationId, enemyId, stats, context);
-  return started.enemy ? { ...game, combat: started } : game;
+  return started.enemy ? { ...game, combat: { ...started, weaponRuntime: syncPlayerWeaponRuntime(started, game.equipment, game.inventory) } } : game;
 }
 
 export function switchCombatTarget(game: GameState, locationId: string, enemyId: string, stats: HunterCombatStats, context: CombatContext): GameState {
@@ -342,7 +345,7 @@ export function switchCombatTarget(game: GameState, locationId: string, enemyId:
   if (!location || !target || !context.enemies[enemyId] || !isCombatLocationAvailable(canonicalLocationId, hunterRank)) return game;
   const ended = clearEndedHuntEffects({ ...game.combat, enemy: null }, context.effects);
   const started = createFreshEncounter(ended, canonicalLocationId, enemyId, stats, context);
-  return started.enemy ? { ...game, combat: started } : game;
+  return started.enemy ? { ...game, combat: { ...started, weaponRuntime: syncPlayerWeaponRuntime(started, game.equipment, game.inventory) } } : game;
 }
 
 export function executePlayerAction(
@@ -443,7 +446,7 @@ export function advanceCombatStep(
     if (combat.recoveryRemaining <= 0 && combat.combatLocationId) {
       const location = context.locations[combat.combatLocationId];
       combat = location && combat.targetEnemyId
-        ? createFreshEncounter(combat, location.id, combat.targetEnemyId, stats, context)
+        ? (() => { const fresh = createFreshEncounter(combat, location.id, combat.targetEnemyId, stats, context); return { ...fresh, weaponRuntime: syncPlayerWeaponRuntime(fresh, game.equipment, game.inventory) }; })()
         : { ...combat, phase: "stopped", stopReason: "completed", enemy: null };
     } else if (combat.recoveryRemaining <= 0)
       combat = { ...combat, phase: "stopped", stopReason: "completed" };
@@ -457,6 +460,7 @@ export function advanceCombatStep(
     };
   }
   if (combat.phase !== "active") return game;
+  combat = advanceWeaponMechanicRuntime(combat, step, game.equipment, game.inventory);
   combat = {
     ...combat,
     session: {
@@ -575,6 +579,8 @@ export function advanceCombatStep(
           type: "equippedWeapon",
           proficiencyEligible: true,
         },
+        sourceActionId: "basic.weapon-attack",
+        criticalStrikeChance: effective.criticalStrikeChance,
       };
       game = damageEnemy(
         { ...game, combat },
@@ -676,6 +682,7 @@ export function stopHunt(
     recoveryRemaining: 0,
     playerEffects: combat.playerEffects.filter(shouldKeep),
     enemy: null,
+    weaponRuntime: resetPlayerWeaponRuntime(combat.weaponRuntime),
   };
 }
 
@@ -702,6 +709,7 @@ export function syncCombatStats(game: GameState): GameState {
       stamina: canonical.maxStamina * staminaFraction,
       maxMana: canonical.maxMana,
       mana: canonical.maxMana * manaFraction,
+      weaponRuntime: syncPlayerWeaponRuntime(game.combat, game.equipment, game.inventory),
     },
   };
 }

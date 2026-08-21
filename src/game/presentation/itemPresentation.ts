@@ -1,16 +1,14 @@
-import { itemAffixById } from "../data/itemAffixes";
+import { itemUpgradeTreeById } from "../data/gear/itemUpgradeTrees";
+import { weaponArchetypeById } from "../data/gear/weaponArchetypes";
 import { equipmentSlotKindLabel } from "../equipment/equipmentTypes";
 import type { ResolvedItemInstance, ItemInstance } from "../items/itemTypes";
-import type { ItemAffixModifierDefinition } from "../items/itemModifierTypes";
 import { formatItemStats, labelForStatKey } from "./statFormatting";
 
 export interface ItemModifierDisplay {
   id: string;
-  source: "quality" | "upgrade" | "affix";
+  source: "upgrade-node";
   label: string;
   value: string;
-  kind?: "prefix" | "suffix";
-  tier?: number;
   tone?: "gold" | "green" | "blue" | "default";
 }
 
@@ -20,116 +18,65 @@ export interface ItemPresentation {
   typeLabel: string;
   slotLabel?: string;
   hunterRankRequirement?: number;
+  proficiencyId?: string;
+  requiredProficiencyLevel?: number;
+  materialTier?: string;
+  weaponFamily?: string;
+  weaponArchetype?: string;
+  upgradeProgress?: { unlocked: number; total: number };
   equipped: boolean;
   quantity: number;
   modified: boolean;
   modifiers: ItemModifierDisplay[];
   effectiveStats?: ReturnType<typeof formatItemStats>;
   baseStats?: ReturnType<typeof formatItemStats>;
-  technical?: {
-    instanceId: string;
-    definitionId: string;
-    affixes: Array<{ affixId: string; tierId: string; rolls: Record<string, number> }>;
-  };
+  technical?: { instanceId: string; definitionId: string; unlockedUpgradeNodeIds: string[] };
 }
 
-const localLabels: Record<string, string> = {
-  physicalDamage: "Physical Damage",
-  attackSpeed: "Attack Speed",
-  criticalChance: "Critical Strike Chance",
-  armour: "Armour",
-  evasion: "Evasion",
-};
-
-function signedNumber(value: number) {
-  return `${value >= 0 ? "+" : ""}${Number.isInteger(value) ? value : Number(value.toFixed(2))}`;
+function formatEffect(target: string, operation: string, value: number) {
+  const label = target === "physicalDamage" ? "Physical Damage" : target === "attackSpeed" ? "Attack Speed" : target === "criticalChance" ? "Critical Strike Chance" : labelForStatKey(target);
+  const amount = target === "accuracyRating" || target === "blockChance" || target === "criticalStrikeChance" ? `${value >= 0 ? "+" : ""}${(value * (target === "accuracyRating" ? 1 : 100)).toFixed(target === "accuracyRating" ? 0 : 0)}${target === "accuracyRating" ? "" : "%"}` : `${value >= 0 ? "+" : ""}${(value * 100).toFixed(1)}%`;
+  return `${operation === "increased" ? "Increased " : operation === "more" ? "More " : ""}${label} ${amount}`;
 }
 
-function formatModifierValue(modifier: ItemAffixModifierDefinition, value: number) {
-  if (modifier.roll.valueType === "integer") return signedNumber(value);
-  return `${value >= 0 ? "+" : ""}${Number((value * 100).toFixed(2))}%`;
-}
-
-function modifierLabel(modifier: ItemAffixModifierDefinition) {
-  const target = modifier.scope === "local" ? localLabels[modifier.target] : labelForStatKey(modifier.stat);
-  if (modifier.operation === "increased") return `Increased ${target}`;
-  if (modifier.operation === "more") return `More ${target}`;
-  return target;
-}
-
-/** Search-only text. Keep this path independent from formatted stat presentation. */
 export function buildItemInstanceSearchText(resolved: ResolvedItemInstance) {
-  const { definition, instance } = resolved;
-  const affixText = instance.affixes.flatMap((affixInstance) => {
-    const affix = itemAffixById[affixInstance.affixId];
-    const tier = affix?.tiers.find((candidate) => candidate.id === affixInstance.tierId);
-    return [affix?.name ?? affixInstance.affixId, ...(tier?.modifiers ?? []).map(modifierLabel)];
-  });
-  return [definition.id, definition.name, definition.description, definition.category, definition.rarity, definition.equipmentSlotKind ?? "", definition.weaponProficiencyId ?? "", definition.defensiveProficiencyId ?? "", ...affixText].join(" ").toLowerCase();
+  const { definition } = resolved;
+  const archetype = definition.weaponArchetypeId ? definition.weaponArchetypeId.replace("weapon-archetype.", "") : "";
+  return [definition.id, definition.name, definition.description, definition.category, definition.rarity, definition.equipmentSlotKind ?? "", definition.weaponProficiencyId ?? "", definition.weaponFamilyId ?? "", archetype, definition.materialTierId ?? ""].join(" ").toLowerCase();
 }
 
 export function itemModifierDisplays(resolved: ResolvedItemInstance): ItemModifierDisplay[] {
-  const displays: ItemModifierDisplay[] = [];
-  if (resolved.instance.quality > 0) displays.push({ id: "quality", source: "quality", label: "Quality", value: `+${resolved.instance.quality}%`, tone: "green" });
-  if (resolved.instance.upgradeLevel > 0) displays.push({ id: "upgrade", source: "upgrade", label: "Upgrade", value: `+${resolved.instance.upgradeLevel}`, tone: "green" });
-  for (const affixInstance of resolved.instance.affixes) {
-    const affix = itemAffixById[affixInstance.affixId];
-    const tier = affix?.tiers.find((candidate) => candidate.id === affixInstance.tierId);
-    if (!affix || !tier) continue;
-    for (const modifier of tier.modifiers) {
-      const roll = affixInstance.rolls[modifier.id];
-      if (typeof roll !== "number") continue;
-      displays.push({
-        id: `${affixInstance.affixId}.${modifier.id}`,
-        source: "affix",
-        label: `${affix.name}: ${modifierLabel(modifier)}`,
-        value: formatModifierValue(modifier, roll),
-        kind: affix.kind,
-        tier: tier.tier,
-        tone: "blue",
-      });
-    }
-  }
-  return displays;
+  return resolved.contributions.map((contribution) => ({ id: contribution.sourceId, source: "upgrade-node", label: contribution.sourceLabel, value: formatEffect(contribution.target, contribution.operation, contribution.value), tone: "green" as const }));
 }
 
-export function buildItemPresentation(
-  resolved: ResolvedItemInstance,
-  options: { equipped?: boolean; quantity?: number; includeBaseStats?: boolean; technical?: boolean } = {},
-): ItemPresentation {
+export function buildItemPresentation(resolved: ResolvedItemInstance, options: { equipped?: boolean; quantity?: number; includeBaseStats?: boolean; technical?: boolean } = {}): ItemPresentation {
   const { definition, instance } = resolved;
+  const tree = definition.upgradeTreeId ? itemUpgradeTreeById[definition.upgradeTreeId] : undefined;
+  const unlocked = instance.unlockedUpgradeNodeIds ?? [];
   return {
     name: definition.name,
     rarity: definition.rarity,
     typeLabel: definition.category[0].toUpperCase() + definition.category.slice(1),
     slotLabel: definition.equipmentSlotKind ? equipmentSlotKindLabel(definition.equipmentSlotKind) : undefined,
     hunterRankRequirement: definition.requiredHunterRank,
+    proficiencyId: definition.weaponProficiencyId,
+    requiredProficiencyLevel: definition.requiredProficiencyLevel,
+    materialTier: definition.materialTierId ? `${definition.materialTierId[0].toUpperCase()}${definition.materialTierId.slice(1)}` : undefined,
+    weaponFamily: definition.weaponFamilyId ? `${definition.weaponFamilyId[0].toUpperCase()}${definition.weaponFamilyId.slice(1)}` : undefined,
+    weaponArchetype: definition.weaponArchetypeId ? weaponArchetypeById[definition.weaponArchetypeId]?.name ?? definition.weaponArchetypeId.replace("weapon-archetype.", "") : undefined,
+    upgradeProgress: tree ? { unlocked: unlocked.length, total: tree.nodeIds.length } : undefined,
     equipped: Boolean(options.equipped),
     quantity: options.quantity ?? 1,
-    modified: instance.quality > 0 || instance.upgradeLevel > 0 || instance.affixes.length > 0,
+    modified: unlocked.length > 0,
     modifiers: itemModifierDisplays(resolved),
     effectiveStats: formatItemStats(resolved.effectiveStats),
     baseStats: options.includeBaseStats ? formatItemStats(resolved.baseStats) : undefined,
-    technical: options.technical ? { instanceId: instance.id, definitionId: instance.definitionId, affixes: instance.affixes } : undefined,
+    technical: options.technical ? { instanceId: instance.id, definitionId: instance.definitionId, unlockedUpgradeNodeIds: unlocked } : undefined,
   };
 }
 
 export function buildStackableItemPresentation(definition: ResolvedItemInstance["definition"], quantity: number): ItemPresentation {
-  return {
-    name: definition.name,
-    rarity: definition.rarity,
-    typeLabel: definition.category[0].toUpperCase() + definition.category.slice(1),
-    slotLabel: undefined,
-    hunterRankRequirement: undefined,
-    equipped: false,
-    quantity,
-    modified: false,
-    modifiers: [],
-    effectiveStats: undefined,
-    baseStats: undefined,
-  };
+  return { name: definition.name, rarity: definition.rarity, typeLabel: definition.category[0].toUpperCase() + definition.category.slice(1), quantity, equipped: false, modified: false, modifiers: [], effectiveStats: undefined, baseStats: undefined };
 }
 
-export function itemInstanceIsModified(instance: ItemInstance) {
-  return instance.quality > 0 || instance.upgradeLevel > 0 || instance.affixes.length > 0;
-}
+export function itemInstanceIsModified(instance: ItemInstance) { return (instance.unlockedUpgradeNodeIds ?? []).length > 0; }

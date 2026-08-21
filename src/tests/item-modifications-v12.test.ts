@@ -15,7 +15,7 @@ import { parseGameSaveJson } from "../game/persistence/saveGame";
 import { isGameSave } from "../game/persistence/saveValidation";
 import { buildStatBreakdown } from "../game/presentation/statBreakdown";
 import { buildItemInstanceTooltip } from "../game/presentation/tooltipBuilders";
-import { debugGrantItem, debugSetItemQuality, debugSetOwnedItemCount } from "../game/debug/debugActions";
+import { debugGrantItem, debugGrantIronSwordMaterials, debugSetOwnedItemCount } from "../game/debug/debugActions";
 import type { InventoryState } from "../game/inventory/inventoryTypes";
 
 const midpointRng = { next: () => 0.5 };
@@ -167,12 +167,11 @@ describe("ItemInstance V2 modification foundation", () => {
     expect(stats.accuracyRating).toBe(78);
   });
 
-  it("debug mutation targets one exact instance", () => {
-    const { first, second, game } = twoSwords();
-    const changed = debugSetItemQuality(game, first.id, 15);
-    expect(changed.inventory.instances[first.id].quality).toBe(15);
-    expect(changed.inventory.instances[second.id].quality).toBe(0);
-    expect(changed.inventory.instances[first.id].definitionId).toBe(second.definitionId);
+  it("debug materials target the new authored tree", () => {
+    const game = createInitialGameState();
+    const changed = debugGrantIronSwordMaterials(game);
+    expect(changed.inventory.stackables["item.iron-bar"]).toBe(100);
+    expect(changed.inventory.stackables["item.black-stone"]).toBe(100);
   });
 
   it("keeps equipped gear when debug owned-count cleanup removes siblings", () => {

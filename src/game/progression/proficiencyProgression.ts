@@ -77,7 +77,19 @@ export function getProficiencyProgress(progression: ProgressionState, proficienc
 
 export function getProficiencyLevel(progression: ProgressionState, proficiencyId: CombatProficiencyId) {
   const progress = getProficiencyProgress(progression, proficiencyId)
-  return progress ? getProficiencyLevelProgress(progress.totalXp).level : 0
+  return progress ? Math.max(1, proficiencyLevelForXp(progress.totalXp)) : 0
+}
+
+/** Canonical state-aware level selector: an owned zero-XP record is discovered at Level 1. */
+export function getProficiencyLevelForState(progression: ProgressionState, proficiencyId: CombatProficiencyId) {
+  return getProficiencyLevel(progression, proficiencyId)
+}
+
+export function getProficiencyLevelProgressForState(progression: ProgressionState, proficiencyId: CombatProficiencyId): ProficiencyLevelProgress {
+  const progress = getProficiencyProgress(progression, proficiencyId)
+  if (!progress) return getProficiencyLevelProgress(0)
+  const base = getProficiencyLevelProgress(progress.totalXp)
+  return { ...base, level: Math.max(1, base.level) }
 }
 
 export function getProficiencyXpToNextLevel(progression: ProgressionState, proficiencyId: CombatProficiencyId) {

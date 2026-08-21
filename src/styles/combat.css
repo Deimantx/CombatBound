@@ -533,6 +533,11 @@
 .combat-action-section { border-top: 1px solid var(--line-soft); padding-top: 10px; }
 .combat-action-section:first-child { border-top: 0; padding-top: 0; }
 .combat-action-section .spell-grid { margin-top: 6px; }
+.combat-weapon-mechanics { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; margin: 9px 0 12px; }
+.combat-weapon-mechanics > div { display: grid; gap: 3px; padding: 9px 10px; border: 1px solid var(--line-soft); background: var(--panel-raised); }
+.combat-weapon-mechanics strong { color: var(--text-strong); font-size: .72rem; letter-spacing: .06em; }
+.combat-weapon-mechanics small { color: var(--text-muted); font-size: .68rem; }
+@media (max-width: 640px) { .combat-weapon-mechanics { grid-template-columns: 1fr; } }
 .combat-screen { margin: 0 auto; max-width: 1780px; width: 100%; }
 .combat-main-grid { grid-template-columns: minmax(280px, 320px) minmax(680px, 1fr) minmax(300px, 350px); }
 .combat-log-list { max-height: 220px; }

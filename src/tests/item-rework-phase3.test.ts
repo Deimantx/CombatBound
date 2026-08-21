@@ -56,7 +56,7 @@ describe("Phase 3 item cleanup contracts", () => {
     const added = addItemAffix(granted.inventory, id, "affix.sharpened", "affix.sharpened.t1", { next: () => 0 });
     const broken = {
       ...added.inventory,
-      instances: { ...added.inventory.instances, [id]: { ...added.inventory.instances[id], affixes: [...added.inventory.instances[id].affixes, { affixId: "affix.swift", tierId: "affix.swift.t1", rolls: { wrong: 1 } }] } },
+      instances: { ...added.inventory.instances, [id]: { ...added.inventory.instances[id], affixes: [...(added.inventory.instances[id].affixes ?? []), { affixId: "affix.swift", tierId: "affix.swift.t1", rolls: { wrong: 1 } }] } },
     };
     expect(rerollItemAffix(broken, id, "affix.sharpened", { next: () => 1 })).toMatchObject({ changed: false, reason: "invalid-roll-data", inventory: broken });
   });

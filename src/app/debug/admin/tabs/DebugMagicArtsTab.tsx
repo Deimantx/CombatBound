@@ -36,7 +36,7 @@ export function DebugMagicArtsTab({ run, debug }: DebugTabProps) {
       <div className="debug-catalogue">
         {arts.map((art) => <div className="debug-catalogue-row" key={art.id} data-debug-kind="debug-magic-art" data-debug-magic-art-id={art.id}>
           <DebugCatalogueIdentity tooltip={buildMagicArtTooltip(art)} icon={art.icon} variant="blue" kind="debug-magic-art-identity" targetId={art.id} label={art.name}>
-            <strong>{art.name}</strong><small>Magic Arts Â· {art.manaCost} Mana Â· {art.cooldownSeconds}s cooldown</small>
+            <strong>{art.name}</strong><small>Magic Arts - {art.manaCost} Mana - {art.cooldownSeconds}s cooldown</small>
           </DebugCatalogueIdentity>
           <span className={game.magicArts.knownArtIds.includes(art.id) ? "debug-badge is-green" : "debug-badge"}>{game.magicArts.knownArtIds.includes(art.id) ? "KNOWN" : "HIDDEN"}</span>
         </div>)}

@@ -121,6 +121,14 @@ describe('combat world atlas browser', () => {
     expect(useGameStore.getState().activeCombatLocationId).toBeNull()
   })
 
+  it('announces the locked combat action as locked', () => {
+    openCombatBrowser()
+    openDeepWoods()
+    act(() => useGameStore.getState().selectCombatLocation('location.fallen-watch-ruins'))
+    expect(screen.getByRole('button', { name: arenaButtonName('location.fallen-watch-ruins', 'Locked') })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Selected arena is locked' })).toBeDisabled()
+  })
+
   it('starts the selected hunt and collapses the map', () => {
     openCombatBrowser()
     openDeepWoods()

@@ -68,7 +68,7 @@ export interface ItemAffixInstance {
 }
 
 export interface ItemStatContribution {
-  sourceType: "quality" | "upgrade" | "affix";
+  sourceType: "quality" | "upgrade" | "affix" | "upgrade-node";
   sourceId: string;
   sourceLabel: string;
   scope: "local" | "global";

@@ -11,9 +11,12 @@ import type { InventoryState } from "../inventory/inventoryTypes";
 import type { ItemDefinition } from "../data/items";
 import type { ProgressionState, WeaponProficiencyId } from "../progression/progressionTypes";
 import type { ItemStats } from "../items/itemTypes";
+import type { WeaponMechanicParameters } from "../weapons/weaponMechanicTypes";
+import { resolveWeaponMechanicParameters } from "../weapons/weaponMechanicResolver";
 
 export interface HunterCombatStats extends CombatStats {
   weaponProficiencyId?: WeaponProficiencyId | null;
+  weaponMechanicParameters?: WeaponMechanicParameters;
 }
 
 export function calculateHunterCombatStats(
@@ -80,6 +83,7 @@ export function calculateHunterCombatStats(
   const stats: HunterCombatStats = {
     ...normalizeCombatStats(withPerks as CombatStats & Record<string, unknown>),
     weaponProficiencyId,
+    weaponMechanicParameters: weapon?.instance && weapon?.definition ? resolveWeaponMechanicParameters(weapon.definition, weapon.instance) ?? undefined : undefined,
   };
   if (collector) {
     const keys: CombatStatKey[] = ["maxLife", "attackDamage", "accuracyRating", "attackInterval", "armour", "physicalDamageReduction", "evasionRating", "criticalStrikeChance", "criticalStrikeMultiplier", "blockChance", "blockEffect", "maxStamina", "staminaRegen", "maxMana", "manaRegenFlat", "lifeRegenFlat"];

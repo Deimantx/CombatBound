@@ -14,7 +14,7 @@ export type { InventorySortDirection, InventorySortKey, InventorySortState } fro
 
 export type InventoryPrimaryCategory = "all" | "equipment" | "consumables" | "materials" | "currency";
 export type InventoryEquipmentStateFilter = "all" | "equipped" | "unequipped";
-export type InventoryModificationFilter = "all" | "modified" | "unmodified" | "affixed" | "upgraded" | "quality";
+export type InventoryModificationFilter = "all" | "modified" | "unmodified" | "upgraded" | (string & {});
 export type InventoryAvailabilityFilter = "all" | "usable" | "locked";
 
 export interface InventoryFilters {
@@ -138,7 +138,7 @@ export function selectInventoryEntries(
       const modified = itemInstanceIsModified(instance);
       if (filters.equipmentState === "equipped" && !equipped || filters.equipmentState === "unequipped" && equipped) continue;
       if (filters.modification === "modified" && !modified || filters.modification === "unmodified" && modified) continue;
-      if (filters.modification === "affixed" && instance.affixes.length === 0 || filters.modification === "upgraded" && instance.upgradeLevel <= 0 || filters.modification === "quality" && instance.quality <= 0) continue;
+      if (filters.modification === "upgraded" && (instance.unlockedUpgradeNodeIds?.length ?? 0) === 0) continue;
       if (!matchesAvailability(definition, availability, hunterRank)) continue;
       const searchText = buildItemInstanceSearchText(resolved);
       if (normalizedQuery && !searchText.includes(normalizedQuery)) continue;

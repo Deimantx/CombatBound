@@ -7,6 +7,7 @@ import type { CombatProficiencyId, ProgressionState } from "../progression/progr
 import type { GameState } from "../gameState";
 import type { HunterCombatStats } from "../equipment/derivedStats";
 import { awardProficiencyXp } from "../progression/proficiencyProgression";
+import { createInitialPlayerWeaponRuntime } from "../weapons/weaponMechanicRuntime";
 
 export const clone = <T>(value: T): T => JSON.parse(JSON.stringify(value)) as T;
 
@@ -77,7 +78,7 @@ export function clearEndedHuntEffects(combat: CombatState, definitions: Record<s
     const persistence = definitions[effect.effectId]?.persistence;
     return persistence !== "hunt" && persistence !== "between-enemies" && persistence !== "enemy-life";
   };
-  return { ...combat, playerEffects: combat.playerEffects.filter(shouldKeep), enemy: combat.enemy ? { ...combat.enemy, effects: [] } : null };
+  return { ...combat, playerEffects: combat.playerEffects.filter(shouldKeep), enemy: combat.enemy ? { ...combat.enemy, effects: [] } : null, weaponRuntime: createInitialPlayerWeaponRuntime() };
 }
 
 export function clearEndedEnemyEncounterEffects(combat: CombatState, definitions: Record<string, EffectDefinition>) {

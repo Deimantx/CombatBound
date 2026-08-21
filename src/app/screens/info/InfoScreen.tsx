@@ -150,7 +150,7 @@ export function InfoScreen() {
             ].map((step, index) => (
               <div className="resolution-step" key={step}>
                 <strong>{step}</strong>
-                {index < 8 && <span>â†“</span>}
+                {index < 8 && <span>v</span>}
               </div>
             ))}
           </div>
@@ -451,10 +451,10 @@ export function InfoScreen() {
           className="info-status"
         >
           <div className="status-checks">
-            <span>âœ“ No offline combat simulation</span>
-            <span>âœ“ No crafting or gathering systems</span>
-            <span>âœ“ No movement, companions, or bosses</span>
-            <span>âœ“ Placeholder art and temporary balance</span>
+            <span>[OK] No offline combat simulation</span>
+            <span>[OK] No crafting or gathering systems</span>
+            <span>[OK] No movement, companions, or bosses</span>
+            <span>[OK] Placeholder art and temporary balance</span>
           </div>
         </Panel>
       </div>
@@ -474,7 +474,7 @@ function GuideRow({
   return (
     <div className="guide-row">
       <span className="guide-icon">
-        {Icon ? <Icon size={15} /> : <span>â€¢</span>}
+        {Icon ? <Icon size={15} /> : <span>-</span>}
       </span>
       <div>
         <strong>{title}</strong>

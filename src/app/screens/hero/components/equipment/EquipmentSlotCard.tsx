@@ -22,7 +22,7 @@ export function EquipmentSlotCard({ slotId, equipment, inventory, defensiveConte
   const tooltip = item
     ? buildPlayerItemInstanceTooltip(item, { equipped: true, equippedSlot: slotId, defensiveContext })
     : { id: `equipment-slot.${slotId}`, title: `${definition.label} Slot`, description: `Equip a compatible ${definition.label.toLowerCase()} here.` };
-  const marker = item?.instance.upgradeLevel ? `+${item.instance.upgradeLevel}` : item?.instance.quality ? `Q${item.instance.quality}` : undefined;
+  const marker = item ? `${item.instance.unlockedUpgradeNodeIds?.length ?? 0} upgrades` : undefined;
   return (
     <GameTooltip content={tooltip}>
       <button
@@ -41,7 +41,7 @@ export function EquipmentSlotCard({ slotId, equipment, inventory, defensiveConte
         <PlaceholderArt icon={item?.definition.icon ?? definition.icon} size="medium" variant={item ? itemRarityArtVariant(item.definition.rarity) : "muted"} />
         <strong>{item?.definition.name ?? "Empty"}</strong>
         <small>{marker ?? (item ? "EQUIPPED" : "EMPTY SLOT")}</small>
-        {item && item.instance.affixes.length > 0 && <span className="equipment-slot-sparkle" aria-label="Modified item">✦</span>}
+        {item && (item.instance.unlockedUpgradeNodeIds?.length ?? 0) > 0 && <span className="equipment-slot-sparkle" aria-label="Upgraded item">+</span>}
         {selected && <span className="selected-check"><Check size={12} /></span>}
       </button>
     </GameTooltip>

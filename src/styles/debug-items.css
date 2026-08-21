@@ -21,15 +21,15 @@
 .debug-item-inspector-header h3 { color: var(--gold-bright); font-size: 16px; margin: 3px 0; }
 .debug-item-inspector-header p { color: var(--muted); font-size: 9px; margin: 0; }
 .debug-item-ownership { border-bottom: 1px solid var(--line-soft); padding: 12px 0; }
-.debug-item-ownership-actions, .debug-affix-add-row { align-items: center; display: flex; flex-wrap: wrap; gap: 6px; }
+.debug-item-ownership-actions { align-items: center; display: flex; flex-wrap: wrap; gap: 6px; }
 .debug-item-ownership-actions .button { min-height: 27px; }
-.debug-text-button, .debug-primary-button, .debug-copy-controls button, .debug-affix-row button { background: #202a2e; border: 1px solid var(--line-soft); border-radius: 4px; color: var(--muted); cursor: pointer; font-size: 9px; min-height: 27px; padding: 0 8px; }
+.debug-text-button, .debug-primary-button, .debug-copy-controls button { background: #202a2e; border: 1px solid var(--line-soft); border-radius: 4px; color: var(--muted); cursor: pointer; font-size: 9px; min-height: 27px; padding: 0 8px; }
 .debug-primary-button { background: var(--gold-soft); border-color: rgba(213,170,98,.5); color: var(--gold-bright); }
-.debug-text-button:hover, .debug-primary-button:hover, .debug-copy-controls button:hover, .debug-affix-row button:hover { border-color: var(--gold); color: var(--gold-bright); }
+.debug-text-button:hover, .debug-primary-button:hover, .debug-copy-controls button:hover { border-color: var(--gold); color: var(--gold-bright); }
 .debug-set-count-popover { align-items: end; background: #182023; border: 1px solid var(--line); border-radius: 5px; display: flex; flex-wrap: wrap; gap: 7px; margin-top: 8px; padding: 9px; }
 .debug-set-count-popover label, .debug-editor-field label { color: var(--muted); display: flex; flex-direction: column; font-size: 9px; gap: 4px; }
 .debug-set-count-popover small { color: var(--muted); flex-basis: 100%; font-size: 8px; }
-.debug-set-count-popover input, .debug-copy-controls input, .debug-affix-add-row select { background: #101517; border: 1px solid var(--line); border-radius: 4px; color: var(--text); font-size: 10px; min-height: 27px; padding: 0 7px; }
+.debug-set-count-popover input, .debug-copy-controls input { background: #101517; border: 1px solid var(--line); border-radius: 4px; color: var(--text); font-size: 10px; min-height: 27px; padding: 0 7px; }
 .debug-copy-list, .debug-copy-inspector, .debug-stackable-inspector { border-bottom: 1px solid var(--line-soft); padding: 12px 0; }
 .debug-copy-list { max-height: 310px; overflow-y: auto; padding-right: 4px; }
 .debug-inspector-label { color: var(--muted); display: flex; font-size: 9px; justify-content: space-between; letter-spacing: .08em; margin-bottom: 7px; }
@@ -46,15 +46,6 @@
 .debug-copy-controls { display: grid; gap: 9px; grid-template-columns: repeat(2, minmax(0, 1fr)); }
 .debug-editor-field > div { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 4px; }
 .debug-editor-field input { text-align: center; width: 44px; }
-.debug-affix-editor { padding: 12px 0 8px; }
-.debug-affix-add-row select { flex: 1 1 180px; min-width: 0; }
-.debug-affix-list { display: flex; flex-direction: column; gap: 6px; }
-.debug-affix-row { align-items: center; background: #182023; border: 1px solid var(--line-soft); border-radius: 5px; display: flex; gap: 8px; justify-content: space-between; padding: 8px; }
-.debug-affix-row > div:first-child { display: flex; flex-direction: column; min-width: 0; }
-.debug-affix-row strong { color: var(--blue-bright); font-size: 10px; }
-.debug-affix-row small { color: var(--muted); font-size: 9px; margin-top: 3px; }
-.debug-affix-row > div:last-child { display: flex; flex-shrink: 0; gap: 4px; }
-.debug-affix-row button { align-items: center; display: inline-flex; gap: 4px; }
 .debug-feedback { background: rgba(92,170,124,.1); border: 1px solid rgba(92,170,124,.35); border-radius: 4px; color: var(--green); font-size: 9px; padding: 7px; }
 .debug-copy-actions { border-top: 1px solid var(--line-soft); display: flex; flex-direction: column; gap: 6px; margin-top: 10px; padding: 11px 0; }
 .debug-copy-actions header { color: var(--muted); font-size: 9px; letter-spacing: .08em; text-transform: uppercase; }

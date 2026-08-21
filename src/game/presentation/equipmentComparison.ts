@@ -40,7 +40,7 @@ function buildDamageRangeRow(current: Record<string, number>, preview: Record<st
     label: "Physical Damage",
     before: formatDamageRange(currentMin, currentMax),
     after: formatDamageRange(previewMin, previewMax),
-    delta: `${averageDelta > 0 ? "+" : averageDelta < 0 ? "−" : ""}${Math.abs(averageDelta).toLocaleString(undefined, { maximumFractionDigits: 2 })} avg`,
+    delta: `${averageDelta > 0 ? "+" : averageDelta < 0 ? "-" : ""}${Math.abs(averageDelta).toLocaleString(undefined, { maximumFractionDigits: 2 })} avg`,
     tone: comparisonTone("attackDamage", averageDelta),
     group: "offense",
     beforeValue: (currentMin + currentMax) / 2,

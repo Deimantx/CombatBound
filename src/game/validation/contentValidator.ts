@@ -7,8 +7,8 @@ import { weaponSkillDefinitions } from "../data/weaponSkills";
 import { proficiencyDefinitions } from "../data/proficiencies";
 import { combatLocationDefinitions } from "../data/world/combatLocations";
 import { validateEquipmentDefinitions } from "../data/validation/itemValidation";
-import { itemAffixDefinitions } from "../data/itemAffixes";
-import { validateItemAffixDefinitions } from "../data/validation/itemAffixValidation";
+import { weaponArchetypeDefinitions } from "../data/gear/weaponArchetypes";
+import { validateItemUpgradeTrees } from "../items/itemUpgradeValidation";
 import type { CombatStatKey, DamageType } from "../combat/combatTypes";
 import { COMBAT_STAT_REGISTRY } from "../presentation/combatStatRegistry";
 import { enemyTraitDefinitions } from "../data/enemyTraits";
@@ -66,7 +66,7 @@ export function validateContent(): ContentValidationIssue[] {
       if (!value.id || !value.id.trim()) issues.push({ severity: "error", code: "MISSING_ID", entityType, entityId: value.id, message: "Definition has no id." });
     }
   };
-  ids(itemDefinitions, "item"); ids(itemAffixDefinitions, "itemAffix"); ids(magicArtDefinitions, "magicArt"); ids(effectDefinitions, "effect"); ids(weaponSkillDefinitions, "weaponSkill"); ids(enemyDefinitions, "enemy"); ids(combatLocationDefinitions, "location");
+  ids(itemDefinitions, "item"); ids(weaponArchetypeDefinitions, "weaponArchetype"); ids(magicArtDefinitions, "magicArt"); ids(effectDefinitions, "effect"); ids(weaponSkillDefinitions, "weaponSkill"); ids(enemyDefinitions, "enemy"); ids(combatLocationDefinitions, "location");
   for (const message of validateWorldContent()) addIssue(issues, "world", "catalogue", "INVALID_WORLD_CONTENT", message);
   const traitValidation = validateEnemyTraitDefinitions(enemyTraitDefinitions, effectById);
   for (const message of traitValidation.errors) addIssue(issues, "enemyTrait", "catalogue", "INVALID_TRAIT", message);
@@ -78,8 +78,8 @@ export function validateContent(): ContentValidationIssue[] {
     const entityId = separator > 0 ? message.slice(0, separator) : "catalogue";
     addIssue(issues, "item", entityId, "INVALID_ITEM_STAT", separator > 0 ? message.slice(separator + 2) : message);
   }
-  for (const message of validateItemAffixDefinitions(itemAffixDefinitions).errors)
-    addIssue(issues, "itemAffix", "catalogue", "INVALID_ITEM_AFFIX", message);
+  for (const message of validateItemUpgradeTrees().errors)
+    addIssue(issues, "itemUpgradeTree", "catalogue", "INVALID_ITEM_UPGRADE_TREE", message);
   for (const item of itemDefinitions) if (!item.icon) issues.push({ severity: "warning", code: "UNKNOWN_ICON", entityType: "item", entityId: item.id, message: "Item has no icon key." });
   for (const art of magicArtDefinitions) if (art.barrier && !effectById[art.barrier.effectId]) addIssue(issues, "magicArt", art.id, "MISSING_EFFECT_REFERENCE", `Missing effect reference: ${art.barrier.effectId}`);
   for (const location of combatLocationDefinitions) for (const entry of location.targets) if (!enemyById[entry.enemyId]) issues.push({ severity: "error", code: "MISSING_ENEMY_REFERENCE", entityType: "location", entityId: location.id, message: `Missing enemy in location: ${entry.enemyId}` });

@@ -1,4 +1,4 @@
-import type { GameSaveV14, GameSaveV15 } from "./saveTypes";
+import type { GameSaveV14, GameSaveV15, GameSaveV16 } from "./saveTypes";
 import { proficiencyById } from "../data/proficiencies";
 import { perkById } from "../data/proficiencyPerks";
 import { COMBAT_ABILITY_SLOT_COUNT } from "../combatAbilities/combatAbilityTypes";
@@ -7,7 +7,7 @@ import { isEquipmentSlotId } from "../equipment/equipmentTypes";
 import { itemById } from "../data/items";
 import { isItemInstanceId, itemInstanceSequence } from "../items/itemTypes";
 import { canEquipItemToSlot } from "../equipment/equipmentRules";
-import { validateItemInstance } from "../items/itemInstanceValidation";
+import { isLegacyItemInstanceV2, validateItemInstance } from "../items/itemInstanceValidation";
 import { magicArtDefinitions } from "../data/magicArts";
 import { isLegacyCombatProficiencyIdV14, normalizeLegacySpellIdV14 } from "./saveMigration";
 
@@ -86,7 +86,7 @@ export function isGameSave(value: unknown): value is GameSaveV14 {
     if (!definition || definition.inventoryMode !== "stackable" || typeof quantity !== "number" || !Number.isInteger(quantity) || quantity < 0) return false;
   }
   for (const [key, rawInstance] of Object.entries(inventory.instances)) {
-    if (!isRecord(rawInstance) || rawInstance.id !== key || !isItemInstanceId(rawInstance.id) || rawInstance.version !== 2 || typeof rawInstance.definitionId !== "string" || !validateItemInstance(rawInstance).valid) return false;
+    if (!isRecord(rawInstance) || rawInstance.id !== key || !isItemInstanceId(rawInstance.id) || !isLegacyItemInstanceV2(rawInstance) || typeof rawInstance.definitionId !== "string") return false;
     const definition = itemById[rawInstance.definitionId];
     if (!definition || definition.inventoryMode !== "instance") return false;
     instanceIds.add(key);
@@ -130,9 +130,9 @@ export function isGameSave(value: unknown): value is GameSaveV14 {
   );
 }
 
-/** Current V15 validator. It intentionally knows nothing about legacy Spellbook content. */
-export function isGameSaveV15(value: unknown): value is GameSaveV15 {
-  if (!isRecord(value) || value.version !== 15 || typeof value.gold !== "number" || !isRecord(value.progression) || !isRecord(value.inventory) || !isRecord(value.equipment) || !isRecord(value.collection) || !isRecord(value.settings) || !isRecord(value.magicArts) || !isRecord(value.combatAutomation) || !isRecord(value.combatAutomationPresets) || !isRecord(value.combatAbilities)) return false;
+/** Current gear-save validator. V15 remains exported for historical fixtures. */
+function isCurrentGearSave(value: unknown, expectedVersion: 15 | 16): value is GameSaveV15 | GameSaveV16 {
+  if (!isRecord(value) || value.version !== expectedVersion || typeof value.gold !== "number" || !Number.isFinite(value.gold) || !isRecord(value.progression) || !isRecord(value.inventory) || !isRecord(value.equipment) || !isRecord(value.collection) || !isRecord(value.settings) || !isRecord(value.magicArts) || !isRecord(value.combatAutomation) || !isRecord(value.combatAutomationPresets) || !isRecord(value.combatAbilities)) return false;
   const progression = value.progression;
   if (!isRecord(progression.proficiencies) || typeof progression.hunterRankPoints !== "number" || progression.hunterRankPoints < 0 || typeof progression.bonusPerkPoints !== "number" || !Number.isInteger(progression.bonusPerkPoints) || progression.bonusPerkPoints < 0 || !isRecord(progression.purchasedPerks)) return false;
   for (const [id, progress] of Object.entries(progression.proficiencies)) {
@@ -156,7 +156,8 @@ export function isGameSaveV15(value: unknown): value is GameSaveV15 {
     if (!definition || definition.inventoryMode !== "stackable" || typeof quantity !== "number" || !Number.isInteger(quantity) || quantity < 0) return false;
   }
   for (const [key, instance] of Object.entries(inventory.instances)) {
-    if (!isRecord(instance) || instance.id !== key || !isItemInstanceId(key) || instance.version !== 2 || typeof instance.definitionId !== "string" || !validateItemInstance(instance).valid || !itemById[instance.definitionId] || itemById[instance.definitionId].inventoryMode !== "instance") return false;
+    const allowedInstanceKeys = new Set(["id", "definitionId", "version", "unlockedUpgradeNodeIds"]);
+    if (!isRecord(instance) || instance.id !== key || !isItemInstanceId(key) || instance.version !== 3 || typeof instance.definitionId !== "string" || Object.keys(instance).some((field) => !allowedInstanceKeys.has(field)) || !validateItemInstance(instance).valid || !itemById[instance.definitionId] || itemById[instance.definitionId].inventoryMode !== "instance") return false;
     instanceIds.add(key);
     highestSequence = Math.max(highestSequence, itemInstanceSequence(key));
   }
@@ -186,4 +187,12 @@ export function isGameSaveV15(value: unknown): value is GameSaveV15 {
     presets.slots.some((preset) => isRecord(preset) && isRecord(preset.config) && Array.isArray(preset.config.rules) && preset.config.rules.some((rule) => isRecord(rule) && typeof rule.actionId === "string" && rule.actionId.startsWith("spell.")))
   ) return false;
   return typeof value.settings.reducedMotion === "boolean" && typeof value.settings.showInspectorButton === "boolean";
+}
+
+export function isGameSaveV15(value: unknown): value is GameSaveV15 {
+  return isCurrentGearSave(value, 15);
+}
+
+export function isGameSaveV16(value: unknown): value is GameSaveV16 {
+  return isCurrentGearSave(value, 16);
 }

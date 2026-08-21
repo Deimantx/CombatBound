@@ -54,12 +54,7 @@ export function createInitialGameState(): GameState {
     collection: {
       ...createInitialCollection(enemyDefinitions.map((enemy) => enemy.id)),
       discoveredItems: [
-        "item.training-sword",
-        "item.training-armor",
-        "item.training-hood",
-        "item.training-gloves",
-        "item.training-boots",
-        "item.training-shield",
+        "item.iron-sword",
         "item.healing-potion",
       ],
     },

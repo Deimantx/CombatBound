@@ -5,7 +5,7 @@ import { proficiencyById } from '../../../game/data/proficiencies'
 import { calculateAvailablePerkPoints } from '../../../game/progression/perkProgression'
 import { getHunterRankProgress } from '../../../game/progression/hunterRankProgression'
 import { getActiveWeaponProficiency } from '../../../game/progression/progressionSelectors'
-import { getProficiencyLevelProgress, getProficiencyProgress, getProficiencyXpToNextLevel } from '../../../game/progression/proficiencyProgression'
+import { getProficiencyLevelProgressForState, getProficiencyXpToNextLevel } from '../../../game/progression/proficiencyProgression'
 import { combatLocationById } from '../../../game/data/world/combatLocations'
 import { enemyFamilyById } from '../../../game/data/world/enemyFamilies'
 import { locationBreadcrumb } from '../../../game/world/worldSelectors'
@@ -26,9 +26,7 @@ export function HomeScreen() {
   const stats = calculateHunterCombatStats(game.equipment, game.inventory, game.progression)
   const active = getActiveWeaponProficiency(game.progression, game.equipment, game.inventory)
   const activeDefinition = active ? proficiencyById[active.proficiencyId] : undefined
-  const activeProgress = active ? getProficiencyProgress(game.progression, active.proficiencyId) : undefined
-  const xp = activeProgress?.totalXp ?? 0
-  const activeLevelProgress = active ? getProficiencyLevelProgress(xp, activeDefinition?.maxLevel) : undefined
+  const activeLevelProgress = active ? getProficiencyLevelProgressForState(game.progression, active.proficiencyId) : undefined
   const level = activeLevelProgress?.level ?? 0
   const proficiencyPercent = (activeLevelProgress?.progressFraction ?? 0) * 100
   const hunterRankProgress = getHunterRankProgress(game.progression.hunterRankPoints)

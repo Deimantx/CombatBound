@@ -87,7 +87,6 @@ export interface EquipmentState {
 }
 
 export function createInitialEquipment(inventory: import('../inventory/inventoryTypes').InventoryState): EquipmentState {
-  const trainingSword = Object.values(inventory.instances).find((instance) => instance.definitionId === "item.training-sword")
-  const trainingArmor = Object.values(inventory.instances).find((instance) => instance.definitionId === "item.training-armor")
-  return { slots: { weapon: trainingSword?.id, armor: trainingArmor?.id } };
+  const ironSword = Object.values(inventory.instances).find((instance) => instance.definitionId === "item.iron-sword")
+  return ironSword ? { slots: { weapon: ironSword.id } } : { slots: {} };
 }

@@ -3,12 +3,11 @@ export type InventorySortKey =
   | "name"
   | "rarity"
   | "hunter-rank"
-  | "quality"
   | "upgrade"
-  | "affix-count"
   | "acquired"
   | "quantity"
-  | "category";
+  | "category"
+  | (string & {});
 
 export type InventorySortDirection = "asc" | "desc";
 
@@ -23,9 +22,10 @@ export interface InventorySortOption {
 }
 
 interface SortableInventoryEntry {
+  ref?: import("../items/itemTypes").InventoryEntryRef;
   definition: { id: string; name: string; category: string; rarity: "common" | "uncommon" | "rare"; requiredHunterRank?: number };
   quantity: number;
-  resolved?: { instance: { quality: number; upgradeLevel: number; affixes: readonly unknown[] } };
+  resolved?: { instance: { unlockedUpgradeNodeIds?: readonly string[] } };
   sequence: number;
   instanceId?: string;
 }
@@ -45,9 +45,7 @@ export function inventorySortOptions(category: "all" | "equipment" | "consumable
     { value: "name", label: "Name" },
     { value: "rarity", label: "Rarity" },
     { value: "hunter-rank", label: "Hunter Rank" },
-    { value: "quality", label: "Quality" },
-    { value: "upgrade", label: "Upgrade Level" },
-    { value: "affix-count", label: "Affix Count" },
+    { value: "upgrade", label: "Upgrade Nodes" },
     { value: "acquired", label: "Acquired" },
   ];
   return [
@@ -76,9 +74,7 @@ function primaryValue(entry: SortableInventoryEntry, key: InventorySortKey): num
   if (key === "category") return categoryRank[entry.definition.category] ?? 99;
   if (key === "rarity") return rarityRank[entry.definition.rarity];
   if (key === "hunter-rank") return entry.definition.requiredHunterRank ?? 0;
-  if (key === "quality") return entry.resolved?.instance.quality ?? 0;
-  if (key === "upgrade") return entry.resolved?.instance.upgradeLevel ?? 0;
-  if (key === "affix-count") return entry.resolved?.instance.affixes.length ?? 0;
+  if (key === "upgrade") return entry.resolved?.instance.unlockedUpgradeNodeIds?.length ?? 0;
   if (key === "acquired") return entry.sequence;
   return entry.quantity;
 }

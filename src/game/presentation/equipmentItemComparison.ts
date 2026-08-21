@@ -17,7 +17,7 @@ export interface EquipmentItemDifferenceRow {
 }
 
 function toneForDelta(key: string, delta: number): EquipmentItemDifferenceRow["tone"] {
-  if (key === "quality" || key === "upgrade") return delta > 0 ? "is-positive" : delta < 0 ? "is-negative" : "is-neutral";
+  if (key === "upgrade") return delta > 0 ? "is-positive" : delta < 0 ? "is-negative" : "is-neutral";
   const direction = getCombatStatDisplaySpec(key)?.comparisonDirection;
   if (!direction || direction === "neutral" || Math.abs(delta) <= COMBAT_STAT_EPSILON) return "is-neutral";
   const positive = direction === "lower-is-better" ? delta < 0 : delta > 0;
@@ -48,13 +48,10 @@ function addValueRows(current: ResolvedItemInstance | undefined, candidate: Reso
 }
 
 function addModifierValueRows(current: ResolvedItemInstance | undefined, candidate: ResolvedItemInstance | undefined) {
-  const currentQuality = current?.instance.quality ?? 0;
-  const candidateQuality = candidate?.instance.quality ?? 0;
-  const currentUpgrade = current?.instance.upgradeLevel ?? 0;
-  const candidateUpgrade = candidate?.instance.upgradeLevel ?? 0;
+  const currentUpgrade = current?.instance.unlockedUpgradeNodeIds?.length ?? 0;
+  const candidateUpgrade = candidate?.instance.unlockedUpgradeNodeIds?.length ?? 0;
   const rows: EquipmentItemDifferenceRow[] = [];
-  if (currentQuality !== candidateQuality) rows.push({ key: "quality", label: "Quality", current: currentQuality ? `${currentQuality}%` : "-", candidate: candidateQuality ? `${candidateQuality}%` : "-", delta: `${candidateQuality - currentQuality > 0 ? "+" : ""}${candidateQuality - currentQuality}%`, tone: toneForDelta("quality", candidateQuality - currentQuality) });
-  if (currentUpgrade !== candidateUpgrade) rows.push({ key: "upgrade", label: "Upgrade", current: currentUpgrade ? `+${currentUpgrade}` : "-", candidate: candidateUpgrade ? `+${candidateUpgrade}` : "-", delta: `${candidateUpgrade - currentUpgrade > 0 ? "+" : ""}${candidateUpgrade - currentUpgrade}`, tone: toneForDelta("upgrade", candidateUpgrade - currentUpgrade) });
+  if (currentUpgrade !== candidateUpgrade) rows.push({ key: "upgrade", label: "Upgrade Nodes", current: currentUpgrade ? `${currentUpgrade}` : "-", candidate: candidateUpgrade ? `${candidateUpgrade}` : "-", delta: `${candidateUpgrade - currentUpgrade > 0 ? "+" : ""}${candidateUpgrade - currentUpgrade}`, tone: toneForDelta("upgrade", candidateUpgrade - currentUpgrade) });
   return rows;
 }
 

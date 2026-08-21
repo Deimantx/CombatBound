@@ -1,5 +1,6 @@
 import { combatBalance } from "./combatBalance";
 import type { CombatState, EnemyCombatInstance } from "./combatTypes";
+import { createInitialPlayerWeaponRuntime } from "../weapons/weaponMechanicRuntime";
 import { enemyById } from "../data/enemies";
 import { createEnemyAbilityRuntimeState } from "../enemyAbilities/enemyAbilityRuntime";
 import { createEnemyTraitRuntimeState } from "../enemyTraits/enemyTraitRuntime";
@@ -69,5 +70,6 @@ export function createCombatState(): CombatState {
     },
     eventSequence: 0,
     effectSequence: 0,
+    weaponRuntime: createInitialPlayerWeaponRuntime(),
   };
 }

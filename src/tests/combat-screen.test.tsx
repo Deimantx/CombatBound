@@ -36,7 +36,7 @@ describe('combat screen dashboard', () => {
     expect(screen.getByText('PROFICIENCY XP')).toBeInTheDocument()
     expect(screen.getByText('Available Perk Points')).toBeInTheDocument()
     expect(screen.getAllByText(/-.*[0-9]/).length).toBeGreaterThan(0)
-    expect(screen.queryByText(/â€”|â†’/)).not.toBeInTheDocument()
+    expect(screen.queryByText(/[\u00c3\u00c2\u00e2\ufffd]/)).not.toBeInTheDocument()
     expect(screen.getByText('Proficiency progress appears after this Hunt awards XP.')).toBeInTheDocument()
     fireEvent.click(screen.getByRole('tab', { name: 'Session Summary' }))
     expect(screen.getByRole('progressbar', { name: 'Player attack progress' })).toBeInTheDocument()
@@ -60,7 +60,7 @@ describe('combat screen dashboard', () => {
     expect(screen.getByText(/YOUR HIT/)).toBeInTheDocument()
     expect(screen.getByText(/THEIR HIT/)).toBeInTheDocument()
     expect(screen.getByText(/Target: .*Hit/)).toBeInTheDocument()
-    expect(screen.getByText(/Healing Potion ×/)).toBeInTheDocument()
+    expect(screen.getByText(/Healing Potion x/)).toBeInTheDocument()
     expect(screen.queryByText(/Net Stamina:/)).not.toBeInTheDocument()
     expect(screen.queryByText(/regen/)).not.toBeInTheDocument()
 

@@ -1,20 +1,26 @@
 import type { CollectionState } from "../collection/collectionTypes";
+import { normalizeCollectionTargets } from "../collection/collectionLogic";
 import { itemById, itemDefinitions } from "../data/items";
 import { isItemInstanceId, type ItemInstance } from "../items/itemTypes";
-import { validateItemInstance } from "../items/itemInstanceValidation";
-import { canEquipItemToSlot } from "../equipment/equipmentRules";
+import { isLegacyItemInstanceV2, normalizeItemInstance } from "../items/itemInstanceValidation";
+import { canEquipItemToSlot, normalizeEquipmentState } from "../equipment/equipmentRules";
+import { grantItem } from "../items/itemOwnership";
+import type { InventoryState } from "../inventory/inventoryTypes";
 import { proficiencyById } from "../data/proficiencies";
 import { perkById } from "../data/proficiencyPerks";
 import type {
   CombatProficiencyId,
   ProgressionState,
 } from "../progression/progressionTypes";
-import type { GameSaveV3, GameSaveV4, GameSaveV5, GameSaveV6, GameSaveV7, GameSaveV8, GameSaveV9, GameSaveV10, GameSaveV11, GameSaveV12, GameSaveV13, GameSaveV14, GameSaveV15, LegacyCombatProficiencyIdV14, LegacyEquipmentStateV10, LegacyInventoryStateV10, LegacyInventoryStateV11, LegacyProgressionState, LegacyProgressionStateV14, LegacySpellbookStateV13, LegacyCombatAbilityLoadoutStateV13 } from "./saveTypes";
+import type { GameSaveV3, GameSaveV4, GameSaveV5, GameSaveV6, GameSaveV7, GameSaveV8, GameSaveV9, GameSaveV10, GameSaveV11, GameSaveV12, GameSaveV13, GameSaveV14, GameSaveV15, GameSaveV16, LegacyCombatProficiencyIdV14, LegacyEquipmentStateV10, LegacyInventoryStateV10, LegacyInventoryStateV11, LegacyProgressionState, LegacyProgressionStateV14, LegacySpellbookStateV13, LegacyCombatAbilityLoadoutStateV13 } from "./saveTypes";
 import { createInitialCombatAutomation } from "../automation/automationTypes";
 import { normalizeCombatAutomation } from "../automation/automationLogic";
 import { getActiveAbilityActionDefinitions } from "../combat/playerActions";
 import { createInitialCombatAutomationPresets, normalizeCombatAutomationPresets } from "../automation/automationPresets";
 import { EQUIPMENT_SLOT_IDS } from "../equipment/equipmentTypes";
+import { normalizeCombatAbilityLoadout } from "../combatAbilities/combatAbilityLogic";
+import { normalizeMagicArts } from "../magicArts/magicArtLogic";
+import { enemyDefinitions } from "../data/enemies";
 
 interface LegacySkillProgress {
   totalXp?: number;
@@ -525,7 +531,7 @@ export function migrateV11Save(value: unknown): GameSaveV12 | null {
     used.add(instanceId);
   }
   const migrated: GameSaveV12 = { ...old, version: 12, progression: { ...old.progression, purchasedPerks: normalizePurchasedPerks(old.progression.purchasedPerks) }, inventory: { stackables, instances, nextInstanceSequence }, equipment: { slots } };
-  if (Object.values(migrated.inventory.instances).some((instance) => !validateItemInstance(instance).valid)) return null;
+  if (Object.values(migrated.inventory.instances).some((instance) => !isLegacyItemInstanceV2(instance))) return null;
   return migrated;
 }
 
@@ -621,6 +627,96 @@ export function migrateV14Save(value: unknown): GameSaveV15 | null {
     magicArts: { knownArtIds: ["magic-art.earth-shield"] },
     combatAbilities: { slots },
     combatAutomation: automation,
+    combatAutomationPresets,
+  };
+}
+
+/**
+ * V15 is the frozen pre-gear-foundation schema. Its equipment instances may
+ * contain retired Training, Hunter, or Vanguard data, so only a valid current
+ * Iron Sword instance crosses this boundary. Stackable ownership and the rest
+ * of the legitimate profile state are preserved.
+ */
+export function migrateV15Save(value: unknown): GameSaveV16 | null {
+  if (!isRecord(value) || value.version !== 15 || !isRecord(value.inventory)) return null;
+
+  const rawInventory = value.inventory;
+  const stackables: Record<string, number> = {};
+  if (isRecord(rawInventory.stackables)) {
+    for (const definition of itemDefinitions) {
+      if (definition.inventoryMode !== "stackable") continue;
+      const quantity = rawInventory.stackables[definition.id];
+      if (typeof quantity === "number" && Number.isFinite(quantity) && quantity > 0)
+        stackables[definition.id] = Math.floor(quantity);
+    }
+  }
+
+  const instances: Record<string, ItemInstance> = {};
+  if (isRecord(rawInventory.instances)) {
+    for (const rawInstance of Object.values(rawInventory.instances)) {
+      const normalized = normalizeItemInstance(rawInstance);
+      if (normalized?.definitionId === "item.iron-sword") instances[normalized.id] = normalized;
+    }
+  }
+
+  const highestSequence = Object.keys(instances).reduce(
+    (max, id) => Math.max(max, Number(id.slice("item-instance-".length)) || 0),
+    0,
+  );
+  const savedNext = typeof rawInventory.nextInstanceSequence === "number" && Number.isFinite(rawInventory.nextInstanceSequence)
+    ? Math.floor(rawInventory.nextInstanceSequence)
+    : 1;
+  let inventory: InventoryState = {
+    stackables,
+    instances,
+    nextInstanceSequence: Math.max(1, savedNext, highestSequence + 1),
+  };
+  if (!Object.values(inventory.instances).some((instance) => instance.definitionId === "item.iron-sword"))
+    inventory = grantItem(inventory, "item.iron-sword", 1).inventory;
+
+  const normalizedEquipment = normalizeEquipmentState(value.equipment, inventory);
+  const equippedSword = Object.values(inventory.instances).find((instance) => instance.definitionId === "item.iron-sword");
+  const equipment = normalizedEquipment.slots.weapon || !equippedSword
+    ? normalizedEquipment
+    : { slots: { ...normalizedEquipment.slots, weapon: equippedSword.id } };
+
+  const rawCollection = isRecord(value.collection) ? value.collection : {};
+  const discoveredItems = Array.isArray(rawCollection.discoveredItems)
+    ? rawCollection.discoveredItems.filter((id): id is string => typeof id === "string" && Boolean(itemById[id]))
+    : [];
+  const collection = normalizeCollectionTargets({
+    discoveredItems: Array.from(new Set([...discoveredItems, "item.iron-sword"])),
+    targets: isRecord(rawCollection.targets) ? rawCollection.targets as GameSaveV16["collection"]["targets"] : {},
+  }, enemyDefinitions.map((enemy) => enemy.id));
+
+  const rawProgression = isRecord(value.progression) ? value.progression as unknown as ProgressionState : {
+    proficiencies: {},
+    hunterRankPoints: 0,
+    bonusPerkPoints: 0,
+    purchasedPerks: {},
+  } satisfies ProgressionState;
+  const magicArts = normalizeMagicArts(value.magicArts);
+  const automation = normalizeCombatAutomation(value.combatAutomation);
+  const stripRetiredSpellRules = <T extends { actionId: string }>(rules: T[]) => rules.filter((rule) => !rule.actionId.startsWith("spell."));
+  const presets = normalizeCombatAutomationPresets(value.combatAutomationPresets);
+  const combatAutomation = { ...automation, rules: stripRetiredSpellRules(automation.rules) };
+  const combatAutomationPresets = {
+    slots: presets.slots.map((preset) => preset ? { ...preset, config: { ...preset.config, rules: stripRetiredSpellRules(preset.config.rules) } } : null),
+  };
+
+  return {
+    version: 16,
+    progression: normalizeProgressionPerkIds(rawProgression),
+    inventory,
+    equipment,
+    collection,
+    gold: typeof value.gold === "number" && Number.isFinite(value.gold) ? value.gold : 0,
+    settings: isRecord(value.settings)
+      ? { reducedMotion: value.settings.reducedMotion === true, showInspectorButton: value.settings.showInspectorButton === true }
+      : { reducedMotion: false, showInspectorButton: false },
+    magicArts,
+    combatAbilities: normalizeCombatAbilityLoadout(value.combatAbilities, magicArts.knownArtIds),
+    combatAutomation,
     combatAutomationPresets,
   };
 }

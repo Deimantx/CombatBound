@@ -30,13 +30,13 @@ export function DebugOverviewTab({ debug, run, setTab }: DebugTabProps & { setTa
     <DebugSection title="Quick actions" subtitle="Frequently used test setups."><div className="debug-button-grid">
       <DebugButton action="fill-all-resources" onClick={() => run("Filled HP, Stamina, and Mana.", debug.fillAllResources)}>FILL ALL RESOURCES</DebugButton>
       <DebugButton action="reset-player-cooldowns" onClick={() => run("Reset all player cooldowns.", debug.resetPlayerCooldowns)}>RESET COOLDOWNS</DebugButton>
-      <DebugButton action="grant-all-equipment" onClick={() => run("Granted all prototype equipment x1.", () => debug.grantAllEquipment(1))}>GRANT ALL TEST GEAR</DebugButton>
+      <DebugButton action="grant-iron-sword" onClick={() => run("Granted an Iron Sword.", () => debug.grantItem("item.iron-sword", 1))}>GRANT IRON SWORD</DebugButton>
       <DebugButton action="set-hunter-rank" onClick={() => run("Set Hunter Rank to 10.", () => debug.setHunterRank(10))}>SET HUNTER RANK 10</DebugButton>
       <DebugButton action="discover-all-collection" onClick={() => run("Discovered all items and targets.", () => { debug.discoverAllItems(); debug.discoverAllTargets(); })}>DISCOVER ALL COLLECTION</DebugButton>
       <DebugButton action="kill-current-enemy" onClick={() => run("Resolved the current target through canonical defeat handling.", debug.killCurrentEnemy)}>DEFEAT CURRENT TARGET</DebugButton>
     </div></DebugSection>
     <DebugSection title="Simulation" subtitle="Shared clock controls used by the in-game dock."><DebugSimulationControls /></DebugSection>
     <div className="debug-shortcuts"><button type="button" onClick={() => setTab("items")}><Package size={14} /> Items <span>Grant and normalize quantities</span></button><button type="button" onClick={() => setTab("progression")}>Progression <span>Hunter Rank, proficiency, and perk setup</span></button><button type="button" onClick={() => setTab("combat")}><Crosshair size={14} /> Combat <span>Effects, resources, casts, and defeat</span></button></div>
-    <p className="debug-note">Automation: <strong>{game.combatAutomation.enabled ? "ON" : "OFF"}</strong> · Location: <strong>{game.combat.combatLocationId ?? "none"}</strong> · Target: <strong>{selectedEnemy ?? "none"}</strong> · Hunter Rank: <strong>{rankProgress.rank}</strong></p>
+    <p className="debug-note">Automation: <strong>{game.combatAutomation.enabled ? "ON" : "OFF"}</strong> - Location: <strong>{game.combat.combatLocationId ?? "none"}</strong> - Target: <strong>{selectedEnemy ?? "none"}</strong> - Hunter Rank: <strong>{rankProgress.rank}</strong></p>
   </div>;
 }

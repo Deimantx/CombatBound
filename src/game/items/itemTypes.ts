@@ -35,9 +35,24 @@ export interface ItemStats {
 export interface ItemInstance {
   id: ItemInstanceId;
   definitionId: ItemDefinitionId;
+  /** Current runtime instances are version 3; version 2 is accepted only by frozen migration fixtures. */
+  version: 2 | 3;
+  unlockedUpgradeNodeIds?: string[];
+  /** @deprecated legacy save/test compatibility; current v3 instances never write these fields. */
+  quality?: number;
+  /** @deprecated legacy save/test compatibility; current v3 instances never write these fields. */
+  upgradeLevel?: number;
+  /** @deprecated legacy save/test compatibility; current v3 instances never write these fields. */
+  affixes?: ItemAffixInstance[];
+}
+
+/** Frozen pre-gear-foundation shape used only while reading V15 and earlier saves. */
+export interface LegacyItemInstanceV2 {
+  id: ItemInstanceId;
+  definitionId: ItemDefinitionId;
   version: 2;
-  quality: number;
-  upgradeLevel: number;
+  quality?: number;
+  upgradeLevel?: number;
   affixes: ItemAffixInstance[];
 }
 
@@ -46,7 +61,17 @@ export interface ResolvedItemInstance {
   definition: ItemDefinition;
   baseStats: ItemStats;
   effectiveStats: ItemStats;
-  contributions: import("./itemModifierTypes").ItemStatContribution[];
+  contributions: ItemStatContribution[];
+}
+
+export interface ItemStatContribution {
+  sourceType: "upgrade-node";
+  sourceId: string;
+  sourceLabel: string;
+  scope: "local" | "global";
+  target: string;
+  operation: "flat" | "increased" | "more";
+  value: number;
 }
 
 export type InventoryEntryRef =

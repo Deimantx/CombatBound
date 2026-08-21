@@ -10,14 +10,8 @@ export interface InventoryState {
 
 export function createInitialInventory(): InventoryState {
   let inventory: InventoryState = { stackables: {}, instances: {}, nextInstanceSequence: 1 }
-  for (const definitionId of [
-    'item.training-sword',
-    'item.training-armor',
-    'item.training-hood',
-    'item.training-gloves',
-    'item.training-boots',
-    'item.training-shield',
-  ]) inventory = grantItem(inventory, definitionId, 1).inventory
+  // Temporary vertical-slice bootstrap. Replace/review when Blacksmithing is implemented.
+  inventory = grantItem(inventory, 'item.iron-sword', 1).inventory
   inventory = grantItem(inventory, 'item.healing-potion', 10).inventory
   return inventory
 }

@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { createInitialGameState } from "../game/gameState";
 import { gameStateToSaveV14, gameStateToSaveV15, parseGameSaveJson } from "../game/persistence/saveGame";
-import { isGameSaveV15 } from "../game/persistence/saveValidation";
+import { isGameSaveV15, isGameSaveV16 } from "../game/persistence/saveValidation";
 
 const settings = { reducedMotion: false, showInspectorButton: true };
 
@@ -31,12 +31,12 @@ describe("Magic Arts V15 persistence", () => {
       combatAutomation: { ...base.combatAutomation, rules: [{ id: "old", actionId: "spell.flame-blast", priority: 1, enabled: true, conditions: [{ type: "always" }] }] },
     };
     const migrated = parseGameSaveJson(JSON.stringify(legacy));
-    expect(migrated?.version).toBe(15);
+    expect(migrated?.version).toBe(16);
     expect(migrated?.magicArts.knownArtIds).toEqual(["magic-art.earth-shield"]);
     expect(migrated?.progression.proficiencies["fire-magic" as never]).toBeUndefined();
     expect(migrated?.progression.proficiencies["one-handed-sword"]?.totalXp).toBe(25);
     expect(migrated?.combatAbilities.slots).toEqual([null, "defense.guard", null, null, null]);
     expect(migrated?.combatAutomation.rules).toHaveLength(0);
-    expect(isGameSaveV15(migrated)).toBe(true);
+    expect(isGameSaveV16(migrated)).toBe(true);
   });
 });

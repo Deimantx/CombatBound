@@ -37,6 +37,7 @@ export function HeroEquipmentWorkspace({ preview, hoveredPreview, previewState, 
   const combatPhase = game.combat.phase;
   const equipItemInstanceAction = useGameStore((state) => state.equipItemInstance);
   const unequipEquipmentSlotAction = useGameStore((state) => state.unequipEquipmentSlot);
+  const purchaseItemUpgradeNodeAction = useGameStore((state) => state.purchaseItemUpgradeNode);
   const selected = (EQUIPMENT_SLOT_DEFINITIONS.some((slot) => slot.id === selectedEquipmentSlot) ? selectedEquipmentSlot : "weapon") as EquipmentSlotId;
   const selectedDefinition = EQUIPMENT_SLOT_DEFINITIONS.find((slot) => slot.id === selected)!;
   const combatLocked = combatPhase === "active" || combatPhase === "recovery";
@@ -45,10 +46,10 @@ export function HeroEquipmentWorkspace({ preview, hoveredPreview, previewState, 
   const effectivePreviewState = previewState;
   const candidates = useMemo(() => getCompatibleItemInstances(inventory, selected), [inventory, selected]);
   const candidateModels = useMemo<EquipmentCandidateModel[]>(() => candidates.map((entry) => {
-    const validation = validateEquipmentChange({ instanceId: entry.instance.id, slotId: selected, inventory, equipment, hunterRank });
+    const validation = validateEquipmentChange({ instanceId: entry.instance.id, slotId: selected, inventory, equipment, hunterRank, progression });
     const equipped = entry.instance.id === equipment.slots[selected];
-    return { entry, validation, equipped, equippedSlot: equippedSlotForInstance(equipment, entry.instance.id), hunterRankLocked: validation.reason === "hunter-rank", canEquip: validation.valid && !combatLocked && !equipped, combatLocked };
-  }), [candidates, combatLocked, equipment, inventory, hunterRank, selected]);
+    return { entry, validation, equipped, equippedSlot: equippedSlotForInstance(equipment, entry.instance.id), hunterRankLocked: validation.reason === "hunter-rank", proficiencyLocked: validation.reason === "proficiency-level", canEquip: validation.valid && !combatLocked && !equipped, combatLocked };
+  }), [candidates, combatLocked, equipment, inventory, hunterRank, progression, selected]);
 
   const selectCandidate = (instanceId: string) => onPreviewChange({ slotId: selected, instanceId });
   const hoverCandidate = (instanceId: string) => onHoverPreview({ slotId: selected, instanceId });
@@ -71,7 +72,7 @@ export function HeroEquipmentWorkspace({ preview, hoveredPreview, previewState, 
         <div className={`hero-equipment-meta ${combatLocked ? "is-locked" : ""}`}>{combatLocked ? "LOCKED DURING COMBAT" : "READY TO EQUIP"}</div>
       </div>
       <div className="hero-equipment-workspace-body" data-debug-kind="hero-equipment-two-pane">
-        <EquipmentSlotInspector slotId={selected} equipment={equipment} inventory={inventory} progression={progression} defensiveContext={defensiveContext} combatLocked={combatLocked} models={candidateModels} previewState={effectivePreviewState} pinned={preview} hovered={hoveredPreview} onSelectCandidate={selectCandidate} onHoverCandidate={hoverCandidate} onLeaveCandidate={() => onHoverPreview(null)} onClearPreview={() => onPreviewChange(null)} onEquip={equipCandidate} onUnequip={unequip} />
+        <EquipmentSlotInspector slotId={selected} equipment={equipment} inventory={inventory} progression={progression} defensiveContext={defensiveContext} combatLocked={combatLocked} models={candidateModels} previewState={effectivePreviewState} pinned={preview} hovered={hoveredPreview} onSelectCandidate={selectCandidate} onHoverCandidate={hoverCandidate} onLeaveCandidate={() => onHoverPreview(null)} onClearPreview={() => onPreviewChange(null)} onEquip={equipCandidate} onUnequip={unequip} onUnlockUpgradeNode={(instanceId, nodeId) => purchaseItemUpgradeNodeAction(instanceId, nodeId)} />
       </div>
     </section>
   );

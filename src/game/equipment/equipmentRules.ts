@@ -3,6 +3,8 @@ import { getItemInstance } from "../items/itemOwnership";
 import { resolveItemInstance } from "../items/itemResolver";
 import { isItemInstanceId, type ItemInstanceId } from "../items/itemTypes";
 import type { InventoryState } from "../inventory/inventoryTypes";
+import type { ProgressionState } from "../progression/progressionTypes";
+import { getProficiencyLevelForState } from "../progression/proficiencyProgression";
 import {
   EQUIPMENT_SLOT_DEFINITIONS,
   type EquipmentSlotId,
@@ -17,11 +19,15 @@ export type EquipmentChangeFailureReason =
   | "unknown-slot"
   | "invalid-instance"
   | "wrong-slot-kind"
-  | "hunter-rank";
+  | "hunter-rank"
+  | "proficiency-level";
 
 export interface EquipmentChangeValidation {
   valid: boolean;
   reason?: EquipmentChangeFailureReason;
+  proficiencyId?: string;
+  requiredLevel?: number;
+  currentLevel?: number;
 }
 
 export function canEquipItemToSlot(item: ItemDefinition, slotId: EquipmentSlotId) {
@@ -33,12 +39,16 @@ export function validateEquipmentChange({
   slotId,
   inventory,
   hunterRank,
+  progression,
+  ignoreRequirements,
 }: {
   instanceId: ItemInstanceId | string;
   slotId: EquipmentSlotId | string;
   inventory: InventoryState;
   equipment: EquipmentState;
   hunterRank: number;
+  progression?: ProgressionState;
+  ignoreRequirements?: boolean;
 }): EquipmentChangeValidation {
   if (!isEquipmentSlotId(slotId)) return { valid: false, reason: "unknown-slot" };
   if (!isItemInstanceId(instanceId)) return { valid: false, reason: "invalid-instance" };
@@ -48,8 +58,13 @@ export function validateEquipmentChange({
   if (!definition) return { valid: false, reason: "unknown-definition" };
   if (definition.inventoryMode !== "instance") return { valid: false, reason: "invalid-instance" };
   if (!canEquipItemToSlot(definition, slotId)) return { valid: false, reason: "wrong-slot-kind" };
-  if (definition.requiredHunterRank !== undefined && Math.max(0, Math.floor(hunterRank)) < definition.requiredHunterRank)
+  if (!ignoreRequirements && definition.requiredHunterRank !== undefined && Math.max(0, Math.floor(hunterRank)) < definition.requiredHunterRank)
     return { valid: false, reason: "hunter-rank" };
+  if (!ignoreRequirements && definition.weaponProficiencyId && definition.requiredProficiencyLevel !== undefined) {
+    const currentLevel = progression ? getProficiencyLevelForState(progression, definition.weaponProficiencyId) : 0;
+    if (currentLevel < definition.requiredProficiencyLevel)
+      return { valid: false, reason: "proficiency-level", proficiencyId: definition.weaponProficiencyId, requiredLevel: definition.requiredProficiencyLevel, currentLevel };
+  }
   return { valid: true };
 }
 
@@ -63,14 +78,18 @@ export function equipItemInstance({
   instanceId,
   slotId,
   hunterRank,
+  progression,
+  ignoreRequirements,
 }: {
   inventory: InventoryState;
   equipment: EquipmentState;
   instanceId: ItemInstanceId | string;
   slotId: EquipmentSlotId | string;
   hunterRank: number;
+  progression?: ProgressionState;
+  ignoreRequirements?: boolean;
 }): { equipment: EquipmentState; validation: EquipmentChangeValidation } {
-  const validation = validateEquipmentChange({ instanceId, slotId, inventory, equipment, hunterRank });
+  const validation = validateEquipmentChange({ instanceId, slotId, inventory, equipment, hunterRank, progression, ignoreRequirements });
   if (!validation.valid || !isEquipmentSlotId(slotId)) return { equipment, validation };
   if (equipment.slots[slotId] === instanceId) return { equipment, validation };
   const nextSlots = { ...equipment.slots };
@@ -86,8 +105,9 @@ export function previewEquipmentChange(input: {
   instanceId: ItemInstanceId | string;
   slotId: EquipmentSlotId | string;
   hunterRank: number;
+  progression?: ProgressionState;
 }) {
-  return equipItemInstance(input);
+  return equipItemInstance({ ...input, ignoreRequirements: true });
 }
 
 export function unequipEquipmentSlot(equipment: EquipmentState, slotId: EquipmentSlotId | string) {

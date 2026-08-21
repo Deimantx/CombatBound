@@ -7,6 +7,7 @@ import { getEquippedWeaponProficiency } from "../progression/progressionSelector
 import { getWeaponBlockEffectHooks } from "../progression/perkProgression";
 import { perkById } from "../data/proficiencyPerks";
 import { getEnemyTraitEffectPolicy } from "../enemyTraits/enemyTraitRuntime";
+import { applySuccessfulPlayerBlock } from "../weapons/weaponMechanicRuntime";
 
 export interface ApplyEffectToGameOptions extends EffectApplyOptions {
   targetMode?: "source" | "target";
@@ -43,9 +44,9 @@ export function applyEffectToGame(game: GameState, effectId: string, source: Com
 
 /** Applies player-owned Block hooks once for one qualifying incoming event. */
 export function applyPlayerSuccessfulBlockHooks(game: GameState, context: CombatContext) {
+  let next = applySuccessfulPlayerBlock(game);
   const proficiencyId = getEquippedWeaponProficiency(game.equipment, game.inventory);
-  if (!proficiencyId) return game;
-  let next = game;
+  if (!proficiencyId) return next;
   for (const hook of getWeaponBlockEffectHooks(next.progression, proficiencyId, perkById)) {
     next = applyEffectToGame(next, hook.effectId, { kind: "player" }, { kind: "player" }, context, { durationBonusSeconds: hook.durationSeconds, sourceProficiencyId: proficiencyId });
   }

@@ -41,8 +41,9 @@ export function buildEquipmentPreviewState(game: GameState, request: EquipmentPr
     inventory: game.inventory,
     equipment: game.equipment,
     hunterRank,
+    progression: game.progression,
   });
-  if (!validation.valid && validation.reason !== "hunter-rank") {
+  if (!validation.valid && validation.reason !== "hunter-rank" && validation.reason !== "proficiency-level") {
     return { request, currentStats, validation, comparison: [] };
   }
 
@@ -56,6 +57,7 @@ export function buildEquipmentPreviewState(game: GameState, request: EquipmentPr
     inventory: game.inventory,
     equipment: game.equipment,
     hunterRank: validation.valid ? hunterRank : Math.max(hunterRank, resolved?.definition.requiredHunterRank ?? hunterRank),
+    progression: game.progression,
   });
   if (!preview.validation.valid) return { request, currentStats, validation, comparison: [] };
   const previewStats = calculateHunterCombatStats(
