@@ -22,7 +22,7 @@ function openDeepWoods() {
   act(() => vi.advanceTimersByTime(190))
   fireEvent.click(screen.getByRole('button', { name: 'Open Deep Woods' }))
   act(() => vi.advanceTimersByTime(190))
-  fireEvent.click(screen.getByRole('button', { name: /^Wolf Den/ }))
+  fireEvent.click(screen.getByRole('button', { name: /^Wolfscar Hollow/ }))
 }
 
 describe('combat target selection UI', () => {
@@ -48,9 +48,9 @@ describe('combat target selection UI', () => {
     expect(useGameStore.getState().selectedTargetId).toBe('enemy.wolf-stalker')
     expect(useGameStore.getState().game.combat.phase).toBe('inactive')
     expect(document.querySelector('[data-debug-kind="combat-target-inspector"]')).toHaveAttribute('data-debug-enemy-id', 'enemy.wolf-stalker')
-    const alpha = screen.getByRole('button', { name: /Alpha Wolf.*locked/i })
-    expect(alpha).toBeDisabled()
-    expect(alpha).toHaveClass('is-locked')
+    const alpha = screen.getByRole('button', { name: /Alpha Wolf.*available/i })
+    expect(alpha).not.toBeDisabled()
+    expect(alpha).not.toHaveClass('is-locked')
   })
 
   it('starts only the highlighted target through the primary action', () => {

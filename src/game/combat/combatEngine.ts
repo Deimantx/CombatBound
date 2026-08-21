@@ -27,7 +27,7 @@ import {
   recoverOutOfCombatResources,
 } from "./combatRuntime";
 import { advanceCombatEffects as runPeriodicRuntime } from "./combatPeriodicRuntime";
-import { advanceEnemyNormalAttacks as runEnemyNormalAttacks, advanceEnemyCombatAbilities as runEnemyRuntime } from "./combatEnemyRuntime";
+import { advanceEnemyActions } from "./combatEnemyRuntime";
 import {
   castMagicArt as runPlayerCastMagicArt,
   damageEnemy as runPlayerDamageEnemy,
@@ -71,6 +71,9 @@ import type {
   ProgressionCredit,
 } from "../progression/progressionTypes";
 import { normalizeCombatLocationId } from "../world/worldMigration";
+import { isCombatLocationAvailable } from "../world/worldSelectors";
+import { hunterRankForPoints } from "../progression/hunterRankProgression";
+import { initializeEnemyAbilityCooldowns } from "../enemyAbilities/enemyAbilityRuntime";
 
 export function createCombatContext(rng: CombatContext["rng"]): CombatContext {
   return {
@@ -315,6 +318,7 @@ function createFreshEncounter(previous: CombatState, locationId: string, enemyId
       ...enemy,
       attackInterval: enemyStats.attackInterval,
       attackTimer: enemyStats.attackInterval,
+      abilityCooldowns: initializeEnemyAbilityCooldowns(enemy, context.enemies[enemy.enemyId] ?? { enemyTier: "common" }, context),
     },
   };
 }
@@ -323,7 +327,8 @@ export function startCombatTarget(game: GameState, locationId: string, enemyId: 
   const canonicalLocationId = normalizeCombatLocationId(locationId) ?? locationId;
   const location = context.locations[canonicalLocationId];
   const target = location?.targets.find((entry) => entry.enemyId === enemyId);
-  if (!location || !target || !context.enemies[enemyId]) return game;
+  const hunterRank = hunterRankForPoints(game.progression.hunterRankPoints);
+  if (!location || !target || !context.enemies[enemyId] || !isCombatLocationAvailable(canonicalLocationId, hunterRank)) return game;
   const clean = clearEndedHuntEffects({ ...game.combat, session: { ...game.combat.session, elapsedSeconds: 0, enemiesDefeated: 0, damageDealt: 0, damageTaken: 0, healing: 0, proficiencyXpGained: {}, itemsGained: 0, lootGained: {}, itemInstanceIdsGained: [], goldGained: 0, highestHit: 0 }, enemy: null }, context.effects);
   const started = createFreshEncounter(clean, canonicalLocationId, enemyId, stats, context);
   return started.enemy ? { ...game, combat: started } : game;
@@ -333,7 +338,8 @@ export function switchCombatTarget(game: GameState, locationId: string, enemyId:
   const canonicalLocationId = normalizeCombatLocationId(locationId) ?? locationId;
   const location = context.locations[canonicalLocationId];
   const target = location?.targets.find((entry) => entry.enemyId === enemyId);
-  if (!location || !target || !context.enemies[enemyId]) return game;
+  const hunterRank = hunterRankForPoints(game.progression.hunterRankPoints);
+  if (!location || !target || !context.enemies[enemyId] || !isCombatLocationAvailable(canonicalLocationId, hunterRank)) return game;
   const ended = clearEndedHuntEffects({ ...game.combat, enemy: null }, context.effects);
   const started = createFreshEncounter(ended, canonicalLocationId, enemyId, stats, context);
   return started.enemy ? { ...game, combat: started } : game;
@@ -508,19 +514,6 @@ export function advanceCombatStep(
         : combat.session,
   };
   game = { ...game, combat };
-  game = runEnemyRuntime(
-    { ...game, combat },
-    step,
-    context,
-    stats,
-    {
-      applyEffectiveHealing,
-      awardBarrierCredits,
-      resolveDefensiveTrainingForCombatEvent,
-    },
-  );
-  combat = game.combat;
-  if (combat.phase !== "active") return game;
   const decision = evaluateAutomation(game, stats, context, context.debugHooks?.onAutomationTrace);
   if (decision.actionId) {
     const beforeGame = game;
@@ -597,7 +590,7 @@ export function advanceCombatStep(
   game = resolveDefeatedEnemies({ ...game, combat }, context);
   combat = game.combat;
   if (combat.phase !== "active") return game;
-  return runEnemyNormalAttacks(game, step, context, stats, {
+  return advanceEnemyActions(game, step, context, stats, {
     applyEffectiveHealing,
     awardBarrierCredits,
     resolveDefensiveTrainingForCombatEvent,

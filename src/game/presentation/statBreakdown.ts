@@ -85,7 +85,7 @@ export function buildStatBreakdown(input: GameState | StatInspectionContext, sta
     const before = current;
     current += value;
     const modificationLabels = [...new Set(entry.contributions.map((contribution) => contribution.sourceLabel))];
-    const sourceLabel = `${entry.definition.name} (${entry.slotId})${modificationLabels.length ? ` · ${modificationLabels.join(" · ")}` : ""}`;
+    const sourceLabel = `${entry.definition.name} (${entry.slotId})${modificationLabels.length ? ` - ${modificationLabels.join(" - ")}` : ""}`;
     pushContribution(contributions, stat, "equipment", entry.instance.id, sourceLabel, "flat", before, current);
   }
   const buildStageRecords = canonicalContributions.filter((entry) => entry.stat === stat && entry.sourceType === "perk");

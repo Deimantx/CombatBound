@@ -4,6 +4,7 @@ import { calculateHunterCombatStats } from "../game/equipment/derivedStats";
 import { advanceCombatStep, createCombatContext, startCombatTarget, switchCombatTarget } from "../game/combat/combatEngine";
 import { combatBalance } from "../game/combat/combatBalance";
 import { combatLocationById } from "../game/data/world/combatLocations";
+import { totalHunterRankPointsForRank } from "../game/progression/hunterRankProgression";
 
 function setup(locationId = "location.wolf-den", enemyId = "enemy.grey-wolf", rng = () => 0.5) {
   const initial = createInitialGameState();
@@ -24,6 +25,26 @@ describe("single-target combat foundation", () => {
     expect(game.combat.enemy).not.toHaveProperty("actions");
   });
 
+  it("starts fresh, respawned, and switched enemies with full valid ability cooldowns", () => {
+    const { game, stats, context } = setup();
+    expect(game.combat.enemy?.abilityCooldowns["enemy-ability.savage-bite"]).toBe(10);
+    const defeated = { ...game, combat: { ...game.combat, enemy: game.combat.enemy ? { ...game.combat.enemy, currentHealth: 0, defeated: true } : null } };
+    const recovering = advanceCombatStep(defeated, 0.1, context, stats);
+    const respawned = advanceCombatStep(recovering, combatBalance.recoverySeconds, context, stats);
+    expect(respawned.combat.enemy?.abilityCooldowns["enemy-ability.savage-bite"]).toBe(10);
+    const switched = switchCombatTarget(game, "location.wolf-den", "enemy.wolf-stalker", stats, context);
+    expect(switched.combat.enemy?.abilityCooldowns["enemy-ability.rending-bite"]).toBe(9);
+  });
+
+  it("enforces arena rank in the combat domain for start and switch", () => {
+    const { game, stats, context } = setup();
+    expect(startCombatTarget(game, "location.hollow-bell-temple", "enemy.bound-wraith", stats, context)).toBe(game);
+    const rankEight = { ...game, progression: { ...game.progression, hunterRankPoints: totalHunterRankPointsForRank(8) } };
+    const active = startCombatTarget(rankEight, "location.hollow-bell-temple", "enemy.bound-wraith", stats, context);
+    expect(active.combat.enemy?.enemyId).toBe("enemy.bound-wraith");
+    expect(switchCombatTarget(game, "location.hollow-bell-temple", "enemy.bound-wraith", stats, context)).toBe(game);
+  });
+
   it("validates the location target list and rejects a target from another location", () => {
     const { game, stats, context } = setup();
     expect(startCombatTarget(game, "location.wolf-den", "enemy.bandit-archer", stats, context)).toBe(game);
@@ -34,21 +55,21 @@ describe("single-target combat foundation", () => {
 
   it("uses preparation, resolution, and cooldown for an enemy Combat Ability", () => {
     const { game, stats, context } = setup("location.bandit-camp", "enemy.bandit-archer");
-    const isolated = { ...game, combat: { ...game.combat, playerAttackTimer: 100, enemy: game.combat.enemy ? { ...game.combat.enemy, attackTimer: 100 } : null } };
+    const isolated = { ...game, combat: { ...game.combat, playerAttackTimer: 100, enemy: game.combat.enemy ? { ...game.combat.enemy, attackTimer: game.combat.enemy.attackInterval, abilityCooldowns: { ...game.combat.enemy.abilityCooldowns, "enemy-ability.charged-shot": 0 } } : null } };
     const preparing = advanceCombatStep(isolated, 0.1, context, stats);
     expect(preparing.combat.enemy?.preparedAbility?.abilityId).toBe("enemy-ability.charged-shot");
-    expect(preparing.combat.enemy?.preparedAbility?.remainingSeconds).toBeCloseTo(3, 6);
+    expect(preparing.combat.enemy?.preparedAbility?.remainingSeconds).toBeCloseTo(2.9, 6);
     const resolved = advanceCombatStep(preparing, 3, context, stats);
     expect(resolved.combat.enemy?.preparedAbility).toBeNull();
     expect(resolved.combat.enemy?.abilityCooldowns["enemy-ability.charged-shot"]).toBe(10);
   });
 
-  it("advances the normal attack independently while a Combat Ability prepares", () => {
+  it("does not interrupt an active Basic attack for a ready Combat Ability", () => {
     const { game, stats, context } = setup("location.bandit-camp", "enemy.bandit-archer");
-    const isolated = { ...game, combat: { ...game.combat, playerAttackTimer: 100, enemy: game.combat.enemy ? { ...game.combat.enemy, attackTimer: 0 } : null } };
+    const isolated = { ...game, combat: { ...game.combat, playerAttackTimer: 100, enemy: game.combat.enemy ? { ...game.combat.enemy, attackTimer: 1, abilityCooldowns: { ...game.combat.enemy.abilityCooldowns, "enemy-ability.charged-shot": 0 } } : null } };
     const next = advanceCombatStep(isolated, 0.1, context, stats);
-    expect(next.combat.enemy?.preparedAbility).not.toBeNull();
-    expect(next.combat.enemy?.attackTimer).toBeGreaterThan(0);
+    expect(next.combat.enemy?.preparedAbility).toBeNull();
+    expect(next.combat.enemy?.attackTimer).toBeCloseTo(0.9, 6);
   });
 
   it("respawns the same target after recovery and records per-kill rewards", () => {

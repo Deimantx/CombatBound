@@ -6,6 +6,8 @@ import { proficiencyById } from "../../../game/data/proficiencies";
 import { normalizeSpellbook } from "../../../game/spellbook/spellbookLogic";
 import { normalizeCombatAutomation } from "../../../game/automation/automationLogic";
 import { instantiateCombatTarget } from "../../../game/combat/combatState";
+import { createCombatPreviewContext } from "../../../game/combat/combatEngine";
+import { normalizeEnemyAbilityCooldowns } from "../../../game/enemyAbilities/enemyAbilityRuntime";
 import { normalizeCombatLocationId } from "../../../game/world/worldMigration";
 import type { DebugScenarioSnapshot, DebugScenarioSnapshotV2 } from "./debugScenarioTypes";
 
@@ -18,13 +20,13 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return Boolean(value) && typeof value === "object" && !Array.isArray(value);
 }
 
-function normalizeLegacyEnemy(value: Record<string, unknown>, encounterSequence: number) {
+function normalizeLegacyEnemy(value: Record<string, unknown>, encounterSequence: number, context: ReturnType<typeof createCombatPreviewContext>) {
   const enemyId = typeof value.enemyId === "string" ? value.enemyId : undefined;
   if (!enemyId || !enemyById[enemyId]) return null;
   const { actionCooldowns: _actionCooldowns, currentAction: _currentAction, ...legacyEnemy } = value;
   const fresh = instantiateCombatTarget(enemyId, encounterSequence);
   if (!fresh) return null;
-  return {
+  const normalized = {
     ...fresh,
     ...legacyEnemy,
     abilityCooldowns: isRecord(legacyEnemy.abilityCooldowns) ? legacyEnemy.abilityCooldowns : fresh.abilityCooldowns,
@@ -32,9 +34,10 @@ function normalizeLegacyEnemy(value: Record<string, unknown>, encounterSequence:
     preparedAbility: isRecord(legacyEnemy.preparedAbility) ? legacyEnemy.preparedAbility : null,
     traitRuntime: isRecord(legacyEnemy.traitRuntime) ? legacyEnemy.traitRuntime : fresh.traitRuntime,
   };
+  return { ...normalized, abilityCooldowns: normalizeEnemyAbilityCooldowns(normalized as NonNullable<typeof fresh>, enemyById[enemyId], context) };
 }
 
-function normalizeCombatSnapshot(value: Record<string, unknown>) {
+function normalizeCombatSnapshot(value: Record<string, unknown>, context: ReturnType<typeof createCombatPreviewContext>) {
   const normalized = { ...value };
   const legacyEnemies = Array.isArray(value.enemies) ? value.enemies.filter(isRecord) : [];
   const sequence = typeof value.encounterSequence === "number" && Number.isFinite(value.encounterSequence)
@@ -46,7 +49,7 @@ function normalizeCombatSnapshot(value: Record<string, unknown>) {
   const legacyEnemy = isRecord(value.enemy)
     ? value.enemy
     : legacyEnemies.find((candidate) => candidate.instanceId === selectedInstanceId) ?? legacyEnemies.find((candidate) => candidate.defeated !== true) ?? legacyEnemies[0];
-  const enemy = legacyEnemy ? normalizeLegacyEnemy(legacyEnemy, sequence) : null;
+  const enemy = legacyEnemy ? normalizeLegacyEnemy(legacyEnemy, sequence, context) : null;
   if (enemy) {
     normalized.enemy = enemy;
     normalized.targetEnemyId = typeof value.targetEnemyId === "string" ? value.targetEnemyId : enemy.enemyId;
@@ -83,7 +86,8 @@ export function normalizeDebugScenarioSnapshot(value: unknown): DebugScenarioSna
   const rawProgression = isRecord(rawGame.progression) ? rawGame.progression : {};
   const proficiencies = Object.fromEntries(Object.entries(isRecord(rawProgression.proficiencies) ? rawProgression.proficiencies : {}).filter(([id, progress]) => id !== "light-magic" && id !== "warding-magic" && Boolean(proficiencyById[id]) && isRecord(progress)));
   const purchasedPerks = Object.fromEntries(Object.entries(isRecord(rawProgression.purchasedPerks) ? rawProgression.purchasedPerks : {}).filter(([id, rank]) => Boolean(perkById[id]) && !id.includes("light-magic") && !id.includes("warding-magic") && typeof rank === "number"));
-  const combat = isRecord(rawGame.combat) ? normalizeCombatSnapshot(rawGame.combat) : rawGame.combat;
+  const combatContext = createCombatPreviewContext();
+  const combat = isRecord(rawGame.combat) ? normalizeCombatSnapshot(rawGame.combat, combatContext) : rawGame.combat;
   if (isRecord(combat)) {
     if (Array.isArray(combat.playerEffects)) combat.playerEffects = combat.playerEffects.filter((effect) => isRecord(effect) && effect.effectId !== "effect.protective-sign" && effect.effectId !== "effect.light-purity");
     if (isRecord(combat.enemy) && Array.isArray(combat.enemy.effects)) combat.enemy = { ...combat.enemy, effects: combat.enemy.effects.filter((effect) => isRecord(effect) && effect.effectId !== "effect.protective-sign" && effect.effectId !== "effect.light-purity") };

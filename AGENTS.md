@@ -8,6 +8,11 @@
 - Keep App.tsx and AppShell.tsx small.
 - Do not add an editable layout system or profession screens without explicit direction.
 
+## TEXT / ENCODING
+
+- Keep user-facing Combat UI, tooltips, breadcrumbs, and combat log separators ASCII-safe. Use ` - `, `|`, or `->` instead of Unicode punctuation that can become mojibake.
+- Never commit visible mojibake such as `Ã`, `Â`, `â`, or `ï¿½` in Combat-facing content.
+
 ## COLLAPSIBLE UI
 
 For normal show/hide disclosure panels use the shared CombatBound chevron pattern.

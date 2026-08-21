@@ -39,8 +39,8 @@ function addValueRows(current: ResolvedItemInstance | undefined, candidate: Reso
     return [{
       key,
       label: values.current?.label ?? values.candidate?.label ?? key,
-      current: values.current?.value ?? "—",
-      candidate: values.candidate?.value ?? "—",
+      current: values.current?.value ?? "-",
+      candidate: values.candidate?.value ?? "-",
       delta: formatCombatStatDelta(key, delta),
       tone: toneForDelta(key, delta),
     } satisfies EquipmentItemDifferenceRow];
@@ -53,8 +53,8 @@ function addModifierValueRows(current: ResolvedItemInstance | undefined, candida
   const currentUpgrade = current?.instance.upgradeLevel ?? 0;
   const candidateUpgrade = candidate?.instance.upgradeLevel ?? 0;
   const rows: EquipmentItemDifferenceRow[] = [];
-  if (currentQuality !== candidateQuality) rows.push({ key: "quality", label: "Quality", current: currentQuality ? `${currentQuality}%` : "—", candidate: candidateQuality ? `${candidateQuality}%` : "—", delta: `${candidateQuality - currentQuality > 0 ? "+" : ""}${candidateQuality - currentQuality}%`, tone: toneForDelta("quality", candidateQuality - currentQuality) });
-  if (currentUpgrade !== candidateUpgrade) rows.push({ key: "upgrade", label: "Upgrade", current: currentUpgrade ? `+${currentUpgrade}` : "—", candidate: candidateUpgrade ? `+${candidateUpgrade}` : "—", delta: `${candidateUpgrade - currentUpgrade > 0 ? "+" : ""}${candidateUpgrade - currentUpgrade}`, tone: toneForDelta("upgrade", candidateUpgrade - currentUpgrade) });
+  if (currentQuality !== candidateQuality) rows.push({ key: "quality", label: "Quality", current: currentQuality ? `${currentQuality}%` : "-", candidate: candidateQuality ? `${candidateQuality}%` : "-", delta: `${candidateQuality - currentQuality > 0 ? "+" : ""}${candidateQuality - currentQuality}%`, tone: toneForDelta("quality", candidateQuality - currentQuality) });
+  if (currentUpgrade !== candidateUpgrade) rows.push({ key: "upgrade", label: "Upgrade", current: currentUpgrade ? `+${currentUpgrade}` : "-", candidate: candidateUpgrade ? `+${candidateUpgrade}` : "-", delta: `${candidateUpgrade - currentUpgrade > 0 ? "+" : ""}${candidateUpgrade - currentUpgrade}`, tone: toneForDelta("upgrade", candidateUpgrade - currentUpgrade) });
   return rows;
 }
 

@@ -41,19 +41,25 @@ function openDeepWoods() {
 }
 
 describe('combat world atlas browser', () => {
-  it('drills from World to Greenvale, Northwood, Deep Woods, and Wolf Den', () => {
+  it('drills from World to Greenvale, Northwood, Deep Woods, and Wolfscar Hollow', () => {
     openCombatBrowser()
     expect(screen.getByText('Greenvale')).toBeInTheDocument()
     expect(screen.getByText('Frostmarch')).toBeInTheDocument()
     expect(screen.getByText('Emberreach')).toBeInTheDocument()
-    expect(screen.queryByRole('button', { name: /^Wolf Den/ })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /^Wolfscar Hollow/ })).not.toBeInTheDocument()
 
     openDeepWoods()
 
     expect(screen.getByText('Deep Woods')).toBeInTheDocument()
-    const wolfDen = screen.getByRole('button', { name: /^Wolf Den/ })
+    const wolfDen = screen.getByRole('button', { name: /^Wolfscar Hollow/ })
     expect(wolfDen).toBeInTheDocument()
-    expect(wolfDen).toHaveAttribute('data-debug-tooltip-id', 'combat-arena:location.wolf-den')
+    expect(screen.getByRole('button', { name: 'Wolfscar Hollow - Select arena - RANK 1' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Ironback Riverbed - Select arena - RANK 1' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Fallen Watch Ruins - Locked - RANK 2' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Blackroot Cemetery - Locked - RANK 3' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Blighted Grove - Locked - RANK 5' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Hollow Bell Temple - Locked - RANK 8' })).toBeInTheDocument()
+    expect(wolfDen).toHaveAttribute('data-debug-tooltip-id', 'combat-arena:location.wolfscar-hollow')
     expect(wolfDen).not.toHaveAttribute('title')
     expect(screen.queryByRole('button', { name: /^Bandit Camp/ })).not.toBeInTheDocument()
     expect(screen.getByText('SELECT TARGET')).toBeInTheDocument()
@@ -67,14 +73,14 @@ describe('combat world atlas browser', () => {
     openCombatBrowser()
     clickAtlas('Open Greenvale')
     expect(screen.getByRole('button', { name: 'Open Northwood' })).toBeInTheDocument()
-    expect(screen.queryByRole('button', { name: /^Wolf Den/ })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /^Wolfscar Hollow/ })).not.toBeInTheDocument()
     clickAtlas('Open Northwood')
     expect(screen.getByRole('button', { name: 'Open Deep Woods' })).toBeInTheDocument()
     const lockedOldRoad = screen.getByRole('button', { name: 'LOCKED Old Road' })
     expect(lockedOldRoad).toHaveAttribute('aria-disabled', 'true')
     fireEvent.click(lockedOldRoad)
     expect(debugElement('combat-atlas-stage')).toHaveAttribute('data-debug-atlas-view-id', 'region.northwood')
-    expect(screen.queryByRole('button', { name: /^Wolf Den/ })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /^Wolfscar Hollow/ })).not.toBeInTheDocument()
   })
 
   it('uses fixed viewport controls for one-level back and direct world navigation', () => {
@@ -103,8 +109,8 @@ describe('combat world atlas browser', () => {
   it('selects an arena without starting combat', () => {
     openCombatBrowser()
     openDeepWoods()
-    fireEvent.click(screen.getByRole('button', { name: /^Wolf Den/ }))
-    expect(screen.getByRole('heading', { name: 'Wolf Den' })).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: /^Wolfscar Hollow/ }))
+    expect(screen.getByRole('heading', { name: 'Wolfscar Hollow' })).toBeInTheDocument()
     expect(useGameStore.getState().game.combat.phase).toBe('inactive')
     expect(useGameStore.getState().activeCombatLocationId).toBeNull()
   })
@@ -112,9 +118,9 @@ describe('combat world atlas browser', () => {
   it('starts the selected hunt and collapses the map', () => {
     openCombatBrowser()
     openDeepWoods()
-    fireEvent.click(screen.getByRole('button', { name: /^Wolf Den/ }))
+    fireEvent.click(screen.getByRole('button', { name: /^Wolfscar Hollow/ }))
     fireEvent.click(screen.getByRole('button', { name: 'Fight selected target' }))
-    expect(useGameStore.getState().activeCombatLocationId).toBe('location.wolf-den')
+    expect(useGameStore.getState().activeCombatLocationId).toBe('location.wolfscar-hollow')
     expect(screen.getByRole('button', { name: 'Expand' })).toHaveAttribute('aria-expanded', 'false')
     expect(document.querySelector('[data-debug-kind="combat-atlas-stage"]')).not.toBeInTheDocument()
   })
@@ -122,7 +128,7 @@ describe('combat world atlas browser', () => {
   it('browses the hierarchy during combat without changing the active hunt', () => {
     openCombatBrowser()
     openDeepWoods()
-    fireEvent.click(screen.getByRole('button', { name: /^Wolf Den/ }))
+    fireEvent.click(screen.getByRole('button', { name: /^Wolfscar Hollow/ }))
     fireEvent.click(screen.getByRole('button', { name: 'Fight selected target' }))
     const activeBeforeBrowsing = useGameStore.getState().activeCombatLocationId
     fireEvent.click(screen.getByRole('button', { name: 'Expand' }))
@@ -142,7 +148,7 @@ describe('combat world atlas browser', () => {
   it('switches hunt only from the explicit Switch Hunt action', () => {
     openCombatBrowser()
     openDeepWoods()
-    fireEvent.click(screen.getByRole('button', { name: /^Wolf Den/ }))
+    fireEvent.click(screen.getByRole('button', { name: /^Wolfscar Hollow/ }))
     fireEvent.click(screen.getByRole('button', { name: 'Fight selected target' }))
     fireEvent.click(screen.getByRole('button', { name: 'Expand' }))
     fireEvent.click(screen.getByRole('button', { name: 'Return to World Map' }))
@@ -151,7 +157,7 @@ describe('combat world atlas browser', () => {
     act(unlockBanditCamp)
     clickAtlas('Open Old Road')
     fireEvent.click(screen.getByRole('button', { name: /^Bandit Camp/ }))
-    expect(useGameStore.getState().activeCombatLocationId).toBe('location.wolf-den')
+    expect(useGameStore.getState().activeCombatLocationId).toBe('location.wolfscar-hollow')
     fireEvent.click(screen.getByRole('button', { name: 'Switch to selected target' }))
     expect(useGameStore.getState().activeCombatLocationId).toBe('location.bandit-camp')
     expect(screen.getByRole('button', { name: 'Expand' })).toHaveAttribute('aria-expanded', 'false')

@@ -45,7 +45,7 @@ describe("debug catalogue presentation", () => {
     const nodes = buildCollectionGrouping();
     expect(nodes.reduce((sum, node) => sum + collectionNodeCount(node), 0)).toBe(enemyById["enemy.grey-wolf"] ? 8 : 0);
     expect(findWorldNode(nodes, "Greenvale")?.children.some((region) => region.label === "Northwood")).toBe(true);
-    expect(findWorldNode(nodes, "Wolf Den")?.enemies.some((entry) => entry.enemy.name === "Grey Wolf")).toBe(true);
+    expect(findWorldNode(nodes, "Wolfscar Hollow")?.enemies.some((entry) => entry.enemy.name === "Grey Wolf")).toBe(true);
     expect(findWorldNode(nodes, "Bandit Camp")?.enemies.some((entry) => entry.enemy.family === "Bandits")).toBe(true);
   });
 
@@ -66,10 +66,10 @@ describe("debug catalogue presentation", () => {
     expect(itemTooltip.title).toBe("Vanguard Plate");
     expect(itemTooltip.description).toContain("heavy torso");
     expect(itemTooltip.rows?.map((row) => row.label)).toEqual(expect.arrayContaining(["Quantity", "Hunter Rank", "Max Life", "Life Regen", "Armour"]));
-    const enemyTooltip = buildEnemyDefinitionTooltip(enemyById["enemy.grey-wolf"], { defeats: 3, sourceLocations: ["Wolf Den"] });
+    const enemyTooltip = buildEnemyDefinitionTooltip(enemyById["enemy.grey-wolf"], { defeats: 3, sourceLocations: ["Wolfscar Hollow"] });
     expect(enemyTooltip.title).toBe("Grey Wolf");
     expect(enemyTooltip.rows?.map((row) => row.label)).toEqual(expect.arrayContaining(["Family", "Max Life", "Attack Damage", "Accuracy Rating", "Armour", "Evasion Rating"]));
-    expect(enemyTooltip.notes?.join(" ")).toContain("Wolf Den");
+    expect(enemyTooltip.notes?.join(" ")).toContain("Wolfscar Hollow");
     const spell = spellDefinitions.find((entry) => entry.name === "Flame Blast")!;
     const spellTooltip = buildSpellTooltip(spell);
     expect(spellTooltip.description).toContain("Ignite");

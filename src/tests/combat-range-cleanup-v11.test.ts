@@ -72,7 +72,7 @@ describe("Combat Rework 1.1 explicit damage ranges", () => {
     expect(itemById["item.training-sword"].stats).toMatchObject({ baseDamageMin: 24, baseDamageMax: 32 });
     expect(itemById["item.hunter-sword"].stats).toMatchObject({ baseDamageMin: 29, baseDamageMax: 39 });
     expect(itemById["item.vanguard-sword"].stats).toMatchObject({ baseDamageMin: 34, baseDamageMax: 46 });
-    expect(formatDamageRange(24, 32)).toBe("24–32");
+    expect(formatDamageRange(24, 32)).toBe("24-32");
     expect((itemById["item.training-sword"].stats!.baseDamageMin! + itemById["item.training-sword"].stats!.baseDamageMax!) / 2).toBe(28);
     expect((itemById["item.hunter-sword"].stats!.baseDamageMin! + itemById["item.hunter-sword"].stats!.baseDamageMax!) / 2).toBe(34);
     expect((itemById["item.vanguard-sword"].stats!.baseDamageMin! + itemById["item.vanguard-sword"].stats!.baseDamageMax!) / 2).toBe(40);
@@ -87,14 +87,14 @@ describe("Combat Rework 1.1 explicit damage ranges", () => {
 describe("Combat Rework 1.1 range presentation and cleanup", () => {
   it("combines item damage endpoints into one player-facing row", () => {
     const rows = formatItemStats(itemById["item.training-sword"].stats!);
-    expect(rows).toEqual(expect.arrayContaining([{ label: "Physical Damage", value: "24–32", tone: "gold" }]));
+    expect(rows).toEqual(expect.arrayContaining([{ label: "Physical Damage", value: "24-32", tone: "gold" }]));
     expect(rows.some((row) => row.label === "Base Damage Min" || row.label === "Base Damage Max")).toBe(false);
     expect(buildItemTooltip(itemById["item.training-sword"]).rows?.filter((row) => row.label === "Physical Damage")).toHaveLength(1);
   });
 
   it("uses damage type and range in spell and enemy tooltips", () => {
     const spell = buildSpellTooltip(spellById["spell.flame-blast"]);
-    expect(spell.rows).toEqual(expect.arrayContaining([{ label: "Fire Damage", value: "30–40", tone: "red" }]));
+    expect(spell.rows).toEqual(expect.arrayContaining([{ label: "Fire Damage", value: "30-40", tone: "red" }]));
     expect(buildSpellTooltip(spellById["spell.lightning-pulse"]).rows?.some((row) => row.label.endsWith("Damage"))).toBe(true);
     const enemy = buildEnemyDefinitionTooltip(enemyById["enemy.grey-wolf"]);
     expect(enemy.rows?.find((row) => row.label === "Attack Damage")?.value).toBe(formatDamageRange(enemyById["enemy.grey-wolf"].baseAttackDamageMin, enemyById["enemy.grey-wolf"].baseAttackDamageMax));

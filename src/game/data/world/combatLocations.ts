@@ -11,40 +11,40 @@ const hollowBellTargets = ['enemy.temple-shade', 'enemy.whispering-spirit', 'ene
 
 // Arena rank requirements and loot rates are provisional until progression and
 // economy values are authored. [TUNING]
-const deepWoodsArena = (location: Omit<CombatLocationDefinition, 'areaId' | 'availability' | 'requiredHunterRank'>): CombatLocationDefinition => ({
+const deepWoodsArena = (requiredHunterRank: number, location: Omit<CombatLocationDefinition, 'areaId' | 'availability' | 'requiredHunterRank'>): CombatLocationDefinition => ({
   ...location,
   areaId: 'area.deep-woods',
   availability: 'available',
-  requiredHunterRank: 1,
+  requiredHunterRank,
 })
 
 export const combatLocationDefinitions = deepFreeze<CombatLocationDefinition[]>([
-  deepWoodsArena({
+  deepWoodsArena(1, {
     id: 'location.wolfscar-hollow', name: 'Wolfscar Hollow', description: 'A wolf territory carved into the deepest hunting trails.', familyId: 'family.wolves', presentation: { accent: 'green', iconKey: 'target' },
     targets: wolfscarTargets.map((enemyId) => ({ enemyId })),
     sharedLoot: deepWoodsSharedLoot.wolfscarHollow(wolfscarTargets),
   }),
-  deepWoodsArena({
+  deepWoodsArena(1, {
     id: 'location.ironback-riverbed', name: 'Ironback Riverbed', description: 'A mineral-rich riverbed occupied by heavily armoured crabs.', familyId: 'family.ironback-crabs', presentation: { accent: 'blue', iconKey: 'mountain' },
     targets: ironbackTargets.map((enemyId) => ({ enemyId })),
     sharedLoot: deepWoodsSharedLoot.ironbackRiverbed(ironbackTargets),
   }),
-  deepWoodsArena({
+  deepWoodsArena(2, {
     id: 'location.fallen-watch-ruins', name: 'Fallen Watch Ruins', description: 'A ruined watchpost occupied by scavengers and deserters.', familyId: 'family.fallen-watch', presentation: { accent: 'gold', iconKey: 'shield' },
     targets: fallenWatchTargets.map((enemyId) => ({ enemyId })),
     sharedLoot: deepWoodsSharedLoot.fallenWatchRuins(fallenWatchTargets),
   }),
-  deepWoodsArena({
+  deepWoodsArena(3, {
     id: 'location.blackroot-cemetery', name: 'Blackroot Cemetery', description: 'An old cemetery where the dead no longer stay buried.', familyId: 'family.undead', presentation: { accent: 'red', iconKey: 'target' },
     targets: blackrootTargets.map((enemyId) => ({ enemyId })),
     sharedLoot: deepWoodsSharedLoot.blackrootCemetery(blackrootTargets),
   }),
-  deepWoodsArena({
+  deepWoodsArena(5, {
     id: 'location.blighted-grove', name: 'Blighted Grove', description: 'A corrupted woodland overtaken by warped beasts and living roots.', familyId: 'family.blighted', presentation: { accent: 'green', iconKey: 'trees' },
     targets: blightedTargets.map((enemyId) => ({ enemyId })),
     sharedLoot: deepWoodsSharedLoot.blightedGrove(blightedTargets),
   }),
-  deepWoodsArena({
+  deepWoodsArena(8, {
     id: 'location.hollow-bell-temple', name: 'Hollow Bell Temple', description: 'An abandoned temple inhabited by shades, spirits and wraiths.', familyId: 'family.dark-spirits', presentation: { accent: 'blue', iconKey: 'shield' },
     targets: hollowBellTargets.map((enemyId) => ({ enemyId })),
     sharedLoot: deepWoodsSharedLoot.hollowBellTemple(hollowBellTargets),

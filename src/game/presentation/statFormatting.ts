@@ -63,7 +63,7 @@ export function formatCompactDecimal(value: number, maxDecimals = 2) {
 export function formatDamageRange(min: number, max: number, maxDecimals = 1) {
   const low = formatCompactDecimal(min, maxDecimals)
   const high = formatCompactDecimal(max, maxDecimals)
-  return min === max ? low : `${low}–${high}`
+  return min === max ? low : `${low}-${high}`
 }
 
 export function damageTypeLabel(damageType: DamageType) { return DAMAGE_TYPE_LABELS[damageType] }

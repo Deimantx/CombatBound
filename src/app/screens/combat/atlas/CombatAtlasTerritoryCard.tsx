@@ -45,7 +45,7 @@ export function CombatAtlasTerritoryCard({ node, details, selected, dimmed, hunt
   }
   const label = details.available ? `Open ${details.name}` : `${status} ${details.name}`
 
-  return <GameTooltip content={{ id: `atlas:${node.sourceId}`, icon: 'map', title: details.name, subtitle: `${node.kind === 'continent' ? 'CONTINENT' : 'REGION'} · ${status}`, description: details.description }}>
+  return <GameTooltip content={{ id: `atlas:${node.sourceId}`, icon: 'map', title: details.name, subtitle: `${node.kind === 'continent' ? 'CONTINENT' : 'REGION'} - ${status}`, description: details.description }}>
     <button
       type="button"
       className={`combat-atlas-territory ${selected ? 'is-selected' : ''} ${dimmed ? 'is-dimmed' : ''} ${huntPath ? 'is-hunt-path' : ''} ${activating ? 'is-activating' : ''} ${!details.available ? 'is-locked' : ''}`}
@@ -76,7 +76,7 @@ export function CombatAtlasTerritoryCard({ node, details, selected, dimmed, hunt
           {huntPath && <span className="combat-atlas-hunt-path-label"><i />HUNT</span>}
           {!details.available
             ? <span className="combat-atlas-territory-status"><Lock size={11} aria-hidden="true" />{status}</span>
-            : <span className="combat-atlas-enter">ENTER →</span>}
+            : <span className="combat-atlas-enter">ENTER -&gt;</span>}
         </span>
       </span>
     </button>

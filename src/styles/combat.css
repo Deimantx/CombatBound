@@ -220,6 +220,8 @@
 .combat-atlas-arena-label strong { font-size: 11px; letter-spacing: .13em; }
 .combat-atlas-arena-label em { align-items: center; color: rgba(var(--atlas-accent-rgb), .95); display: flex; font-size: 7px; font-style: normal; font-weight: 800; gap: 3px; justify-content: center; letter-spacing: .14em; }
 .combat-atlas-arena.is-locked .combat-atlas-arena-label em { color: var(--muted); }
+.combat-atlas-arena-label em.is-rank-met { color: var(--gold); }
+.combat-atlas-arena-label em.is-rank-locked { color: var(--red); }
 
 .combat-world-collapsed-summary { align-items: center; display: flex; gap: 18px; }
 .combat-world-collapsed-summary > div { display: flex; flex: 1; flex-direction: column; gap: 2px; min-width: 0; }
@@ -240,6 +242,8 @@
 .location-meta-grid div { display: flex; flex-direction: column; gap: 3px; }
 .location-meta-grid span { color: var(--muted); font-size: 8px; letter-spacing: .08em; }
 .location-meta-grid strong { font-size: 11px; }
+.location-meta-grid strong.is-rank-met { color: var(--gold); }
+.location-meta-grid strong.is-rank-locked { color: var(--red); }
 .location-pool { display: flex; flex-direction: column; gap: 6px; }
 .location-pool > div { display: grid; gap: 8px; grid-template-columns: repeat(2, minmax(0, 1fr)); }
 .location-target-card { appearance: none; align-items: center; background: linear-gradient(160deg, rgba(26,34,41,.94), rgba(13,18,24,.98)); border: 1px solid rgba(148,163,184,.16); border-radius: 10px; color: var(--text); cursor: pointer; display: grid; font: inherit; gap: 8px; grid-template-columns: auto minmax(0,1fr); min-width: 0; padding: 9px 10px; text-align: left; transition: background .18s ease, border-color .18s ease, box-shadow .18s ease, transform .18s ease; }

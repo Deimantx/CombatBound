@@ -5,14 +5,15 @@ import { nextCombatRandom } from "./combatRng";
 import { applyPlayerHealthDamage } from "./combatHealth";
 import { applyEffectToGame, applyEffectToGameResult, applyPlayerSuccessfulBlockHooks } from "./combatEffectRuntime";
 import { combatBalance } from "./combatBalance";
-import { enemyCombatAbilityConditionMatches, selectNextEnemyCombatAbility, tickEnemyCombatAbilityCooldowns, getEnemyPhaseSequence } from "../enemyAbilities/enemyAbilityRuntime";
+import { enemyCombatAbilityConditionMatches, getEnemyCombatAbilityFullCooldown, normalizeEnemyAbilityCooldowns, selectNextEnemyCombatAbility, tickEnemyCombatAbilityCooldowns, getEnemyPhaseSequence } from "../enemyAbilities/enemyAbilityRuntime";
 import type { EnemyCombatAbilityDefinition, EnemyCombatAbilityDamageMechanic, EnemyCombatAbilityApplyEffectMechanic, EnemyCombatAbilityResolution } from "../enemyAbilities/enemyAbilityTypes";
 import type { GameState } from "../gameState";
 import type { CombatContext, CombatantRef, CombatState, EnemyCombatInstance } from "./combatTypes";
 import type { HunterCombatStats } from "../equipment/derivedStats";
 import type { DefensiveTrainingEvent } from "../equipment/defensiveEquipment";
 import type { CombatProficiencyId, ProgressionCredit } from "../progression/progressionTypes";
-import { consumeEnemyNormalAttackEmpowerment, getEnemyCombatAbilityCooldownMultiplier, getEnemyCombatAbilityCooldownReduction, getEnemyCombatAbilityDamageMultiplier, getEnemyTraitOutgoingDamageMultiplier, prepareEnemyNormalAttack, processEnemyTraitEvent, reduceEnemyCombatAbilityCooldowns } from "../enemyTraits/enemyTraitRuntime";
+import { consumeEnemyNormalAttackEmpowerment, getEnemyCombatAbilityCooldownReduction, getEnemyCombatAbilityDamageMultiplier, getEnemyTraitOutgoingDamageMultiplier, prepareEnemyNormalAttack, processEnemyTraitEvent, reduceEnemyCombatAbilityCooldowns } from "../enemyTraits/enemyTraitRuntime";
+import { isCombatantStunned } from "./combatCrowdControl";
 
 type BarrierAbsorption = { effectId: string; amount: number; progressionCredit?: ProgressionCredit };
 
@@ -62,7 +63,8 @@ export function enterEnemyPhase(game: GameState, enemyId: string, phaseId: strin
   const phase = getEnemyPhaseSequence(context.enemies[enemy.enemyId] ?? {}).find((candidate) => candidate.phaseId === phaseId);
   if (!phase) return game;
   const source: CombatantRef = { kind: "enemy", instanceId: enemyId };
-  let next: GameState = { ...game, combat: { ...game.combat, enemy: { ...enemy, phaseId: phase.phaseId, phaseStatModifiers: phase.statModifiers ?? [] } } };
+  const definition = context.enemies[enemy.enemyId];
+  let next: GameState = { ...game, combat: { ...game.combat, enemy: { ...enemy, phaseId: phase.phaseId, phaseStatModifiers: phase.statModifiers ?? [], abilityCooldowns: definition ? normalizeEnemyAbilityCooldowns({ ...enemy, phaseId: phase.phaseId }, definition, context) : enemy.abilityCooldowns } } };
   next.combat = event(next.combat, { text: `${enemy.displayName} enters ${phase.phaseId}.`, type: "enemy", eventType: "enemyPhaseChanged", source, target: source, data: { phaseId: phase.phaseId } });
   next = processEnemyTraitEvent(next, enemyId, "enemy-phase-entered", { phaseId: phase.phaseId }, context);
   for (const effectId of phase.onEnterEffectIds ?? []) next = applyEffectToGame(next, effectId, source, source, context);
@@ -142,7 +144,7 @@ export function resolveEnemyCombatAbilityResult(game: GameState, enemyId: string
   resolution.effectsApplied = [...new Set(resolution.effectsApplied)];
   const target = next.combat.enemy?.instanceId === enemyId ? next.combat.enemy : current;
   const used = (target.abilityRuntime?.usedThisFight?.[ability.id] ?? 0) + 1;
-  next = { ...next, combat: { ...next.combat, enemy: { ...target, abilityCooldowns: { ...(target.abilityCooldowns ?? {}), [ability.id]: Math.max(0, ability.cooldownSeconds * getEnemyCombatAbilityCooldownMultiplier(target, ability.id, context.enemies, context.enemyTraits)) }, abilityRuntime: { ...(target.abilityRuntime ?? { usedThisFight: {} }), usedThisFight: { ...(target.abilityRuntime?.usedThisFight ?? {}), [ability.id]: used } }, preparedAbility: null } } };
+  next = { ...next, combat: { ...next.combat, enemy: { ...target, attackTimer: Math.max(combatBalance.minimumAttackInterval, target.attackInterval), abilityCooldowns: { ...(target.abilityCooldowns ?? {}), [ability.id]: getEnemyCombatAbilityFullCooldown(target, ability, context) }, abilityRuntime: { ...(target.abilityRuntime ?? { usedThisFight: {} }), usedThisFight: { ...(target.abilityRuntime?.usedThisFight ?? {}), [ability.id]: used } }, preparedAbility: null } } };
   next = processEnemyTraitEvent(next, enemyId, "enemy-combat-ability-resolved", { abilityId: ability.id, successful: resolution.successfulHits > 0, actualDamage: resolution.hpDamageDealt }, context);
   if (resolution.successfulHits > 0) next = { ...next, combat: reduceEnemyCombatAbilityCooldowns(next.combat, enemyId, getEnemyCombatAbilityCooldownReduction(target, "ability-hit", context.enemies, context.enemyTraits), ability.id) };
   next = dependencies.resolveDefensiveTrainingForCombatEvent(next, { source: "enemy-combat-ability", resolved: true }, context.items);
@@ -154,40 +156,10 @@ export function resolveEnemyCombatAbility(game: GameState, enemyId: string, abil
   return resolveEnemyCombatAbilityResult(game, enemyId, ability, context, stats, dependencies).game;
 }
 
-export function advanceEnemyCombatAbilities(game: GameState, step: number, context: CombatContext, stats: HunterCombatStats, dependencies: EnemyRuntimeDependencies): GameState {
-  let next = tickEnemyCombatAbilityCooldowns(game, step);
-  const enemy = next.combat.enemy;
-  if (!enemy || enemy.defeated) return next;
-  const definition = context.enemies[enemy.enemyId];
-  if (!definition) return next;
-  const phases = getEnemyPhaseSequence(definition);
-  const currentPhaseIndex = enemy.phaseId ? phases.findIndex((candidate) => candidate.phaseId === enemy.phaseId) : -1;
-  const desiredPhaseIndex = phases.reduce((deepest, candidate, index) => enemy.currentHealth / Math.max(1, enemy.maxHealth) <= candidate.hpThreshold ? index : deepest, -1);
-  if (desiredPhaseIndex > currentPhaseIndex) {
-    next = enterEnemyPhase(next, enemy.instanceId, phases[desiredPhaseIndex].phaseId, context);
-  }
-  const current = next.combat.enemy;
-  if (!current || current.defeated) return next;
-  if (current.preparedAbility) {
-    const prepared = { ...current.preparedAbility, remainingSeconds: current.preparedAbility.remainingSeconds - step };
-    if (prepared.remainingSeconds > 0) return { ...next, combat: { ...next.combat, enemy: { ...current, preparedAbility: prepared } } };
-    const ability = context.enemyCombatAbilities?.[prepared.abilityId];
-    return ability ? resolveEnemyCombatAbility({ ...next, combat: { ...next.combat, enemy: { ...current, preparedAbility: prepared } } }, current.instanceId, ability, context, stats, dependencies) : { ...next, combat: { ...next.combat, enemy: { ...current, preparedAbility: null } } };
-  }
-  const ability = selectNextEnemyCombatAbility(current, definition, next, context);
-  if (!ability) return next;
-  const source: CombatantRef = { kind: "enemy", instanceId: current.instanceId };
-  const preparation = Math.max(0, ability.preparationSeconds);
-  if (preparation <= 0) return resolveEnemyCombatAbility(next, current.instanceId, ability, context, stats, dependencies);
-  return { ...next, combat: event({ ...next.combat, enemy: { ...current, preparedAbility: { abilityId: ability.id, remainingSeconds: preparation, totalSeconds: preparation, source, target: abilityTarget(source, ability.target), startedSequence: next.combat.eventSequence + 1 } } }, { text: `${current.displayName} begins preparing ${ability.name}.`, type: "enemy", eventType: "enemyAbilityPreparationStarted", source, target: abilityTarget(source, ability.target), data: { abilityId: ability.id, preparationSeconds: preparation } }) };
-}
-
-export function advanceEnemyNormalAttacks(game: GameState, step: number, context: CombatContext, stats: HunterCombatStats, dependencies: EnemyRuntimeDependencies): GameState {
+function resolveEnemyNormalAttack(game: GameState, context: CombatContext, stats: HunterCombatStats, dependencies: EnemyRuntimeDependencies): GameState {
   const current = game.combat.enemy;
   if (!current || current.defeated) return game;
-  const updatedTimer = current.attackTimer - step;
-  let combat: CombatState = { ...game.combat, enemy: { ...current, attackTimer: updatedTimer } };
-  if (updatedTimer > 0) return { ...game, combat };
+  let combat: CombatState = game.combat;
   const playerStats = getPlayerStats(combat, stats, context, game.progression);
   const source: CombatantRef = { kind: "enemy", instanceId: current.instanceId };
   const packet: DamagePacket = { ...componentFromAttack("physical", 1, true), sourceCategory: "melee", source, target: { kind: "player" }, defensiveEligibility: { canMiss: true, canBeEvaded: true, blockable: true } };
@@ -216,4 +188,121 @@ export function advanceEnemyNormalAttacks(game: GameState, step: number, context
     next.combat = event({ ...defeated, enemy: null, recoveryRemaining: 0 }, { text: `Defeated by ${current.displayName}.`, type: "system", eventType: "combatantDefeated", target: { kind: "player" } });
   }
   return next;
+}
+
+function resolveEnemyPlayerDefeat(game: GameState, displayName: string, context: CombatContext) {
+  if (game.combat.playerHp > 0) return game;
+  const defeated = clearEndedHuntEffects({ ...game.combat, phase: "defeat", stopReason: "defeat", enemy: game.combat.enemy ? { ...game.combat.enemy, preparedAbility: null } : null }, context.effects);
+  return { ...game, combat: event({ ...defeated, enemy: null, recoveryRemaining: 0 }, { text: `Defeated by ${displayName}.`, type: "system", eventType: "combatantDefeated", target: { kind: "player" } }) };
+}
+
+function startEnemyAbilityPreparation(game: GameState, enemy: EnemyCombatInstance, ability: EnemyCombatAbilityDefinition) {
+  const source: CombatantRef = { kind: "enemy", instanceId: enemy.instanceId };
+  const preparation = Math.max(0, ability.preparationSeconds);
+  return {
+    ...game,
+    combat: event(
+      {
+        ...game.combat,
+        enemy: {
+          ...enemy,
+          attackTimer: Math.max(combatBalance.minimumAttackInterval, enemy.attackInterval),
+          preparedAbility: { abilityId: ability.id, remainingSeconds: preparation, totalSeconds: preparation, source, target: abilityTarget(source, ability.target), startedSequence: game.combat.eventSequence + 1 },
+        },
+      },
+      { text: `${enemy.displayName} begins preparing ${ability.name}.`, type: "enemy", eventType: "enemyAbilityPreparationStarted", source, target: abilityTarget(source, ability.target), data: { abilityId: ability.id, preparationSeconds: preparation } },
+    ),
+  };
+}
+
+/**
+ * Advances the enemy's single action lane. Cooldowns are background state;
+ * Basic and Special actions never progress concurrently.
+ */
+export function advanceEnemyActions(game: GameState, step: number, context: CombatContext, stats: HunterCombatStats, dependencies: EnemyRuntimeDependencies): GameState {
+  const rawEnemy = game.combat.enemy;
+  const rawDefinition = rawEnemy ? context.enemies[rawEnemy.enemyId] : undefined;
+  const normalizedGame = rawEnemy && rawDefinition
+    ? { ...game, combat: { ...game.combat, enemy: { ...rawEnemy, abilityCooldowns: normalizeEnemyAbilityCooldowns(rawEnemy, rawDefinition, context) } } }
+    : game;
+  let next = tickEnemyCombatAbilityCooldowns(normalizedGame, Math.max(0, step));
+  const initialEnemy = next.combat.enemy;
+  if (!initialEnemy || initialEnemy.defeated) return next;
+  const definition = context.enemies[initialEnemy.enemyId];
+  if (!definition) return next;
+
+  const phases = getEnemyPhaseSequence(definition);
+  const currentPhaseIndex = initialEnemy.phaseId ? phases.findIndex((candidate) => candidate.phaseId === initialEnemy.phaseId) : -1;
+  const desiredPhaseIndex = phases.reduce((deepest, candidate, index) => initialEnemy.currentHealth / Math.max(1, initialEnemy.maxHealth) <= candidate.hpThreshold ? index : deepest, -1);
+  if (desiredPhaseIndex > currentPhaseIndex) next = enterEnemyPhase(next, initialEnemy.instanceId, phases[desiredPhaseIndex].phaseId, context);
+
+  let remaining = Math.max(0, Number.isFinite(step) ? step : 0);
+  let iterations = 0;
+  let zeroTimeSpecials = 0;
+  while (remaining > 0.000001 && iterations < 256) {
+    iterations += 1;
+    const current = next.combat.enemy;
+    if (!current || current.defeated || next.combat.phase !== "active") return next;
+    const attackInterval = Math.max(combatBalance.minimumAttackInterval, current.attackInterval);
+
+    if (current.preparedAbility) {
+      const prepared = { ...current.preparedAbility, remainingSeconds: Math.max(0, current.preparedAbility.remainingSeconds) };
+      const consumed = Math.min(remaining, prepared.remainingSeconds);
+      remaining -= consumed;
+      const updated = { ...prepared, remainingSeconds: prepared.remainingSeconds - consumed };
+      if (updated.remainingSeconds > 0.000001) {
+        return { ...next, combat: { ...next.combat, enemy: { ...current, attackTimer: attackInterval, preparedAbility: updated } } };
+      }
+      const ability = context.enemyCombatAbilities?.[updated.abilityId];
+      if (!ability) {
+        next = { ...next, combat: { ...next.combat, enemy: { ...current, attackTimer: attackInterval, preparedAbility: null } } };
+        continue;
+      }
+      if (prepared.remainingSeconds <= 0.000001) zeroTimeSpecials += 1;
+      next = resolveEnemyCombatAbility({ ...next, combat: { ...next.combat, enemy: { ...current, attackTimer: attackInterval, preparedAbility: updated } } }, current.instanceId, ability, context, stats, dependencies);
+      next = resolveEnemyPlayerDefeat(next, current.displayName, context);
+      continue;
+    }
+
+    if (isCombatantStunned(current.effects, context.effects)) {
+      return { ...next, combat: { ...next.combat, enemy: { ...current, attackTimer: attackInterval } } };
+    }
+
+    const atActionBoundary = current.attackTimer >= attackInterval - 0.000001;
+    if (atActionBoundary && zeroTimeSpecials === 0) {
+      const ability = selectNextEnemyCombatAbility(current, definition, next, context);
+      if (ability) {
+        const preparation = Math.max(0, ability.preparationSeconds);
+        if (preparation <= 0) {
+          zeroTimeSpecials += 1;
+          next = resolveEnemyCombatAbility(next, current.instanceId, ability, context, stats, dependencies);
+          next = resolveEnemyPlayerDefeat(next, current.displayName, context);
+          continue;
+        }
+        next = startEnemyAbilityPreparation(next, current, ability);
+        continue;
+      }
+    }
+
+    const timer = Math.max(0, Math.min(attackInterval, current.attackTimer));
+    const consumed = Math.min(remaining, timer);
+    remaining -= consumed;
+    const updatedTimer = timer - consumed;
+    if (updatedTimer > 0.000001) {
+      return { ...next, combat: { ...next.combat, enemy: { ...current, attackTimer: updatedTimer } } };
+    }
+    next = resolveEnemyNormalAttack({ ...next, combat: { ...next.combat, enemy: { ...current, attackTimer: 0 } } }, context, stats, dependencies);
+    if (next.combat.phase !== "active" || next.combat.playerHp <= 0) return next;
+  }
+  return next;
+}
+
+/** @deprecated Use advanceEnemyActions so Basic and Special share one action lane. */
+export function advanceEnemyCombatAbilities(game: GameState, step: number, context: CombatContext, stats: HunterCombatStats, dependencies: EnemyRuntimeDependencies) {
+  return advanceEnemyActions(game, step, context, stats, dependencies);
+}
+
+/** @deprecated Use advanceEnemyActions so Basic and Special share one action lane. */
+export function advanceEnemyNormalAttacks(game: GameState, step: number, context: CombatContext, stats: HunterCombatStats, dependencies: EnemyRuntimeDependencies) {
+  return advanceEnemyActions(game, step, context, stats, dependencies);
 }

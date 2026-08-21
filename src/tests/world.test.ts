@@ -30,7 +30,7 @@ describe('combat world hierarchy', () => {
   it('defaults to the first available destination and exposes four-level breadcrumbs', () => {
     const selection = getDefaultWorldSelection()
     expect(isCombatLocationAvailable(selection.combatLocationId, 4)).toBe(true)
-    expect(worldBreadcrumb(selection).split(' · ')).toHaveLength(4)
-    expect(locationParentBreadcrumb(selection.combatLocationId).split(' · ')).toHaveLength(3)
+    expect(worldBreadcrumb(selection).split(' - ')).toHaveLength(4)
+    expect(locationParentBreadcrumb(selection.combatLocationId).split(' - ')).toHaveLength(3)
   })
 })

@@ -6,6 +6,13 @@ import type {
   EnemyAbilityRuntimeState,
 } from "./enemyAbilityTypes";
 import { nextCombatRandom } from "../combat/combatRng";
+import { getEnemyCombatAbilityCooldownMultiplier } from "../enemyTraits/enemyTraitRuntime";
+
+type EnemyCombatAbilitySourceDefinition = {
+  combatAbilityIds?: readonly string[];
+  phases?: readonly { phaseId: string; combatAbilityIds?: readonly string[] }[];
+  enemyTier: string;
+};
 
 export function createEnemyAbilityRuntimeState(): EnemyAbilityRuntimeState {
   return { usedThisFight: {} };
@@ -53,12 +60,38 @@ export function enemyCombatAbilityConditionMatches(condition: EnemyCombatAbility
   return conditionMatches(condition, enemy, game, context);
 }
 
-export function getEnemyCombatAbilities(definition: { combatAbilityIds?: readonly string[]; enemyTier: string }, context: CombatContext): EnemyCombatAbilityDefinition[] {
+function getEnemyCombatAbilityIds(definition: EnemyCombatAbilitySourceDefinition, phaseId?: string | null) {
+  const phaseAbilityIds = phaseId ? definition.phases?.find((phase) => phase.phaseId === phaseId)?.combatAbilityIds ?? [] : [];
+  return [...(definition.combatAbilityIds ?? []), ...phaseAbilityIds];
+}
+
+export function getEnemyCombatAbilities(definition: EnemyCombatAbilitySourceDefinition, context: CombatContext, phaseId?: string | null): EnemyCombatAbilityDefinition[] {
   const catalogue = context.enemyCombatAbilities;
-  return (definition.combatAbilityIds ?? []).flatMap((id) => {
+  return getEnemyCombatAbilityIds(definition, phaseId).flatMap((id) => {
     const ability = catalogue?.[id as keyof NonNullable<CombatContext["enemyCombatAbilities"]>];
     return ability && !ability.draft && ability.allowedEnemyTiers.includes(definition.enemyTier as never) ? [ability] : [];
   });
+}
+
+export function getEnemyCombatAbilityFullCooldown(enemy: EnemyCombatInstance, ability: EnemyCombatAbilityDefinition, context: CombatContext) {
+  return Math.max(0, ability.cooldownSeconds * getEnemyCombatAbilityCooldownMultiplier(enemy, ability.id, context.enemies, context.enemyTraits));
+}
+
+export function initializeEnemyAbilityCooldowns(enemy: EnemyCombatInstance, definition: EnemyCombatAbilitySourceDefinition, context: CombatContext) {
+  return Object.fromEntries(
+    getEnemyCombatAbilities(definition, context, enemy.phaseId).map((ability) => [ability.id, getEnemyCombatAbilityFullCooldown(enemy, ability, context)]),
+  );
+}
+
+export function normalizeEnemyAbilityCooldowns(enemy: EnemyCombatInstance, definition: EnemyCombatAbilitySourceDefinition, context: CombatContext) {
+  const existing = enemy.abilityCooldowns ?? {};
+  return Object.fromEntries(
+    getEnemyCombatAbilities(definition, context, enemy.phaseId).map((ability) => {
+      const fullCooldown = getEnemyCombatAbilityFullCooldown(enemy, ability, context);
+      const value = existing[ability.id];
+      return [ability.id, Number.isFinite(value) ? Math.min(fullCooldown, Math.max(0, value)) : fullCooldown];
+    }),
+  );
 }
 
 export function isEnemyCombatAbilityEligible(
@@ -76,8 +109,8 @@ export function isEnemyCombatAbilityEligible(
   return (ability.conditions ?? []).every((condition) => conditionMatches(condition, enemy, game, context, ability.id));
 }
 
-export function selectNextEnemyCombatAbility(enemy: EnemyCombatInstance, definition: { combatAbilityIds?: readonly string[]; enemyTier: string }, game: GameState, context: CombatContext): EnemyCombatAbilityDefinition | null {
-  const available = getEnemyCombatAbilities(definition, context).filter((ability) => isEnemyCombatAbilityEligible(enemy, ability, game, context));
+export function selectNextEnemyCombatAbility(enemy: EnemyCombatInstance, definition: EnemyCombatAbilitySourceDefinition, game: GameState, context: CombatContext): EnemyCombatAbilityDefinition | null {
+  const available = getEnemyCombatAbilities(definition, context, enemy.phaseId).filter((ability) => isEnemyCombatAbilityEligible(enemy, ability, game, context));
   if (available.length === 0) return null;
   const totalWeight = available.reduce((sum, ability) => sum + Math.max(0, ability.weight ?? 1), 0);
   if (totalWeight <= 0) return available[0];

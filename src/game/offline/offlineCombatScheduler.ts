@@ -6,6 +6,7 @@ import type { CombatContext, EnemyCombatInstance } from "../combat/combatTypes";
 import type { HunterCombatStats } from "../equipment/derivedStats";
 import { getEnemyCombatAbilities, isEnemyCombatAbilityEligible } from "../enemyAbilities/enemyAbilityRuntime";
 import type { AutomationCondition } from "../automation/automationTypes";
+import { isCombatantStunned } from "../combat/combatCrowdControl";
 
 export const OFFLINE_COMBAT_TIME_QUANTUM_SECONDS = 0.1;
 export const OFFLINE_COMBAT_TICKS_PER_SECOND = 10;
@@ -133,15 +134,20 @@ export function enemyAbilityReady(
   if (enemy.preparedAbility) return enemy.preparedAbility.remainingSeconds <= 0;
   const definition = context.enemies[enemy.enemyId];
   if (!definition) return false;
-  return getEnemyCombatAbilities(definition, context).some((ability) => isEnemyCombatAbilityEligible(enemy, ability, game, context));
+  return getEnemyCombatAbilities(definition, context, enemy.phaseId).some((ability) => isEnemyCombatAbilityEligible(enemy, ability, game, context));
 }
 
-function enemyBoundary(enemy: EnemyCombatInstance): number {
+function enemyBoundary(enemy: EnemyCombatInstance, context: CombatContext): number {
   if (enemy.defeated) return Number.POSITIVE_INFINITY;
+  const effects = effectBoundary(enemy.effects);
+  if (isCombatantStunned(enemy.effects, context.effects)) return effects;
+  if (enemy.preparedAbility) return Math.min(effects, timerBoundary(enemy.preparedAbility.remainingSeconds));
+  const attackInterval = Math.max(0.000001, enemy.attackInterval);
+  const basicIsActive = enemy.attackTimer < attackInterval - QUANTUM_EPSILON;
   let boundary = timerBoundary(enemy.attackTimer);
-  if (enemy.preparedAbility) boundary = Math.min(boundary, timerBoundary(enemy.preparedAbility.remainingSeconds));
+  if (basicIsActive) return Math.min(boundary, effects);
   for (const remaining of Object.values(enemy.abilityCooldowns ?? {})) boundary = Math.min(boundary, cooldownBoundary(remaining));
-  return Math.min(boundary, effectBoundary(enemy.effects));
+  return Math.min(boundary, effects);
 }
 
 function automationResourceBoundary(game: GameState, stats: HunterCombatStats, context: CombatContext): number {
@@ -193,8 +199,12 @@ export function getNextOfflineCombatBoundary(
   if (staminaRate < 0) boundary = Math.min(boundary, timerBoundary(combat.stamina / -staminaRate));
   const enemy = combat.enemy;
   if (enemy) {
-    boundary = Math.min(boundary, enemyBoundary(enemy));
-    if (enemyAbilityReady(enemy, game, context)) boundary = Math.min(boundary, OFFLINE_COMBAT_TIME_QUANTUM_SECONDS);
+    boundary = Math.min(boundary, enemyBoundary(enemy, context));
+    const attackInterval = Math.max(0.000001, enemy.attackInterval);
+    const actionBoundary = enemy.preparedAbility
+      ? enemy.preparedAbility.remainingSeconds <= QUANTUM_EPSILON
+      : enemy.attackTimer >= attackInterval - QUANTUM_EPSILON;
+    if (actionBoundary && !isCombatantStunned(enemy.effects, context.effects) && enemyAbilityReady(enemy, game, context)) boundary = Math.min(boundary, OFFLINE_COMBAT_TIME_QUANTUM_SECONDS);
   }
 
   // Automation is checked by the canonical step at every live quantum. If it

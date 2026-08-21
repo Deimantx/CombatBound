@@ -53,11 +53,11 @@ export function isCombatLocationAvailable(locationId: string, hunterRank: number
 }
 
 export function worldBreadcrumb(selection: WorldSelection) {
-  return [continentById[selection.continentId]?.name, regionById[selection.regionId]?.name, areaById[selection.areaId]?.name, combatLocationById[selection.combatLocationId]?.name].filter(Boolean).join(' · ')
+  return [continentById[selection.continentId]?.name, regionById[selection.regionId]?.name, areaById[selection.areaId]?.name, combatLocationById[selection.combatLocationId]?.name].filter(Boolean).join(' - ')
 }
 
 export function locationBreadcrumb(locationId: string) { return worldBreadcrumb(selectionForLocation(locationId)) }
 export function locationParentBreadcrumb(locationId: string) {
   const selection = selectionForLocation(locationId)
-  return [continentById[selection.continentId]?.name, regionById[selection.regionId]?.name, areaById[selection.areaId]?.name].filter(Boolean).join(' · ')
+  return [continentById[selection.continentId]?.name, regionById[selection.regionId]?.name, areaById[selection.areaId]?.name].filter(Boolean).join(' - ')
 }

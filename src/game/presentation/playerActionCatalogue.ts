@@ -74,7 +74,7 @@ function resourceLabel(action: PlayerActionDefinition) {
     (action.resourceCost?.mana ?? 0) > 0 ? `${action.resourceCost?.mana} Mana` : "",
     (action.resourceCost?.stamina ?? 0) > 0 ? `${action.resourceCost?.stamina} Stamina` : "",
   ].filter(Boolean);
-  return costs.join(" · ");
+  return costs.join(" - ");
 }
 
 export function getPlayerActionGroupingMetadata(
@@ -155,7 +155,7 @@ export function buildPlayerActionCatalogue(
     const cost = resourceLabel(action);
     const subgroupLabel = grouping.subgroupLabel;
     const subtitle = options.getSubtitle?.(action, grouping) ??
-      `${subgroupLabel ?? grouping.rootLabel}${cost ? ` · ${cost}` : ""}`.trim();
+      `${subgroupLabel ?? grouping.rootLabel}${cost ? ` - ${cost}` : ""}`.trim();
     const metadataKeywords = [
       action.id,
       action.name,

@@ -10,7 +10,7 @@ export function PlayerAttackTimeline({ phase, timer, interval, selectedEnemy, ma
   return <div className="player-attack-progress" data-debug-kind="player-attack">
     <div className="player-attack-heading"><span><Swords size={11} /> YOUR ATTACK</span><strong>{phase === "active" ? combatTimerLabel(timer, interval) : phase === "recovery" ? "Paused during recovery" : "Waiting for target"}</strong></div>
     <ProgressBar value={phase === "active" ? progress.value : 0} variant="attack" className={`player-attack-bar ${progress.isResetting ? "is-attack-resetting" : ""}`} ariaLabel="Player attack progress" />
-    <small>{selectedEnemy && !selectedEnemy.defeated ? `Target: ${selectedEnemy.displayName} · Hit ${matchup ? formatPercent(matchup.playerHitChance) : "—"} · Crit ${matchup ? formatPercent(matchup.playerCritChance) : formatPercent(stats.criticalStrikeChance ?? 0)}` : "Select an enemy target"}</small>
+    <small>{selectedEnemy && !selectedEnemy.defeated ? `Target: ${selectedEnemy.displayName} - Hit ${matchup ? formatPercent(matchup.playerHitChance) : "-"} - Crit ${matchup ? formatPercent(matchup.playerCritChance) : formatPercent(stats.criticalStrikeChance ?? 0)}` : "Select an enemy target"}</small>
     {matchup && <div className="combat-matchup-quick" data-debug-kind="combat-matchup-quick"><span>YOUR HIT <strong>{formatPercent(matchup.playerHitChance)}</strong></span><span>THEIR HIT <strong>{formatPercent(matchup.enemyHitChance)}</strong></span></div>}
     {selectedEnemy && <span className="sr-only"><ProgressBar value={(selectedEnemy.currentHealth / selectedEnemy.maxHealth) * 100} variant="health" ariaLabel={`Selected target ${selectedEnemy.displayName} health`} /></span>}
   </div>;

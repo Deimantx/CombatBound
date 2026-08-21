@@ -12,6 +12,7 @@ export interface CombatLocationPresentation {
   enemies: Array<EnemyPresentation & { enemy: NonNullable<EnemyPresentation['enemy']> }>
   sharedLootNames: string[]
   recommendedHunterRankLabel: string
+  requiredHunterRankLabel: string
   targetCountLabel: string
 }
 
@@ -48,12 +49,13 @@ export function combatLocationPresentation(location: CombatLocationDefinition): 
     familyName: enemyFamilyById[location.familyId]?.name ?? 'Unknown Family',
     enemies: location.targets.map((entry) => enemyPresentation(entry.enemyId)).filter((entry): entry is EnemyPresentation & { enemy: NonNullable<EnemyPresentation['enemy']> } => Boolean(entry.enemy)),
     sharedLootNames: location.sharedLoot?.map((drop) => `${itemById[drop.itemId]?.name ?? 'Unknown Item'} - ${formatPercent(drop.chance)}`) ?? [],
-    recommendedHunterRankLabel: location.recommendedHunterRank ? `Hunter Rank ${location.recommendedHunterRank[0]}–${location.recommendedHunterRank[1]}` : `Required Hunter Rank ${location.requiredHunterRank}`,
+    recommendedHunterRankLabel: location.recommendedHunterRank ? `Hunter Rank ${location.recommendedHunterRank[0]}-${location.recommendedHunterRank[1]}` : `Hunter Rank ${location.requiredHunterRank}`,
+    requiredHunterRankLabel: `Hunter Rank ${location.requiredHunterRank}`,
     targetCountLabel: `${location.targets.length} target${location.targets.length === 1 ? '' : 's'}`,
   }
 }
 
-export function combatArenaTooltipModel(locationId: string, status: string, active: boolean, selected: boolean): TooltipModel {
+export function combatArenaTooltipModel(locationId: string, status: string, active: boolean, selected: boolean, rankMet?: boolean): TooltipModel {
   const location = combatLocationById[locationId]
   if (!location) {
     return {
@@ -71,10 +73,10 @@ export function combatArenaTooltipModel(locationId: string, status: string, acti
     id: `combat-arena:${location.id}`,
     icon: 'target',
     title: location.name,
-    subtitle: `${presentation.familyName} · ${status}`,
+    subtitle: `${presentation.familyName} - ${status}`,
     tone: active ? 'green' : selected ? 'gold' : 'default',
     description: location.description,
-    rows: [{ label: location.recommendedHunterRank ? 'Recommended' : 'Required', value: presentation.recommendedHunterRankLabel, tone: 'gold' }],
+    rows: [{ label: 'RANK REQUIRED', value: presentation.requiredHunterRankLabel, tone: rankMet === false ? 'red' : 'gold' }],
     sections: [{ id: 'possible-enemies', title: 'POSSIBLE ENEMIES', notes: presentation.enemies.map((enemy) => enemy.name) }],
   }
 }
