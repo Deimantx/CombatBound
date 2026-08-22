@@ -54,6 +54,7 @@ export function validateItemUpgradeTrees(
         const material = itemById[cost.itemId];
         if (!material) errors.push(`${nodeId} has unknown cost item ${cost.itemId}`);
         else if (material.inventoryMode !== "stackable") errors.push(`${nodeId} cost item ${cost.itemId} is not stackable`);
+        else if (material.purpose !== "crafting") errors.push(`${nodeId} cost item ${cost.itemId} is not a crafting-purpose material`);
         if (!Number.isInteger(cost.quantity) || cost.quantity <= 0) errors.push(`${nodeId} has invalid cost quantity for ${cost.itemId}`);
         if (magicCrystalPattern.test(cost.itemId)) errors.push(`${nodeId} cannot use Magic Crystals as a cost`);
       }

@@ -1,6 +1,15 @@
 import { deepFreeze } from "../freeze";
 import type { ItemUpgradeBranchDefinition, ItemUpgradeNodeDefinition, ItemUpgradeTreeDefinition } from "../../items/itemUpgradeTypes";
 import { ironMeleeBranches, ironMeleeNodes, ironMeleeTreeDefinitions } from "./ironMeleeUpgradeTrees";
+import { ironHelmetUpgradeBranches, ironHelmetUpgradeNodes, ironHelmetUpgradeTree } from "./upgradeTrees/ironHelmetUpgradeTree";
+import { ironArmorUpgradeBranches, ironArmorUpgradeNodes, ironArmorUpgradeTree } from "./upgradeTrees/ironArmorUpgradeTree";
+import { ironGlovesUpgradeBranches, ironGlovesUpgradeNodes, ironGlovesUpgradeTree } from "./upgradeTrees/ironGlovesUpgradeTree";
+import { ironBootsUpgradeBranches, ironBootsUpgradeNodes, ironBootsUpgradeTree } from "./upgradeTrees/ironBootsUpgradeTree";
+import { ironShieldUpgradeBranches, ironShieldUpgradeNodes, ironShieldUpgradeTree } from "./upgradeTrees/ironShieldUpgradeTree";
+
+export const ironDefensiveTreeDefinitions = [ironHelmetUpgradeTree, ironArmorUpgradeTree, ironGlovesUpgradeTree, ironBootsUpgradeTree, ironShieldUpgradeTree];
+export const ironDefensiveBranches = [...ironHelmetUpgradeBranches, ...ironArmorUpgradeBranches, ...ironGlovesUpgradeBranches, ...ironBootsUpgradeBranches, ...ironShieldUpgradeBranches];
+export const ironDefensiveNodes = [...ironHelmetUpgradeNodes, ...ironArmorUpgradeNodes, ...ironGlovesUpgradeNodes, ...ironBootsUpgradeNodes, ...ironShieldUpgradeNodes];
 
 const treeId = "upgrade-tree.iron-sword";
 export const ironSwordUpgradeBranches = deepFreeze<ItemUpgradeBranchDefinition[]>([
@@ -67,7 +76,7 @@ export const ironSwordUpgradeTree: ItemUpgradeTreeDefinition = deepFreeze({
   nodeIds: ironSwordUpgradeNodes.map((entry) => entry.id),
 });
 
-export const itemUpgradeTreeDefinitions = deepFreeze<ItemUpgradeTreeDefinition[]>([ironSwordUpgradeTree, ...ironMeleeTreeDefinitions]);
+export const itemUpgradeTreeDefinitions = deepFreeze<ItemUpgradeTreeDefinition[]>([ironSwordUpgradeTree, ...ironMeleeTreeDefinitions, ...ironDefensiveTreeDefinitions]);
 export const itemUpgradeTreeById = Object.fromEntries(itemUpgradeTreeDefinitions.map((tree) => [tree.id, tree]));
-export const itemUpgradeNodeById = Object.fromEntries([...ironSwordUpgradeNodes, ...ironMeleeNodes].map((nodeDefinition) => [nodeDefinition.id, nodeDefinition]));
-export const itemUpgradeBranchById = Object.fromEntries([...ironSwordUpgradeBranches, ...ironMeleeBranches].map((branch) => [branch.id, branch]));
+export const itemUpgradeNodeById = Object.fromEntries([...ironSwordUpgradeNodes, ...ironMeleeNodes, ...ironDefensiveNodes].map((nodeDefinition) => [nodeDefinition.id, nodeDefinition]));
+export const itemUpgradeBranchById = Object.fromEntries([...ironSwordUpgradeBranches, ...ironMeleeBranches, ...ironDefensiveBranches].map((branch) => [branch.id, branch]));

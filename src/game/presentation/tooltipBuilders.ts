@@ -100,8 +100,9 @@ export function buildItemTooltip(
         tone: "red",
       });
   }
-  if (item.weaponProficiencyId && item.requiredProficiencyLevel !== undefined) {
-    rows.unshift({ label: "Weapon Proficiency", value: `${proficiencyById[item.weaponProficiencyId]?.name ?? item.weaponProficiencyId} Level ${item.requiredProficiencyLevel}`, tone: "gold" as TooltipTone });
+  const proficiencyId = item.weaponProficiencyId ?? item.defensiveProficiencyId;
+  if (proficiencyId && item.requiredProficiencyLevel !== undefined) {
+    rows.unshift({ label: item.weaponProficiencyId ? "Weapon Proficiency" : "Defensive Proficiency", value: `${proficiencyById[proficiencyId]?.name ?? proficiencyId} Level ${item.requiredProficiencyLevel}`, tone: "gold" as TooltipTone });
   }
   if (item.weaponFamilyId) rows.unshift({ label: "Weapon Family", value: `${item.weaponFamilyId[0].toUpperCase()}${item.weaponFamilyId.slice(1)}`, tone: "blue" as TooltipTone });
   if (item.weaponArchetypeId) rows.unshift({ label: "Weapon Archetype", value: weaponArchetypeById[item.weaponArchetypeId]?.name ?? item.weaponArchetypeId, tone: "blue" as TooltipTone });
@@ -174,7 +175,7 @@ export function buildPlayerItemInstanceTooltip(
     ? [{ label: "Equipped", value: options.equippedSlot ? getEquipmentSlotDefinition(options.equippedSlot).label : resolved.definition.equipmentSlotKind ? equipmentSlotKindLabel(resolved.definition.equipmentSlotKind) : "Currently equipped", tone: "green" }]
     : [];
   const allBaseRows = [...equippedRows, ...(tooltip.rows ?? [])];
-  const requirementRows = allBaseRows.filter((row) => row.label === "Hunter Rank" || row.label === "Availability" || row.label === "Weapon Proficiency" || row.label === "Equipped");
+  const requirementRows = allBaseRows.filter((row) => row.label === "Hunter Rank" || row.label === "Availability" || row.label === "Weapon Proficiency" || row.label === "Defensive Proficiency" || row.label === "Equipped");
   const statRows = allBaseRows.filter((row) => !requirementRows.includes(row));
   const sections = [
     requirementRows.length ? { id: "requirements", title: "Requirements / State", rows: requirementRows } : undefined,

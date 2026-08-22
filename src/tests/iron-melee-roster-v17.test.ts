@@ -19,8 +19,8 @@ describe("Iron melee roster and V17 foundation", () => {
   it("authors the complete eight-weapon roster and 96-node tree set", () => {
     const ids = ["sword", "axe", "mace", "dagger", "greatsword", "great-axe", "warhammer", "spear"];
     expect(ids.map((family) => itemById[`item.iron-${family}`]?.weaponFamilyId)).toEqual(ids);
-    expect(itemUpgradeTreeDefinitions).toHaveLength(8);
-    expect(itemUpgradeTreeDefinitions.reduce((count, tree) => count + tree.nodeIds.length, 0)).toBe(96);
+    expect(itemUpgradeTreeDefinitions).toHaveLength(13);
+    expect(itemUpgradeTreeDefinitions.reduce((count, tree) => count + tree.nodeIds.length, 0)).toBe(156);
     expect(itemUpgradeTreeDefinitions.every((tree) => tree.branchIds.length === 3 && tree.nodeIds.length === 12)).toBe(true);
   });
 

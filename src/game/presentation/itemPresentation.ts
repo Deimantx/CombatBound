@@ -20,6 +20,7 @@ export interface ItemPresentation {
   slotLabel?: string;
   hunterRankRequirement?: number;
   proficiencyId?: string;
+  proficiencyKind?: "weapon" | "defensive";
   requiredProficiencyLevel?: number;
   materialTier?: string;
   weaponFamily?: string;
@@ -44,7 +45,7 @@ function formatEffect(target: string, operation: string, value: number) {
 export function buildItemInstanceSearchText(resolved: ResolvedItemInstance) {
   const { definition } = resolved;
   const archetype = definition.weaponArchetypeId ? definition.weaponArchetypeId.replace("weapon-archetype.", "") : "";
-  return [definition.id, definition.name, definition.description, definition.category, definition.rarity, definition.equipmentSlotKind ?? "", definition.weaponProficiencyId ?? "", definition.weaponFamilyId ?? "", archetype, definition.materialTierId ?? ""].join(" ").toLowerCase();
+  return [definition.id, definition.name, definition.description, definition.category, definition.rarity, definition.equipmentSlotKind ?? "", definition.weaponProficiencyId ?? "", definition.defensiveProficiencyId ?? "", definition.weaponFamilyId ?? "", archetype, definition.materialTierId ?? ""].join(" ").toLowerCase();
 }
 
 export function itemModifierDisplays(resolved: ResolvedItemInstance): ItemModifierDisplay[] {
@@ -65,7 +66,8 @@ export function buildItemPresentation(resolved: ResolvedItemInstance, options: {
     typeLabel: definition.category[0].toUpperCase() + definition.category.slice(1),
     slotLabel: definition.equipmentSlotKind ? equipmentSlotKindLabel(definition.equipmentSlotKind) : undefined,
     hunterRankRequirement: definition.requiredHunterRank,
-    proficiencyId: definition.weaponProficiencyId,
+    proficiencyId: definition.weaponProficiencyId ?? definition.defensiveProficiencyId,
+    proficiencyKind: definition.weaponProficiencyId ? "weapon" : definition.defensiveProficiencyId ? "defensive" : undefined,
     requiredProficiencyLevel: definition.requiredProficiencyLevel,
     materialTier: definition.materialTierId ? `${definition.materialTierId[0].toUpperCase()}${definition.materialTierId.slice(1)}` : undefined,
     weaponFamily: definition.weaponFamilyId ? weaponFamilyLabels[definition.weaponFamilyId] : undefined,

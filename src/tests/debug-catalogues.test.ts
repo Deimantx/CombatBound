@@ -34,7 +34,7 @@ describe("debug catalogue presentation", () => {
     expect(nodes.reduce((sum, node) => sum + nodeItemCount(node), 0)).toBe(itemDefinitions.length);
     expect(findNode(nodes, "debug.items.equipment.weapons.one-handed.one-handed-swords")?.items.map((item) => item.name)).toEqual(["Iron Sword"]);
     expect(findNode(nodes, "debug.items.equipment.weapons.one-handed.one-handed-swords")?.items.every((item) => item.inventoryMode === "instance")).toBe(true);
-    expect(findNode(nodes, "debug.items.equipment.offhands.shields")?.items ?? []).toHaveLength(0);
+    expect(findNode(nodes, "debug.items.equipment.offhands.shields")?.items ?? []).toHaveLength(1);
     expect(itemSearchText(itemDefinitions.find((item) => item.name === "Iron Sword")!)).toContain("iron sword");
   });
 

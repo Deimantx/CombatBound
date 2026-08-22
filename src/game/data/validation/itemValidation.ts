@@ -32,6 +32,8 @@ export function validateItemDefinition(item: ItemDefinition): ItemValidationResu
     errors.push(`${item.id}: requiredHunterRank must be an integer >= 1`);
   if (item.equipmentSlotKind && item.stats === undefined)
     warnings.push(`${item.id}: equipment item has no stats`);
+  if (item.weaponProficiencyId && item.defensiveProficiencyId)
+    errors.push(`${item.id}: an item cannot define both weapon and defensive proficiency requirements`);
   if (item.lootContainerId && item.inventoryMode !== "stackable")
     errors.push(`${item.id}: loot containers must be stackable`);
   if (item.lootContainerId && item.purpose !== "loot-container")

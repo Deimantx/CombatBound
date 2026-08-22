@@ -6,6 +6,7 @@ import type { LootContainerId } from "../loot/lootTypes";
 import type { WeaponArchetypeId, WeaponFamilyId } from "./gear/weaponArchetypes";
 import type { ItemUpgradeTreeId } from "../items/itemUpgradeTypes";
 import { deepWoodsItemDefinitions } from "./deepWoodsItems";
+import { ironDefensiveGearDefinitions } from "./gear/ironDefensiveGear";
 
 export type ItemCategory = "weapon" | "armor" | "accessory" | "material" | "consumable" | "currency";
 export type ItemRarity = "common" | "uncommon" | "rare";
@@ -44,6 +45,7 @@ const authoredItemDefinitions: ItemDefinition[] = [
     upgradeTreeId: "upgrade-tree.iron-sword",
     stats: { baseDamageMin: 24, baseDamageMax: 32, baseAttackTime: 2.35, accuracyRating: 8, criticalStrikeChance: 0.02, blockChance: 0.02 },
   },
+  ...ironDefensiveGearDefinitions,
   {
     id: "item.iron-axe", name: "Iron Axe", category: "weapon", rarity: "common",
     description: "An aggressive iron war axe. Successful attacks Wound the target and build Momentum, while weakened enemies become easier to finish.",

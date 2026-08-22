@@ -414,7 +414,14 @@ export function debugGrantIronMeleeRoster(game: GameState): GameState {
   return next;
 }
 
-export function debugGrantSelectedWeaponMaterials(game: GameState, itemId: string): GameState {
+export function debugGrantIronDefensiveSet(game: GameState): GameState {
+  const roster = ["item.iron-helmet", "item.iron-armor", "item.iron-gloves", "item.iron-boots", "item.iron-shield"];
+  let next = game;
+  for (const itemId of roster) next = debugGrantItem(next, itemId, 1);
+  return next;
+}
+
+export function debugGrantSelectedGearMaterials(game: GameState, itemId: string): GameState {
   const treeId = itemById[itemId]?.upgradeTreeId;
   const tree = treeId ? itemUpgradeTreeById[treeId] : undefined;
   if (!tree) return game;
@@ -424,6 +431,9 @@ export function debugGrantSelectedWeaponMaterials(game: GameState, itemId: strin
   for (const [materialId, quantity] of materialQuantities) inventory = grantItem(inventory, materialId, quantity).inventory;
   return { ...game, inventory };
 }
+
+/** @deprecated Use debugGrantSelectedGearMaterials for any item tree. */
+export const debugGrantSelectedWeaponMaterials = debugGrantSelectedGearMaterials;
 
 export function debugResetItemUpgrades(game: GameState, instanceId: string): GameState {
   const instance = game.inventory.instances[instanceId];

@@ -7,6 +7,11 @@ import type { ProgressionState } from "../progression/progressionTypes";
 import { getProficiencyLevelForState } from "../progression/proficiencyProgression";
 import { discoverProficiency } from "../progression/proficiencyProgression";
 import { isTwoHandedWeapon } from "../data/gear/weaponArchetypes";
+import { getItemProficiencyRequirement, itemDefinesConflictingProficiencies } from "./itemProficiency";
+import type { CombatProficiencyId } from "../progression/progressionTypes";
+
+export { getItemProficiencyRequirement } from "./itemProficiency";
+export type { ItemProficiencyRequirement } from "./itemProficiency";
 import {
   EQUIPMENT_SLOT_DEFINITIONS,
   type EquipmentSlotId,
@@ -22,13 +27,15 @@ export type EquipmentChangeFailureReason =
   | "invalid-instance"
   | "wrong-slot-kind"
   | "hunter-rank"
+  | "invalid-proficiency-requirement"
   | "proficiency-level"
   | "two-handed-conflict";
 
 export interface EquipmentChangeValidation {
   valid: boolean;
   reason?: EquipmentChangeFailureReason;
-  proficiencyId?: string;
+  proficiencyId?: CombatProficiencyId;
+  proficiencyKind?: "weapon" | "defensive";
   requiredLevel?: number;
   currentLevel?: number;
   willDiscoverProficiency?: boolean;
@@ -62,6 +69,7 @@ export function validateEquipmentChange({
   const definition = itemById[instance.definitionId];
   if (!definition) return { valid: false, reason: "unknown-definition" };
   if (definition.inventoryMode !== "instance") return { valid: false, reason: "invalid-instance" };
+  if (itemDefinesConflictingProficiencies(definition)) return { valid: false, reason: "invalid-proficiency-requirement" };
   if (!canEquipItemToSlot(definition, slotId)) return { valid: false, reason: "wrong-slot-kind" };
   if (slotId === "offhand" && equipment.slots.weapon) {
     const weapon = getItemInstance(inventory, equipment.slots.weapon);
@@ -70,12 +78,13 @@ export function validateEquipmentChange({
   }
   if (!ignoreRequirements && definition.requiredHunterRank !== undefined && Math.max(0, Math.floor(hunterRank)) < definition.requiredHunterRank)
     return { valid: false, reason: "hunter-rank" };
-  if (!ignoreRequirements && definition.weaponProficiencyId && definition.requiredProficiencyLevel !== undefined) {
-    const currentLevel = progression ? getProficiencyLevelForState(progression, definition.weaponProficiencyId) : 0;
-    if (currentLevel < definition.requiredProficiencyLevel) {
-      const canDiscoverBaseWeapon = definition.category === "weapon" && definition.materialTierId === "iron" && definition.requiredProficiencyLevel === 1 && currentLevel === 0;
-      if (canDiscoverBaseWeapon) return { valid: true, proficiencyId: definition.weaponProficiencyId, requiredLevel: definition.requiredProficiencyLevel, currentLevel, willDiscoverProficiency: true };
-      return { valid: false, reason: "proficiency-level", proficiencyId: definition.weaponProficiencyId, requiredLevel: definition.requiredProficiencyLevel, currentLevel };
+  const requirement = getItemProficiencyRequirement(definition);
+  if (!ignoreRequirements && requirement && requirement.requiredLevel > 0) {
+    const currentLevel = progression ? getProficiencyLevelForState(progression, requirement.proficiencyId) : 0;
+    if (currentLevel < requirement.requiredLevel) {
+      const canDiscoverBaseProficiency = definition.materialTierId === "iron" && requirement.requiredLevel === 1 && currentLevel === 0;
+      if (canDiscoverBaseProficiency) return { valid: true, proficiencyId: requirement.proficiencyId, proficiencyKind: requirement.kind, requiredLevel: requirement.requiredLevel, currentLevel, willDiscoverProficiency: true };
+      return { valid: false, reason: "proficiency-level", proficiencyId: requirement.proficiencyId, proficiencyKind: requirement.kind, requiredLevel: requirement.requiredLevel, currentLevel };
     }
   }
   return { valid: true };
@@ -116,7 +125,7 @@ export function equipItemInstance({
     equipment: { slots: nextSlots },
     validation,
     progression: validation.willDiscoverProficiency && progression && validation.proficiencyId
-      ? discoverProficiency(progression, validation.proficiencyId as never)
+      ? discoverProficiency(progression, validation.proficiencyId)
       : progression,
   };
 }
