@@ -1,5 +1,6 @@
 import { deepFreeze } from "../freeze";
 import type { ItemUpgradeBranchDefinition, ItemUpgradeNodeDefinition, ItemUpgradeTreeDefinition } from "../../items/itemUpgradeTypes";
+import { ironMeleeBranches, ironMeleeNodes, ironMeleeTreeDefinitions } from "./ironMeleeUpgradeTrees";
 
 const treeId = "upgrade-tree.iron-sword";
 export const ironSwordUpgradeBranches = deepFreeze<ItemUpgradeBranchDefinition[]>([
@@ -66,7 +67,7 @@ export const ironSwordUpgradeTree: ItemUpgradeTreeDefinition = deepFreeze({
   nodeIds: ironSwordUpgradeNodes.map((entry) => entry.id),
 });
 
-export const itemUpgradeTreeDefinitions = deepFreeze<ItemUpgradeTreeDefinition[]>([ironSwordUpgradeTree]);
+export const itemUpgradeTreeDefinitions = deepFreeze<ItemUpgradeTreeDefinition[]>([ironSwordUpgradeTree, ...ironMeleeTreeDefinitions]);
 export const itemUpgradeTreeById = Object.fromEntries(itemUpgradeTreeDefinitions.map((tree) => [tree.id, tree]));
-export const itemUpgradeNodeById = Object.fromEntries(ironSwordUpgradeNodes.map((nodeDefinition) => [nodeDefinition.id, nodeDefinition]));
-export const itemUpgradeBranchById = Object.fromEntries(ironSwordUpgradeBranches.map((branch) => [branch.id, branch]));
+export const itemUpgradeNodeById = Object.fromEntries([...ironSwordUpgradeNodes, ...ironMeleeNodes].map((nodeDefinition) => [nodeDefinition.id, nodeDefinition]));
+export const itemUpgradeBranchById = Object.fromEntries([...ironSwordUpgradeBranches, ...ironMeleeBranches].map((branch) => [branch.id, branch]));

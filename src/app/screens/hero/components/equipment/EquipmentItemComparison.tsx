@@ -10,7 +10,7 @@ import type { ResolvedItemInstance } from "../../../../../game/items/itemTypes";
 import { proficiencyById } from "../../../../../game/data/proficiencies";
 import { buildItemPresentation } from "../../../../../game/presentation/itemPresentation";
 
-export function EquipmentItemComparison({ slotLabel, current, candidate, itemRows, buildRows, combatLocked, hunterRankLocked, proficiencyLocked, proficiencyId, requiredProficiencyLevel, actionLabel, canEquip, onEquip }: {
+export function EquipmentItemComparison({ slotLabel, current, candidate, itemRows, buildRows, combatLocked, hunterRankLocked, proficiencyLocked, proficiencyId, requiredProficiencyLevel, actionLabel, canEquip, validationReason, willDiscoverProficiency, onEquip }: {
   slotLabel: string;
   current: ResolvedItemInstance | null;
   candidate?: ResolvedItemInstance;
@@ -23,6 +23,8 @@ export function EquipmentItemComparison({ slotLabel, current, candidate, itemRow
   requiredProficiencyLevel?: number;
   actionLabel: string;
   canEquip: boolean;
+  validationReason?: string;
+  willDiscoverProficiency?: boolean;
   onEquip: () => void;
 }) {
   const modifierRows = buildEquipmentItemModifierRows(current ?? undefined, candidate);
@@ -41,6 +43,8 @@ export function EquipmentItemComparison({ slotLabel, current, candidate, itemRow
         {combatLocked && <p className="equipment-action-note"><LockKeyhole size={14} />Equipment changes are locked during combat. Preview remains available.</p>}
         {!combatLocked && hunterRankLocked && <p className="equipment-action-note is-hunter-rank"><LockKeyhole size={14} />Requires Hunter Rank {candidate.definition.requiredHunterRank}.</p>}
         {!combatLocked && proficiencyLocked && <p className="equipment-action-note is-proficiency"><LockKeyhole size={14} />Requires {proficiencyById[proficiencyId ?? ""]?.name ?? proficiencyId ?? "weapon proficiency"} Level {requiredProficiencyLevel}.</p>}
+        {!combatLocked && validationReason === "two-handed-conflict" && <p className="equipment-action-note is-proficiency"><LockKeyhole size={14} />Unequip your two-handed weapon first.</p>}
+        {!combatLocked && willDiscoverProficiency && <p className="equipment-action-note">Unlocks {proficiencyById[proficiencyId ?? ""]?.name ?? proficiencyId ?? "weapon proficiency"} at Level 1 on first equip.</p>}
         <button type="button" className="button button-primary" onClick={onEquip} disabled={!canEquip} data-debug-action="equip-preview">{actionLabel}</button>
       </div>
     </>}

@@ -38,7 +38,7 @@ import type {
 import type { CombatProficiencyId, ProgressionCredit } from "../progression/progressionTypes";
 import { getEnemyTraitCriticalDamageResistance, getEnemyTraitIncomingDamageMultiplier, getEnemyTraitReflectionFraction, processEnemyTraitEvent, applyEnemyTraitHealthTriggers } from "../enemyTraits/enemyTraitRuntime";
 import { getPlayerHealingReceivedMultiplier } from "./combatHealing";
-import { consumeRiposteForBasicAttempt, observeBasicWeaponResult } from "../weapons/weaponMechanicRuntime";
+import { consumeRiposteForBasicAttempt, equippedWeaponMechanic, observeBasicWeaponResult, prepareBasicWeaponAttempt } from "../weapons/weaponMechanicRuntime";
 
 type BarrierAbsorption = {
   effectId: string;
@@ -87,6 +87,41 @@ export function damageEnemy(
   }> = [],
   dependencies: PlayerDamageRuntimeDependencies,
 ) {
+  const preparedWeaponAttempt = prepareBasicWeaponAttempt(game, packet);
+  game = preparedWeaponAttempt.game;
+  packet = preparedWeaponAttempt.packet;
+  const equippedMechanic = packet.sourceActionId === "basic.weapon-attack" ? equippedWeaponMechanic(game) : null;
+  const flurry = equippedMechanic?.parameters.mechanics["weapon-mechanic.dagger-flurry"];
+  const comboStacks = game.combat.weaponRuntime.counters["weapon-mechanic.dagger-combo"] ?? 0;
+  if (flurry && !packet.weaponSubHit && comboStacks >= (flurry.threshold ?? 5)) {
+    let next: GameState = {
+      ...game,
+      combat: {
+        ...game.combat,
+        weaponRuntime: {
+          ...game.combat.weaponRuntime,
+          counters: { ...game.combat.weaponRuntime.counters, "weapon-mechanic.dagger-combo": 0 },
+        },
+      },
+    };
+    let successful = false;
+    for (let index = 0; index < Math.max(1, Math.floor(flurry.hitCount ?? 2)); index += 1) {
+      if (!next.combat.enemy || next.combat.enemy.defeated) break;
+      const beforeEvent = next.combat.eventSequence;
+      next = damageEnemy(next, next.combat.enemy, { ...packet, weaponSubHit: true, damageMultiplier: (packet.damageMultiplier ?? 1) * (flurry.hitDamageMultiplier ?? 0.65) }, attackerStats, context, `${prefix} with Flurry`, effectsToApply, dependencies);
+      successful = successful || next.combat.events.some((entry) => entry.id > beforeEvent && entry.type !== "attackEvaded");
+    }
+    return {
+      ...next,
+      combat: {
+        ...next.combat,
+        weaponRuntime: {
+          ...next.combat.weaponRuntime,
+          counters: { ...next.combat.weaponRuntime.counters, "weapon-mechanic.dagger-combo": successful ? 1 : 0 },
+        },
+      },
+    };
+  }
   const riposteAttempt = consumeRiposteForBasicAttempt(game, packet);
   game = riposteAttempt.game;
   packet = riposteAttempt.packet;
@@ -122,8 +157,8 @@ export function damageEnemy(
     perkById,
     equipmentContext,
   );
-  const armorPenetrationPercent = weaponAttack.armorPenetrationPercent;
-  const armorPenetrationFlat = weaponAttack.armorPenetrationFlat;
+  const armorPenetrationPercent = (packet.armorPenetrationPercent ?? 0) + weaponAttack.armorPenetrationPercent;
+  const armorPenetrationFlat = (packet.armorPenetrationFlat ?? 0) + weaponAttack.armorPenetrationFlat;
   let resolution = resolveDamageWithEffectModifiers(
     {
       ...packet,
@@ -175,7 +210,7 @@ export function damageEnemy(
     ...game,
     combat: damageApplication.combat,
   };
-  next = observeBasicWeaponResult(next, packet, resolution, riposteAttempt.consumed);
+  next = observeBasicWeaponResult(next, packet, resolution, riposteAttempt.consumed, preparedWeaponAttempt.attempt);
   next.combat = applyEnemyTraitHealthTriggers(next.combat, current.instanceId, current.currentHealth, context);
   let progressionResults: Array<ReturnType<typeof awardProficiencyXp>> = [];
   if (proficiencyId && effectiveHealthDamage > 0) {

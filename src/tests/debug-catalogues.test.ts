@@ -61,7 +61,7 @@ describe("debug catalogue presentation", () => {
     const item = itemDefinitions.find((entry) => entry.name === "Iron Sword")!;
     const itemTooltip = buildItemTooltip(item, { quantity: 2, hunterRank: 10, equipped: true });
     expect(itemTooltip.title).toBe("Iron Sword");
-    expect(itemTooltip.description).toContain("fixed-authored");
+    expect(itemTooltip.description).toContain("reliable iron longsword");
     expect(itemTooltip.rows?.map((row) => row.label)).toEqual(expect.arrayContaining(["Quantity", "Hunter Rank", "Physical Damage", "Weapon Base Attack Time"]));
     const enemyTooltip = buildEnemyDefinitionTooltip(enemyById["enemy.grey-wolf"], { defeats: 3, sourceLocations: ["Wolfscar Hollow"] });
     expect(enemyTooltip.title).toBe("Grey Wolf");

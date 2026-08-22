@@ -25,6 +25,7 @@ export interface DamagePacket extends DamageComponent {
   incomingDamageMultiplier?: number;
   criticalDamageResistance?: number;
   targetBlockEffectMultiplier?: number;
+  weaponSubHit?: boolean;
 }
 
 export interface DamageResolution {

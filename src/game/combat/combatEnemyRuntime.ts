@@ -14,6 +14,7 @@ import type { DefensiveTrainingEvent } from "../equipment/defensiveEquipment";
 import type { CombatProficiencyId, ProgressionCredit } from "../progression/progressionTypes";
 import { consumeEnemyNormalAttackEmpowerment, getEnemyCombatAbilityCooldownReduction, getEnemyCombatAbilityDamageMultiplier, getEnemyTraitOutgoingDamageMultiplier, prepareEnemyNormalAttack, processEnemyTraitEvent, reduceEnemyCombatAbilityCooldowns } from "../enemyTraits/enemyTraitRuntime";
 import { isCombatantStunned } from "./combatCrowdControl";
+import { observeSuccessfulPlayerEvade } from "../weapons/weaponMechanicRuntime";
 
 type BarrierAbsorption = { effectId: string; amount: number; progressionCredit?: ProgressionCredit };
 
@@ -104,6 +105,7 @@ function resolveEnemyAbilityDamageHit(game: GameState, enemyId: string, ability:
   const playerDamage = applyPlayerHealthDamage(next.combat, resolved.healthDamage, context);
   next = { ...next, combat: { ...playerDamage.combat, lastDamageSource: enemy.displayName } };
   if (result.blocked) next = applyPlayerSuccessfulBlockHooks(next, context);
+  if (result.outcome === "evaded") next = observeSuccessfulPlayerEvade(next);
   if (playerDamage.appliedDamage > 0) next = processEnemyTraitEvent(next, enemyId, "enemy-damage-dealt", { abilityId: ability.id, actualDamage: playerDamage.appliedDamage, successful: true }, context);
   return { game: next, outcome: result.outcome, hpDamage: playerDamage.appliedDamage, barrierAbsorbed: resolved.barrierAbsorbed, blocked: result.blocked };
 }
@@ -180,7 +182,10 @@ function resolveEnemyNormalAttack(game: GameState, context: CombatContext, stats
     if (playerDamage.appliedDamage > 0) next = processEnemyTraitEvent(next, current.instanceId, "enemy-damage-dealt", { actualDamage: playerDamage.appliedDamage, successful: true }, context);
     next.combat = consumeEnemyNormalAttackEmpowerment(next.combat, current.instanceId);
     next.combat = reduceEnemyCombatAbilityCooldowns(next.combat, current.instanceId, getEnemyCombatAbilityCooldownReduction(current, "normal-hit", context.enemies, context.enemyTraits));
-  } else if (resolved.outcome === "evaded") next = processEnemyTraitEvent(next, current.instanceId, "enemy-normal-attack-missed", {}, context);
+  } else if (resolved.outcome === "evaded") {
+    next = observeSuccessfulPlayerEvade(next);
+    next = processEnemyTraitEvent(next, current.instanceId, "enemy-normal-attack-missed", {}, context);
+  }
   next = dependencies.resolveDefensiveTrainingForCombatEvent(next, { source: "enemy-normal-attack", resolved: true }, context.items);
   next.combat = event(next.combat, { text: resolved.outcome === "hit" ? `${current.displayName} hits you for ${resolved.healthDamage}${resolved.barrierAbsorbed > 0 ? ` (${resolved.barrierAbsorbed} absorbed)` : ""}.` : `${current.displayName} ${resolved.outcome}s your attack.`, type: "enemy", eventType: resolved.outcome === "evaded" ? "attackEvaded" : "damageDealt", source: packet.source, target: packet.target, data: { damage: resolved.healthDamage, blockedDamage: resolved.blockedDamage, absorbed: resolved.barrierAbsorbed, requestedDamage: playerDamage.requestedDamage, appliedDamage: playerDamage.appliedDamage, immortalPrevented: playerDamage.preventedLethalDamage } });
   if (next.combat.playerHp <= 0) {

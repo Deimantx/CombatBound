@@ -1,7 +1,7 @@
 import { itemById } from "../data/items";
 import { itemUpgradeBranchById, itemUpgradeNodeById, itemUpgradeTreeById, itemUpgradeTreeDefinitions } from "../data/gear/itemUpgradeTrees";
 import type { ItemUpgradeTreeDefinition } from "./itemUpgradeTypes";
-import { RHYTHM_MECHANIC_ID, RIPOSTE_MECHANIC_ID } from "../weapons/weaponMechanicTypes";
+import { isKnownWeaponMechanicModifier, weaponMechanicSchemaById } from "../weapons/weaponMechanicRegistry";
 
 const magicCrystalPattern = /^item\.magic-crystal-|^item\.magic-crystal-(dust|box)$/;
 
@@ -61,12 +61,7 @@ export function validateItemUpgradeTrees(
           if (!(effect.stat in { maxLife: 1, lifeRegenFlat: 1, accuracyRating: 1, evasionRating: 1, armour: 1, blockChance: 1, blockEffect: 1, manaRegenFlat: 1, increasedAttackSpeed: 1, increasedCastSpeed: 1, criticalStrikeChance: 1, criticalStrikeMultiplier: 1, baseDamageMin: 1, baseDamageMax: 1, baseAttackTime: 1, maxStamina: 1, staminaRegen: 1, maxMana: 1, fireResistance: 1, coldResistance: 1, lightningResistance: 1, chaosResistance: 1 })) errors.push(`${nodeId} has an invalid global stat target`);
           if (effect.operation !== "flat") errors.push(`${nodeId} has an invalid global stat operation`);
         } else if (effect.type === "weaponMechanicModifier") {
-          const validModifiers = effect.mechanicId === RHYTHM_MECHANIC_ID
-            ? ["maxStacks", "accuracyPerStack", "attackSpeedPerStack", "maxStackDamageBonus"]
-            : effect.mechanicId === RIPOSTE_MECHANIC_ID
-              ? ["durationSeconds", "damageMore", "critChanceFlat", "grantsRhythmOnHit"]
-              : [];
-          if (!validModifiers.includes(effect.modifier)) errors.push(`${nodeId} has an invalid mechanic modifier`);
+          if (!weaponMechanicSchemaById[effect.mechanicId] || !isKnownWeaponMechanicModifier(effect.mechanicId, effect.modifier)) errors.push(`${nodeId} has an invalid mechanic modifier`);
         } else {
           errors.push(`${nodeId} has an unknown effect type ${effectType}`);
         }

@@ -575,6 +575,7 @@ export function advanceCombatStep(
           proficiencyEligible: true,
         },
         sourceActionId: "basic.weapon-attack",
+        attackerAccuracy: effective.accuracyRating,
         criticalStrikeChance: effective.criticalStrikeChance,
       };
       game = damageEnemy(

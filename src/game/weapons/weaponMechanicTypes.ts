@@ -16,6 +16,12 @@ export interface RiposteParameters {
 
 export interface WeaponMechanicParameters {
   archetypeId: string;
+  mechanics: Record<string, Record<string, number>>;
+  attackProfile?: {
+    armorPenetrationPercent: number;
+    armorPenetrationFlat: number;
+    targetBlockEffectMultiplier?: number;
+  };
   rhythm?: DuelistRhythmParameters;
   riposte?: RiposteParameters;
 }

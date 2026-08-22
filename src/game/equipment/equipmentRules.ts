@@ -5,6 +5,8 @@ import { isItemInstanceId, type ItemInstanceId } from "../items/itemTypes";
 import type { InventoryState } from "../inventory/inventoryTypes";
 import type { ProgressionState } from "../progression/progressionTypes";
 import { getProficiencyLevelForState } from "../progression/proficiencyProgression";
+import { discoverProficiency } from "../progression/proficiencyProgression";
+import { isTwoHandedWeapon } from "../data/gear/weaponArchetypes";
 import {
   EQUIPMENT_SLOT_DEFINITIONS,
   type EquipmentSlotId,
@@ -20,7 +22,8 @@ export type EquipmentChangeFailureReason =
   | "invalid-instance"
   | "wrong-slot-kind"
   | "hunter-rank"
-  | "proficiency-level";
+  | "proficiency-level"
+  | "two-handed-conflict";
 
 export interface EquipmentChangeValidation {
   valid: boolean;
@@ -28,6 +31,7 @@ export interface EquipmentChangeValidation {
   proficiencyId?: string;
   requiredLevel?: number;
   currentLevel?: number;
+  willDiscoverProficiency?: boolean;
 }
 
 export function canEquipItemToSlot(item: ItemDefinition, slotId: EquipmentSlotId) {
@@ -38,6 +42,7 @@ export function validateEquipmentChange({
   instanceId,
   slotId,
   inventory,
+  equipment,
   hunterRank,
   progression,
   ignoreRequirements,
@@ -58,12 +63,20 @@ export function validateEquipmentChange({
   if (!definition) return { valid: false, reason: "unknown-definition" };
   if (definition.inventoryMode !== "instance") return { valid: false, reason: "invalid-instance" };
   if (!canEquipItemToSlot(definition, slotId)) return { valid: false, reason: "wrong-slot-kind" };
+  if (slotId === "offhand" && equipment.slots.weapon) {
+    const weapon = getItemInstance(inventory, equipment.slots.weapon);
+    const weaponDefinition = weapon ? itemById[weapon.definitionId] : undefined;
+    if (weaponDefinition && isTwoHandedWeapon(weaponDefinition)) return { valid: false, reason: "two-handed-conflict" };
+  }
   if (!ignoreRequirements && definition.requiredHunterRank !== undefined && Math.max(0, Math.floor(hunterRank)) < definition.requiredHunterRank)
     return { valid: false, reason: "hunter-rank" };
   if (!ignoreRequirements && definition.weaponProficiencyId && definition.requiredProficiencyLevel !== undefined) {
     const currentLevel = progression ? getProficiencyLevelForState(progression, definition.weaponProficiencyId) : 0;
-    if (currentLevel < definition.requiredProficiencyLevel)
+    if (currentLevel < definition.requiredProficiencyLevel) {
+      const canDiscoverBaseWeapon = definition.category === "weapon" && definition.materialTierId === "iron" && definition.requiredProficiencyLevel === 1 && currentLevel === 0;
+      if (canDiscoverBaseWeapon) return { valid: true, proficiencyId: definition.weaponProficiencyId, requiredLevel: definition.requiredProficiencyLevel, currentLevel, willDiscoverProficiency: true };
       return { valid: false, reason: "proficiency-level", proficiencyId: definition.weaponProficiencyId, requiredLevel: definition.requiredProficiencyLevel, currentLevel };
+    }
   }
   return { valid: true };
 }
@@ -88,15 +101,24 @@ export function equipItemInstance({
   hunterRank: number;
   progression?: ProgressionState;
   ignoreRequirements?: boolean;
-}): { equipment: EquipmentState; validation: EquipmentChangeValidation } {
+}): { equipment: EquipmentState; validation: EquipmentChangeValidation; progression?: ProgressionState } {
   const validation = validateEquipmentChange({ instanceId, slotId, inventory, equipment, hunterRank, progression, ignoreRequirements });
   if (!validation.valid || !isEquipmentSlotId(slotId)) return { equipment, validation };
   if (equipment.slots[slotId] === instanceId) return { equipment, validation };
   const nextSlots = { ...equipment.slots };
   for (const slot of EQUIPMENT_SLOT_DEFINITIONS)
     if (nextSlots[slot.id] === instanceId) delete nextSlots[slot.id];
+  const instance = getItemInstance(inventory, instanceId as ItemInstanceId);
+  const definition = instance ? itemById[instance.definitionId] : undefined;
+  if (slotId === "weapon" && definition && isTwoHandedWeapon(definition)) delete nextSlots.offhand;
   nextSlots[slotId] = instanceId as ItemInstanceId;
-  return { equipment: { slots: nextSlots }, validation };
+  return {
+    equipment: { slots: nextSlots },
+    validation,
+    progression: validation.willDiscoverProficiency && progression && validation.proficiencyId
+      ? discoverProficiency(progression, validation.proficiencyId as never)
+      : progression,
+  };
 }
 
 export function previewEquipmentChange(input: {
@@ -145,6 +167,9 @@ export function normalizeEquipmentState(
     slots[slot.id] = resolved.instance.id;
     used.add(resolved.instance.id);
   }
+  const weaponId = slots.weapon;
+  const weapon = weaponId ? resolveItemInstance(inventory, weaponId, items)?.definition : undefined;
+  if (weapon && isTwoHandedWeapon(weapon)) delete slots.offhand;
   return { slots };
 }
 

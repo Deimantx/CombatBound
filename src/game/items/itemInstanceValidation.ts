@@ -55,9 +55,27 @@ export function normalizeItemInstance(value: unknown, items: Record<string, Item
     }
   }
   if (tree?.selectionMode === "single-branch") {
-    const validBranches = tree.branchIds.map((branchId) => candidateIds.filter((nodeId) => itemUpgradeNodeById[nodeId]?.branchId === branchId));
-    const winning = validBranches.find((branchNodes) => branchNodes.length > 0);
-    const allowed = new Set(winning ?? []);
+    const validBranches = tree.branchIds.map((branchId, order) => ({
+      branchId,
+      order,
+      nodes: unlocked.filter((nodeId) => itemUpgradeNodeById[nodeId]?.branchId === branchId),
+    })).filter((branch) => branch.nodes.length > 0);
+    const winning = validBranches.sort((a, b) => {
+      if (b.nodes.length !== a.nodes.length) return b.nodes.length - a.nodes.length;
+      const depth = (nodes: string[]) => Math.max(...nodes.map((nodeId) => {
+        let depth = 0;
+        let current = itemUpgradeNodeById[nodeId];
+        const seen = new Set<string>();
+        while (current?.prerequisiteNodeIds[0] && !seen.has(current.id)) {
+          seen.add(current.id);
+          depth += 1;
+          current = itemUpgradeNodeById[current.prerequisiteNodeIds[0]];
+        }
+        return depth;
+      }), 0);
+      return depth(b.nodes) - depth(a.nodes) || a.order - b.order;
+    })[0];
+    const allowed = new Set(winning?.nodes ?? []);
     return { id, definitionId, version: 3, unlockedUpgradeNodeIds: unlocked.filter((nodeId) => allowed.has(nodeId)) };
   }
   return { id, definitionId, version: 3, unlockedUpgradeNodeIds: unlocked };

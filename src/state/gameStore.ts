@@ -13,7 +13,6 @@ import {
 } from "../game/combat/combatEngine";
 import { calculateHunterCombatStats } from "../game/equipment/derivedStats";
 import { equipItemInstance as equipOwnedItemInstance, unequipEquipmentSlot as unequipOwnedEquipmentSlot } from "../game/equipment/equipmentRules";
-import { getItemDefinitionForInstance } from "../game/items/itemResolver";
 import { normalizeInventoryState } from "../game/items/itemOwnership";
 import { purchaseItemUpgradeNode } from "../game/items/itemUpgradeLogic";
 import { normalizeCollectionTargets } from "../game/collection/collectionLogic";
@@ -26,7 +25,6 @@ import { enemyDefinitions } from "../game/data/enemies";
 import { continentById } from "../game/data/world/continents";
 import { createInitialGameState, type GameState } from "../game/gameState";
 import { hunterRankForPoints } from "../game/progression/hunterRankProgression";
-import { discoverProficiency } from "../game/progression/proficiencyProgression";
 import { purchasePerk } from "../game/progression/perkProgression";
 import { perkById } from "../game/data/proficiencyPerks";
 import {
@@ -78,6 +76,7 @@ import type { AutomationCondition, AutomationRule } from "../game/automation/aut
 import {
   debugAddGold,
   debugGrantIronSwordMaterials,
+  debugGrantIronMeleeRoster,
   debugResetItemUpgrades,
   debugAddHunterRankPoints,
   debugApplyEffect,
@@ -269,6 +268,7 @@ export interface DebugStoreApi {
   setGold: (amount: number) => void;
   addGold: (amount: number) => void;
   grantIronSwordMaterials: () => void;
+  grantIronMeleeRoster: () => void;
   resetItemUpgrades: (instanceId: string) => void;
   loadScenario: (snapshot: DebugScenarioSnapshot) => void;
   startEncounter: (locationId: string, enemyIds: string[]) => void;
@@ -580,6 +580,7 @@ export const useGameStore = create<GameStoreState>((set, get) => {
     setGold: (amount) => commitDebug((game) => debugSetGold(game, amount), true),
     addGold: (amount) => commitDebug((game) => debugAddGold(game, amount), true),
     grantIronSwordMaterials: () => commitDebug(debugGrantIronSwordMaterials, true),
+    grantIronMeleeRoster: () => commitDebug(debugGrantIronMeleeRoster, true),
     resetItemUpgrades: (instanceId) => commitDebug((game) => debugResetItemUpgrades(game, instanceId), true),
     loadScenario: (snapshot) => {
       if (!validateDebugScenario(snapshot).valid) return;
@@ -950,13 +951,7 @@ export const useGameStore = create<GameStoreState>((set, get) => {
         });
         if (!result.validation.valid) return state;
         if (result.equipment === state.game.equipment) return state;
-        const item = getItemDefinitionForInstance(state.game.inventory, instanceId);
-        const progression = item?.weaponProficiencyId
-          ? discoverProficiency(
-              state.game.progression,
-              item.weaponProficiencyId,
-            )
-          : state.game.progression;
+        const progression = result.progression ?? state.game.progression;
         const game = syncCombatStats({
           ...state.game,
           progression,

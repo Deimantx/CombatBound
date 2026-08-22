@@ -406,6 +406,13 @@ export function debugGrantIronSwordMaterials(game: GameState): GameState {
   return { ...game, inventory };
 }
 
+export function debugGrantIronMeleeRoster(game: GameState): GameState {
+  const roster = ["item.iron-sword", "item.iron-axe", "item.iron-mace", "item.iron-dagger", "item.iron-greatsword", "item.iron-great-axe", "item.iron-warhammer", "item.iron-spear"];
+  let next = game;
+  for (const itemId of roster) next = debugGrantItem(next, itemId, 1);
+  return next;
+}
+
 export function debugResetItemUpgrades(game: GameState, instanceId: string): GameState {
   const instance = game.inventory.instances[instanceId];
   if (!instance) return game;

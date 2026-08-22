@@ -24,7 +24,7 @@ import { isGameSaveV17 } from "./saveValidation";
 import { normalizeCombatAutomation } from "../automation/automationLogic";
 import { normalizeCombatAbilityLoadout } from "../combatAbilities/combatAbilityLogic";
 import { normalizeCombatAutomationPresets } from "../automation/automationPresets";
-import { grantItem, normalizeInventoryState } from "../items/itemOwnership";
+import { normalizeInventoryState } from "../items/itemOwnership";
 import { normalizeEquipmentState } from "../equipment/equipmentRules";
 import { normalizeMagicArts } from "../magicArts/magicArtLogic";
 import { getActiveAbilityActionDefinitions } from "../combat/playerActions";
@@ -110,14 +110,8 @@ export function gameStateToSaveV17(
 function normalizeCurrentSaveV17(value: unknown): GameSaveV17 | null {
   if (!value || typeof value !== "object" || Array.isArray(value) || (value as { version?: unknown }).version !== 17) return null;
   const raw = value as Partial<GameSaveV17>;
-  let inventory = normalizeInventoryState(raw.inventory);
-  if (!Object.values(inventory.instances).some((instance) => instance.definitionId === "item.iron-sword"))
-    inventory = grantItem(inventory, "item.iron-sword", 1).inventory;
-  const normalizedEquipment = normalizeEquipmentState(raw.equipment, inventory);
-  const sword = Object.values(inventory.instances).find((instance) => instance.definitionId === "item.iron-sword");
-  const equipment = normalizedEquipment.slots.weapon || !sword
-    ? normalizedEquipment
-    : { slots: { ...normalizedEquipment.slots, weapon: sword.id } };
+  const inventory = normalizeInventoryState(raw.inventory);
+  const equipment = normalizeEquipmentState(raw.equipment, inventory);
   const magicArts = normalizeMagicArts(raw.magicArts);
   const stripRetiredSpellRules = <T extends { actionId: string }>(rules: T[]) => rules.filter((rule) => !rule.actionId.startsWith("spell."));
   const automation = normalizeCombatAutomation(raw.combatAutomation);
@@ -137,7 +131,6 @@ function normalizeCurrentSaveV17(value: unknown): GameSaveV17 | null {
       {
         discoveredItems: Array.from(new Set([
           ...(Array.isArray(raw.collection?.discoveredItems) ? raw.collection.discoveredItems.filter((id): id is string => typeof id === "string" && Boolean(itemById[id])) : []),
-          "item.iron-sword",
         ])),
         targets: raw.collection?.targets ?? {},
       },

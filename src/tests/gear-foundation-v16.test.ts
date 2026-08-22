@@ -109,7 +109,7 @@ describe("Iron Sword gear foundation V17", () => {
     const swordId = Object.keys(game.inventory.instances)[0];
     expect(getProficiencyLevel({ ...game.progression, proficiencies: {} }, "one-handed-sword")).toBe(0);
     expect(getProficiencyLevel(game.progression, "one-handed-sword")).toBe(1);
-    expect(validateEquipmentChange({ instanceId: swordId, slotId: "weapon", inventory: game.inventory, equipment: game.equipment, hunterRank: 1, progression: { ...game.progression, proficiencies: {} } }).reason).toBe("proficiency-level");
+    expect(validateEquipmentChange({ instanceId: swordId, slotId: "weapon", inventory: game.inventory, equipment: game.equipment, hunterRank: 1, progression: { ...game.progression, proficiencies: {} } }).willDiscoverProficiency).toBe(true);
     expect(validateEquipmentChange({ instanceId: swordId, slotId: "weapon", inventory: game.inventory, equipment: game.equipment, hunterRank: 1, progression: game.progression }).valid).toBe(true);
   });
 

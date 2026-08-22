@@ -1,6 +1,6 @@
 import { itemUpgradeBranchById, itemUpgradeNodeById, itemUpgradeTreeById } from "../data/gear/itemUpgradeTrees";
 import { getItemUpgradeSpecialization } from "../items/itemUpgradeLogic";
-import { weaponArchetypeById } from "../data/gear/weaponArchetypes";
+import { weaponArchetypeById, weaponFamilyLabels } from "../data/gear/weaponArchetypes";
 import { equipmentSlotKindLabel } from "../equipment/equipmentTypes";
 import type { ResolvedItemInstance, ItemInstance } from "../items/itemTypes";
 import { formatItemStats, labelForStatKey } from "./statFormatting";
@@ -68,7 +68,7 @@ export function buildItemPresentation(resolved: ResolvedItemInstance, options: {
     proficiencyId: definition.weaponProficiencyId,
     requiredProficiencyLevel: definition.requiredProficiencyLevel,
     materialTier: definition.materialTierId ? `${definition.materialTierId[0].toUpperCase()}${definition.materialTierId.slice(1)}` : undefined,
-    weaponFamily: definition.weaponFamilyId ? `${definition.weaponFamilyId[0].toUpperCase()}${definition.weaponFamilyId.slice(1)}` : undefined,
+    weaponFamily: definition.weaponFamilyId ? weaponFamilyLabels[definition.weaponFamilyId] : undefined,
     weaponArchetype: definition.weaponArchetypeId ? weaponArchetypeById[definition.weaponArchetypeId]?.name ?? definition.weaponArchetypeId.replace("weapon-archetype.", "") : undefined,
     specialization: branch ? { branchId: branch.id, label: branch.name } : undefined,
     upgradeProgress: tree ? { unlocked: unlocked.length, total: branchNodeCount ?? tree.nodeIds.length } : undefined,
