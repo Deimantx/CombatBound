@@ -8,6 +8,11 @@ import type { MiningRuntimeGame, MiningRuntimeSummary, MiningState, MiningStageI
 
 export interface MiningRng { next(): number }
 
+// V1 runtime policy: the state machine and fast-forward path intentionally
+// target the one authored Iron Vein resource. Registry-driven stats are ready
+// for future resources, but multi-resource runtime selection is deferred until
+// a second real resource is designed.
+
 const EMPTY_SUMMARY = (): MiningRuntimeSummary => ({ seconds: 0, swings: 0, stagesBroken: 0, deposits: 0, restSeconds: 0, ironOre: 0, roughGems: 0, blackStones: 0, expectedRoughGems: 0, expectedBlackStones: 0, miningXp: 0, masteryXp: 0, miningLevelsGained: 0, masteryLevelsGained: 0 })
 const safeRng: MiningRng = { next: () => 0.5 }
 
@@ -142,8 +147,9 @@ export function normalizeMiningState(value: unknown): MiningState {
   const stage = typeof raw.currentStageId === "string" && raw.currentStageId in miningStageById ? raw.currentStageId as MiningStageId : "outer-crust"
   const durability = Number.isFinite(raw.stageDurabilityRemaining) ? Math.max(0, Math.min(miningStageById[stage].durability, raw.stageDurabilityRemaining as number)) : miningStageById[stage].durability
   const stamina = Number.isFinite(raw.miningStamina) ? Math.max(0, Math.min(1000, raw.miningStamina as number)) : ironVein.baseMaxStamina
+  const mode = raw.mode === "swinging" || raw.mode === "resting" ? raw.mode : "idle"
   return {
-    selectedResourceId: "mining-resource.iron-vein", active: raw.active === true, mode: raw.active && (raw.mode === "swinging" || raw.mode === "resting") ? raw.mode : "idle", currentStageId: stage, stageDurabilityRemaining: durability, miningStamina: stamina,
+    selectedResourceId: "mining-resource.iron-vein", active: raw.active === true, mode, currentStageId: stage, stageDurabilityRemaining: durability, miningStamina: stamina,
     swingTimerRemaining: finite(raw.swingTimerRemaining), restTimerRemaining: finite(raw.restTimerRemaining), yieldRemainders: normalizeRemainders(raw.yieldRemainders), completedDeposits: integer(raw.completedDeposits), totalSwings: integer(raw.totalSwings), exhaustionRestsThisDeposit: integer(raw.exhaustionRestsThisDeposit),
   }
 }

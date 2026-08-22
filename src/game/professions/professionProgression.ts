@@ -16,7 +16,9 @@ export function normalizeProfessionState(value: unknown, registry?: ProfessionPe
   const definitionsBySkill = registry ?? professionPerkDefinitionsBySkill
   const rawSkills = raw.skills && typeof raw.skills === "object" ? raw.skills : {}
   const skills: Partial<Record<ProfessionSkillId, ProfessionSkillProgress>> = {}
-  for (const [skillId, rawProgress] of Object.entries(rawSkills)) {
+  for (const [rawSkillId, rawProgress] of Object.entries(rawSkills)) {
+    if (rawSkillId !== "mining" && rawSkillId !== "blacksmithing") continue
+    const skillId = rawSkillId as ProfessionSkillId
     if (!rawProgress || typeof rawProgress !== "object") continue
     const progress = rawProgress as Partial<ProfessionSkillProgress>
     skills[skillId] = {
@@ -26,7 +28,11 @@ export function normalizeProfessionState(value: unknown, registry?: ProfessionPe
       purchasedPerks: normalizeRanks(progress.purchasedPerks, getProfessionPerkDefinitions(skillId, definitionsBySkill)),
     }
   }
-  for (const skillId of Object.keys(definitionsBySkill)) if (!skills[skillId]) skills[skillId] = { skillId, totalXp: 0, bonusSkillPoints: 0, purchasedPerks: {} }
+  for (const rawSkillId of Object.keys(definitionsBySkill)) {
+    if (rawSkillId !== "mining" && rawSkillId !== "blacksmithing") continue
+    const skillId = rawSkillId as ProfessionSkillId
+    if (!skills[skillId]) skills[skillId] = { skillId, totalXp: 0, bonusSkillPoints: 0, purchasedPerks: {} }
+  }
   const rawMastery = raw.resourceMasteries?.["mastery.iron-vein"]
   return {
     skills,

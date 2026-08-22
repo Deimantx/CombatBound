@@ -1,6 +1,6 @@
 import type { ProfessionState, ResourceMasteryId } from "../professionTypes"
 
-export type MiningResourceId = string
+export type MiningResourceId = "mining-resource.iron-vein"
 export type MiningStageId = "outer-crust" | "exposed-seam" | "dense-vein" | "rich-core" | "heart-of-iron"
 export type MiningMode = "idle" | "swinging" | "resting"
 

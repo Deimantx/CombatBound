@@ -1,5 +1,5 @@
 import type { GameState } from "../gameState";
-import type { GameSaveV14, GameSaveV15, GameSaveV17, GameSaveV18, HistoricalEquipmentSlotIdV17, HistoricalEquipmentStateV17, HistoricalInventoryStateV17 } from "./saveTypes";
+import type { GameSaveV14, GameSaveV15, GameSaveV17, GameSaveV18, HistoricalEquipmentSlotIdV17, HistoricalEquipmentStateV17, HistoricalInventoryStateV17, HistoricalItemInstanceV17 } from "./saveTypes";
 import {
   migrateCurrentSave,
   migrateLegacySave,
@@ -35,6 +35,7 @@ import { createInitialProfessionState, normalizeProfessionState } from "../profe
 import { createInitialMiningState } from "../professions/mining/miningData";
 import { normalizeMiningState } from "../professions/mining/miningRuntime";
 import { grantItem, getInstancesByDefinitionId } from "../items/itemOwnership";
+import { isItemInstanceId, itemInstanceSequence } from "../items/itemTypes";
 
 export const CURRENT_SAVE_VERSION = 18;
 export const GAME_SAVE_KEY = "combatbound-idle-save-v18";
@@ -69,6 +70,42 @@ function toHistoricalInventoryV17(inventory: GameState["inventory"]): Historical
 function toHistoricalEquipmentV17(equipment: GameState["equipment"]): HistoricalEquipmentStateV17 {
   const slots = Object.fromEntries(HISTORICAL_V17_SLOTS.flatMap((slot) => equipment.slots[slot] ? [[slot, equipment.slots[slot]]] : []));
   return { slots: slots as HistoricalEquipmentStateV17["slots"] };
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return Boolean(value) && typeof value === "object" && !Array.isArray(value);
+}
+
+/** Reads the frozen V17 inventory shape without consulting current item trees. */
+function normalizeHistoricalInventoryV17(value: unknown): HistoricalInventoryStateV17 | null {
+  if (!isRecord(value) || !isRecord(value.stackables) || !isRecord(value.instances)) return null;
+  const stackables: Record<string, number> = {};
+  for (const [definitionId, quantity] of Object.entries(value.stackables)) {
+    if (typeof quantity !== "number" || !Number.isInteger(quantity) || !Number.isFinite(quantity) || quantity < 0) return null;
+    stackables[definitionId] = quantity;
+  }
+  const instances: Record<string, HistoricalItemInstanceV17> = {};
+  let highestSequence = 0;
+  for (const [key, raw] of Object.entries(value.instances)) {
+    if (!isRecord(raw) || raw.id !== key || !isItemInstanceId(key) || raw.version !== 3 || typeof raw.definitionId !== "string" || !Array.isArray(raw.unlockedUpgradeNodeIds) || raw.unlockedUpgradeNodeIds.some((id) => typeof id !== "string") || Object.keys(raw).some((field) => !["id", "definitionId", "version", "unlockedUpgradeNodeIds"].includes(field))) return null;
+    instances[key] = { id: key, definitionId: raw.definitionId, version: 3, unlockedUpgradeNodeIds: [...raw.unlockedUpgradeNodeIds] as string[] };
+    highestSequence = Math.max(highestSequence, itemInstanceSequence(key));
+  }
+  if (typeof value.nextInstanceSequence !== "number" || !Number.isInteger(value.nextInstanceSequence) || value.nextInstanceSequence < 1 || value.nextInstanceSequence <= highestSequence) return null;
+  return { stackables, instances, nextInstanceSequence: value.nextInstanceSequence };
+}
+
+/** Keeps historical equipment references intact while checking only V17 structure. */
+function normalizeHistoricalEquipmentV17(value: unknown, inventory: HistoricalInventoryStateV17): HistoricalEquipmentStateV17 | null {
+  if (!isRecord(value) || !isRecord(value.slots)) return null;
+  const slots: Partial<Record<HistoricalEquipmentSlotIdV17, string>> = {};
+  const used = new Set<string>();
+  for (const [slot, instanceId] of Object.entries(value.slots)) {
+    if (!HISTORICAL_V17_SLOTS.includes(slot as HistoricalEquipmentSlotIdV17) || typeof instanceId !== "string" || !isItemInstanceId(instanceId) || !inventory.instances[instanceId] || used.has(instanceId)) return null;
+    slots[slot as HistoricalEquipmentSlotIdV17] = instanceId;
+    used.add(instanceId);
+  }
+  return { slots };
 }
 
 export function gameStateToSaveV14(
@@ -193,14 +230,20 @@ function normalizeSharedCurrentSaveFields(raw: Record<string, unknown>, inventor
 function normalizeCurrentSaveV17(value: unknown): GameSaveV17 | null {
   if (!value || typeof value !== "object" || Array.isArray(value) || (value as { version?: unknown }).version !== 17) return null;
   const raw = value as Record<string, unknown>;
-  const inventory = normalizeInventoryState(raw.inventory);
-  const equipment = normalizeEquipmentState(raw.equipment, inventory);
+  const historicalInventory = normalizeHistoricalInventoryV17(raw.inventory);
+  const historicalEquipment = historicalInventory ? normalizeHistoricalEquipmentV17(raw.equipment, historicalInventory) : null;
+  if (!historicalInventory || !historicalEquipment) return null;
+  // Shared fields still use current runtime-shaped values, but the historical
+  // inventory/equipment were structurally parsed above and are not passed
+  // through current item-definition or upgrade-tree validation.
+  const inventory = historicalInventory as unknown as GameState["inventory"];
+  const equipment = historicalEquipment as unknown as GameState["equipment"];
   const shared = normalizeSharedCurrentSaveFields(raw, inventory, equipment);
   const normalized: GameSaveV17 = {
     version: 17,
     ...shared,
-    inventory: toHistoricalInventoryV17(shared.inventory),
-    equipment: toHistoricalEquipmentV17(shared.equipment),
+    inventory: historicalInventory,
+    equipment: historicalEquipment,
   };
   return isGameSaveV17(normalized) ? normalized : null;
 }

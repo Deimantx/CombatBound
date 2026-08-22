@@ -24,15 +24,29 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return Boolean(value) && typeof value === "object" && !Array.isArray(value);
 }
 
+function isFiniteNumber(value: unknown): value is number {
+  return typeof value === "number" && Number.isFinite(value);
+}
+
 export function isCombatHuntOfflineSummary(value: unknown): value is CombatHuntOfflineSummary {
-  return isRecord(value) &&
-    typeof value.enemiesDefeated === "number" &&
-    typeof value.damageDealt === "number" &&
-    typeof value.damageTaken === "number" &&
-    typeof value.healing === "number" &&
-    typeof value.highestHit === "number" &&
-    Array.isArray(value.progressionRows) &&
-    isRecord(value.lootGained);
+  if (!isRecord(value) ||
+    !isFiniteNumber(value.enemiesDefeated) ||
+    !isFiniteNumber(value.damageDealt) ||
+    !isFiniteNumber(value.damageTaken) ||
+    !isFiniteNumber(value.healing) ||
+    !isFiniteNumber(value.highestHit) ||
+    !isFiniteNumber(value.gold) ||
+    !Array.isArray(value.progressionRows) ||
+    !isRecord(value.lootGained)) return false;
+  const progressionRowsValid = value.progressionRows.every((row) => isRecord(row) &&
+    typeof row.progressionId === "string" &&
+    typeof row.name === "string" &&
+    isFiniteNumber(row.xpGained) &&
+    isFiniteNumber(row.xpPerHour) &&
+    isFiniteNumber(row.levelBefore) &&
+    isFiniteNumber(row.levelAfter));
+  const lootValid = Object.values(value.lootGained).every((quantity) => isFiniteNumber(quantity) && quantity >= 0);
+  return progressionRowsValid && lootValid;
 }
 
 export function isMiningOfflineSummary(value: unknown): value is MiningOfflineSummary {

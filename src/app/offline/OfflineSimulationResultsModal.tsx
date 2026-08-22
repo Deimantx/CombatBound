@@ -11,6 +11,7 @@ import type { OfflineActivitySimulationResult } from "../../game/offline/offline
 import type { GameState } from "../../game/gameState";
 import { useGameStore } from "../../state/gameStore";
 import { useOfflineActivityRuntimeStore } from "../../state/offlineActivityRuntimeStore";
+import { isCombatHuntOfflineSummary, isMiningOfflineSummary } from "./offlineActivityTypes";
 
 function resultLabel(reason: string): string {
   switch (reason) {
@@ -36,7 +37,11 @@ function TimeSummary({ simulation }: { simulation: OfflineActivitySimulationResu
   </div>;
 }
 
-function CombatOfflineResults({ simulation }: { simulation: OfflineActivitySimulationResult<GameState, CombatHuntOfflineSummary> }) {
+function CloseResultsButton({ onClose }: { onClose: () => void }) {
+  return <button type="button" className="icon-button offline-results-close" aria-label="Close results" onClick={onClose}><X size={17} /></button>;
+}
+
+function CombatOfflineResults({ simulation, onClose }: { simulation: OfflineActivitySimulationResult<GameState, CombatHuntOfflineSummary>; onClose: () => void }) {
   const summary = simulation.summary;
   const location = simulation.state.combat.combatLocationId ? combatLocationById[simulation.state.combat.combatLocationId] : undefined;
   const lootRows = useMemo(() => Object.entries(summary.lootGained)
@@ -49,7 +54,7 @@ function CombatOfflineResults({ simulation }: { simulation: OfflineActivitySimul
     }), [summary]);
 
   return <>
-    <header className="offline-results-header"><div><span className="eyebrow">TIME SKIP RESULTS</span><h2 id="offline-results-title">{location?.name ?? "Combat Hunt"}</h2><p>{formatDuration(simulation.requestedSeconds)} skipped</p></div></header>
+    <header className="offline-results-header"><div><span className="eyebrow">TIME SKIP RESULTS</span><h2 id="offline-results-title">{location?.name ?? "Combat Hunt"}</h2><p>{formatDuration(simulation.requestedSeconds)} skipped</p></div><CloseResultsButton onClose={onClose} /></header>
     <div className={`offline-results-outcome outcome-${simulation.stopReason}`} data-debug-kind="offline-results-outcome"><Trophy size={18} /><div><span className="eyebrow">RESULT</span><strong>{resultLabel(simulation.stopReason)}</strong></div></div>
     <TimeSummary simulation={simulation} />
     <div className="offline-results-body">
@@ -65,11 +70,11 @@ function CombatOfflineResults({ simulation }: { simulation: OfflineActivitySimul
   </>;
 }
 
-function MiningOfflineResults({ simulation }: { simulation: OfflineActivitySimulationResult<GameState, MiningOfflineSummary> }) {
+function MiningOfflineResults({ simulation, onClose }: { simulation: OfflineActivitySimulationResult<GameState, MiningOfflineSummary>; onClose: () => void }) {
   const summary = simulation.summary;
   const seconds = Math.max(1, simulation.activitySeconds);
   return <>
-    <header className="offline-results-header"><div><span className="eyebrow">TIME SKIP RESULTS</span><h2 id="offline-results-title">Mining / Iron Vein</h2><p>{formatDuration(simulation.requestedSeconds)} skipped</p></div></header>
+    <header className="offline-results-header"><div><span className="eyebrow">TIME SKIP RESULTS</span><h2 id="offline-results-title">Mining / Iron Vein</h2><p>{formatDuration(simulation.requestedSeconds)} skipped</p></div><CloseResultsButton onClose={onClose} /></header>
     <div className={`offline-results-outcome outcome-${simulation.stopReason}`} data-debug-kind="offline-results-outcome"><Trophy size={18} /><div><span className="eyebrow">RESULT</span><strong>{resultLabel(simulation.stopReason)}</strong></div></div>
     <TimeSummary simulation={simulation} />
     <div className="offline-results-body" data-debug-kind="offline-results-mining">
@@ -84,8 +89,11 @@ function MiningOfflineResults({ simulation }: { simulation: OfflineActivitySimul
   </>;
 }
 
-function UnknownOfflineResults() {
-  return <div className="offline-results-body"><p className="muted-copy">Unable to display this activity result.</p></div>;
+function UnknownOfflineResults({ onClose }: { onClose: () => void }) {
+  return <>
+    <header className="offline-results-header"><div><span className="eyebrow">TIME SKIP RESULTS</span><h2 id="offline-results-title">Result Unavailable</h2></div><CloseResultsButton onClose={onClose} /></header>
+    <div className="offline-results-body"><p className="muted-copy">Unable to display this activity result.</p></div>
+  </>;
 }
 
 export function OfflineSimulationResultsModal() {
@@ -94,6 +102,10 @@ export function OfflineSimulationResultsModal() {
   const closeResults = runtime.closeResults;
   const continueRef = useRef<HTMLButtonElement>(null);
   const result = runtime.lastResult?.profileId === activeProfileId ? runtime.lastResult : null;
+  const renderableResult = result && (
+    (result.activityType === "combat-hunt" && isCombatHuntOfflineSummary(result.simulation.summary)) ||
+    (result.activityType === "mining-iron-vein" && isMiningOfflineSummary(result.simulation.summary))
+  ) ? result : null;
 
   useEffect(() => {
     if (!runtime.resultsOpen || !result) return;
@@ -106,8 +118,7 @@ export function OfflineSimulationResultsModal() {
   if (!runtime.resultsOpen || !result) return null;
 
   return <div className="dialog-backdrop offline-results-backdrop" role="presentation" data-debug-kind="offline-results-backdrop"><div className="offline-results-modal" role="dialog" aria-modal="true" aria-labelledby="offline-results-title" data-debug-kind="offline-results-modal">
-    {result.activityType === "combat-hunt" ? <CombatOfflineResults simulation={result.simulation} /> : result.activityType === "mining-iron-vein" ? <MiningOfflineResults simulation={result.simulation} /> : <UnknownOfflineResults />}
+    {renderableResult?.activityType === "combat-hunt" ? <CombatOfflineResults simulation={renderableResult.simulation} onClose={closeResults} /> : renderableResult?.activityType === "mining-iron-vein" ? <MiningOfflineResults simulation={renderableResult.simulation} onClose={closeResults} /> : <UnknownOfflineResults onClose={closeResults} />}
     <footer className="offline-results-footer"><small>Rates use the active simulated duration.</small><button ref={continueRef} type="button" className="button button-primary" onClick={closeResults}>CONTINUE</button></footer>
-    <button type="button" className="icon-button offline-results-close" aria-label="Close results" onClick={closeResults}><X size={17} /></button>
   </div></div>;
 }

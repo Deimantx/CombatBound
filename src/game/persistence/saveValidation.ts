@@ -199,7 +199,9 @@ function validateInventoryBoundary(value: Record<string, unknown>, version: 15 |
     } else if (!isItemInstanceV16(instance) || Object.keys(instance).some((field) => !["id", "definitionId", "version", "unlockedUpgradeNodeIds"].includes(field))) return false;
     const definitionId = typeof instance.definitionId === "string" ? instance.definitionId : null;
     if (!definitionId) return false;
-    if (version === 17 && (!itemById[definitionId] || itemById[definitionId].inventoryMode !== "instance")) return false;
+    // V17 is a frozen historical boundary. Do not consult current item
+    // definitions or upgrade trees here; migration owns that conversion.
+    if (version === 17 && typeof definitionId !== "string") return false;
     if (version === 18 && (!itemById[definitionId] || itemById[definitionId].inventoryMode !== "instance" || !validateItemInstance(instance).valid)) return false;
     if (version === 16 && (!itemById[definitionId] || itemById[definitionId].inventoryMode !== "instance")) return false;
     instanceIds.add(key);
@@ -209,7 +211,9 @@ function validateInventoryBoundary(value: Record<string, unknown>, version: 15 |
   for (const [slot, instanceId] of Object.entries(equipment.slots)) {
     const currentSlot = isEquipmentSlotId(slot) ? slot : null;
     if ((version === 17 ? !HISTORICAL_V17_SLOTS.has(slot) : !currentSlot) || typeof instanceId !== "string" || !instanceIds.has(instanceId)) return false;
-    if (version !== 15) {
+    if (version === 17) {
+      if (!HISTORICAL_V17_SLOTS.has(slot)) return false;
+    } else if (version !== 15) {
       const instance = isRecord(inventory.instances) ? inventory.instances[instanceId] : undefined;
       const definition = isRecord(instance) && typeof instance.definitionId === "string" ? itemById[instance.definitionId] : undefined;
       if (!definition || !currentSlot || !canEquipItemToSlot(definition, currentSlot)) return false;

@@ -1,5 +1,6 @@
 import { getLevelProgress, levelForXp, xpForLevel } from "../../progression/levelCurve"
-import type { ResourceMasteryProgress } from "../professionTypes"
+import type { ResourceMasteryId, ResourceMasteryProgress } from "../professionTypes"
+import type { MiningResourceId } from "./miningTypes"
 
 export const RESOURCE_MASTERY_XP_SCALE = 0.6
 
@@ -12,8 +13,8 @@ export interface ResourceMasteryMilestone {
 }
 
 export interface ResourceMasteryDefinition {
-  id: string
-  resourceId: string
+  id: ResourceMasteryId
+  resourceId: MiningResourceId
   thresholdScale: number
   passivePerLevel: { damage?: number; ore?: number }
   milestones: readonly ResourceMasteryMilestone[]
