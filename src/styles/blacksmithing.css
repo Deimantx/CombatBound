@@ -1,0 +1,43 @@
+.blacksmithing-screen { display: grid; gap: 14px; min-width: 0; }
+.blacksmithing-profession-header { min-width: 0; }
+.blacksmithing-stat-grid, .blacksmithing-detail-grid { display: grid; gap: 8px; grid-template-columns: repeat(5, minmax(0, 1fr)); margin-top: 14px; }
+.blacksmithing-metric { background: var(--panel-2); border: 1px solid var(--line-soft); border-radius: 6px; display: flex; flex-direction: column; gap: 4px; min-width: 0; padding: 9px; }
+.blacksmithing-metric span { color: var(--muted); font-size: 9px; text-transform: uppercase; }
+.blacksmithing-metric strong { font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.blacksmithing-workspace { display: grid; gap: 14px; grid-template-columns: minmax(250px, .9fr) minmax(0, 1.5fr); min-width: 0; }
+.blacksmithing-production-panel, .blacksmithing-recipe-list, .blacksmithing-instance-list, .blacksmithing-upgrade-tree, .blacksmithing-perk-panel { min-width: 0; }
+.blacksmithing-filter-row, .blacksmithing-queue-controls { align-items: center; display: flex; flex-wrap: wrap; gap: 7px; padding: 12px 14px 0; }
+.blacksmithing-recipe-grid, .blacksmithing-node-grid { display: grid; gap: 7px; padding: 14px; }
+.blacksmithing-recipe-card, .blacksmithing-instance-row, .blacksmithing-node, .blacksmithing-perk-node { background: var(--panel-2); border: 1px solid var(--line-soft); border-radius: 6px; color: var(--text); cursor: pointer; font: inherit; text-align: left; }
+.blacksmithing-recipe-card { display: flex; flex-direction: column; gap: 4px; padding: 10px; }
+.blacksmithing-recipe-card:hover, .blacksmithing-recipe-card.is-selected, .blacksmithing-instance-row:hover, .blacksmithing-instance-row.is-selected, .blacksmithing-node.state-available:hover, .blacksmithing-perk-node:hover, .blacksmithing-perk-node.is-selected { border-color: var(--gold); }
+.blacksmithing-recipe-card span, .blacksmithing-recipe-card small, .blacksmithing-instance-row small, .blacksmithing-node small, .blacksmithing-node span, .blacksmithing-perk-node small { color: var(--muted); font-size: 9px; }
+.blacksmithing-flow, .blacksmithing-active-card { border-top: 1px solid var(--line-soft); display: flex; flex-direction: column; gap: 5px; margin-top: 15px; padding-top: 14px; }
+.blacksmithing-flow span, .blacksmithing-active-card span { color: var(--muted); font-size: 10px; }
+.blacksmithing-active-card { gap: 8px; }
+.blacksmithing-queue-controls { padding: 14px 0 0; }
+.blacksmithing-instance-list { align-self: start; }
+.blacksmithing-instance-row { align-items: center; display: flex; justify-content: space-between; margin: 0 14px 7px; padding: 10px; width: calc(100% - 28px); }
+.blacksmithing-instance-row span { display: flex; flex-direction: column; gap: 4px; }
+.blacksmithing-instance-row > span:last-child { color: var(--muted); font-size: 9px; text-align: right; }
+.blacksmithing-node { display: flex; flex-direction: column; gap: 5px; padding: 11px; }
+.blacksmithing-node:not(.state-available) { cursor: not-allowed; opacity: .68; }
+.blacksmithing-perk-accounting { align-items: center; color: var(--muted); display: flex; flex-wrap: wrap; font-size: 10px; gap: 10px; justify-content: flex-end; }
+.blacksmithing-perk-accounting strong { color: var(--gold); }
+.blacksmithing-perk-layout { display: grid; gap: 14px; grid-template-columns: minmax(0, 1fr) 280px; padding: 16px; }
+.blacksmithing-perk-grid { display: grid; gap: 8px; grid-template-columns: repeat(4, minmax(120px, 1fr)); max-height: 680px; overflow: auto; padding: 2px; }
+.blacksmithing-perk-node { display: flex; flex-direction: column; gap: 5px; min-height: 66px; padding: 9px; }
+.blacksmithing-perk-node.is-purchased { background: var(--gold-soft); }
+.blacksmithing-perk-node.is-notable { border-color: rgba(140,169,195,.6); }
+.blacksmithing-perk-node.is-keystone { border-color: rgba(201,111,104,.6); }
+.blacksmithing-perk-node.is-major { border-color: var(--gold); }
+.blacksmithing-perk-details { background: var(--panel-2); border: 1px solid var(--line-soft); border-radius: 7px; padding: 14px; }
+.blacksmithing-perk-details h3 { font-size: 15px; margin: 5px 0 8px; }
+.blacksmithing-perk-details p { color: var(--text-dim); font-size: 11px; line-height: 1.45; }
+.blacksmithing-detail-list { display: grid; gap: 7px 10px; grid-template-columns: 1fr 1fr; margin: 16px 0; }
+.blacksmithing-detail-list span { color: var(--muted); font-size: 10px; }
+.blacksmithing-detail-list strong { font-size: 10px; text-align: right; }
+.button-ghost.is-active { border-color: var(--gold); color: var(--gold-bright); }
+.activity-bar.is-blacksmithing { border-color: rgba(213,170,98,.45); }
+@media (max-width: 950px) { .blacksmithing-workspace, .blacksmithing-perk-layout { grid-template-columns: 1fr; } .blacksmithing-perk-grid { grid-template-columns: repeat(3, minmax(120px, 1fr)); } }
+@media (max-width: 620px) { .blacksmithing-stat-grid, .blacksmithing-detail-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } .blacksmithing-perk-grid { grid-template-columns: repeat(2, minmax(120px, 1fr)); } }

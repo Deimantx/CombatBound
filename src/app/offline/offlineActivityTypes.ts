@@ -5,8 +5,9 @@ import type {
 } from "../../game/offline/offlineActivityContract";
 import type { CombatHuntOfflineSummary } from "../../game/offline/combatHuntActivity";
 import type { MiningOfflineSummary } from "../../game/offline/miningActivity";
+import type { BlacksmithingOfflineSummary } from "../../game/offline/blacksmithingActivity";
 
-export type OfflineActivitySummary = CombatHuntOfflineSummary | MiningOfflineSummary;
+export type OfflineActivitySummary = CombatHuntOfflineSummary | MiningOfflineSummary | BlacksmithingOfflineSummary;
 
 export type OfflineActivityLastResult =
   | {
@@ -18,6 +19,11 @@ export type OfflineActivityLastResult =
       profileId: string;
       activityType: "mining-iron-vein";
       simulation: OfflineActivitySimulationResult<GameState, MiningOfflineSummary>;
+    }
+  | {
+      profileId: string;
+      activityType: "blacksmithing";
+      simulation: OfflineActivitySimulationResult<GameState, BlacksmithingOfflineSummary>;
     };
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -70,6 +76,10 @@ export function isMiningOfflineSummary(value: unknown): value is MiningOfflineSu
     typeof value.blackStonePerHour === "number";
 }
 
+export function isBlacksmithingOfflineSummary(value: unknown): value is BlacksmithingOfflineSummary {
+  return isRecord(value) && typeof value.seconds === "number" && typeof value.operationsCompleted === "number" && typeof value.smeltsCompleted === "number" && typeof value.smithsCompleted === "number" && typeof value.upgradesCompleted === "number" && typeof value.restSeconds === "number" && typeof value.blacksmithingXp === "number" && typeof value.blacksmithingLevelBefore === "number" && typeof value.blacksmithingLevelAfter === "number" && typeof value.blacksmithingXpPerHour === "number" && isRecord(value.outputsGained) && isRecord(value.materialsConsumed) && isRecord(value.materialsRecovered);
+}
+
 export function toOfflineActivityLastResult(
   profileId: string,
   result: OfflineActivityTransactionSuccess<OfflineActivitySummary, GameState>,
@@ -87,6 +97,9 @@ export function toOfflineActivityLastResult(
       activityType: "mining-iron-vein",
       simulation: { ...result.simulation, summary: result.simulation.summary },
     };
+  }
+  if (result.activityType === "blacksmithing" && isBlacksmithingOfflineSummary(result.simulation.summary)) {
+    return { profileId, activityType: "blacksmithing", simulation: { ...result.simulation, summary: result.simulation.summary } };
   }
   return null;
 }

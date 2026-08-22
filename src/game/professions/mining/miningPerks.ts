@@ -1,10 +1,10 @@
-import type { ProfessionPerkDefinition, ProfessionPerkPrerequisite } from "../professionPerkTypes"
+import type { ProfessionPerkDefinition, ProfessionPerkPrerequisite, MiningModifier } from "../professionPerkTypes"
 import type { MiningStageId } from "./miningTypes"
 
 const stage = (...ids: MiningStageId[]) => ids
 const all = (...requirements: [string, number][]): ProfessionPerkPrerequisite[] => requirements.length ? [{ mode: "all", requirements: requirements.map(([perkId, requiredRank]) => ({ perkId, requiredRank })) }] : []
 const perk = (id: string, name: string, branch: string, type: ProfessionPerkDefinition["type"], maxRank: number, requiredSkillLevel: number, description: string, effects: ProfessionPerkDefinition["effects"], prerequisiteRules: ProfessionPerkPrerequisite[] = [], x = 0, y = 0): ProfessionPerkDefinition => ({ id, skillId: "mining", name, branch, type, maxRank, costPerRank: 1, requiredSkillLevel, description, effects, prerequisiteRules, position: { x, y } })
-const e = (modifier: ProfessionPerkDefinition["effects"][number]["modifier"], valuePerRank: number, stageIds?: MiningStageId[]) => ({ type: "miningModifier" as const, modifier, valuePerRank, stageIds })
+const e = (modifier: MiningModifier, valuePerRank: number, stageIds?: MiningStageId[]) => ({ type: "miningModifier" as const, modifier, valuePerRank, stageIds })
 
 export const miningPerks: ProfessionPerkDefinition[] = [
   perk("mining-perk.foundation", "Miner's Foundation", "Core / Learning", "small", 1, 2, "+5 Max Mining Stamina", [e("maxMiningStaminaFlat", 5)], [], 50, 8),

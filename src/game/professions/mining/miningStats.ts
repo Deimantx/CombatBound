@@ -63,6 +63,7 @@ export function getMiningModifierTotals(professions: ProfessionState, stageId: M
     const perk = definitions[perkId]
     if (!perk) continue
     for (const effect of perk.effects) {
+      if (effect.type !== "miningModifier") continue
       if (effect.resourceIds && !effect.resourceIds.includes(resourceId)) continue
       if (effect.stageIds && !effect.stageIds.includes(stageId)) continue
       addModifier(totals, effect.modifier, effect.valuePerRank * rank)

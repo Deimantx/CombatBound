@@ -8,6 +8,7 @@ import type { CombatAbilityLoadoutState } from "../combatAbilities/combatAbility
 import type { MagicArtsState } from "../magicArts/magicArtTypes";
 import type { ProfessionState } from "../professions/professionTypes";
 import type { MiningState } from "../professions/mining/miningTypes";
+import type { BlacksmithingState } from "../professions/blacksmithing/blacksmithingTypes";
 
 /** Frozen V14 proficiency IDs. Never derive historical parsing from current content. */
 export type LegacyCombatProficiencyIdV14 =
@@ -188,5 +189,10 @@ export interface GameSaveV18 extends Omit<GameSaveV17, "version" | "inventory" |
   equipment: EquipmentState;
   professions: ProfessionState;
   mining: MiningState;
+}
+/** Current V19 save. V18 remains a frozen historical boundary. */
+export interface GameSaveV19 extends Omit<GameSaveV18, "version"> {
+  version: 19;
+  blacksmithing: BlacksmithingState;
 }
 export type GameSaveV2 = GameSaveV3;

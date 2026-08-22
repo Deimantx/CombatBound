@@ -1,4 +1,4 @@
-import type { GameSaveV14, GameSaveV15, GameSaveV16, GameSaveV17, GameSaveV18 } from "./saveTypes";
+import type { GameSaveV14, GameSaveV15, GameSaveV16, GameSaveV17, GameSaveV18, GameSaveV19 } from "./saveTypes";
 import { proficiencyById } from "../data/proficiencies";
 import { perkById } from "../data/proficiencyPerks";
 import { COMBAT_ABILITY_SLOT_COUNT } from "../combatAbilities/combatAbilityTypes";
@@ -137,7 +137,7 @@ export function isGameSave(value: unknown): value is GameSaveV14 {
   );
 }
 
-function isModernSaveScaffold(value: unknown, expectedVersion: 15 | 16 | 17 | 18) {
+function isModernSaveScaffold(value: unknown, expectedVersion: 15 | 16 | 17 | 18 | 19) {
   if (!isRecord(value) || value.version !== expectedVersion || typeof value.gold !== "number" || !Number.isFinite(value.gold) || !isRecord(value.progression) || !isRecord(value.inventory) || !isRecord(value.equipment) || !isRecord(value.collection) || !isRecord(value.settings) || !isRecord(value.magicArts) || !isRecord(value.combatAutomation) || !isRecord(value.combatAutomationPresets) || !isRecord(value.combatAbilities)) return false;
   const progression = value.progression;
   if (!isRecord(progression.proficiencies) || typeof progression.hunterRankPoints !== "number" || progression.hunterRankPoints < 0 || typeof progression.bonusPerkPoints !== "number" || !Number.isInteger(progression.bonusPerkPoints) || progression.bonusPerkPoints < 0 || !isRecord(progression.purchasedPerks)) return false;
@@ -176,7 +176,7 @@ function isModernSaveScaffold(value: unknown, expectedVersion: 15 | 16 | 17 | 18
   return typeof value.settings.reducedMotion === "boolean" && typeof value.settings.showInspectorButton === "boolean";
 }
 
-function validateInventoryBoundary(value: Record<string, unknown>, version: 15 | 16 | 17 | 18) {
+function validateInventoryBoundary(value: Record<string, unknown>, version: 15 | 16 | 17 | 18 | 19) {
   const inventory = value.inventory;
   const equipment = value.equipment;
   if (!isRecord(inventory) || !isRecord(equipment) || !isRecord(inventory.stackables) || !isRecord(inventory.instances) || !isRecord(equipment.slots)) return false;
@@ -202,7 +202,7 @@ function validateInventoryBoundary(value: Record<string, unknown>, version: 15 |
     // V17 is a frozen historical boundary. Do not consult current item
     // definitions or upgrade trees here; migration owns that conversion.
     if (version === 17 && typeof definitionId !== "string") return false;
-    if (version === 18 && (!itemById[definitionId] || itemById[definitionId].inventoryMode !== "instance" || !validateItemInstance(instance).valid)) return false;
+    if ((version === 18 || version === 19) && (!itemById[definitionId] || itemById[definitionId].inventoryMode !== "instance" || !validateItemInstance(instance).valid)) return false;
     if (version === 16 && (!itemById[definitionId] || itemById[definitionId].inventoryMode !== "instance")) return false;
     instanceIds.add(key);
     highestSequence = Math.max(highestSequence, itemInstanceSequence(key));
@@ -239,4 +239,10 @@ export function isGameSaveV18(value: unknown): value is GameSaveV18 {
   if (!isModernSaveScaffold(value, 18) || !validateInventoryBoundary(value as Record<string, unknown>, 18)) return false;
   const raw = value as Record<string, unknown>;
   return Boolean(raw.professions && typeof raw.professions === "object" && raw.mining && typeof raw.mining === "object");
+}
+
+export function isGameSaveV19(value: unknown): value is GameSaveV19 {
+  if (!isModernSaveScaffold(value, 19) || !validateInventoryBoundary(value as Record<string, unknown>, 19)) return false;
+  const raw = value as Record<string, unknown>;
+  return Boolean(raw.professions && typeof raw.professions === "object" && raw.mining && typeof raw.mining === "object" && raw.blacksmithing && typeof raw.blacksmithing === "object");
 }

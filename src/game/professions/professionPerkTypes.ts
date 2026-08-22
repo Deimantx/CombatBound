@@ -1,4 +1,5 @@
 import type { ProfessionSkillId } from "./professionTypes"
+import type { BlacksmithingModifier, BlacksmithingRecipeTag } from "./blacksmithing/blacksmithingTypes"
 
 export type ProfessionPerkType = "small" | "notable" | "keystone" | "major"
 export type MiningModifier =
@@ -7,13 +8,22 @@ export type MiningModifier =
   | "roughGemFindIncreased" | "blackStoneFindIncreased" | "stageMiningDamageIncreased" | "stageOreYieldIncreased"
   | "stageByproductFindIncreased" | "stageBreakStaminaRestoreFlat" | "firstRestDurationReduced"
 
-export interface ProfessionModifierEffect {
+export interface MiningModifierEffect {
   type: "miningModifier"
   modifier: MiningModifier
   valuePerRank: number
   stageIds?: string[]
   resourceIds?: string[]
 }
+
+export interface BlacksmithingModifierEffect {
+  type: "blacksmithingModifier"
+  modifier: BlacksmithingModifier
+  valuePerRank: number
+  recipeTags?: BlacksmithingRecipeTag[]
+}
+
+export type ProfessionModifierEffect = MiningModifierEffect | BlacksmithingModifierEffect
 
 export interface ProfessionPerkRequirement { perkId: string; requiredRank: number }
 export type ProfessionPerkPrerequisite =

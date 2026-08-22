@@ -6,7 +6,10 @@ export const MAX_PROFESSION_LEVEL = 100
 
 export function createInitialProfessionState(): ProfessionState {
   return {
-    skills: { mining: { skillId: "mining", totalXp: 0, bonusSkillPoints: 0, purchasedPerks: {} } },
+    skills: {
+      mining: { skillId: "mining", totalXp: 0, bonusSkillPoints: 0, purchasedPerks: {} },
+      blacksmithing: { skillId: "blacksmithing", totalXp: 0, bonusSkillPoints: 0, purchasedPerks: {} },
+    },
     resourceMasteries: { "mastery.iron-vein": { masteryId: "mastery.iron-vein", totalXp: 0 } },
   }
 }

@@ -8,6 +8,7 @@ import { useOfflineActivityRuntimeStore } from "../../state/offlineActivityRunti
 export function SimulationDriver() {
   const combatActive = useGameStore((state) => state.combatActive);
   const miningActive = useGameStore((state) => state.miningActive);
+  const blacksmithingActive = useGameStore((state) => state.blacksmithingActive);
   const recoveryActive = useGameStore((state) => {
     const combat = state.game.combat;
     return (combat.phase === "inactive" || combat.phase === "stopped") &&
@@ -34,7 +35,7 @@ export function SimulationDriver() {
   }, []);
 
   useEffect(() => {
-    if ((!combatActive && !recoveryActive && !miningActive) || paused || offlineTransactionRunning || offlineResultsOpen || !visible || offlineReportOpen) {
+    if ((!combatActive && !recoveryActive && !miningActive && !blacksmithingActive) || paused || offlineTransactionRunning || offlineResultsOpen || !visible || offlineReportOpen) {
       accumulator.current = 0;
       return;
     }
@@ -51,7 +52,7 @@ export function SimulationDriver() {
       }
     }, 100);
     return () => window.clearInterval(interval);
-  }, [combatActive, recoveryActive, miningActive, paused, offlineTransactionRunning, offlineResultsOpen, offlineReportOpen, resetVersion, timeScale, tickCombat, visible]);
+  }, [combatActive, recoveryActive, miningActive, blacksmithingActive, paused, offlineTransactionRunning, offlineResultsOpen, offlineReportOpen, resetVersion, timeScale, tickCombat, visible]);
 
   return null;
 }

@@ -256,7 +256,7 @@ describe("Mining Time Bank integration", () => {
     expect(useGameStore.getState().game.mining.active).toBe(true)
 
     const saved = loadProfileGameSave(profileId)
-    expect(saved?.version).toBe(18)
+    expect(saved?.version).toBe(19)
     expect(parseGameSaveJson(JSON.stringify(saved))?.mining.active).toBe(true)
     returnToProfileSelect()
     expect(loadAndEnterProfile(profileId).ok).toBe(true)
@@ -331,7 +331,7 @@ describe("Historical V17 persistence freeze", () => {
     expect("professions" in v17).toBe(false)
     expect("mining" in v17).toBe(false)
     const migrated = parseGameSaveJson(JSON.stringify({ ...v17, inventory: { ...v17.inventory, instances: {}, nextInstanceSequence: 1 }, equipment: { slots: {} } }))
-    expect(migrated?.version).toBe(18)
+    expect(migrated?.version).toBe(19)
     expect(Object.values(migrated?.inventory.instances ?? {}).filter((instance) => instance.definitionId === "item.worn-pickaxe")).toHaveLength(1)
     expect(migrated?.equipment.slots.tool).toBeDefined()
   })
@@ -352,7 +352,7 @@ describe("Historical V17 persistence freeze", () => {
       equipment: { slots: { weapon: swordId, armor: armorId, offhand: shieldId } },
     }, { reducedMotion: false, showInspectorButton: true })
     const migrated = parseGameSaveJson(JSON.stringify(v17))
-    expect(migrated?.version).toBe(18)
+    expect(migrated?.version).toBe(19)
     expect([swordId, armorId, shieldId].every((id) => migrated?.inventory.instances[id])).toBe(true)
     expect(migrated?.inventory.instances[swordId]).toMatchObject({ definitionId: "item.iron-sword", unlockedUpgradeNodeIds: specializedInstances[swordId].unlockedUpgradeNodeIds })
     expect(migrated?.inventory.instances[armorId]).toMatchObject({ definitionId: "item.iron-armor", unlockedUpgradeNodeIds: specializedInstances[armorId].unlockedUpgradeNodeIds })

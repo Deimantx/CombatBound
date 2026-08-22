@@ -3,6 +3,7 @@ import {
   combatHuntActivityAdapter,
 } from "../../game/offline/combatHuntActivity";
 import { miningActivityAdapter } from "../../game/offline/miningActivity";
+import { blacksmithingActivityAdapter } from "../../game/offline/blacksmithingActivity";
 import {
   createDeterministicOfflineRng,
   OfflineActivityRegistry,
@@ -37,9 +38,15 @@ const appMiningAdapter: OfflineActivityAdapter<GameState, OfflineActivitySummary
   simulate: (snapshot, request, rng) => miningActivityAdapter.simulate(snapshot, request, rng),
 };
 
+const appBlacksmithingAdapter: OfflineActivityAdapter<GameState, OfflineActivitySummary> = {
+  ...blacksmithingActivityAdapter,
+  simulate: (snapshot, request, rng) => blacksmithingActivityAdapter.simulate(snapshot, request, rng),
+};
+
 const offlineActivityRegistry = new OfflineActivityRegistry<GameState, OfflineActivitySummary>([
   appCombatAdapter,
   appMiningAdapter,
+  appBlacksmithingAdapter,
 ]);
 
 export interface OfflineActivityPanelState {

@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { createInitialGameState } from "../game/gameState";
 import { gameStateToSaveV14, parseGameSaveJson } from "../game/persistence/saveGame";
-import { isGameSaveV18 } from "../game/persistence/saveValidation";
+import { isGameSaveV19 } from "../game/persistence/saveValidation";
 import { validateItemInstance } from "../game/items/itemInstanceValidation";
 
 describe("retired item modifier boundary", () => {
@@ -28,8 +28,8 @@ describe("retired item modifier boundary", () => {
       },
       equipment: { slots: { weapon: "item-instance-00000009" } },
     }));
-    expect(migrated?.version).toBe(18);
-    expect(isGameSaveV18(migrated)).toBe(true);
+    expect(migrated?.version).toBe(19);
+    expect(isGameSaveV19(migrated)).toBe(true);
     const instance = Object.values(migrated!.inventory.instances)[0];
     expect(instance).toEqual({ id: instance.id, definitionId: "item.iron-sword", version: 3, unlockedUpgradeNodeIds: [] });
     expect(instance).not.toHaveProperty("quality");

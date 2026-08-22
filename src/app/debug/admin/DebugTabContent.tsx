@@ -11,6 +11,7 @@ import { DebugSaveToolsTab } from "./tabs/DebugSaveToolsTab";
 import { DebugScenariosTab } from "./tabs/DebugScenariosTab";
 import { DebugMagicArtsTab } from "./tabs/DebugMagicArtsTab";
 import { DebugMiningTab } from "./tabs/DebugMiningTab";
+import { DebugBlacksmithingTab } from "./tabs/DebugBlacksmithingTab";
 import { DebugStateTab } from "./tabs/DebugStateTab";
 import { DebugStatsTab } from "./tabs/DebugStatsTab";
 import { DebugValidationTab } from "./tabs/DebugValidationTab";
@@ -23,6 +24,7 @@ export function DebugTabContent({ tab, run, setTab, setConfirmCollection }: { ta
   if (tab === "player") return <DebugPlayerTab debug={debug} run={run} />;
   if (tab === "progression") return <DebugProgressionTab debug={debug} run={run} />;
   if (tab === "mining") return <DebugMiningTab debug={debug} run={run} />;
+  if (tab === "blacksmithing") return <DebugBlacksmithingTab debug={debug} run={run} />;
   if (tab === "items") return <DebugItemsTab debug={debug} run={run} />;
   if (tab === "collection") return <DebugCollectionTab debug={debug} run={run} onConfirm={() => setConfirmCollection(true)} />;
   if (tab === "combat") return <DebugCombatTab debug={debug} run={run} />;

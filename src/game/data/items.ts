@@ -111,7 +111,7 @@ const authoredItemDefinitions: ItemDefinition[] = [
   },
   {
     id: "item.iron-bar", name: "Iron Bar", category: "material", rarity: "common",
-    description: "A refined Blacksmithing material. Its normal source will be Iron Ore after smelting is implemented.",
+    description: "A refined iron bar smelted from Iron Ore and used to smith Iron equipment.",
     icon: "cube", inventoryMode: "stackable", purpose: "crafting",
   },
   { id: "item.worn-pickaxe", name: "Worn Pickaxe", category: "tool", rarity: "common", description: "A battered starter pickaxe. Crude, but enough to begin working an Iron Vein.", icon: "pickaxe", inventoryMode: "instance", purpose: "equipment", equipmentSlotKind: "tool", professionToolKind: "pickaxe", requiredProfessionSkillId: "mining", requiredProfessionLevel: 1, professionToolStats: { miningDamage: 10 } },

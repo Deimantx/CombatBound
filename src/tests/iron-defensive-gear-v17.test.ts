@@ -124,7 +124,7 @@ describe("Iron heavy armor and shield V17", () => {
       working = { ...working, inventory, equipment: equipped.equipment, progression: equipped.progression ?? working.progression };
     }
     const loaded = parseGameSaveJson(JSON.stringify(gameStateToSaveV17(working, { reducedMotion: false, showInspectorButton: true })));
-    expect(CURRENT_SAVE_VERSION).toBe(18);
+    expect(CURRENT_SAVE_VERSION).toBe(19);
     expect(Object.values(loaded?.inventory.instances ?? {}).filter((instance) => instance.definitionId !== "item.worn-pickaxe")).toEqual(Object.values(working.inventory.instances));
     expect(Object.values(loaded?.inventory.instances ?? {}).filter((instance) => instance.definitionId === "item.worn-pickaxe")).toHaveLength(1);
     expect(loaded?.equipment.slots).toMatchObject(working.equipment.slots);

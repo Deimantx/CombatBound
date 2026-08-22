@@ -39,7 +39,7 @@ import {
   loadProfileGameSave,
 } from "../game/profiles/profileStorage";
 import { getProfileSessionOwnerId, isProfileSessionOwner } from "../game/profiles/profileSessionLease";
-import { gameStateToSaveV18, parseGameSaveJson } from "../game/persistence/saveGame";
+import { gameStateToSaveV19, parseGameSaveJson } from "../game/persistence/saveGame";
 import type { ProfileId } from "../game/profiles/profileTypes";
 import type { InventoryEntryRef } from "../game/items/itemTypes";
 import type { SpellbookState } from "../game/spellbook/spellbookTypes";
@@ -130,6 +130,7 @@ import {
 import type { DebugEffectTarget, DebugResource } from "../game/debug/debugTypes";
 import type { CombatProficiencyId } from "../game/progression/progressionTypes";
 import { advanceMining, startMiningState, stopMiningState } from "../game/professions/mining/miningRuntime";
+import { advanceBlacksmithing, clearBlacksmithingQueue, startBlacksmithingRecipe, startBlacksmithingUpgrade, stopBlacksmithingState } from "../game/professions/blacksmithing/blacksmithingRuntime";
 import { canStartMining } from "../game/professions/mining/miningStats";
 import { getProfessionPerkDefinitions } from "../game/professions/professionPerkRegistry";
 import { purchaseProfessionPerk, resetProfessionPerks } from "../game/professions/professionPerkValidation";
@@ -139,6 +140,8 @@ import { getProfessionLevel, setProfessionLevel, setProfessionXp } from "../game
 import { ironMasteryXpForLevel, ironMasteryLevel } from "../game/professions/mining/miningMastery";
 import { miningStageById } from "../game/professions/mining/miningData";
 import { getMiningStats } from "../game/professions/mining/miningStats";
+import { normalizeBlacksmithingState } from "../game/professions/blacksmithing/blacksmithingRuntime";
+import { getBlacksmithingStats } from "../game/professions/blacksmithing/blacksmithingStats";
 import { useDevToolsRuntimeStore } from "../app/debug/devtools/devToolsRuntimeStore";
 import { useDebugTelemetryStore } from "../app/debug/telemetry/debugTelemetryStore";
 import type { DebugScenarioSnapshot } from "../app/debug/scenarios/debugScenarioTypes";
@@ -156,7 +159,8 @@ interface GameStoreState {
   activeCombatLocationId: string | null;
   combatActive: boolean;
   miningActive: boolean;
-  activity: "idle" | "combat" | "mining";
+  blacksmithingActive: boolean;
+  activity: "idle" | "combat" | "mining" | "blacksmithing";
   selectedTargetId: string;
   playerHp: number;
   enemyHp: number;
@@ -187,6 +191,10 @@ interface GameStoreState {
   stopCombat: () => void;
   startMining: () => void;
   stopMining: () => void;
+  startBlacksmithing: (recipeId?: string, quantity?: number, queueMode?: "fixed" | "max") => void;
+  startBlacksmithingUpgrade: (instanceId: string, nodeId: string) => void;
+  stopBlacksmithing: () => void;
+  clearBlacksmithingQueue: () => void;
   tickCombat: (delta: number) => void;
   selectCombatTargetPreview: (enemyId: string) => void;
   selectTarget: (enemyId: string) => void;
@@ -214,6 +222,7 @@ interface GameStoreState {
   openLootContainer: (itemId: string) => void;
   purchaseProficiencyPerk: (perkId: string) => void;
   purchaseMiningPerk: (perkId: string) => void;
+  purchaseBlacksmithingPerk: (perkId: string) => void;
   equipItemInstance: (instanceId: string, slot: EquipmentSlotId) => void;
   purchaseItemUpgradeNode: (instanceId: string, nodeId: string) => void;
   unequipEquipmentSlot: (slot: EquipmentSlotId) => void;
@@ -313,6 +322,17 @@ export interface DebugStoreApi {
   advanceMiningTime: (seconds: number) => void;
   grantMiningTool: (itemId: string) => void;
   equipMiningTool: (itemId: string) => void;
+  setBlacksmithingLevel: (level: number) => void;
+  setBlacksmithingXp: (amount: number) => void;
+  addBlacksmithingLevel: (amount: number) => void;
+  addBlacksmithingSkillPoint: () => void;
+  resetBlacksmithingBonusPoints: () => void;
+  resetBlacksmithingPerks: () => void;
+  setForgeStamina: (value: number) => void;
+  forceForgeRest: () => void;
+  completeForgeRest: () => void;
+  advanceBlacksmithingTime: (seconds: number) => void;
+  grantBlacksmithingMaterials: (itemId: string, quantity: number) => void;
 }
 
 const context = createCombatContext({ next: () => Math.random(), nextFor: () => Math.random() });
@@ -354,6 +374,7 @@ function gameFromSave(saved: NonNullable<ReturnType<typeof loadProfileGameSave>>
       ),
       professions: normalizeProfessionState(saved.professions),
       mining: normalizeMiningState(saved.mining),
+      blacksmithing: normalizeBlacksmithingState((saved as typeof saved & { blacksmithing?: unknown }).blacksmithing),
     });
 }
 
@@ -391,6 +412,7 @@ function flatState(
   | "activeCombatLocationId"
   | "combatActive"
   | "miningActive"
+  | "blacksmithingActive"
   | "activity"
   | "selectedTargetId"
   | "playerHp"
@@ -412,13 +434,15 @@ function flatState(
   const target = combat.enemy;
   const active = combat.phase === "active" || combat.phase === "recovery";
   const miningActive = game.mining.active;
+  const blacksmithingActive = game.blacksmithing.active;
   return {
     ...ui,
     game,
     activeCombatLocationId: combat.combatLocationId,
     combatActive: active,
     miningActive,
-    activity: active ? "combat" : miningActive ? "mining" : "idle",
+    blacksmithingActive,
+    activity: active ? "combat" : miningActive ? "mining" : blacksmithingActive ? "blacksmithing" : "idle",
     selectedTargetId: ui.selectedTargetId,
     playerHp: Math.round(combat.playerHp),
     enemyHp: Math.round(target?.currentHealth ?? 0),
@@ -446,7 +470,7 @@ function savePermanent(
   const profileId = activeProfileIdForPersistence();
   // A lease check here protects every gameplay save path, including debug and combat mutations.
   if (!profileId || !isProfileSessionOwner(profileId, getProfileSessionOwnerId())) return false;
-  return saveProfileGameSave(profileId, gameStateToSaveV18(game, settings));
+  return saveProfileGameSave(profileId, gameStateToSaveV19(game, settings));
 }
 
 function captureDebugCombatEvents(previous: GameState, next: GameState) {
@@ -552,7 +576,7 @@ export const useGameStore = create<GameStoreState>((set, get) => {
         ? state.selectedTargetId
         : undefined;
       if (!targetId) return state;
-      const prepared = { ...state.game, mining: stopMiningState(state.game.mining), combat: { ...state.game.combat, stopReason: null } };
+      const prepared = { ...state.game, mining: stopMiningState(state.game.mining), blacksmithing: stopBlacksmithingState(state.game).blacksmithing, combat: { ...state.game.combat, stopReason: null } };
       const game = mode === "switch"
         ? engineSwitchCombatTarget(prepared, state.selectedCombatLocationId, targetId, stats, context)
         : engineStartCombatTarget(prepared, state.selectedCombatLocationId, targetId, stats, context);
@@ -676,6 +700,17 @@ export const useGameStore = create<GameStoreState>((set, get) => {
     advanceMiningTime: (seconds) => commitDebug((game) => advanceMining(game, seconds, context.rng).game, true),
     grantMiningTool: (itemId) => commitDebug((game) => debugGrantItem(game, itemId, 1), true),
     equipMiningTool: (itemId) => commitDebug((game) => { const instance = getInstancesByDefinitionId(game.inventory, itemId)[0]; if (!instance) return game; const equipped = equipOwnedItemInstance({ instanceId: instance.id, slotId: "tool", inventory: game.inventory, equipment: game.equipment, hunterRank: hunterRankForPoints(game.progression.hunterRankPoints), progression: game.progression, professions: game.professions, ignoreRequirements: true }); return equipped.validation.valid ? { ...game, equipment: equipped.equipment } : game }, true),
+    setBlacksmithingLevel: (level) => commitDebug((game) => ({ ...game, professions: setProfessionLevel(game.professions, "blacksmithing", level) }), true),
+    setBlacksmithingXp: (amount) => commitDebug((game) => ({ ...game, professions: setProfessionXp(game.professions, "blacksmithing", amount) }), true),
+    addBlacksmithingLevel: (amount) => commitDebug((game) => ({ ...game, professions: setProfessionLevel(game.professions, "blacksmithing", getProfessionLevel(game.professions, "blacksmithing") + amount) }), true),
+    addBlacksmithingSkillPoint: () => commitDebug((game) => ({ ...game, professions: { ...game.professions, skills: { ...game.professions.skills, blacksmithing: { ...game.professions.skills.blacksmithing!, bonusSkillPoints: game.professions.skills.blacksmithing!.bonusSkillPoints + 1 } } } }), true),
+    resetBlacksmithingBonusPoints: () => commitDebug((game) => ({ ...game, professions: { ...game.professions, skills: { ...game.professions.skills, blacksmithing: { ...game.professions.skills.blacksmithing!, bonusSkillPoints: 0 } } } }), true),
+    resetBlacksmithingPerks: () => commitDebug((game) => ({ ...game, professions: resetProfessionPerks(game.professions, "blacksmithing") }), true),
+    setForgeStamina: (value) => commitDebug((game) => { const max = getBlacksmithingStats(game).maxForgeStamina; return { ...game, blacksmithing: { ...game.blacksmithing, forgeStamina: Math.max(0, Math.min(max, Number.isFinite(value) ? value : 0)) } } }, true),
+    forceForgeRest: () => commitDebug((game) => { const stats = getBlacksmithingStats(game); return { ...game, blacksmithing: { ...game.blacksmithing, active: true, mode: "resting", restTimerRemaining: stats.restDurationSeconds, actionTimerRemaining: 0 } } }, true),
+    completeForgeRest: () => commitDebug((game) => advanceBlacksmithing({ ...game, blacksmithing: { ...game.blacksmithing, active: true, mode: "resting" } }, game.blacksmithing.restTimerRemaining + 0.001, context.rng).game, true),
+    advanceBlacksmithingTime: (seconds) => commitDebug((game) => advanceBlacksmithing(game, seconds, context.rng).game, true),
+    grantBlacksmithingMaterials: (itemId, quantity) => commitDebug((game) => debugGrantItem(game, itemId, quantity), true),
   };
   return {
     activeProfileId: null,
@@ -745,7 +780,7 @@ export const useGameStore = create<GameStoreState>((set, get) => {
       set((state) => {
         const eligibility = canStartMining(state.game);
         if (!eligibility.valid) return state;
-        const game = { ...state.game, combat: engineStopHunt(state.game.combat, context.effects), mining: startMiningState(state.game.mining, state.game) };
+        const game = { ...state.game, combat: engineStopHunt(state.game.combat, context.effects), blacksmithing: stopBlacksmithingState(state.game).blacksmithing, mining: startMiningState(state.game.mining, state.game) };
         savePermanent(game, { reducedMotion: state.reducedMotion, showInspectorButton: state.showInspectorButton });
         return flatState(game, state);
       }),
@@ -756,14 +791,46 @@ export const useGameStore = create<GameStoreState>((set, get) => {
         savePermanent(game, { reducedMotion: state.reducedMotion, showInspectorButton: state.showInspectorButton });
         return flatState(game, state);
       }),
+    startBlacksmithing: (recipeId, quantity = 1, queueMode = "fixed") =>
+      set((state) => {
+        const selected = recipeId ?? state.game.blacksmithing.selectedSmeltingRecipeId;
+        const prepared = { ...state.game, combat: engineStopHunt(state.game.combat, context.effects), mining: stopMiningState(state.game.mining), blacksmithing: stopBlacksmithingState(state.game).blacksmithing };
+        const result = startBlacksmithingRecipe(prepared, selected, quantity, queueMode);
+        if (result.outcome !== "started" && result.outcome !== "resting" && result.outcome !== "resumed") return state;
+        const game = result.game;
+        savePermanent(game, { reducedMotion: state.reducedMotion, showInspectorButton: state.showInspectorButton });
+        return flatState(game, state);
+      }),
+    startBlacksmithingUpgrade: (instanceId, nodeId) =>
+      set((state) => {
+        const prepared = { ...state.game, combat: engineStopHunt(state.game.combat, context.effects), mining: stopMiningState(state.game.mining), blacksmithing: stopBlacksmithingState(state.game).blacksmithing };
+        const result = startBlacksmithingUpgrade(prepared, instanceId, nodeId);
+        if (result.outcome !== "started" && result.outcome !== "resting" && result.outcome !== "resumed") return state;
+        savePermanent(result.game, { reducedMotion: state.reducedMotion, showInspectorButton: state.showInspectorButton });
+        return flatState(result.game, state);
+      }),
+    stopBlacksmithing: () =>
+      set((state) => {
+        if (!state.game.blacksmithing.active) return state;
+        const game = stopBlacksmithingState(state.game);
+        savePermanent(game, { reducedMotion: state.reducedMotion, showInspectorButton: state.showInspectorButton });
+        return flatState(game, state);
+      }),
+    clearBlacksmithingQueue: () =>
+      set((state) => {
+        const game = clearBlacksmithingQueue(state.game);
+        savePermanent(game, { reducedMotion: state.reducedMotion, showInspectorButton: state.showInspectorButton });
+        return flatState(game, state);
+      }),
     tickCombat: (delta) =>
       set((state) => {
         const stats = calculateHunterCombatStats(state.game.equipment, state.game.inventory, state.game.progression);
-        const game = state.game.mining.active ? advanceMining(state.game, delta, context.rng).game : advanceCombat(state.game, delta, context, stats);
+        const game = state.game.mining.active ? advanceMining(state.game, delta, context.rng).game : state.game.blacksmithing.active ? advanceBlacksmithing(state.game, delta, context.rng).game : advanceCombat(state.game, delta, context, stats);
         captureDebugCombatEvents(state.game, game);
         if (
           game.mining.totalSwings !== state.game.mining.totalSwings ||
           game.mining.completedDeposits !== state.game.mining.completedDeposits ||
+          game.blacksmithing.completedOperations !== state.game.blacksmithing.completedOperations ||
           game.progression.hunterRankPoints !== state.game.progression.hunterRankPoints ||
           Object.keys(game.progression.proficiencies).length !==
             Object.keys(state.game.progression.proficiencies).length ||
@@ -1018,6 +1085,14 @@ export const useGameStore = create<GameStoreState>((set, get) => {
       set((state) => {
         if (state.game.mining.active === false && !state.game.professions.skills.mining) return state;
         const result = purchaseProfessionPerk(state.game.professions, perkId, getProfessionPerkDefinitions("mining"));
+        if (result.outcome !== "purchased") return state;
+        const game = { ...state.game, professions: result.state };
+        savePermanent(game, { reducedMotion: state.reducedMotion, showInspectorButton: state.showInspectorButton });
+        return flatState(game, state);
+      }),
+    purchaseBlacksmithingPerk: (perkId) =>
+      set((state) => {
+        const result = purchaseProfessionPerk(state.game.professions, perkId, getProfessionPerkDefinitions("blacksmithing"));
         if (result.outcome !== "purchased") return state;
         const game = { ...state.game, professions: result.state };
         savePermanent(game, { reducedMotion: state.reducedMotion, showInspectorButton: state.showInspectorButton });

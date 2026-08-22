@@ -31,6 +31,8 @@ import { createInitialProfessionState } from "./professions/professionProgressio
 import type { ProfessionState } from "./professions/professionTypes";
 import { createInitialMiningState } from "./professions/mining/miningData";
 import type { MiningState } from "./professions/mining/miningTypes";
+import { createInitialBlacksmithingState } from "./professions/blacksmithing/blacksmithingData";
+import type { BlacksmithingState } from "./professions/blacksmithing/blacksmithingTypes";
 
 export interface GameState {
   combat: CombatState;
@@ -47,6 +49,7 @@ export interface GameState {
   combatAbilities: CombatAbilityLoadoutState;
   professions: ProfessionState;
   mining: MiningState;
+  blacksmithing: BlacksmithingState;
 }
 
 export function createInitialGameState(): GameState {
@@ -73,5 +76,6 @@ export function createInitialGameState(): GameState {
     combatAbilities: createInitialCombatAbilityLoadout(["magic-art.earth-shield"]),
     professions: createInitialProfessionState(),
     mining: createInitialMiningState(),
+    blacksmithing: createInitialBlacksmithingState(),
   };
 }

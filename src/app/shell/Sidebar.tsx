@@ -13,7 +13,7 @@ export function Sidebar() {
       </div>
       <nav className="side-nav" aria-label="Primary navigation">
         <p className="nav-caption">COMMAND</p>
-        {navigationItems.slice(0, 5).map((item) => {
+        {navigationItems.slice(0, 6).map((item) => {
           const Icon = item.icon
           const active = screen === item.id
           return <button key={item.id} className={`nav-item ${active ? 'is-active' : ''}`} onClick={() => setScreen(item.id)} aria-current={active ? 'page' : undefined} aria-label={item.label} data-debug-kind="navigation-item" data-debug-label={item.label}>
@@ -22,7 +22,7 @@ export function Sidebar() {
         })}
         <div className="nav-spacer" />
         <p className="nav-caption">SYSTEM</p>
-        {navigationItems.slice(5).map((item) => {
+        {navigationItems.slice(6).map((item) => {
           const Icon = item.icon
           const active = screen === item.id
           return <button key={item.id} className={`nav-item ${active ? 'is-active' : ''}`} onClick={() => setScreen(item.id)} aria-current={active ? 'page' : undefined} aria-label={item.label} data-debug-kind="navigation-item" data-debug-label={item.label}>

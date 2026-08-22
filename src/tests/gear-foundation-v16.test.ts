@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { createInitialGameState } from "../game/gameState";
 import { gameStateToSaveV14, gameStateToSaveV17, parseGameSaveJson } from "../game/persistence/saveGame";
-import { isGameSaveV18 } from "../game/persistence/saveValidation";
+import { isGameSaveV19 } from "../game/persistence/saveValidation";
 import { grantItem } from "../game/items/itemOwnership";
 import { getItemUpgradeSpecialization, getUpgradeNodeState, purchaseItemUpgradeNode } from "../game/items/itemUpgradeLogic";
 import { normalizeItemInstance, validateItemInstance } from "../game/items/itemInstanceValidation";
@@ -65,8 +65,8 @@ describe("Iron Sword gear foundation V18", () => {
       equipment: { slots: { weapon: "item-instance-00000009" } },
     };
     const migrated = parseGameSaveJson(JSON.stringify(legacy));
-    expect(migrated?.version).toBe(18);
-    expect(migrated && isGameSaveV18(migrated)).toBe(true);
+    expect(migrated?.version).toBe(19);
+    expect(migrated && isGameSaveV19(migrated)).toBe(true);
     expect(Object.values(migrated!.inventory.instances)).toHaveLength(2);
     expect(Object.values(migrated!.inventory.instances)[0]).toMatchObject({ definitionId: "item.iron-sword", version: 3, unlockedUpgradeNodeIds: [] });
     expect(Object.values(migrated!.inventory.instances)[0]).not.toHaveProperty("quality");
@@ -176,7 +176,7 @@ describe("Iron Sword gear foundation V18", () => {
     const swordId = Object.keys(game.inventory.instances)[0];
     const legacy = { ...current, version: 16 as const, inventory: { ...current.inventory, instances: { [swordId]: { ...current.inventory.instances[swordId], unlockedUpgradeNodeIds: [p1, p2, r1, g1] } } } };
     const migrated = parseGameSaveJson(JSON.stringify(legacy));
-    expect(migrated?.version).toBe(18);
+    expect(migrated?.version).toBe(19);
     expect(migrated?.inventory.instances[swordId].unlockedUpgradeNodeIds).toEqual([p1, p2]);
     expect(getItemUpgradeSpecialization(migrated!.inventory.instances[swordId], ironSwordUpgradeTree).branchId).toBe("upgrade-branch.iron-sword.tempered");
   });

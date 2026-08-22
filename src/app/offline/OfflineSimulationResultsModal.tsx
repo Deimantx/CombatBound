@@ -1,4 +1,4 @@
-import { BarChart3, Coins, Package, Pickaxe, Swords, Trophy, X } from "lucide-react";
+import { BarChart3, Hammer, Coins, Package, Pickaxe, Swords, Trophy, X } from "lucide-react";
 import { useEffect, useMemo, useRef } from "react";
 import { PlaceholderArt } from "../components/PlaceholderArt";
 import { combatLocationById } from "../../game/data/world/combatLocations";
@@ -7,11 +7,12 @@ import { formatDuration } from "../../game/profiles/profileFormatting";
 import { perHour } from "../../game/offline/offlineResultMetrics";
 import type { CombatHuntOfflineSummary } from "../../game/offline/offlineCombatSimulation";
 import type { MiningOfflineSummary } from "../../game/offline/miningActivity";
+import type { BlacksmithingOfflineSummary } from "../../game/offline/blacksmithingActivity";
 import type { OfflineActivitySimulationResult } from "../../game/offline/offlineActivityContract";
 import type { GameState } from "../../game/gameState";
 import { useGameStore } from "../../state/gameStore";
 import { useOfflineActivityRuntimeStore } from "../../state/offlineActivityRuntimeStore";
-import { isCombatHuntOfflineSummary, isMiningOfflineSummary } from "./offlineActivityTypes";
+import { isBlacksmithingOfflineSummary, isCombatHuntOfflineSummary, isMiningOfflineSummary } from "./offlineActivityTypes";
 
 function resultLabel(reason: string): string {
   switch (reason) {
@@ -96,6 +97,11 @@ function UnknownOfflineResults({ onClose }: { onClose: () => void }) {
   </>;
 }
 
+function BlacksmithingOfflineResults({ simulation, onClose }: { simulation: OfflineActivitySimulationResult<GameState, BlacksmithingOfflineSummary>; onClose: () => void }) {
+  const summary = simulation.summary;
+  return <><header className="offline-results-header"><div><span className="eyebrow">TIME SKIP RESULTS</span><h2 id="offline-results-title">Blacksmithing</h2><p>{formatDuration(simulation.requestedSeconds)} skipped</p></div><CloseResultsButton onClose={onClose} /></header><div className={`offline-results-outcome outcome-${simulation.stopReason}`} data-debug-kind="offline-results-outcome"><Trophy size={18} /><div><span className="eyebrow">RESULT</span><strong>{resultLabel(simulation.stopReason)}</strong></div></div><TimeSummary simulation={simulation} /><div className="offline-results-body" data-debug-kind="offline-results-blacksmithing"><div className="offline-results-column"><section className="offline-results-section"><div className="offline-results-section-heading"><BarChart3 size={15} /><h3>Blacksmithing Progression</h3></div><div className="offline-results-stat-grid"><div><span>Blacksmithing XP</span><strong>+{Math.floor(summary.blacksmithingXp).toLocaleString()} <small>{Math.floor(summary.blacksmithingXpPerHour).toLocaleString()} / hour</small></strong></div><div><span>Level</span><strong>{summary.blacksmithingLevelBefore} -&gt; {summary.blacksmithingLevelAfter}</strong></div><div><span>Rest Time</span><strong>{formatDuration(summary.restSeconds)}</strong></div></div></section><section className="offline-results-section"><div className="offline-results-section-heading"><Hammer size={15} /><h3>Forge Summary</h3></div><div className="offline-results-stat-grid"><div><span>Operations</span><strong>{summary.operationsCompleted.toLocaleString()}</strong></div><div><span>Smelts</span><strong>{summary.smeltsCompleted.toLocaleString()}</strong></div><div><span>Smiths</span><strong>{summary.smithsCompleted.toLocaleString()}</strong></div><div><span>Upgrades</span><strong>{summary.upgradesCompleted.toLocaleString()}</strong></div></div></section></div><div className="offline-results-column"><section className="offline-results-section"><div className="offline-results-section-heading"><Package size={15} /><h3>Production</h3></div>{Object.entries(summary.outputsGained).map(([itemId, quantity]) => <div className="offline-results-loot-row" key={itemId}><span><strong>{itemById[itemId]?.name ?? itemId}</strong></span><b>x{quantity}</b></div>)}</section></div></div></>;
+}
+
 export function OfflineSimulationResultsModal() {
   const activeProfileId = useGameStore((state) => state.activeProfileId);
   const runtime = useOfflineActivityRuntimeStore();
@@ -104,7 +110,8 @@ export function OfflineSimulationResultsModal() {
   const result = runtime.lastResult?.profileId === activeProfileId ? runtime.lastResult : null;
   const renderableResult = result && (
     (result.activityType === "combat-hunt" && isCombatHuntOfflineSummary(result.simulation.summary)) ||
-    (result.activityType === "mining-iron-vein" && isMiningOfflineSummary(result.simulation.summary))
+    (result.activityType === "mining-iron-vein" && isMiningOfflineSummary(result.simulation.summary)) ||
+    (result.activityType === "blacksmithing" && isBlacksmithingOfflineSummary(result.simulation.summary))
   ) ? result : null;
 
   useEffect(() => {
@@ -118,7 +125,7 @@ export function OfflineSimulationResultsModal() {
   if (!runtime.resultsOpen || !result) return null;
 
   return <div className="dialog-backdrop offline-results-backdrop" role="presentation" data-debug-kind="offline-results-backdrop"><div className="offline-results-modal" role="dialog" aria-modal="true" aria-labelledby="offline-results-title" data-debug-kind="offline-results-modal">
-    {renderableResult?.activityType === "combat-hunt" ? <CombatOfflineResults simulation={renderableResult.simulation} onClose={closeResults} /> : renderableResult?.activityType === "mining-iron-vein" ? <MiningOfflineResults simulation={renderableResult.simulation} onClose={closeResults} /> : <UnknownOfflineResults onClose={closeResults} />}
+    {renderableResult?.activityType === "combat-hunt" ? <CombatOfflineResults simulation={renderableResult.simulation} onClose={closeResults} /> : renderableResult?.activityType === "mining-iron-vein" ? <MiningOfflineResults simulation={renderableResult.simulation} onClose={closeResults} /> : renderableResult?.activityType === "blacksmithing" ? <BlacksmithingOfflineResults simulation={renderableResult.simulation} onClose={closeResults} /> : <UnknownOfflineResults onClose={closeResults} />}
     <footer className="offline-results-footer"><small>Rates use the active simulated duration.</small><button ref={continueRef} type="button" className="button button-primary" onClick={closeResults}>CONTINUE</button></footer>
   </div></div>;
 }
