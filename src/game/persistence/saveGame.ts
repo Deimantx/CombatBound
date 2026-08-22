@@ -1,5 +1,5 @@
 import type { GameState } from "../gameState";
-import type { GameSaveV14, GameSaveV15, GameSaveV17, GameSaveV18, GameSaveV19, HistoricalEquipmentSlotIdV17, HistoricalEquipmentSlotIdV18, HistoricalEquipmentStateV17, HistoricalEquipmentStateV18, HistoricalInventoryStateV17, HistoricalInventoryStateV18, HistoricalItemInstanceV17, HistoricalItemInstanceV18, HistoricalMiningStateV18, HistoricalProfessionStateV18 } from "./saveTypes";
+import type { GameSaveV14, GameSaveV15, GameSaveV17, GameSaveV18, GameSaveV19, GameSaveV20, HistoricalBlacksmithingStateV19, HistoricalEquipmentSlotIdV17, HistoricalEquipmentSlotIdV18, HistoricalEquipmentStateV17, HistoricalEquipmentStateV18, HistoricalEquipmentStateV19, HistoricalInventoryStateV17, HistoricalInventoryStateV18, HistoricalInventoryStateV19, HistoricalItemInstanceV17, HistoricalItemInstanceV18, HistoricalMiningStateV18, HistoricalMiningStateV19, HistoricalProfessionStateV18, HistoricalProfessionStateV19 } from "./saveTypes";
 import {
   migrateCurrentSave,
   migrateLegacySave,
@@ -20,7 +20,7 @@ import {
   LEGACY_V14_PROFICIENCY_IDS,
   normalizeProgressionPerkIds,
 } from "./saveMigration";
-import { isGameSaveV17, isGameSaveV18, isGameSaveV19 } from "./saveValidation";
+import { isGameSaveV17, isGameSaveV18, isGameSaveV19, isGameSaveV20 } from "./saveValidation";
 import { normalizeCombatAutomation } from "../automation/automationLogic";
 import { normalizeCombatAbilityLoadout } from "../combatAbilities/combatAbilityLogic";
 import { normalizeCombatAutomationPresets } from "../automation/automationPresets";
@@ -35,12 +35,16 @@ import { createInitialProfessionState, normalizeProfessionState } from "../profe
 import { createInitialMiningState } from "../professions/mining/miningData";
 import { normalizeMiningState } from "../professions/mining/miningRuntime";
 import { grantItem, getInstancesByDefinitionId } from "../items/itemOwnership";
+import { getItemUpgradeSpecialization } from "../items/itemUpgradeLogic";
+import { validateItemInstance } from "../items/itemInstanceValidation";
+import { itemUpgradeNodeById, itemUpgradeTreeById } from "../data/gear/itemUpgradeTrees";
 import { isItemInstanceId, itemInstanceSequence } from "../items/itemTypes";
 import { createInitialBlacksmithingState } from "../professions/blacksmithing/blacksmithingData";
 import { normalizeBlacksmithingState } from "../professions/blacksmithing/blacksmithingRuntime";
 
-export const CURRENT_SAVE_VERSION = 19;
-export const GAME_SAVE_KEY = "combatbound-idle-save-v19";
+export const CURRENT_SAVE_VERSION = 20;
+export const GAME_SAVE_KEY = "combatbound-idle-save-v20";
+export const LEGACY_V19_GAME_SAVE_KEY = "combatbound-idle-save-v19";
 export const LEGACY_V18_GAME_SAVE_KEY = "combatbound-idle-save-v18";
 export const LEGACY_V17_GAME_SAVE_KEY = "combatbound-idle-save-v17";
 export const LEGACY_V16_GAME_SAVE_KEY = "combatbound-idle-save-v16";
@@ -113,6 +117,33 @@ function toHistoricalMiningV18(mining: GameState["mining"]): HistoricalMiningSta
     completedDeposits: mining.completedDeposits,
     totalSwings: mining.totalSwings,
     exhaustionRestsThisDeposit: mining.exhaustionRestsThisDeposit,
+  };
+}
+
+function toHistoricalProfessionV19(professions: GameState["professions"]): HistoricalProfessionStateV19 {
+  const initial = createInitialProfessionState();
+  const mining = professions.skills.mining ?? initial.skills.mining!;
+  const blacksmithing = professions.skills.blacksmithing ?? { skillId: "blacksmithing" as const, totalXp: 0, bonusSkillPoints: 0, purchasedPerks: {} };
+  const mastery = professions.resourceMasteries["mastery.iron-vein"] ?? initial.resourceMasteries["mastery.iron-vein"];
+  return {
+    skills: {
+      mining: { skillId: "mining", totalXp: mining.totalXp, bonusSkillPoints: mining.bonusSkillPoints, purchasedPerks: { ...mining.purchasedPerks } },
+      blacksmithing: { skillId: "blacksmithing", totalXp: blacksmithing.totalXp, bonusSkillPoints: blacksmithing.bonusSkillPoints, purchasedPerks: { ...blacksmithing.purchasedPerks } },
+    },
+    resourceMasteries: { "mastery.iron-vein": { masteryId: "mastery.iron-vein", totalXp: mastery.totalXp } },
+  };
+}
+
+function toHistoricalMiningV19(mining: GameState["mining"]): HistoricalMiningStateV19 { return toHistoricalMiningV18(mining); }
+
+function toHistoricalBlacksmithingV19(blacksmithing: GameState["blacksmithing"]): HistoricalBlacksmithingStateV19 {
+  const operation = blacksmithing.activeOperation;
+  const historicalOperation = operation ? { ...operation, reservedCosts: operation.reservedCosts.map((cost) => ({ ...cost })) } : null;
+  return {
+    ...blacksmithing,
+    activityKind: blacksmithing.activityKind,
+    activeOperation: historicalOperation,
+    completedUpgrades: 0,
   };
 }
 
@@ -246,6 +277,28 @@ export function gameStateToSaveV19(
   return {
     version: 19,
     progression: game.progression,
+    inventory: toHistoricalInventoryV18(game.inventory) as HistoricalInventoryStateV19,
+    equipment: toHistoricalEquipmentV18(game.equipment) as HistoricalEquipmentStateV19,
+    collection: game.collection,
+    gold: game.gold,
+    settings,
+    magicArts: normalizeMagicArts(game.magicArts),
+    combatAutomation: game.combatAutomation,
+    combatAutomationPresets: game.combatAutomationPresets,
+    combatAbilities: game.combatAbilities,
+    professions: toHistoricalProfessionV19(game.professions),
+    mining: toHistoricalMiningV19(game.mining),
+    blacksmithing: toHistoricalBlacksmithingV19(game.blacksmithing),
+  };
+}
+
+export function gameStateToSaveV20(
+  game: GameState,
+  settings: { reducedMotion: boolean; showInspectorButton: boolean },
+): GameSaveV20 {
+  return {
+    version: 20,
+    progression: game.progression,
     inventory: game.inventory,
     equipment: game.equipment,
     collection: game.collection,
@@ -274,7 +327,9 @@ function migrateV17ToV18(save: GameSaveV17): GameSaveV18 {
 function migrateV18ToV19(save: GameSaveV18): GameSaveV19 {
   const inventory = normalizeInventoryState(save.inventory);
   const equipment = normalizeEquipmentState(save.equipment, inventory);
-  return { ...save, version: 19, inventory, equipment, professions: normalizeProfessionState(save.professions), mining: normalizeMiningState(save.mining), blacksmithing: createInitialBlacksmithingState() };
+  const professions = normalizeProfessionState(save.professions);
+  const mining = normalizeMiningState(save.mining);
+  return { ...save, version: 19, inventory: toHistoricalInventoryV18(inventory), equipment: toHistoricalEquipmentV18(equipment), professions: toHistoricalProfessionV19(professions), mining: toHistoricalMiningV19(mining), blacksmithing: toHistoricalBlacksmithingV19(createInitialBlacksmithingState()) };
 }
 
 function normalizeSharedCurrentSaveFields(raw: Record<string, unknown>, inventory: GameState["inventory"], equipment: GameState["equipment"]) {
@@ -352,13 +407,95 @@ function normalizeCurrentSaveV18(value: unknown): GameSaveV18 | null {
   return isGameSaveV18(normalized) ? normalized : null;
 }
 
+function normalizeHistoricalBlacksmithingStateV19(value: unknown): HistoricalBlacksmithingStateV19 {
+  const raw = isRecord(value) ? value : {};
+  const finiteNumber = (candidate: unknown, fallback = 0) => typeof candidate === "number" && Number.isFinite(candidate) ? Math.max(0, candidate) : fallback;
+  const costs = (candidate: unknown) => Array.isArray(candidate)
+    ? candidate.flatMap((cost) => isRecord(cost) && typeof cost.itemId === "string" && typeof cost.quantity === "number" && Number.isInteger(cost.quantity) && cost.quantity > 0 ? [{ itemId: cost.itemId, quantity: cost.quantity }] : [])
+    : [];
+  const operationRaw = isRecord(raw.activeOperation) ? raw.activeOperation : null;
+  let activeOperation: HistoricalBlacksmithingStateV19["activeOperation"] = null;
+  if (operationRaw?.kind === "upgrade" && typeof operationRaw.instanceId === "string" && typeof operationRaw.nodeId === "string") {
+    const validTags = Array.isArray(operationRaw.operationTags) ? operationRaw.operationTags.filter((tag): tag is "smelting" | "weapon" | "defensive" | "shield" | "tool" | "iron" | "upgrade" => tag === "smelting" || tag === "weapon" || tag === "defensive" || tag === "shield" || tag === "tool" || tag === "iron" || tag === "upgrade") : [];
+    activeOperation = { kind: "upgrade", instanceId: operationRaw.instanceId, nodeId: operationRaw.nodeId, depth: Math.max(1, Math.floor(finiteNumber(operationRaw.depth, 1))), operationTags: validTags, durationSeconds: finiteNumber(operationRaw.durationSeconds), staminaCost: finiteNumber(operationRaw.staminaCost), xpReward: finiteNumber(operationRaw.xpReward), reservedCosts: costs(operationRaw.reservedCosts) };
+  } else if ((operationRaw?.kind === "smelting" || operationRaw?.kind === "smithing") && typeof operationRaw.recipeId === "string") {
+    activeOperation = { kind: operationRaw.kind, recipeId: operationRaw.recipeId, durationSeconds: finiteNumber(operationRaw.durationSeconds), staminaCost: finiteNumber(operationRaw.staminaCost), xpReward: finiteNumber(operationRaw.xpReward), reservedCosts: costs(operationRaw.reservedCosts), materialRecoveryChance: finiteNumber(operationRaw.materialRecoveryChance) };
+  }
+  return {
+    active: raw.active === true,
+    mode: raw.mode === "working" || raw.mode === "resting" ? raw.mode : "idle",
+    activityKind: raw.activityKind === "smelting" || raw.activityKind === "smithing" || raw.activityKind === "upgrade" ? raw.activityKind : null,
+    selectedSmeltingRecipeId: typeof raw.selectedSmeltingRecipeId === "string" ? raw.selectedSmeltingRecipeId : "blacksmithing-recipe.iron-bar",
+    selectedSmithingRecipeId: typeof raw.selectedSmithingRecipeId === "string" ? raw.selectedSmithingRecipeId : null,
+    activeOperation,
+    queueMode: raw.queueMode === "max" ? "max" : "fixed",
+    queuedOperationsRemaining: Math.floor(finiteNumber(raw.queuedOperationsRemaining)),
+    forgeStamina: finiteNumber(raw.forgeStamina, 100),
+    actionTimerRemaining: finiteNumber(raw.actionTimerRemaining),
+    restTimerRemaining: finiteNumber(raw.restTimerRemaining),
+    completedOperations: Math.floor(finiteNumber(raw.completedOperations)),
+    completedSmelts: Math.floor(finiteNumber(raw.completedSmelts)),
+    completedSmiths: Math.floor(finiteNumber(raw.completedSmiths)),
+    completedUpgrades: Math.floor(finiteNumber(raw.completedUpgrades)),
+    lastStopReason: typeof raw.lastStopReason === "string" ? raw.lastStopReason : undefined,
+  };
+}
+
 function normalizeCurrentSaveV19(value: unknown): GameSaveV19 | null {
   if (!value || typeof value !== "object" || Array.isArray(value) || (value as { version?: unknown }).version !== 19) return null;
   const raw = value as Record<string, unknown>;
+  const inventory = normalizeHistoricalInventoryV18(raw.inventory);
+  const equipment = inventory ? normalizeHistoricalEquipmentV18(raw.equipment, inventory) : null;
+  if (!inventory || !equipment) return null;
+  const currentInventory = normalizeInventoryState(inventory);
+  const currentEquipment = normalizeEquipmentState(equipment, currentInventory);
+  const normalized: GameSaveV19 = { version: 19, ...normalizeSharedCurrentSaveFields(raw, currentInventory, currentEquipment), inventory, equipment, professions: toHistoricalProfessionV19(normalizeProfessionState(raw.professions)), mining: toHistoricalMiningV19(normalizeMiningState(raw.mining)), blacksmithing: normalizeHistoricalBlacksmithingStateV19(raw.blacksmithing) };
+  return isGameSaveV19(normalized) ? normalized : null;
+}
+
+function normalizeCurrentSaveV20(value: unknown): GameSaveV20 | null {
+  if (!value || typeof value !== "object" || Array.isArray(value) || (value as { version?: unknown }).version !== 20) return null;
+  const raw = value as Record<string, unknown>;
   const inventory = normalizeInventoryState(raw.inventory);
   const equipment = normalizeEquipmentState(raw.equipment, inventory);
-  const normalized: GameSaveV19 = { version: 19, ...normalizeSharedCurrentSaveFields(raw, inventory, equipment), professions: normalizeProfessionState(raw.professions), mining: normalizeMiningState(raw.mining), blacksmithing: normalizeBlacksmithingState(raw.blacksmithing) };
-  return isGameSaveV19(normalized) ? normalized : null;
+  const normalized: GameSaveV20 = { version: 20, ...normalizeSharedCurrentSaveFields(raw, inventory, equipment), professions: normalizeProfessionState(raw.professions), mining: normalizeMiningState(raw.mining), blacksmithing: normalizeBlacksmithingState(raw.blacksmithing) };
+  return isGameSaveV20(normalized) ? normalized : null;
+}
+
+function isStructurallyValidRefundCost(cost: { itemId: string; quantity: number }) {
+  return Number.isInteger(cost.quantity) && cost.quantity > 0 && itemById[cost.itemId]?.inventoryMode === "stackable";
+}
+
+function migrateV19Blacksmithing(save: GameSaveV19, inventory: GameState["inventory"]) {
+  const historical = save.blacksmithing;
+  const operation = historical.activeOperation;
+  let nextInventory = inventory;
+  if (operation?.kind === "upgrade") {
+    const instance = nextInventory.instances[operation.instanceId];
+    const definition = instance ? itemById[instance.definitionId] : undefined;
+    const tree = definition?.upgradeTreeId ? itemUpgradeTreeById[definition.upgradeTreeId] : undefined;
+    const node = itemUpgradeNodeById[operation.nodeId];
+    const specialization = instance && tree ? getItemUpgradeSpecialization(instance, tree) : null;
+    const valid = Boolean(instance && definition?.upgradeProfessionId === "blacksmithing" && tree && node && tree.nodeIds.includes(operation.nodeId) && validateItemInstance(instance).valid && !instance.unlockedUpgradeNodeIds.includes(operation.nodeId) && specialization && specialization.state !== "invalid" && (specialization.state !== "specialized" || specialization.branchId === node.branchId) && node.prerequisiteNodeIds.every((id) => instance.unlockedUpgradeNodeIds.includes(id)));
+    if (valid && instance) {
+      nextInventory = { ...nextInventory, instances: { ...nextInventory.instances, [instance.id]: { ...instance, unlockedUpgradeNodeIds: [...instance.unlockedUpgradeNodeIds, operation.nodeId] } } };
+    } else {
+      for (const cost of operation.reservedCosts) if (isStructurallyValidRefundCost(cost)) nextInventory = grantItem(nextInventory, cost.itemId, cost.quantity).inventory;
+    }
+  }
+  const productionLike = operation?.kind === "smelting" || operation?.kind === "smithing";
+  const blacksmithing = productionLike
+    ? normalizeBlacksmithingState(historical)
+    : { ...createInitialBlacksmithingState(), forgeStamina: Math.max(0, historical.forgeStamina), completedOperations: Math.floor(historical.completedOperations), completedSmelts: Math.floor(historical.completedSmelts), completedSmiths: Math.floor(historical.completedSmiths), lastStopReason: operation?.kind === "upgrade" ? "activity-ended" as const : historical.lastStopReason as GameState["blacksmithing"]["lastStopReason"] };
+  return { inventory: nextInventory, blacksmithing };
+}
+
+function migrateV19ToV20(save: GameSaveV19): GameSaveV20 {
+  const inventory = normalizeInventoryState(save.inventory);
+  const equipment = normalizeEquipmentState(save.equipment, inventory);
+  const migratedBlacksmithing = migrateV19Blacksmithing(save, inventory);
+  const shared = normalizeSharedCurrentSaveFields(save as unknown as Record<string, unknown>, migratedBlacksmithing.inventory, equipment);
+  return { version: 20, ...shared, inventory: migratedBlacksmithing.inventory, equipment, professions: normalizeProfessionState(save.professions), mining: normalizeMiningState(save.mining), blacksmithing: migratedBlacksmithing.blacksmithing };
 }
 
 function migrateToV15(value: unknown): GameSaveV15 | null {
@@ -421,18 +558,21 @@ function migrateToV19(value: unknown): GameSaveV19 | null {
   return v18 ? migrateV18ToV19(v18) : null;
 }
 
-export function parseGameSaveJson(raw: string): GameSaveV19 | null {
+export function parseGameSaveJson(raw: string): GameSaveV20 | null {
   try {
-    return migrateToV19(JSON.parse(raw) as unknown);
+    const value = JSON.parse(raw) as unknown;
+    if (value && typeof value === "object" && !Array.isArray(value) && (value as { version?: unknown }).version === 20) return normalizeCurrentSaveV20(value);
+    const v19 = migrateToV19(value);
+    return v19 ? migrateV19ToV20(v19) : null;
   } catch {
     return null;
   }
 }
 
 /** Reads the pre-profile global save chain for the one-time Profile 1 migration only. */
-export function loadLegacySingleGameSaveForProfileMigration(): GameSaveV19 | null {
+export function loadLegacySingleGameSaveForProfileMigration(): GameSaveV20 | null {
   if (typeof localStorage === "undefined") return null;
-  const keys = [GAME_SAVE_KEY, LEGACY_V18_GAME_SAVE_KEY, LEGACY_V17_GAME_SAVE_KEY, LEGACY_V16_GAME_SAVE_KEY, LEGACY_V15_GAME_SAVE_KEY, LEGACY_V14_GAME_SAVE_KEY, LEGACY_V13_GAME_SAVE_KEY, LEGACY_V12_GAME_SAVE_KEY, LEGACY_V11_GAME_SAVE_KEY, LEGACY_V10_GAME_SAVE_KEY, LEGACY_V9_GAME_SAVE_KEY, LEGACY_V8_GAME_SAVE_KEY, LEGACY_V7_GAME_SAVE_KEY, LEGACY_V6_GAME_SAVE_KEY, LEGACY_V5_GAME_SAVE_KEY, LEGACY_V4_GAME_SAVE_KEY, LEGACY_V3_GAME_SAVE_KEY, LEGACY_CURRENT_GAME_SAVE_KEY, LEGACY_GAME_SAVE_KEY];
+  const keys = [GAME_SAVE_KEY, LEGACY_V19_GAME_SAVE_KEY, LEGACY_V18_GAME_SAVE_KEY, LEGACY_V17_GAME_SAVE_KEY, LEGACY_V16_GAME_SAVE_KEY, LEGACY_V15_GAME_SAVE_KEY, LEGACY_V14_GAME_SAVE_KEY, LEGACY_V13_GAME_SAVE_KEY, LEGACY_V12_GAME_SAVE_KEY, LEGACY_V11_GAME_SAVE_KEY, LEGACY_V10_GAME_SAVE_KEY, LEGACY_V9_GAME_SAVE_KEY, LEGACY_V8_GAME_SAVE_KEY, LEGACY_V7_GAME_SAVE_KEY, LEGACY_V6_GAME_SAVE_KEY, LEGACY_V5_GAME_SAVE_KEY, LEGACY_V4_GAME_SAVE_KEY, LEGACY_V3_GAME_SAVE_KEY, LEGACY_CURRENT_GAME_SAVE_KEY, LEGACY_GAME_SAVE_KEY];
   try {
     for (const key of keys) {
       const raw = localStorage.getItem(key);
@@ -449,12 +589,12 @@ export function loadLegacySingleGameSaveForProfileMigration(): GameSaveV19 | nul
   return null;
 }
 
-export function saveLegacySingleGameSave(save: GameSaveV19) {
+export function saveLegacySingleGameSave(save: GameSaveV20) {
   if (typeof localStorage !== "undefined") localStorage.setItem(GAME_SAVE_KEY, JSON.stringify(save));
 }
 
 export function clearLegacySingleGameSave() {
   if (typeof localStorage !== "undefined") {
-    for (const key of [GAME_SAVE_KEY, LEGACY_V18_GAME_SAVE_KEY, LEGACY_V17_GAME_SAVE_KEY, LEGACY_V16_GAME_SAVE_KEY, LEGACY_V15_GAME_SAVE_KEY, LEGACY_V14_GAME_SAVE_KEY, LEGACY_V13_GAME_SAVE_KEY, LEGACY_V12_GAME_SAVE_KEY, LEGACY_V11_GAME_SAVE_KEY, LEGACY_V10_GAME_SAVE_KEY, LEGACY_V9_GAME_SAVE_KEY, LEGACY_V8_GAME_SAVE_KEY, LEGACY_V7_GAME_SAVE_KEY, LEGACY_V6_GAME_SAVE_KEY, LEGACY_V5_GAME_SAVE_KEY, LEGACY_V4_GAME_SAVE_KEY, LEGACY_V3_GAME_SAVE_KEY, LEGACY_CURRENT_GAME_SAVE_KEY, LEGACY_GAME_SAVE_KEY]) localStorage.removeItem(key);
+    for (const key of [GAME_SAVE_KEY, LEGACY_V19_GAME_SAVE_KEY, LEGACY_V18_GAME_SAVE_KEY, LEGACY_V17_GAME_SAVE_KEY, LEGACY_V16_GAME_SAVE_KEY, LEGACY_V15_GAME_SAVE_KEY, LEGACY_V14_GAME_SAVE_KEY, LEGACY_V13_GAME_SAVE_KEY, LEGACY_V12_GAME_SAVE_KEY, LEGACY_V11_GAME_SAVE_KEY, LEGACY_V10_GAME_SAVE_KEY, LEGACY_V9_GAME_SAVE_KEY, LEGACY_V8_GAME_SAVE_KEY, LEGACY_V7_GAME_SAVE_KEY, LEGACY_V6_GAME_SAVE_KEY, LEGACY_V5_GAME_SAVE_KEY, LEGACY_V4_GAME_SAVE_KEY, LEGACY_V3_GAME_SAVE_KEY, LEGACY_CURRENT_GAME_SAVE_KEY, LEGACY_GAME_SAVE_KEY]) localStorage.removeItem(key);
   }
 }

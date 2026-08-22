@@ -73,7 +73,7 @@ describe("Mining foundation V18", () => {
     const active = { ...game, mining: { ...game.mining, active: true, mode: "swinging" as const, currentStageId: "rich-core" as const, stageDurabilityRemaining: 17, miningStamina: 42, swingTimerRemaining: 1.25, yieldRemainders: { "item.iron-ore": 0.81 } } }
     const save = gameStateToSaveV18(active, { reducedMotion: false, showInspectorButton: true })
     const loaded = parseGameSaveJson(JSON.stringify(save))
-    expect(loaded?.version).toBe(19)
+    expect(loaded?.version).toBe(20)
     expect(loaded?.mining.stageDurabilityRemaining).toBe(17)
     expect(loaded?.mining.miningStamina).toBe(42)
     expect(loaded?.mining.yieldRemainders["item.iron-ore"]).toBe(0.81)

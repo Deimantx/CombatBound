@@ -3,7 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { DebugSection } from "../app/debug/admin/components/DebugSection";
 import { CombatDebugDock } from "../app/debug/devtools/dock/CombatDebugDock";
 import { useDevToolsRuntimeStore } from "../app/debug/devtools/devToolsRuntimeStore";
-import { DEFAULT_DEBUG_TAB_ORDER, normalizeDebugTabOrder, reorderDebugTabs } from "../app/debug/admin/debugTabs";
+import { DEFAULT_DEBUG_TAB_ORDER, normalizeDebugTabId, normalizeDebugTabOrder, reorderDebugTabs } from "../app/debug/admin/debugTabs";
 import { useDebugTelemetryStore } from "../app/debug/telemetry/debugTelemetryStore";
 import { buildStatBreakdownTooltip } from "../game/presentation/debugStatTooltip";
 import { DEBUG_STAT_DEFINITIONS } from "../game/presentation/debugStatRegistry";
@@ -37,6 +37,12 @@ describe("Developer Toolkit V9.2 hotfixes", () => {
     expect(normalizeDebugTabOrder(["combat", "combat", "old-removed-tab", "stats"])).toEqual(["combat", "stats", ...DEFAULT_DEBUG_TAB_ORDER.filter((id) => id !== "combat" && id !== "stats")]);
     expect(reorderDebugTabs(["overview", "player", "combat", "stats"], "combat", "overview", "before")).toEqual(["combat", "overview", "player", "stats", ...DEFAULT_DEBUG_TAB_ORDER.filter((id) => !["overview", "player", "combat", "stats"].includes(id))]);
     expect(reorderDebugTabs(["overview", "player", "combat", "stats"], "combat", "stats", "after")).toEqual(["overview", "player", "stats", "combat", ...DEFAULT_DEBUG_TAB_ORDER.filter((id) => !["overview", "player", "combat", "stats"].includes(id))]);
+  });
+
+  it("merges legacy profession tabs into one persisted Professions tab", () => {
+    expect(normalizeDebugTabId("mining")).toBe("professions");
+    expect(normalizeDebugTabId("blacksmithing")).toBe("professions");
+    expect(normalizeDebugTabOrder(["mining", "blacksmithing", "professions", "items"])).toEqual(["professions", "items", ...DEFAULT_DEBUG_TAB_ORDER.filter((id) => !["professions", "items"].includes(id))]);
   });
 
   it("uses the shared chevron for DebugSection disclosure", () => {

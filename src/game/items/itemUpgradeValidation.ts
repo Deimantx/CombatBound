@@ -27,6 +27,7 @@ export function validateItemUpgradeTrees(
     const item = itemById[tree.itemDefinitionId];
     if (!item) errors.push(`Upgrade tree ${tree.id} references unknown item ${tree.itemDefinitionId}`);
     else if (item.upgradeTreeId !== tree.id) errors.push(`${tree.itemDefinitionId} does not reference ${tree.id}`);
+    else if (!item.upgradeProfessionId) errors.push(`${tree.itemDefinitionId} does not declare an upgrade profession`);
     const archetype = item?.weaponArchetypeId ? weaponArchetypeById[item.weaponArchetypeId] : undefined;
     if (item?.weaponArchetypeId && !archetype) errors.push(`${tree.itemDefinitionId} references an unknown weapon archetype`);
     if (archetype) {
@@ -49,6 +50,7 @@ export function validateItemUpgradeTrees(
       const node = nodes[nodeId];
       if (!node) continue;
       for (const prerequisite of node.prerequisiteNodeIds) if (!treeNodeIds.has(prerequisite)) errors.push(`${nodeId} has unknown prerequisite ${prerequisite}`);
+      if (!Number.isInteger(node.requiredProfessionLevel) || node.requiredProfessionLevel < 1) errors.push(`${nodeId} has invalid required profession level`);
       for (const prerequisite of node.prerequisiteNodeIds) if (treeNodeIds.has(prerequisite) && nodes[prerequisite]?.branchId !== node.branchId) errors.push(`${nodeId} has a cross-branch prerequisite`);
       for (const cost of node.costs) {
         const material = itemById[cost.itemId];

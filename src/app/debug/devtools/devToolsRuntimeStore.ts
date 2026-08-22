@@ -3,7 +3,7 @@ import { defaultDevToolsPreferences, readDevToolsPreferences, writeDevToolsPrefe
 import type { DevToolsMode, DevToolsVisualMode, DockAnchor, DockDimensions, DockSize } from "./devToolsTypes";
 import type { DebugTab } from "../admin/debugTabs";
 import { DEBUG_MAX_TIME_SCALE, DEBUG_MIN_TIME_SCALE } from "./devToolsTypes";
-import { DEFAULT_DEBUG_TAB_ORDER, normalizeDebugTabOrder } from "../admin/debugTabs";
+import { DEFAULT_DEBUG_TAB_ORDER, normalizeDebugTabId, normalizeDebugTabOrder } from "../admin/debugTabs";
 export interface DebugRuntimeEvent {
   id: number;
   type: string;
@@ -154,7 +154,7 @@ export const useDevToolsRuntimeStore = create<DevToolsRuntimeState>((set, get) =
   recordEvent: () => undefined,
   clearEvents: () => undefined,
   setEventFilter: (eventFilter) => set((state) => { persist({ ...state, eventFilter }); return { eventFilter }; }),
-  setLastConsoleTab: (lastConsoleTab) => set((state) => { persist({ ...state, lastConsoleTab }); return { lastConsoleTab }; }),
+  setLastConsoleTab: (lastConsoleTab) => set((state) => { const normalized = normalizeDebugTabId(lastConsoleTab) ?? "overview"; persist({ ...state, lastConsoleTab: normalized }); return { lastConsoleTab: normalized }; }),
   setConsoleTabOrder: (order) => set((state) => { const consoleTabOrder = normalizeDebugTabOrder(order); persist({ ...state, consoleTabOrder }); return { consoleTabOrder }; }),
   resetConsoleTabOrder: () => set((state) => { const consoleTabOrder = [...DEFAULT_DEBUG_TAB_ORDER]; persist({ ...state, consoleTabOrder }); return { consoleTabOrder }; }),
 }));

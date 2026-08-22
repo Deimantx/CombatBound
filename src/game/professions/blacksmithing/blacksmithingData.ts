@@ -20,6 +20,5 @@ export function createInitialBlacksmithingState(): BlacksmithingState {
     completedOperations: 0,
     completedSmelts: 0,
     completedSmiths: 0,
-    completedUpgrades: 0,
   }
 }

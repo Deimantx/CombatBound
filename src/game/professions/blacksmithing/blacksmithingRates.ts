@@ -15,7 +15,7 @@ export interface BlacksmithingRateEstimate {
 }
 
 export interface BlacksmithingOperationRateInput {
-  kind: "smelting" | "smithing" | "upgrade"
+  kind: "smelting" | "smithing"
   durationSeconds: number
   staminaCost: number
   xpReward: number

@@ -61,7 +61,6 @@ export function debugSetOwnedItemCount(game: GameState, itemId: string, quantity
 export function debugDeleteItemInstance(game: GameState, instanceId: string): GameState {
   const equippedIds = new Set(Object.values(game.equipment.slots).filter((id): id is string => Boolean(id)));
   if (!game.inventory.instances[instanceId] || equippedIds.has(instanceId)) return game;
-  if (game.blacksmithing.activeOperation?.kind === "upgrade" && game.blacksmithing.activeOperation.instanceId === instanceId) return game;
   const inventory = removeItemInstance(game.inventory, instanceId as ItemInstanceId, equippedIds);
   return inventory === game.inventory ? game : syncCombatStats({ ...game, inventory });
 }

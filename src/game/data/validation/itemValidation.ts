@@ -53,6 +53,10 @@ export function validateItemDefinition(item: ItemDefinition): ItemValidationResu
     errors.push(`${item.id}: loot-container purpose requires lootContainerId`);
   if (item.purpose === "sell-only" && item.lootContainerId)
     errors.push(`${item.id}: sell-only items cannot also be loot containers`);
+  if (item.upgradeTreeId && !item.upgradeProfessionId)
+    errors.push(`${item.id}: upgradeTreeId requires upgradeProfessionId`);
+  if (item.upgradeProfessionId && !item.upgradeTreeId)
+    errors.push(`${item.id}: upgradeProfessionId requires upgradeTreeId`);
 
   const hasDamageMin = stats.baseDamageMin !== undefined;
   const hasDamageMax = stats.baseDamageMax !== undefined;

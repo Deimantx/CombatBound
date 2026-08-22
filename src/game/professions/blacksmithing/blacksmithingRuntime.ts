@@ -1,12 +1,9 @@
 import { discoverItem } from "../../collection/collectionLogic"
 import { itemById } from "../../data/items"
-import { itemUpgradeNodeById, itemUpgradeTreeById } from "../../data/gear/itemUpgradeTrees"
 import { awardProfessionXp, getProfessionLevel } from "../professionProgression"
-import { getItemInstance, getStackableQuantity, removeStackableItem, grantItem } from "../../items/itemOwnership"
-import { getItemUpgradeSpecialization } from "../../items/itemUpgradeLogic"
-import { validateItemInstance } from "../../items/itemInstanceValidation"
+import { getStackableQuantity, removeStackableItem, grantItem } from "../../items/itemOwnership"
 import { getBlacksmithingRecipe, blacksmithingRecipeById } from "./blacksmithingRecipes"
-import { effectiveBlacksmithingDuration, effectiveBlacksmithingXp, effectiveForgeStaminaCost, getBlacksmithingStats, operationTagsForItem } from "./blacksmithingStats"
+import { effectiveBlacksmithingDuration, effectiveBlacksmithingXp, effectiveForgeStaminaCost, getBlacksmithingStats } from "./blacksmithingStats"
 import type { BlacksmithingActiveOperation, BlacksmithingRecipeDefinition, BlacksmithingRuntimeGame, BlacksmithingRuntimeSummary, BlacksmithingState, BlacksmithingStopReason } from "./blacksmithingTypes"
 
 export interface BlacksmithingRng { next(): number }
@@ -14,7 +11,7 @@ export type BlacksmithingAdvanceStopReason = BlacksmithingStopReason
 export interface BlacksmithingAdvanceOptions { maxEvents?: number }
 
 const safeRng: BlacksmithingRng = { next: () => 0.5 }
-const emptySummary = (): BlacksmithingRuntimeSummary => ({ seconds: 0, operationsCompleted: 0, smeltsCompleted: 0, smithsCompleted: 0, upgradesCompleted: 0, restSeconds: 0, blacksmithingXp: 0, levelsGained: 0, outputsGained: {}, materialsConsumed: {}, materialsRecovered: {}, completedUpgradeNodeIds: [] })
+const emptySummary = (): BlacksmithingRuntimeSummary => ({ seconds: 0, operationsCompleted: 0, smeltsCompleted: 0, smithsCompleted: 0, restSeconds: 0, blacksmithingXp: 0, levelsGained: 0, outputsGained: {}, materialsConsumed: {}, materialsRecovered: {} })
 
 function addCount(target: Record<string, number>, id: string, quantity: number) { target[id] = (target[id] ?? 0) + quantity }
 function finite(value: unknown) { return typeof value === "number" && Number.isFinite(value) ? Math.max(0, value) : 0 }
@@ -38,13 +35,11 @@ function consumeCosts(game: BlacksmithingRuntimeGame, costs: readonly { itemId: 
   return { ...game, inventory }
 }
 
-function recipeTags(recipe: BlacksmithingRecipeDefinition) { return recipe.tags }
-
 function reserveRecipe(game: BlacksmithingRuntimeGame, recipe: BlacksmithingRecipeDefinition): { game: BlacksmithingRuntimeGame; outcome: "started" | "materials-exhausted" | "level-locked" | "stamina-empty"; reason?: string } {
   if (getProfessionLevel(game.professions, "blacksmithing") < recipe.requiredBlacksmithingLevel) return { game, outcome: "level-locked", reason: `Requires Blacksmithing ${recipe.requiredBlacksmithingLevel}.` }
   if (!canReserveCosts(game, recipe.costs)) return { game, outcome: "materials-exhausted", reason: "Not enough materials." }
   if (game.blacksmithing.forgeStamina <= 0) return { game, outcome: "stamina-empty", reason: "Forge Stamina is empty." }
-  const stats = getBlacksmithingStats(game, recipeTags(recipe))
+  const stats = getBlacksmithingStats(game, recipe.tags)
   const activeOperation: BlacksmithingActiveOperation = {
     kind: recipe.kind,
     recipeId: recipe.id,
@@ -66,7 +61,7 @@ export function startBlacksmithingRecipe<T extends BlacksmithingRuntimeGame>(gam
   if (game.blacksmithing.active) return { game, outcome: "already-active", reason: "Blacksmithing is already active." }
   if (game.blacksmithing.activeOperation || game.blacksmithing.mode === "resting") return { game: { ...game, blacksmithing: { ...game.blacksmithing, active: true } } as T, outcome: "resumed" }
   const count = Math.max(1, Math.floor(quantity))
-  let state: BlacksmithingState = { ...game.blacksmithing, active: true, mode: "working", activityKind: recipe.kind, selectedSmeltingRecipeId: recipe.kind === "smelting" ? recipe.id : game.blacksmithing.selectedSmeltingRecipeId, selectedSmithingRecipeId: recipe.kind === "smithing" ? recipe.id : game.blacksmithing.selectedSmithingRecipeId, queueMode, queuedOperationsRemaining: queueMode === "fixed" ? count : 0, lastStopReason: undefined }
+  const state: BlacksmithingState = { ...game.blacksmithing, active: true, mode: "working", activityKind: recipe.kind, selectedSmeltingRecipeId: recipe.kind === "smelting" ? recipe.id : game.blacksmithing.selectedSmeltingRecipeId, selectedSmithingRecipeId: recipe.kind === "smithing" ? recipe.id : game.blacksmithing.selectedSmithingRecipeId, queueMode, queuedOperationsRemaining: queueMode === "fixed" ? count : 0, lastStopReason: undefined }
   let nextGame = { ...game, blacksmithing: state } as T
   if (nextGame.blacksmithing.forgeStamina <= 0) {
     nextGame = { ...nextGame, blacksmithing: restState(nextGame, nextGame.blacksmithing) }
@@ -74,8 +69,7 @@ export function startBlacksmithingRecipe<T extends BlacksmithingRuntimeGame>(gam
   }
   const reserved = reserveRecipe(nextGame, recipe)
   if (reserved.outcome !== "started") return { game, outcome: reserved.outcome, reason: reserved.reason }
-  state = { ...reserved.game.blacksmithing, queuedOperationsRemaining: queueMode === "fixed" ? Math.max(0, count - 1) : 0 }
-  return { game: { ...reserved.game, blacksmithing: state } as T, outcome: "started" }
+  return { game: { ...reserved.game, blacksmithing: { ...reserved.game.blacksmithing, queuedOperationsRemaining: queueMode === "fixed" ? Math.max(0, count - 1) : 0 } } as T, outcome: "started" }
 }
 
 export function startBlacksmithingState<T extends BlacksmithingRuntimeGame>(game: T): T {
@@ -89,59 +83,14 @@ export function startBlacksmithingState<T extends BlacksmithingRuntimeGame>(game
 export function stopBlacksmithingState<T extends BlacksmithingRuntimeGame>(game: T): T { return { ...game, blacksmithing: { ...game.blacksmithing, active: false } } }
 export function clearBlacksmithingQueue<T extends BlacksmithingRuntimeGame>(game: T): T { return { ...game, blacksmithing: { ...game.blacksmithing, queueMode: "fixed", queuedOperationsRemaining: 0 } } }
 
-function upgradeDepth(nodeId: string, visiting = new Set<string>()): number {
-  if (visiting.has(nodeId)) return 99
-  const node = itemUpgradeNodeById[nodeId]
-  if (!node || node.prerequisiteNodeIds.length === 0) return 1
-  const next = new Set(visiting).add(nodeId)
-  return 1 + Math.max(...node.prerequisiteNodeIds.map((id) => upgradeDepth(id, next)))
-}
-
-export function getBlacksmithingUpgradeProfile(depth: number) {
-  const profiles = { 1: { requiredLevel: 5, duration: 5, stamina: 5, xp: 5 }, 2: { requiredLevel: 10, duration: 8, stamina: 7, xp: 8 }, 3: { requiredLevel: 15, duration: 12, stamina: 9, xp: 12 }, 4: { requiredLevel: 20, duration: 18, stamina: 12, xp: 20 } } as const
-  return profiles[Math.min(4, Math.max(1, depth)) as 1 | 2 | 3 | 4]
-}
-
-export function getBlacksmithingUpgradeProfileForNode(nodeId: string) {
-  return itemUpgradeNodeById[nodeId] ? getBlacksmithingUpgradeProfile(upgradeDepth(nodeId)) : null
-}
-
-export function startBlacksmithingUpgrade<T extends BlacksmithingRuntimeGame>(game: T, instanceId: string, nodeId: string): BlacksmithingCommandResult & { game: T } {
-  if (game.blacksmithing.active) return { game, outcome: "already-active", reason: "Blacksmithing is already active." }
-  if (game.blacksmithing.activeOperation || game.blacksmithing.mode === "resting") return { game: { ...game, blacksmithing: { ...game.blacksmithing, active: true } } as T, outcome: "resumed" }
-  const instance = getItemInstance(game.inventory, instanceId)
-  const node = itemUpgradeNodeById[nodeId]
-  const definition = instance ? itemById[instance.definitionId] : undefined
-  const tree = definition?.upgradeTreeId ? itemUpgradeTreeById[definition.upgradeTreeId] : undefined
-  if (!instance || !node || !tree || !tree.nodeIds.includes(nodeId) || !validateItemInstance(instance).valid) return { game, outcome: "invalid-target", reason: "Choose an exact upgradeable ItemInstance and node." }
-  if (instance.unlockedUpgradeNodeIds.includes(nodeId)) return { game, outcome: "already-unlocked" }
-  const specialization = getItemUpgradeSpecialization(instance, tree)
-  if (specialization.state === "invalid" || (specialization.state === "specialized" && specialization.branchId !== node.branchId)) return { game, outcome: "branch-locked" }
-  if (node.prerequisiteNodeIds.some((id) => !instance.unlockedUpgradeNodeIds.includes(id))) return { game, outcome: "prerequisite-locked" }
-  if (!canReserveCosts(game, node.costs)) return { game, outcome: "materials-locked" }
-  const depth = upgradeDepth(nodeId)
-  const profile = getBlacksmithingUpgradeProfile(depth)
-  if (getProfessionLevel(game.professions, "blacksmithing") < profile.requiredLevel) return { game, outcome: "level-locked", reason: `Requires Blacksmithing ${profile.requiredLevel}.` }
-  const tags = operationTagsForItem(instance.definitionId, true)
-  const stats = getBlacksmithingStats(game, tags)
-  const activeOperation: BlacksmithingActiveOperation = { kind: "upgrade", instanceId, nodeId, depth, operationTags: tags, durationSeconds: effectiveBlacksmithingDuration(profile.duration, stats), staminaCost: effectiveForgeStaminaCost(profile.stamina, stats), xpReward: effectiveBlacksmithingXp(profile.xp, stats), reservedCosts: node.costs.map((cost) => ({ ...cost })) }
-  const reserved = consumeCosts(game, node.costs)
-  const nextState = { ...reserved.blacksmithing, active: true, mode: "working" as const, activityKind: "upgrade" as const, activeOperation, actionTimerRemaining: activeOperation.durationSeconds, restTimerRemaining: 0, queuedOperationsRemaining: 0, queueMode: "fixed" as const }
-  if (reserved.blacksmithing.forgeStamina <= 0) {
-    return { game: { ...reserved, blacksmithing: restState(reserved, nextState) } as T, outcome: "resting", reason: "Forge Stamina is empty." }
-  }
-  return { game: { ...reserved, blacksmithing: nextState } as T, outcome: "started" }
-}
-
-function completeRecipe(game: BlacksmithingRuntimeGame, operation: Extract<BlacksmithingActiveOperation, { kind: "smelting" | "smithing" }>, rng: BlacksmithingRng, summary: BlacksmithingRuntimeSummary) {
+function completeRecipe(game: BlacksmithingRuntimeGame, operation: BlacksmithingActiveOperation, rng: BlacksmithingRng, summary: BlacksmithingRuntimeSummary) {
   const recipe = blacksmithingRecipeById[operation.recipeId]
   if (!recipe) return game
   const grant = grantItem(game.inventory, recipe.outputItemId, recipe.outputQuantity)
   let nextGame = { ...game, inventory: grant.inventory, collection: discoverItem(game.collection, recipe.outputItemId) }
   const award = awardProfessionXp(nextGame.professions, "blacksmithing", operation.xpReward)
   nextGame = { ...nextGame, professions: award.state }
-  const recovered = operation.materialRecoveryChance > 0 && rng.next() < operation.materialRecoveryChance
-  if (recovered) {
+  if (operation.materialRecoveryChance > 0 && rng.next() < operation.materialRecoveryChance) {
     const base = operation.reservedCosts[0]
     if (base) { const refund = grantItem(nextGame.inventory, base.itemId, 1); nextGame = { ...nextGame, inventory: refund.inventory }; addCount(summary.materialsRecovered, base.itemId, 1) }
   }
@@ -155,29 +104,10 @@ function completeRecipe(game: BlacksmithingRuntimeGame, operation: Extract<Black
   return nextGame
 }
 
-function completeUpgrade(game: BlacksmithingRuntimeGame, operation: Extract<BlacksmithingActiveOperation, { kind: "upgrade" }>, summary: BlacksmithingRuntimeSummary) {
-  const instance = getItemInstance(game.inventory, operation.instanceId)
-  const node = itemUpgradeNodeById[operation.nodeId]
-  if (!instance || !node || !validateItemInstance(instance).valid || instance.unlockedUpgradeNodeIds.includes(operation.nodeId)) return game
-  const tree = itemById[instance.definitionId]?.upgradeTreeId ? itemUpgradeTreeById[itemById[instance.definitionId].upgradeTreeId!] : undefined
-  const specialization = getItemUpgradeSpecialization(instance, tree)
-  if (!tree || !tree.nodeIds.includes(operation.nodeId) || (specialization.state === "specialized" && specialization.branchId !== node.branchId) || node.prerequisiteNodeIds.some((id) => !instance.unlockedUpgradeNodeIds.includes(id))) return game
-  const award = awardProfessionXp(game.professions, "blacksmithing", operation.xpReward)
-  const inventory = { ...game.inventory, instances: { ...game.inventory.instances, [instance.id]: { ...instance, unlockedUpgradeNodeIds: [...instance.unlockedUpgradeNodeIds, operation.nodeId] } } }
-  summary.operationsCompleted += 1
-  summary.upgradesCompleted += 1
-  summary.blacksmithingXp += operation.xpReward
-  summary.levelsGained += award.levelsGained
-  summary.completedUpgradeNodeIds.push(operation.nodeId)
-  for (const cost of operation.reservedCosts) addCount(summary.materialsConsumed, cost.itemId, cost.quantity)
-  return { ...game, inventory, professions: award.state }
-}
-
 function afterCompletion(game: BlacksmithingRuntimeGame, state: BlacksmithingState) {
   const stamina = Math.max(0, state.forgeStamina - (state.activeOperation?.staminaCost ?? 0))
   const completedKind = state.activityKind
-  let nextState = { ...state, forgeStamina: stamina, activeOperation: null, actionTimerRemaining: 0, completedOperations: state.completedOperations + 1, completedSmelts: state.completedSmelts + (completedKind === "smelting" ? 1 : 0), completedSmiths: state.completedSmiths + (completedKind === "smithing" ? 1 : 0), completedUpgrades: state.completedUpgrades + (completedKind === "upgrade" ? 1 : 0) }
-  if (state.activityKind === "upgrade") return { ...game, blacksmithing: stop(nextState, "queue-complete") }
+  const nextState = { ...state, forgeStamina: stamina, activeOperation: null, actionTimerRemaining: 0, completedOperations: state.completedOperations + 1, completedSmelts: state.completedSmelts + (completedKind === "smelting" ? 1 : 0), completedSmiths: state.completedSmiths + (completedKind === "smithing" ? 1 : 0) }
   if (state.queueMode === "fixed" && state.queuedOperationsRemaining <= 0) return { ...game, blacksmithing: stop(nextState, "queue-complete") }
   const recipeId = state.activityKind === "smithing" ? state.selectedSmithingRecipeId : state.selectedSmeltingRecipeId
   const recipe = recipeId ? getBlacksmithingRecipe(recipeId) : undefined
@@ -210,8 +140,8 @@ export function advanceBlacksmithing<T extends BlacksmithingRuntimeGame>(game: T
       if (timer - step > 0) { nextGame = { ...nextGame, blacksmithing: { ...state, restTimerRemaining: timer - step } } as T; continue }
       const stats = getBlacksmithingStats(nextGame)
       const reset = { ...state, mode: "working" as const, forgeStamina: stats.maxForgeStamina, restTimerRemaining: 0 }
-      if (state.activityKind === "upgrade" && !state.activeOperation) { nextGame = { ...nextGame, blacksmithing: stop(reset, "activity-ended") } as T; continue }
-      if (state.activeOperation) { nextGame = { ...nextGame, blacksmithing: reset, actionTimerRemaining: state.activeOperation.durationSeconds } } else {
+      if (state.activeOperation) nextGame = { ...nextGame, blacksmithing: reset, actionTimerRemaining: state.activeOperation.durationSeconds } as T
+      else {
         const recipeId = state.activityKind === "smithing" ? state.selectedSmithingRecipeId : state.selectedSmeltingRecipeId
         const recipe = recipeId ? getBlacksmithingRecipe(recipeId) : undefined
         const reserved = recipe ? reserveRecipe({ ...nextGame, blacksmithing: reset }, recipe) : { game: nextGame, outcome: "materials-exhausted" as const }
@@ -225,13 +155,10 @@ export function advanceBlacksmithing<T extends BlacksmithingRuntimeGame>(game: T
     const step = Math.min(remaining, timer)
     remaining -= step
     if (timer - step > 0) { nextGame = { ...nextGame, blacksmithing: { ...state, actionTimerRemaining: timer - step } } as T; continue }
-    nextGame = (operation.kind === "upgrade" ? completeUpgrade(nextGame, operation, summary) : completeRecipe(nextGame, operation, rng, summary)) as T
-    nextGame = afterCompletion(nextGame, { ...nextGame.blacksmithing, ...state, forgeStamina: nextGame.blacksmithing.forgeStamina, activeOperation: state.activeOperation }) as T
+    nextGame = afterCompletion(completeRecipe(nextGame, operation, rng, summary), state) as T
   }
   summary.seconds = duration - remaining
-  const stopReason = remaining > 0 && nextGame.blacksmithing.active
-    ? "safety-limit" as const
-    : nextGame.blacksmithing.lastStopReason ?? "elapsed-time-complete" as const
+  const stopReason = remaining > 0 && nextGame.blacksmithing.active ? "safety-limit" as const : nextGame.blacksmithing.lastStopReason ?? "elapsed-time-complete" as const
   return { game: nextGame, summary, stopReason }
 }
 
@@ -240,32 +167,27 @@ export function normalizeBlacksmithingState(value: unknown): BlacksmithingState 
   const selectedSmeltingRecipeId = typeof raw.selectedSmeltingRecipeId === "string" && blacksmithingRecipeById[raw.selectedSmeltingRecipeId]?.kind === "smelting" ? raw.selectedSmeltingRecipeId : "blacksmithing-recipe.iron-bar"
   const selectedSmithingRecipeId = typeof raw.selectedSmithingRecipeId === "string" && blacksmithingRecipeById[raw.selectedSmithingRecipeId]?.kind === "smithing" ? raw.selectedSmithingRecipeId : "blacksmithing-recipe.iron-dagger"
   const mode = raw.mode === "working" || raw.mode === "resting" ? raw.mode : "idle"
-  const operation = raw.activeOperation && typeof raw.activeOperation === "object" ? raw.activeOperation as BlacksmithingActiveOperation : null
+  const operation = raw.activeOperation && typeof raw.activeOperation === "object" ? raw.activeOperation as Partial<BlacksmithingActiveOperation> : null
   const normalizedCosts = (costs: unknown) => {
     if (!Array.isArray(costs) || costs.length === 0) return null
     const normalized = costs.map((cost) => {
       if (!cost || typeof cost !== "object") return null
       const itemId = (cost as { itemId?: unknown }).itemId
       const quantity = (cost as { quantity?: unknown }).quantity
-      return typeof itemId === "string" && itemById[itemId]?.inventoryMode === "stackable" && Number.isInteger(quantity) && (quantity as number) > 0
-        ? { itemId, quantity: quantity as number }
-        : null
+      return typeof itemId === "string" && itemById[itemId]?.inventoryMode === "stackable" && Number.isInteger(quantity) && (quantity as number) > 0 ? { itemId, quantity: quantity as number } : null
     })
     return normalized.every((cost): cost is { itemId: string; quantity: number } => cost !== null) ? normalized : null
   }
-  const normalizedOperation = operation ? (() => {
-    const costs = normalizedCosts(operation.reservedCosts)
-    return costs ? { ...operation, durationSeconds: finite(operation.durationSeconds), staminaCost: finite(operation.staminaCost), xpReward: finite(operation.xpReward), reservedCosts: costs } as BlacksmithingActiveOperation : null
-  })() : null
-  const operationTagsAreValid = normalizedOperation?.kind === "upgrade" && Array.isArray(normalizedOperation.operationTags) && normalizedOperation.operationTags.every((tag) => tag === "smelting" || tag === "weapon" || tag === "defensive" || tag === "shield" || tag === "tool" || tag === "iron" || tag === "upgrade")
-  const safeOperation = normalizedOperation && normalizedOperation.durationSeconds > 0 && normalizedOperation.staminaCost > 0 && normalizedOperation.xpReward >= 0 && (
-    (normalizedOperation.kind === "upgrade" && operationTagsAreValid && Number.isInteger(normalizedOperation.depth) && normalizedOperation.depth > 0 && typeof normalizedOperation.instanceId === "string" && typeof normalizedOperation.nodeId === "string" && Boolean(itemUpgradeNodeById[normalizedOperation.nodeId])) ||
-    ((normalizedOperation.kind === "smelting" || normalizedOperation.kind === "smithing") && Boolean(blacksmithingRecipeById[normalizedOperation.recipeId]) && blacksmithingRecipeById[normalizedOperation.recipeId].kind === normalizedOperation.kind)
-  ) ? normalizedOperation : null
+  const costs = normalizedCosts(operation?.reservedCosts)
+  const safeOperation = operation && costs && (operation.kind === "smelting" || operation.kind === "smithing") && typeof operation.recipeId === "string" && blacksmithingRecipeById[operation.recipeId]?.kind === operation.kind && finite(operation.durationSeconds) > 0 && finite(operation.staminaCost) > 0 && finite(operation.xpReward) >= 0
+    ? { ...operation, durationSeconds: finite(operation.durationSeconds), staminaCost: finite(operation.staminaCost), xpReward: finite(operation.xpReward), reservedCosts: costs } as BlacksmithingActiveOperation
+    : null
+  const activityKind = raw.activityKind === "smelting" || raw.activityKind === "smithing" ? raw.activityKind : null
+  const safeMode = safeOperation || (mode === "resting" && activityKind) ? mode : "idle"
   return {
     active: raw.active === true,
-    mode: raw.active === true ? mode : mode,
-    activityKind: raw.activityKind === "smelting" || raw.activityKind === "smithing" || raw.activityKind === "upgrade" ? raw.activityKind : null,
+    mode: safeMode,
+    activityKind,
     selectedSmeltingRecipeId,
     selectedSmithingRecipeId,
     activeOperation: safeOperation,
@@ -277,7 +199,6 @@ export function normalizeBlacksmithingState(value: unknown): BlacksmithingState 
     completedOperations: integer(raw.completedOperations),
     completedSmelts: integer(raw.completedSmelts),
     completedSmiths: integer(raw.completedSmiths),
-    completedUpgrades: integer(raw.completedUpgrades),
     lastStopReason: raw.lastStopReason === "elapsed-time-complete" || raw.lastStopReason === "materials-exhausted" || raw.lastStopReason === "queue-complete" || raw.lastStopReason === "activity-ended" || raw.lastStopReason === "requirements-lost" || raw.lastStopReason === "safety-limit" ? raw.lastStopReason : undefined,
   }
 }

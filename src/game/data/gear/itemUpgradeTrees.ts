@@ -37,6 +37,7 @@ const node = (
   branchId,
   name,
   description,
+  requiredProfessionLevel: 5 + (column - 1) * 5,
   prerequisiteNodeIds,
   costs,
   effects,

@@ -5,10 +5,12 @@ import { getProfessionLevel, setProfessionLevel } from "../game/professions/prof
 import { blacksmithingRecipes } from "../game/professions/blacksmithing/blacksmithingRecipes"
 import { BLACKSMITHING_PERK_TREE_COST, blacksmithingPerkById } from "../game/professions/blacksmithing/blacksmithingPerks"
 import { validateBlacksmithingPerks, validateBlacksmithingRecipes } from "../game/professions/blacksmithing/blacksmithingValidation"
-import { advanceBlacksmithing, getBlacksmithingUpgradeProfile, startBlacksmithingRecipe, startBlacksmithingUpgrade, stopBlacksmithingState } from "../game/professions/blacksmithing/blacksmithingRuntime"
+import { advanceBlacksmithing, startBlacksmithingRecipe, stopBlacksmithingState } from "../game/professions/blacksmithing/blacksmithingRuntime"
+import { purchaseProfessionItemUpgrade } from "../game/professions/professionItemUpgrades"
 import { getBlacksmithingStats, operationTagsForItem } from "../game/professions/blacksmithing/blacksmithingStats"
 import { gameStateToSaveV18, gameStateToSaveV19, parseGameSaveJson } from "../game/persistence/saveGame"
 import { itemById } from "../game/data/items"
+import { itemUpgradeNodeById } from "../game/data/gear/itemUpgradeTrees"
 import { createBlacksmithingActivityAdapter } from "../game/offline/blacksmithingActivity"
 
 const rng = (value: number) => ({ next: () => value })
@@ -29,7 +31,7 @@ describe("Blacksmithing foundation V19", () => {
     expect(v18.version).toBe(18)
     expect(v18).not.toHaveProperty("blacksmithing")
     const migrated = parseGameSaveJson(JSON.stringify(v18))!
-    expect(migrated.version).toBe(19)
+    expect(migrated.version).toBe(20)
     expect(migrated.blacksmithing.active).toBe(false)
     expect(migrated.blacksmithing.forgeStamina).toBe(100)
     expect(migrated.professions.skills.blacksmithing?.totalXp).toBe(0)
@@ -144,30 +146,13 @@ describe("Blacksmithing foundation V19", () => {
     expect(getStackableQuantity(rested.game.inventory, "item.iron-bar")).toBe(0)
   })
 
-  it("reserves and resumes the exact upgrade through zero-stamina rest", () => {
-    let game = createInitialGameState()
-    game = { ...game, professions: setProfessionLevel(game.professions, "blacksmithing", 5), blacksmithing: { ...game.blacksmithing, forgeStamina: 0 } }
-    const instance = Object.values(game.inventory.instances).find((entry) => entry.definitionId === "item.iron-sword")!
-    const nodeId = "upgrade-node.iron-sword.tempered-edge-1"
-    game = { ...game, inventory: grantItem(grantItem(game.inventory, "item.iron-bar", 2).inventory, "item.weapon-scrap", 2).inventory }
-    const started = startBlacksmithingUpgrade(game, instance.id, nodeId)
-    expect(started.outcome).toBe("resting")
-    expect(started.game.blacksmithing.activeOperation).toMatchObject({ kind: "upgrade", instanceId: instance.id, nodeId })
-    expect(getStackableQuantity(started.game.inventory, "item.iron-bar")).toBe(0)
-    const operation = started.game.blacksmithing.activeOperation!
-    const completed = advanceBlacksmithing(started.game, started.game.blacksmithing.restTimerRemaining + operation.durationSeconds + 0.01, rng(0.5))
-    expect(completed.summary.upgradesCompleted).toBe(1)
-    expect(completed.game.inventory.instances[instance.id].unlockedUpgradeNodeIds).toContain(nodeId)
-    expect(completed.game.blacksmithing.lastStopReason).toBe("queue-complete")
-  })
-
   it("round-trips a paused reserved operation through V19", () => {
     let game = createInitialGameState()
     game = { ...game, inventory: grantItem(game.inventory, "item.iron-ore", 5).inventory }
     const started = startBlacksmithingRecipe(game, "blacksmithing-recipe.iron-bar")
     const paused = stopBlacksmithingState(advanceBlacksmithing(started.game, 1.25, rng(0.5)).game)
     const loaded = parseGameSaveJson(JSON.stringify(gameStateToSaveV19(paused, { reducedMotion: false, showInspectorButton: true })))!
-    expect(loaded.version).toBe(19)
+    expect(loaded.version).toBe(20)
     expect(loaded.blacksmithing.active).toBe(false)
     expect(loaded.blacksmithing.activeOperation?.reservedCosts).toEqual([{ itemId: "item.iron-ore", quantity: 5 }])
     expect(loaded.blacksmithing.actionTimerRemaining).toBeCloseTo(paused.blacksmithing.actionTimerRemaining)
@@ -191,32 +176,77 @@ describe("Blacksmithing foundation V19", () => {
     }
   })
 
-  it("keeps the authored depth profile for timed upgrades", () => {
-    expect(getBlacksmithingUpgradeProfile(1)).toEqual({ requiredLevel: 5, duration: 5, stamina: 5, xp: 5 })
-    expect(getBlacksmithingUpgradeProfile(2)).toEqual({ requiredLevel: 10, duration: 8, stamina: 7, xp: 8 })
-    expect(getBlacksmithingUpgradeProfile(3)).toEqual({ requiredLevel: 15, duration: 12, stamina: 9, xp: 12 })
-    expect(getBlacksmithingUpgradeProfile(4)).toEqual({ requiredLevel: 20, duration: 18, stamina: 12, xp: 20 })
-  })
-
-  it("keeps operation filters isolated and excludes upgrade material recovery", () => {
+  it("keeps production operation filters isolated", () => {
     const game = createInitialGameState()
-    expect(operationTagsForItem("item.iron-shield", true)).toEqual(["iron", "upgrade", "defensive", "shield"])
-    expect(getBlacksmithingStats(game, ["iron", "upgrade", "weapon"]).materialRecoveryChance).toBe(0)
+    expect(operationTagsForItem("item.iron-shield")).toEqual(["iron", "defensive", "shield"])
+    expect(getBlacksmithingStats(game, ["iron", "weapon"]).materialRecoveryChance).toBe(0)
   })
 
-  it("reserves an upgrade once and unlocks the exact node at completion", () => {
+  it("purchases an exact profession-owned upgrade instantly without touching forge production state", () => {
     let game = createInitialGameState()
-    game = { ...game, professions: setProfessionLevel(game.professions, "blacksmithing", 5) }
+    game = { ...game, professions: setProfessionLevel(game.professions, "blacksmithing", 5), blacksmithing: { ...game.blacksmithing, forgeStamina: 0 } }
     const instance = Object.values(game.inventory.instances).find((entry) => entry.definitionId === "item.iron-sword")!
     const nodeId = "upgrade-node.iron-sword.tempered-edge-1"
     game = { ...game, inventory: grantItem(grantItem(game.inventory, "item.iron-bar", 2).inventory, "item.weapon-scrap", 2).inventory }
-    const started = startBlacksmithingUpgrade(game, instance.id, nodeId)
-    expect(started.outcome).toBe("started")
-    expect(started.game.inventory.instances[instance.id].unlockedUpgradeNodeIds).not.toContain(nodeId)
-    const completed = advanceBlacksmithing(started.game, 5, rng(0.5))
-    expect(completed.game.inventory.instances[instance.id].unlockedUpgradeNodeIds).toContain(nodeId)
-    expect(completed.summary.upgradesCompleted).toBe(1)
-    expect(getStackableQuantity(completed.game.inventory, "item.iron-bar")).toBe(0)
+    const result = purchaseProfessionItemUpgrade({ game, professionId: "blacksmithing", instanceId: instance.id, nodeId })
+    expect(result.outcome).toBe("purchased")
+    expect(result.game.inventory.instances[instance.id].unlockedUpgradeNodeIds).toContain(nodeId)
+    expect(getStackableQuantity(result.game.inventory, "item.iron-bar")).toBe(0)
+    expect(result.game.blacksmithing).toEqual(game.blacksmithing)
+    expect(result.game.professions.skills.blacksmithing).toEqual(game.professions.skills.blacksmithing)
+  })
+
+  it("enforces level, profession, prerequisite, and combat locks through the generic upgrade engine", () => {
+    const instance = Object.values(createInitialGameState().inventory.instances).find((entry) => entry.definitionId === "item.iron-sword")!
+    const nodeId = "upgrade-node.iron-sword.tempered-edge-1"
+    let game = createInitialGameState()
+    game = { ...game, inventory: grantItem(grantItem(game.inventory, "item.iron-bar", 20).inventory, "item.weapon-scrap", 20).inventory }
+    expect(purchaseProfessionItemUpgrade({ game, professionId: "blacksmithing", instanceId: instance.id, nodeId }).outcome).toBe("profession-level-locked")
+    game = { ...game, professions: setProfessionLevel(game.professions, "blacksmithing", 5) }
+    expect(purchaseProfessionItemUpgrade({ game, professionId: "mining", instanceId: instance.id, nodeId }).outcome).toBe("wrong-profession")
+    expect(purchaseProfessionItemUpgrade({ game, professionId: "blacksmithing", instanceId: instance.id, nodeId, combatLocked: true }).outcome).toBe("combat-locked")
+    const purchased = purchaseProfessionItemUpgrade({ game, professionId: "blacksmithing", instanceId: instance.id, nodeId })
+    expect(purchased.outcome).toBe("purchased")
+    expect(purchaseProfessionItemUpgrade({ game: purchased.game, professionId: "blacksmithing", instanceId: instance.id, nodeId: "upgrade-node.iron-sword.tempered-edge-2" }).outcome).toBe("profession-level-locked")
+  })
+
+  it("migrates a valid prepaid V19 upgrade exactly once without charging current resources", () => {
+    let game = createInitialGameState()
+    const instance = Object.values(game.inventory.instances).find((entry) => entry.definitionId === "item.iron-sword")!
+    const nodeId = "upgrade-node.iron-sword.tempered-edge-1"
+    game = { ...game, inventory: grantItem(grantItem(game.inventory, "item.iron-bar", 2).inventory, "item.weapon-scrap", 2).inventory }
+    const save = gameStateToSaveV19(game, { reducedMotion: false, showInspectorButton: true }) as unknown as Record<string, unknown>
+    save.blacksmithing = {
+      ...(save.blacksmithing as Record<string, unknown>),
+      active: true,
+      mode: "working",
+      activityKind: "upgrade",
+      activeOperation: { kind: "upgrade", instanceId: instance.id, nodeId, depth: 1, operationTags: ["iron", "weapon", "upgrade"], durationSeconds: 5, staminaCost: 5, xpReward: 5, reservedCosts: [{ itemId: "item.iron-bar", quantity: 2 }, { itemId: "item.weapon-scrap", quantity: 2 }] },
+    }
+    const loaded = parseGameSaveJson(JSON.stringify(save))!
+    expect(loaded.version).toBe(20)
+    expect(loaded.inventory.instances[instance.id].unlockedUpgradeNodeIds).toContain(nodeId)
+    expect(getStackableQuantity(loaded.inventory, "item.iron-bar")).toBe(2)
+    expect(getStackableQuantity(loaded.inventory, "item.weapon-scrap")).toBe(2)
+    expect(loaded.blacksmithing.activeOperation).toBeNull()
+    expect(loaded.blacksmithing.active).toBe(false)
+  })
+
+  it("refunds structurally valid reserved V19 upgrade costs when the pending target is invalid", () => {
+    const game = createInitialGameState()
+    const save = gameStateToSaveV19(game, { reducedMotion: false, showInspectorButton: true }) as unknown as Record<string, unknown>
+    save.blacksmithing = {
+      ...(save.blacksmithing as Record<string, unknown>),
+      active: true,
+      mode: "working",
+      activityKind: "upgrade",
+      activeOperation: { kind: "upgrade", instanceId: "missing-instance", nodeId: "missing-node", depth: 1, operationTags: ["iron", "upgrade"], durationSeconds: 5, staminaCost: 5, xpReward: 5, reservedCosts: [{ itemId: "item.iron-bar", quantity: 3 }, { itemId: "item.weapon-scrap", quantity: 4 }, { itemId: "not-a-stackable", quantity: 99 }] },
+    }
+    const loaded = parseGameSaveJson(JSON.stringify(save))!
+    expect(getStackableQuantity(loaded.inventory, "item.iron-bar")).toBe(3)
+    expect(getStackableQuantity(loaded.inventory, "item.weapon-scrap")).toBe(4)
+    expect(loaded.blacksmithing.activeOperation).toBeNull()
+    expect(Object.values(itemUpgradeNodeById)).toHaveLength(156)
   })
 
   it("reports a true safety cap separately from natural queue completion", () => {

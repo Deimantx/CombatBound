@@ -53,6 +53,21 @@ describe("Developer Toolkit V9.3.1 selector stability", () => {
     expect(selectorErrors(consoleError)).toHaveLength(0);
   });
 
+  it("groups Mining and Blacksmithing under independent collapsible profession panels", () => {
+    useDevToolsRuntimeStore.getState().openConsole();
+    render(<TooltipProvider><DebugAdminPanel onClose={() => undefined} /></TooltipProvider>);
+    fireEvent.click(screen.getByRole("button", { name: "Professions" }));
+    const mining = screen.getByRole("button", { name: /^Mining / });
+    const blacksmithing = screen.getByRole("button", { name: /^Blacksmithing / });
+    expect(mining).toHaveAttribute("aria-expanded", "false");
+    expect(blacksmithing).toHaveAttribute("aria-expanded", "false");
+    fireEvent.click(mining);
+    expect(mining).toHaveAttribute("aria-expanded", "true");
+    expect(blacksmithing).toHaveAttribute("aria-expanded", "false");
+    fireEvent.click(blacksmithing);
+    expect(blacksmithing).toHaveAttribute("aria-expanded", "true");
+  });
+
   it("opens Dock Effects safely with no selected enemy", () => {
     useDevToolsRuntimeStore.setState({ dockActive: true, expandedSections: ["time", "player", "enemy"] });
 

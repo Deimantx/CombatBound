@@ -1,22 +1,21 @@
 import type { ProfessionState } from "../professionTypes"
 
 export type BlacksmithingRecipeKind = "smelting" | "smithing"
-export type BlacksmithingRecipeTag = "smelting" | "weapon" | "defensive" | "shield" | "tool" | "iron" | "upgrade"
+export type BlacksmithingRecipeTag = "smelting" | "weapon" | "defensive" | "shield" | "tool" | "iron"
 export type BlacksmithingRecipeId = string
 export type BlacksmithingMode = "idle" | "working" | "resting"
-export type BlacksmithingActivityKind = "smelting" | "smithing" | "upgrade"
+export type BlacksmithingActivityKind = "smelting" | "smithing"
 export type BlacksmithingQueueMode = "fixed" | "max"
 
 export type BlacksmithingModifier =
   | "blacksmithingXpIncreased" | "maxForgeStaminaFlat" | "forgeStaminaCostReduced" | "forgeStaminaCostIncreased"
   | "forgeRestDurationReduced" | "firstForgeRestDurationReduced" | "allOperationSpeedIncreased"
-  | "smeltingSpeedIncreased" | "smithingSpeedIncreased" | "upgradeSpeedIncreased"
+  | "smeltingSpeedIncreased" | "smithingSpeedIncreased"
   | "weaponSmithingSpeedIncreased" | "defensiveSmithingSpeedIncreased" | "toolSmithingSpeedIncreased"
-  | "weaponUpgradeSpeedIncreased" | "defensiveUpgradeSpeedIncreased"
-  | "smeltingXpIncreased" | "smithingXpIncreased" | "upgradeXpIncreased"
-  | "weaponSmithingXpIncreased" | "defensiveSmithingXpIncreased" | "weaponUpgradeXpIncreased" | "defensiveUpgradeXpIncreased"
+  | "smeltingXpIncreased" | "smithingXpIncreased"
+  | "weaponSmithingXpIncreased" | "defensiveSmithingXpIncreased"
   | "smeltingStaminaCostReduced" | "weaponSmithingStaminaCostReduced" | "defensiveSmithingStaminaCostReduced"
-  | "toolSmithingStaminaCostReduced" | "weaponUpgradeStaminaCostReduced" | "defensiveUpgradeStaminaCostReduced"
+  | "toolSmithingStaminaCostReduced"
   | "smeltingBaseMaterialRecoveryChance" | "weaponBaseMaterialRecoveryChance"
   | "defensiveBaseMaterialRecoveryChance" | "toolBaseMaterialRecoveryChance" | "globalBaseMaterialRecoveryChance"
 
@@ -54,19 +53,7 @@ export interface BlacksmithingRecipeOperation {
   materialRecoveryChance: number
 }
 
-export interface BlacksmithingUpgradeOperation {
-  kind: "upgrade"
-  instanceId: string
-  nodeId: string
-  durationSeconds: number
-  staminaCost: number
-  xpReward: number
-  reservedCosts: BlacksmithingReservedCost[]
-  depth: number
-  operationTags: BlacksmithingRecipeTag[]
-}
-
-export type BlacksmithingActiveOperation = BlacksmithingRecipeOperation | BlacksmithingUpgradeOperation
+export type BlacksmithingActiveOperation = BlacksmithingRecipeOperation
 
 export interface BlacksmithingState {
   active: boolean
@@ -83,7 +70,6 @@ export interface BlacksmithingState {
   completedOperations: number
   completedSmelts: number
   completedSmiths: number
-  completedUpgrades: number
   lastStopReason?: BlacksmithingStopReason
 }
 
@@ -94,14 +80,12 @@ export interface BlacksmithingRuntimeSummary {
   operationsCompleted: number
   smeltsCompleted: number
   smithsCompleted: number
-  upgradesCompleted: number
   restSeconds: number
   blacksmithingXp: number
   levelsGained: number
   outputsGained: Record<string, number>
   materialsConsumed: Record<string, number>
   materialsRecovered: Record<string, number>
-  completedUpgradeNodeIds: string[]
 }
 
 export interface BlacksmithingRuntimeGame {

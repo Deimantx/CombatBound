@@ -17,7 +17,7 @@ function makeTree(itemKey: string, itemDefinitionId: string, branchSpecs: Branch
     const branchId = branches[branchIndex].id;
     branch.nodes.forEach((spec, nodeIndex) => {
       const id = `upgrade-node.${itemKey}.${spec.id}`;
-      nodes.push({ id, treeId, branchId, name: spec.name, description: spec.description, prerequisiteNodeIds: nodeIndex === 0 ? [] : [`upgrade-node.${itemKey}.${branch.nodes[nodeIndex - 1].id}`], costs: spec.costs, effects: spec.effects, presentation: { column: nodeIndex + 1, row: branchIndex, size: spec.size ?? (nodeIndex === 3 ? "capstone" : "major"), icon: "sword" } });
+      nodes.push({ id, treeId, branchId, name: spec.name, description: spec.description, requiredProfessionLevel: 5 + nodeIndex * 5, prerequisiteNodeIds: nodeIndex === 0 ? [] : [`upgrade-node.${itemKey}.${branch.nodes[nodeIndex - 1].id}`], costs: spec.costs, effects: spec.effects, presentation: { column: nodeIndex + 1, row: branchIndex, size: spec.size ?? (nodeIndex === 3 ? "capstone" : "major"), icon: "sword" } });
     });
   }
   return { tree: { id: treeId, itemDefinitionId, selectionMode: "single-branch", branchIds: branches.map((branch) => branch.id), nodeIds: nodes.map((node) => node.id) } satisfies ItemUpgradeTreeDefinition, branches, nodes };

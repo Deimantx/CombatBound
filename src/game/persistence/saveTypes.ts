@@ -237,9 +237,80 @@ export interface GameSaveV18 extends Omit<GameSaveV17, "version" | "inventory" |
   professions: HistoricalProfessionStateV18;
   mining: HistoricalMiningStateV18;
 }
-/** Current V19 save. V18 remains a frozen historical boundary. */
+/** Frozen V19 item ownership shape. */
+export type HistoricalEquipmentSlotIdV19 = HistoricalEquipmentSlotIdV18;
+export interface HistoricalItemInstanceV19 extends HistoricalItemInstanceV18 {}
+export interface HistoricalInventoryStateV19 extends HistoricalInventoryStateV18 {
+  instances: Record<string, HistoricalItemInstanceV19>;
+}
+export interface HistoricalEquipmentStateV19 extends HistoricalEquipmentStateV18 {}
+
+/** Frozen V19 profession shape, including the Blacksmithing skill added in V19. */
+export interface HistoricalProfessionSkillProgressV19 {
+  skillId: "mining" | "blacksmithing";
+  totalXp: number;
+  bonusSkillPoints: number;
+  purchasedPerks: Record<string, number>;
+}
+export interface HistoricalProfessionStateV19 {
+  skills: Partial<Record<"mining" | "blacksmithing", HistoricalProfessionSkillProgressV19>>;
+  resourceMasteries: Record<"mastery.iron-vein", HistoricalResourceMasteryProgressV18>;
+}
+export interface HistoricalMiningStateV19 extends HistoricalMiningStateV18 {}
+export type HistoricalBlacksmithingRecipeTagV19 = "smelting" | "weapon" | "defensive" | "shield" | "tool" | "iron" | "upgrade";
+export interface HistoricalBlacksmithingReservedCostV19 { itemId: string; quantity: number }
+export interface HistoricalBlacksmithingRecipeOperationV19 {
+  kind: "smelting" | "smithing";
+  recipeId: string;
+  durationSeconds: number;
+  staminaCost: number;
+  xpReward: number;
+  reservedCosts: HistoricalBlacksmithingReservedCostV19[];
+  materialRecoveryChance: number;
+}
+export interface HistoricalBlacksmithingUpgradeOperationV19 {
+  kind: "upgrade";
+  instanceId: string;
+  nodeId: string;
+  depth: number;
+  operationTags: HistoricalBlacksmithingRecipeTagV19[];
+  durationSeconds: number;
+  staminaCost: number;
+  xpReward: number;
+  reservedCosts: HistoricalBlacksmithingReservedCostV19[];
+}
+export type HistoricalBlacksmithingActiveOperationV19 = HistoricalBlacksmithingRecipeOperationV19 | HistoricalBlacksmithingUpgradeOperationV19;
+export interface HistoricalBlacksmithingStateV19 {
+  active: boolean;
+  mode: "idle" | "working" | "resting";
+  activityKind: "smelting" | "smithing" | "upgrade" | null;
+  selectedSmeltingRecipeId: string;
+  selectedSmithingRecipeId: string | null;
+  activeOperation: HistoricalBlacksmithingActiveOperationV19 | null;
+  queueMode: "fixed" | "max";
+  queuedOperationsRemaining: number;
+  forgeStamina: number;
+  actionTimerRemaining: number;
+  restTimerRemaining: number;
+  completedOperations: number;
+  completedSmelts: number;
+  completedSmiths: number;
+  completedUpgrades: number;
+  lastStopReason?: string;
+}
+
+/** Historical V19 save. V20 current state must not be used to parse this boundary. */
 export interface GameSaveV19 extends Omit<GameSaveV18, "version" | "inventory" | "equipment" | "professions" | "mining"> {
   version: 19;
+  inventory: HistoricalInventoryStateV19;
+  equipment: HistoricalEquipmentStateV19;
+  professions: HistoricalProfessionStateV19;
+  mining: HistoricalMiningStateV19;
+  blacksmithing: HistoricalBlacksmithingStateV19;
+}
+/** Current V20 save. V19 remains a frozen historical boundary. */
+export interface GameSaveV20 extends Omit<GameSaveV19, "version" | "inventory" | "equipment" | "professions" | "mining" | "blacksmithing"> {
+  version: 20;
   inventory: InventoryState;
   equipment: EquipmentState;
   professions: ProfessionState;

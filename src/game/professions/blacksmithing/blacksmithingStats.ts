@@ -18,27 +18,19 @@ export interface BlacksmithingDerivedStats {
   allOperationSpeedIncreased: number
   smeltingSpeedIncreased: number
   smithingSpeedIncreased: number
-  upgradeSpeedIncreased: number
   weaponSmithingSpeedIncreased: number
   defensiveSmithingSpeedIncreased: number
   toolSmithingSpeedIncreased: number
-  weaponUpgradeSpeedIncreased: number
-  defensiveUpgradeSpeedIncreased: number
   forgeStaminaCostReduced: number
   forgeStaminaCostIncreased: number
   smeltingStaminaCostReduced: number
   weaponSmithingStaminaCostReduced: number
   defensiveSmithingStaminaCostReduced: number
   toolSmithingStaminaCostReduced: number
-  weaponUpgradeStaminaCostReduced: number
-  defensiveUpgradeStaminaCostReduced: number
   smeltingXpIncreased: number
   smithingXpIncreased: number
-  upgradeXpIncreased: number
   weaponSmithingXpIncreased: number
   defensiveSmithingXpIncreased: number
-  weaponUpgradeXpIncreased: number
-  defensiveUpgradeXpIncreased: number
   materialRecoveryChance: number
 }
 
@@ -55,13 +47,12 @@ export function resolveBlacksmithingModifiers(input: BlacksmithingStatsInput | {
   const totals: Record<BlacksmithingModifier, number> = {
     blacksmithingXpIncreased: 0, maxForgeStaminaFlat: 0, forgeStaminaCostReduced: 0, forgeStaminaCostIncreased: 0,
     forgeRestDurationReduced: 0, firstForgeRestDurationReduced: 0, allOperationSpeedIncreased: 0,
-    smeltingSpeedIncreased: 0, smithingSpeedIncreased: 0, upgradeSpeedIncreased: 0,
+    smeltingSpeedIncreased: 0, smithingSpeedIncreased: 0,
     weaponSmithingSpeedIncreased: 0, defensiveSmithingSpeedIncreased: 0, toolSmithingSpeedIncreased: 0,
-    weaponUpgradeSpeedIncreased: 0, defensiveUpgradeSpeedIncreased: 0,
-    smeltingXpIncreased: 0, smithingXpIncreased: 0, upgradeXpIncreased: 0,
-    weaponSmithingXpIncreased: 0, defensiveSmithingXpIncreased: 0, weaponUpgradeXpIncreased: 0, defensiveUpgradeXpIncreased: 0,
+    smeltingXpIncreased: 0, smithingXpIncreased: 0,
+    weaponSmithingXpIncreased: 0, defensiveSmithingXpIncreased: 0,
     smeltingStaminaCostReduced: 0, weaponSmithingStaminaCostReduced: 0, defensiveSmithingStaminaCostReduced: 0,
-    toolSmithingStaminaCostReduced: 0, weaponUpgradeStaminaCostReduced: 0, defensiveUpgradeStaminaCostReduced: 0,
+    toolSmithingStaminaCostReduced: 0,
     smeltingBaseMaterialRecoveryChance: 0, weaponBaseMaterialRecoveryChance: 0,
     defensiveBaseMaterialRecoveryChance: 0, toolBaseMaterialRecoveryChance: 0, globalBaseMaterialRecoveryChance: 0,
   }
@@ -84,28 +75,20 @@ export function getBlacksmithingStats(input: BlacksmithingStatsInput | { profess
   const tags = new Set(operationTags)
   const speed = (totals.allOperationSpeedIncreased
     + (tags.has("smelting") ? totals.smeltingSpeedIncreased : 0)
-    + (tags.has("upgrade") ? totals.upgradeSpeedIncreased : 0)
-    + (tags.has("upgrade") && tags.has("weapon") ? totals.weaponUpgradeSpeedIncreased : 0)
-    + (tags.has("upgrade") && tags.has("defensive") ? totals.defensiveUpgradeSpeedIncreased : 0)
-    + (!tags.has("upgrade") && tags.has("weapon") ? totals.weaponSmithingSpeedIncreased : 0)
-    + (!tags.has("upgrade") && tags.has("defensive") ? totals.defensiveSmithingSpeedIncreased : 0)
-    + (!tags.has("upgrade") && tags.has("tool") ? totals.toolSmithingSpeedIncreased : 0)
-    + (!tags.has("upgrade") && !tags.has("smelting") && tags.has("iron") ? totals.smithingSpeedIncreased : 0))
+    + (tags.has("weapon") ? totals.weaponSmithingSpeedIncreased : 0)
+    + (tags.has("defensive") ? totals.defensiveSmithingSpeedIncreased : 0)
+    + (tags.has("tool") ? totals.toolSmithingSpeedIncreased : 0)
+    + (!tags.has("smelting") && tags.has("iron") ? totals.smithingSpeedIncreased : 0))
   const costReduction = totals.forgeStaminaCostReduced
     + (tags.has("smelting") ? totals.smeltingStaminaCostReduced : 0)
-    + (tags.has("upgrade") && tags.has("weapon") ? totals.weaponUpgradeStaminaCostReduced : 0)
-    + (!tags.has("upgrade") && tags.has("weapon") ? totals.weaponSmithingStaminaCostReduced : 0)
-    + (tags.has("upgrade") && tags.has("defensive") ? totals.defensiveUpgradeStaminaCostReduced : 0)
-    + (!tags.has("upgrade") && tags.has("defensive") ? totals.defensiveSmithingStaminaCostReduced : 0)
-    + (!tags.has("upgrade") && tags.has("tool") ? totals.toolSmithingStaminaCostReduced : 0)
+    + (tags.has("weapon") ? totals.weaponSmithingStaminaCostReduced : 0)
+    + (tags.has("defensive") ? totals.defensiveSmithingStaminaCostReduced : 0)
+    + (tags.has("tool") ? totals.toolSmithingStaminaCostReduced : 0)
   const xp = totals.blacksmithingXpIncreased
     + (tags.has("smelting") ? totals.smeltingXpIncreased : 0)
-    + (tags.has("upgrade") && tags.has("weapon") ? totals.weaponUpgradeXpIncreased : 0)
-    + (!tags.has("upgrade") && tags.has("weapon") ? totals.weaponSmithingXpIncreased : 0)
-    + (tags.has("upgrade") && tags.has("defensive") ? totals.defensiveUpgradeXpIncreased : 0)
-    + (!tags.has("upgrade") && tags.has("defensive") ? totals.defensiveSmithingXpIncreased : 0)
-    + (tags.has("upgrade") ? totals.upgradeXpIncreased : 0)
-  const recovery = tags.has("upgrade") ? 0 : tags.has("smelting")
+    + (tags.has("weapon") ? totals.weaponSmithingXpIncreased : 0)
+    + (tags.has("defensive") ? totals.defensiveSmithingXpIncreased : 0)
+  const recovery = tags.has("smelting")
     ? totals.smeltingBaseMaterialRecoveryChance
     : tags.has("weapon") ? totals.weaponBaseMaterialRecoveryChance
       : tags.has("defensive") ? totals.defensiveBaseMaterialRecoveryChance
@@ -122,10 +105,9 @@ export function getBlacksmithingStats(input: BlacksmithingStatsInput | { profess
   }
 }
 
-export function operationTagsForItem(itemDefinitionId: string, isUpgrade = false): BlacksmithingRecipeTag[] {
+export function operationTagsForItem(itemDefinitionId: string): BlacksmithingRecipeTag[] {
   const definition = itemById[itemDefinitionId]
   const tags: BlacksmithingRecipeTag[] = ["iron"]
-  if (isUpgrade) tags.push("upgrade")
   if (definition?.professionToolKind) tags.push("tool")
   else if (definition?.category === "weapon") tags.push("weapon")
   else if (definition?.equipmentSlotKind) {

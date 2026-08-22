@@ -36,6 +36,7 @@ export interface ItemUpgradeNodeDefinition {
   branchId: ItemUpgradeBranchId;
   name: string;
   description: string;
+  requiredProfessionLevel: number;
   prerequisiteNodeIds: ItemUpgradeNodeId[];
   costs: ItemUpgradeMaterialCost[];
   effects: ItemUpgradeEffect[];

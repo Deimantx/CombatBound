@@ -15,7 +15,7 @@ export const ironDefensiveGearDefinitions: ItemDefinition[] = [
     equipmentSlotKind: "head",
     defensiveProficiencyId: "heavy-armor",
     materialTierId: "iron",
-    upgradeTreeId: "upgrade-tree.iron-helmet",
+    upgradeTreeId: "upgrade-tree.iron-helmet", upgradeProfessionId: "blacksmithing",
     stats: { armour: 18, maxLife: 12 },
   },
   {
@@ -32,7 +32,7 @@ export const ironDefensiveGearDefinitions: ItemDefinition[] = [
     equipmentSlotKind: "armor",
     defensiveProficiencyId: "heavy-armor",
     materialTierId: "iron",
-    upgradeTreeId: "upgrade-tree.iron-armor",
+    upgradeTreeId: "upgrade-tree.iron-armor", upgradeProfessionId: "blacksmithing",
     stats: { armour: 45, maxLife: 35 },
   },
   {
@@ -49,7 +49,7 @@ export const ironDefensiveGearDefinitions: ItemDefinition[] = [
     equipmentSlotKind: "gloves",
     defensiveProficiencyId: "heavy-armor",
     materialTierId: "iron",
-    upgradeTreeId: "upgrade-tree.iron-gloves",
+    upgradeTreeId: "upgrade-tree.iron-gloves", upgradeProfessionId: "blacksmithing",
     stats: { armour: 12, maxLife: 8 },
   },
   {
@@ -66,7 +66,7 @@ export const ironDefensiveGearDefinitions: ItemDefinition[] = [
     equipmentSlotKind: "boots",
     defensiveProficiencyId: "heavy-armor",
     materialTierId: "iron",
-    upgradeTreeId: "upgrade-tree.iron-boots",
+    upgradeTreeId: "upgrade-tree.iron-boots", upgradeProfessionId: "blacksmithing",
     stats: { armour: 15, maxLife: 10 },
   },
   {
@@ -83,7 +83,7 @@ export const ironDefensiveGearDefinitions: ItemDefinition[] = [
     equipmentSlotKind: "offhand",
     defensiveProficiencyId: "shield",
     materialTierId: "iron",
-    upgradeTreeId: "upgrade-tree.iron-shield",
+    upgradeTreeId: "upgrade-tree.iron-shield", upgradeProfessionId: "blacksmithing",
     stats: { armour: 20, maxLife: 10, blockChance: 0.10, blockEffect: 0.25 },
   },
 ];

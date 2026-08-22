@@ -39,7 +39,7 @@ import {
   loadProfileGameSave,
 } from "../game/profiles/profileStorage";
 import { getProfileSessionOwnerId, isProfileSessionOwner } from "../game/profiles/profileSessionLease";
-import { gameStateToSaveV19, parseGameSaveJson } from "../game/persistence/saveGame";
+import { gameStateToSaveV20, parseGameSaveJson } from "../game/persistence/saveGame";
 import type { ProfileId } from "../game/profiles/profileTypes";
 import type { InventoryEntryRef } from "../game/items/itemTypes";
 import type { SpellbookState } from "../game/spellbook/spellbookTypes";
@@ -130,7 +130,8 @@ import {
 import type { DebugEffectTarget, DebugResource } from "../game/debug/debugTypes";
 import type { CombatProficiencyId } from "../game/progression/progressionTypes";
 import { advanceMining, startMiningState, stopMiningState } from "../game/professions/mining/miningRuntime";
-import { advanceBlacksmithing, clearBlacksmithingQueue, startBlacksmithingRecipe, startBlacksmithingUpgrade, stopBlacksmithingState } from "../game/professions/blacksmithing/blacksmithingRuntime";
+import { advanceBlacksmithing, clearBlacksmithingQueue, startBlacksmithingRecipe, stopBlacksmithingState } from "../game/professions/blacksmithing/blacksmithingRuntime";
+import { purchaseProfessionItemUpgrade } from "../game/professions/professionItemUpgrades";
 import { canStartMining } from "../game/professions/mining/miningStats";
 import { getProfessionPerkDefinitions } from "../game/professions/professionPerkRegistry";
 import { purchaseProfessionPerk, resetProfessionPerks } from "../game/professions/professionPerkValidation";
@@ -192,7 +193,7 @@ interface GameStoreState {
   startMining: () => void;
   stopMining: () => void;
   startBlacksmithing: (recipeId?: string, quantity?: number, queueMode?: "fixed" | "max") => void;
-  startBlacksmithingUpgrade: (instanceId: string, nodeId: string) => void;
+  purchaseProfessionItemUpgrade: (instanceId: string, nodeId: string) => void;
   stopBlacksmithing: () => void;
   clearBlacksmithingQueue: () => void;
   tickCombat: (delta: number) => void;
@@ -470,7 +471,7 @@ function savePermanent(
   const profileId = activeProfileIdForPersistence();
   // A lease check here protects every gameplay save path, including debug and combat mutations.
   if (!profileId || !isProfileSessionOwner(profileId, getProfileSessionOwnerId())) return false;
-  return saveProfileGameSave(profileId, gameStateToSaveV19(game, settings));
+  return saveProfileGameSave(profileId, gameStateToSaveV20(game, settings));
 }
 
 function captureDebugCombatEvents(previous: GameState, next: GameState) {
@@ -801,13 +802,14 @@ export const useGameStore = create<GameStoreState>((set, get) => {
         savePermanent(game, { reducedMotion: state.reducedMotion, showInspectorButton: state.showInspectorButton });
         return flatState(game, state);
       }),
-    startBlacksmithingUpgrade: (instanceId, nodeId) =>
+    purchaseProfessionItemUpgrade: (instanceId, nodeId) =>
       set((state) => {
-        const prepared = { ...state.game, combat: engineStopHunt(state.game.combat, context.effects), mining: stopMiningState(state.game.mining), blacksmithing: stopBlacksmithingState(state.game).blacksmithing };
-        const result = startBlacksmithingUpgrade(prepared, instanceId, nodeId);
-        if (result.outcome !== "started" && result.outcome !== "resting" && result.outcome !== "resumed") return state;
-        savePermanent(result.game, { reducedMotion: state.reducedMotion, showInspectorButton: state.showInspectorButton });
-        return flatState(result.game, state);
+        const combatLocked = state.game.combat.phase === "active" || state.game.combat.phase === "recovery";
+        const result = purchaseProfessionItemUpgrade({ game: state.game, professionId: "blacksmithing", instanceId, nodeId, combatLocked });
+        if (result.outcome !== "purchased") return state;
+        const game = syncCombatStats(result.game);
+        savePermanent(game, { reducedMotion: state.reducedMotion, showInspectorButton: state.showInspectorButton });
+        return flatState(game, state);
       }),
     stopBlacksmithing: () =>
       set((state) => {

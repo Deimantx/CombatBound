@@ -1,4 +1,4 @@
-import type { GameSaveV14, GameSaveV15, GameSaveV16, GameSaveV17, GameSaveV18, GameSaveV19 } from "./saveTypes";
+import type { GameSaveV14, GameSaveV15, GameSaveV16, GameSaveV17, GameSaveV18, GameSaveV19, GameSaveV20 } from "./saveTypes";
 import { proficiencyById } from "../data/proficiencies";
 import { perkById } from "../data/proficiencyPerks";
 import { COMBAT_ABILITY_SLOT_COUNT } from "../combatAbilities/combatAbilityTypes";
@@ -138,7 +138,7 @@ export function isGameSave(value: unknown): value is GameSaveV14 {
   );
 }
 
-function isModernSaveScaffold(value: unknown, expectedVersion: 15 | 16 | 17 | 18 | 19) {
+function isModernSaveScaffold(value: unknown, expectedVersion: 15 | 16 | 17 | 18 | 19 | 20) {
   if (!isRecord(value) || value.version !== expectedVersion || typeof value.gold !== "number" || !Number.isFinite(value.gold) || !isRecord(value.progression) || !isRecord(value.inventory) || !isRecord(value.equipment) || !isRecord(value.collection) || !isRecord(value.settings) || !isRecord(value.magicArts) || !isRecord(value.combatAutomation) || !isRecord(value.combatAutomationPresets) || !isRecord(value.combatAbilities)) return false;
   const progression = value.progression;
   if (!isRecord(progression.proficiencies) || typeof progression.hunterRankPoints !== "number" || progression.hunterRankPoints < 0 || typeof progression.bonusPerkPoints !== "number" || !Number.isInteger(progression.bonusPerkPoints) || progression.bonusPerkPoints < 0 || !isRecord(progression.purchasedPerks)) return false;
@@ -177,7 +177,7 @@ function isModernSaveScaffold(value: unknown, expectedVersion: 15 | 16 | 17 | 18
   return typeof value.settings.reducedMotion === "boolean" && typeof value.settings.showInspectorButton === "boolean";
 }
 
-function validateInventoryBoundary(value: Record<string, unknown>, version: 15 | 16 | 17 | 18 | 19) {
+function validateInventoryBoundary(value: Record<string, unknown>, version: 15 | 16 | 17 | 18 | 19 | 20) {
   const inventory = value.inventory;
   const equipment = value.equipment;
   if (!isRecord(inventory) || !isRecord(equipment) || !isRecord(inventory.stackables) || !isRecord(inventory.instances) || !isRecord(equipment.slots)) return false;
@@ -186,7 +186,7 @@ function validateInventoryBoundary(value: Record<string, unknown>, version: 15 |
   for (const [definitionId, quantity] of Object.entries(inventory.stackables)) {
     if (version === 15) {
       if (typeof quantity !== "number" || !Number.isInteger(quantity) || quantity < 0) return false;
-    } else if (version === 17 || version === 18) {
+    } else if (version === 17 || version === 18 || version === 19) {
       if (typeof quantity !== "number" || !Number.isInteger(quantity) || quantity < 0) return false;
     } else {
       const definition = itemById[definitionId];
@@ -197,15 +197,15 @@ function validateInventoryBoundary(value: Record<string, unknown>, version: 15 |
     if (!isRecord(instance) || instance.id !== key || !isItemInstanceId(key)) return false;
     if (version === 15) {
       if (!isLegacyItemInstanceV2(instance)) return false;
-    } else if (version === 17 || version === 18) {
+    } else if (version === 17 || version === 18 || version === 19) {
       if (!isHistoricalItemInstanceV17(instance)) return false;
     } else if (!isItemInstanceV16(instance) || Object.keys(instance).some((field) => !["id", "definitionId", "version", "unlockedUpgradeNodeIds"].includes(field))) return false;
     const definitionId = typeof instance.definitionId === "string" ? instance.definitionId : null;
     if (!definitionId) return false;
     // V17 and V18 are frozen historical boundaries. Do not consult current
     // item definitions or upgrade trees here; migration owns that conversion.
-    if ((version === 17 || version === 18) && typeof definitionId !== "string") return false;
-    if (version === 19 && (!itemById[definitionId] || itemById[definitionId].inventoryMode !== "instance" || !validateItemInstance(instance).valid)) return false;
+    if ((version === 17 || version === 18 || version === 19) && typeof definitionId !== "string") return false;
+    if (version === 20 && (!itemById[definitionId] || itemById[definitionId].inventoryMode !== "instance" || !validateItemInstance(instance).valid)) return false;
     if (version === 16 && (!itemById[definitionId] || itemById[definitionId].inventoryMode !== "instance")) return false;
     instanceIds.add(key);
     highestSequence = Math.max(highestSequence, itemInstanceSequence(key));
@@ -213,8 +213,8 @@ function validateInventoryBoundary(value: Record<string, unknown>, version: 15 |
   if (typeof inventory.nextInstanceSequence !== "number" || inventory.nextInstanceSequence <= highestSequence) return false;
   for (const [slot, instanceId] of Object.entries(equipment.slots)) {
     const currentSlot = isEquipmentSlotId(slot) ? slot : null;
-    if (((version === 17 ? !HISTORICAL_V17_SLOTS.has(slot) : version === 18 ? !HISTORICAL_V18_SLOTS.has(slot) : !currentSlot)) || typeof instanceId !== "string" || !instanceIds.has(instanceId)) return false;
-    if (version === 17 || version === 18) {
+    if (((version === 17 ? !HISTORICAL_V17_SLOTS.has(slot) : version === 18 || version === 19 ? !HISTORICAL_V18_SLOTS.has(slot) : !currentSlot)) || typeof instanceId !== "string" || !instanceIds.has(instanceId)) return false;
+    if (version === 17 || version === 18 || version === 19) {
       if (!(version === 17 ? HISTORICAL_V17_SLOTS : HISTORICAL_V18_SLOTS).has(slot)) return false;
     } else if (version !== 15) {
       const instance = isRecord(inventory.instances) ? inventory.instances[instanceId] : undefined;
@@ -252,5 +252,26 @@ export function isGameSaveV18(value: unknown): value is GameSaveV18 {
 export function isGameSaveV19(value: unknown): value is GameSaveV19 {
   if (!isModernSaveScaffold(value, 19) || !validateInventoryBoundary(value as Record<string, unknown>, 19)) return false;
   const raw = value as Record<string, unknown>;
-  return Boolean(raw.professions && typeof raw.professions === "object" && raw.mining && typeof raw.mining === "object" && raw.blacksmithing && typeof raw.blacksmithing === "object");
+  if (!isRecord(raw.professions) || !isRecord(raw.mining) || !isRecord(raw.blacksmithing) || !isRecord(raw.professions.skills) || !isRecord(raw.professions.resourceMasteries)) return false;
+  if (Object.keys(raw.professions.skills).some((id) => id !== "mining" && id !== "blacksmithing") || Object.keys(raw.professions.resourceMasteries).some((id) => id !== "mastery.iron-vein")) return false;
+  const operation = raw.blacksmithing.activeOperation;
+  if (operation !== null && !isRecord(operation)) return false;
+  if (isRecord(operation)) {
+    if (operation.kind === "upgrade") {
+      if (typeof operation.instanceId !== "string" || typeof operation.nodeId !== "string" || !Array.isArray(operation.operationTags)) return false;
+    } else if (operation.kind !== "smelting" && operation.kind !== "smithing") return false;
+    if (!Array.isArray(operation.reservedCosts) || operation.reservedCosts.some((cost) => !isRecord(cost) || typeof cost.itemId !== "string" || typeof cost.quantity !== "number" || !Number.isInteger(cost.quantity) || cost.quantity <= 0)) return false;
+  }
+  return true;
+}
+
+export function isGameSaveV20(value: unknown): value is GameSaveV20 {
+  if (!isModernSaveScaffold(value, 20) || !validateInventoryBoundary(value as Record<string, unknown>, 20)) return false;
+  const raw = value as Record<string, unknown>;
+  if (!isRecord(raw.professions) || !isRecord(raw.mining) || !isRecord(raw.blacksmithing) || !isRecord(raw.professions.skills) || !isRecord(raw.professions.resourceMasteries)) return false;
+  if (Object.keys(raw.professions.skills).some((id) => id !== "mining" && id !== "blacksmithing") || Object.keys(raw.professions.resourceMasteries).some((id) => id !== "mastery.iron-vein")) return false;
+  if ("completedUpgrades" in raw.blacksmithing || raw.blacksmithing.activityKind === "upgrade") return false;
+  const operation = raw.blacksmithing.activeOperation;
+  if (operation !== null && (!isRecord(operation) || (operation.kind !== "smelting" && operation.kind !== "smithing") || typeof operation.recipeId !== "string" || !Array.isArray(operation.reservedCosts))) return false;
+  return true;
 }

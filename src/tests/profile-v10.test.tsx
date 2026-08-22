@@ -39,7 +39,7 @@ describe("profile gate and offline foundation", () => {
     fireEvent.click(screen.getByRole("button", { name: "Create & Play" }));
     expect(useGameStore.getState().activeProfileId).toBe("profile-2");
     expect(useProfileStore.getState().index.slots[1]?.id).toBe("profile-2");
-    expect(loadProfileGameSave("profile-2")?.version).toBe(19);
+    expect(loadProfileGameSave("profile-2")?.version).toBe(20);
     expect(useProfileStore.getState().index.slots[0]).toBeNull();
     expect(useProfileStore.getState().index.slots[2]).toBeNull();
     expect(screen.getByRole("heading", { name: "Home" })).toBeInTheDocument();
@@ -161,7 +161,7 @@ describe("profile gate and offline foundation", () => {
 
     const migrated = migrateLegacySingleSaveIfNeeded();
     expect(migrated.slots[0]?.id).toBe("profile-1");
-    expect(loadProfileGameSave("profile-1")?.version).toBe(19);
+    expect(loadProfileGameSave("profile-1")?.version).toBe(20);
     expect(localStorage.getItem(GAME_SAVE_KEY)).not.toBeNull();
     expect(localStorage.getItem(PROFILE_MIGRATION_KEY)).toBe("1");
     expect(localStorage.getItem(PROFILE_INDEX_KEY)).toContain("profile-1");

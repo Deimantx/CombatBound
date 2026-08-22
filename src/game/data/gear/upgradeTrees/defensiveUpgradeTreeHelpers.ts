@@ -42,6 +42,7 @@ export function makeDefensiveUpgradeTree(itemKey: string, itemDefinitionId: stri
       name: node.name,
       description: node.description,
       prerequisiteNodeIds: nodeIndex === 0 ? [] : [`upgrade-node.${itemKey}.${branch.nodes[nodeIndex - 1].id}`],
+      requiredProfessionLevel: 5 + nodeIndex * 5,
       costs: node.costs,
       effects: node.effects,
       presentation: { column: nodeIndex + 1, row: branchIndex, size: nodeIndex === branch.nodes.length - 1 ? "capstone" : "major", icon: branch.icon },

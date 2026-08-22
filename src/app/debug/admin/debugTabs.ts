@@ -1,13 +1,12 @@
 import type { LucideIcon } from "lucide-react";
-import { Bug, Clock3, Crosshair, Hammer, Heart, Package, Pickaxe, Shield, Sparkles, Swords } from "lucide-react";
+import { Bug, Clock3, Crosshair, Heart, Package, Pickaxe, Shield, Sparkles, Swords } from "lucide-react";
 
 export const DEFAULT_DEBUG_TAB_ORDER = [
   "overview",
   "offline-time",
   "player",
   "progression",
-  "mining",
-  "blacksmithing",
+  "professions",
   "items",
   "collection",
   "combat",
@@ -33,8 +32,7 @@ export const DEBUG_TAB_DEFINITIONS: DebugTabDefinition[] = [
   { id: "offline-time", label: "Offline Time", icon: Clock3 },
   { id: "player", label: "Player", icon: Heart },
   { id: "progression", label: "Progression", icon: Sparkles },
-  { id: "mining", label: "Mining", icon: Pickaxe },
-  { id: "blacksmithing", label: "Blacksmithing", icon: Hammer },
+  { id: "professions", label: "Professions", icon: Pickaxe },
   { id: "items", label: "Items", icon: Package },
   { id: "collection", label: "Collection", icon: Crosshair },
   { id: "combat", label: "Combat", icon: Swords },
@@ -49,10 +47,16 @@ export const DEBUG_TAB_DEFINITIONS: DebugTabDefinition[] = [
 
 const validTabIds = new Set<string>(DEFAULT_DEBUG_TAB_ORDER);
 
+export function normalizeDebugTabId(input: string | null | undefined): DebugTab | null {
+  const mapped = input === "mining" || input === "blacksmithing" ? "professions" : input;
+  return mapped && validTabIds.has(mapped) ? mapped as DebugTab : null;
+}
+
 export function normalizeDebugTabOrder(input: readonly string[] | null | undefined): DebugTab[] {
   const normalized: DebugTab[] = [];
   for (const id of input ?? []) {
-    if (validTabIds.has(id) && !normalized.includes(id as DebugTab)) normalized.push(id as DebugTab);
+    const mapped = normalizeDebugTabId(id);
+    if (mapped && !normalized.includes(mapped)) normalized.push(mapped);
   }
   for (const id of DEFAULT_DEBUG_TAB_ORDER) if (!normalized.includes(id)) normalized.push(id);
   return normalized;
