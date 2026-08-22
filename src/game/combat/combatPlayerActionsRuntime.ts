@@ -38,7 +38,8 @@ import type {
 import type { CombatProficiencyId, ProgressionCredit } from "../progression/progressionTypes";
 import { getEnemyTraitCriticalDamageResistance, getEnemyTraitIncomingDamageMultiplier, getEnemyTraitReflectionFraction, processEnemyTraitEvent, applyEnemyTraitHealthTriggers } from "../enemyTraits/enemyTraitRuntime";
 import { getPlayerHealingReceivedMultiplier } from "./combatHealing";
-import { equippedWeaponMechanic, observeBasicWeaponResult, prepareBasicWeaponAttempt } from "../weapons/weaponMechanicRuntime";
+import { equippedWeaponMechanic, observeBasicWeaponResult, observeBasicWeaponSummary, prepareBasicWeaponAttempt } from "../weapons/weaponMechanicRuntime";
+import type { BasicWeaponAttackSummary } from "../weapons/weaponMechanicTypes";
 
 type BarrierAbsorption = {
   effectId: string;
@@ -50,15 +51,6 @@ export interface PlayerDamageRuntimeDependencies {
   awardBarrierCredits: (game: GameState, absorptions: BarrierAbsorption[]) => GameState;
   restoreBarrierResource: (game: GameState, proficiencyId: CombatProficiencyId, absorbedAmount: number) => GameState;
   resolveDefeatedEnemies: (game: GameState, context: CombatContext) => GameState;
-}
-
-export interface BasicWeaponAttackSummary {
-  attemptedHits: number;
-  successfulHits: number;
-  criticalHits: number;
-  blockedHits: number;
-  totalHpDamage: number;
-  targetDied: boolean;
 }
 
 export interface PlayerActionRuntimeDependencies extends PlayerDamageRuntimeDependencies {
@@ -120,17 +112,9 @@ export function damageEnemy(
       if (!next.combat.enemy || next.combat.enemy.defeated) break;
       next = damageEnemy(next, next.combat.enemy, { ...packet, weaponSubHit: true, damageMultiplier: (packet.damageMultiplier ?? 1) * (flurry.hitDamageMultiplier ?? 0.65) }, attackerStats, context, `${prefix} with Flurry`, effectsToApply, dependencies, (resolution) => { summary.attemptedHits += 1; if (resolution.outcome === "hit") summary.successfulHits += 1; if (resolution.critical) summary.criticalHits += 1; if (resolution.blocked) summary.blockedHits += 1; summary.totalHpDamage += resolution.healthDamage; summary.targetDied = summary.targetDied || resolution.targetDied; onResolution?.(resolution); });
     }
+    next = observeBasicWeaponSummary(next, packet, summary, preparedWeaponAttempt.attempt);
     onSummary?.(summary);
-    return {
-      ...next,
-      combat: {
-        ...next.combat,
-        weaponRuntime: {
-          ...next.combat.weaponRuntime,
-          counters: { ...next.combat.weaponRuntime.counters, "weapon-mechanic.dagger-combo": summary.successfulHits > 0 ? 1 : 0 },
-        },
-      },
-    };
+    return next;
   }
   const current = game.combat.enemy?.instanceId === target.instanceId ? game.combat.enemy : undefined;
   if (!current || current.defeated) return game;

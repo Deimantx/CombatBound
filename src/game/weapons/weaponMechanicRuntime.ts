@@ -3,7 +3,7 @@ import { effectById } from "../data/effects";
 import { getBarrierAmount } from "../combat/combatEffects";
 import { getItemInstance } from "../items/itemOwnership";
 import { resolveWeaponMechanicParameters } from "./weaponMechanicResolver";
-import { GREATSWORD_HEAVY_RHYTHM_COUNTER_KEY, RHYTHM_COUNTER_KEY, RIPOSTE_TIMER_KEY, type BasicWeaponAttemptState, type PlayerWeaponRuntimeState, type WeaponMechanicParameters } from "./weaponMechanicTypes";
+import { GREATSWORD_HEAVY_RHYTHM_COUNTER_KEY, RHYTHM_COUNTER_KEY, RIPOSTE_TIMER_KEY, type BasicWeaponAttackSummary, type BasicWeaponAttemptState, type PlayerWeaponRuntimeState, type WeaponMechanicParameters } from "./weaponMechanicTypes";
 import type { EquipmentState } from "../equipment/equipmentTypes";
 import type { InventoryState } from "../inventory/inventoryTypes";
 import type { ItemInstanceId } from "../items/itemTypes";
@@ -15,6 +15,14 @@ const value = (parameters: WeaponMechanicParameters | undefined, id: string, key
 const counter = (combat: CombatState, id: string) => Math.max(0, Math.floor(combat.weaponRuntime.counters[id] ?? 0));
 const withCounter = (runtime: PlayerWeaponRuntimeState, id: string, next: number) => ({ ...runtime, counters: { ...runtime.counters, [id]: Math.max(0, Math.floor(next)) } });
 const withTimer = (runtime: PlayerWeaponRuntimeState, id: string, next: number) => ({ ...runtime, timers: { ...runtime.timers, [id]: Math.max(0, next) } });
+const resolveDaggerCombo = (parameters: WeaponMechanicParameters, successful: boolean, attempt: BasicWeaponAttemptState, baseCombo: number) => {
+  if (!successful) return 0;
+  const comboId = "weapon-mechanic.dagger-combo";
+  const additionalCombo = attempt.special === "opportunist"
+    ? value(parameters, "weapon-mechanic.dagger-opportunist", "additionalCombo")
+    : 0;
+  return Math.min(value(parameters, comboId, "maxStacks", 5), baseCombo + additionalCombo);
+};
 
 export function createInitialPlayerWeaponRuntime(): PlayerWeaponRuntimeState { return { equippedInstanceId: null, counters: {}, timers: {} }; }
 export function resetPlayerWeaponRuntime(runtime: PlayerWeaponRuntimeState | undefined, equippedInstanceId: ItemInstanceId | null = null): PlayerWeaponRuntimeState { return { equippedInstanceId, counters: {}, timers: {} }; }
@@ -133,6 +141,17 @@ export function consumeRiposteForBasicAttempt(game: GameState, packet: DamagePac
   return { game: { ...game, combat: { ...game.combat, weaponRuntime: withTimer(game.combat.weaponRuntime, RIPOSTE_TIMER_KEY, 0) } }, packet: { ...packet, damageMultiplier: (packet.damageMultiplier ?? 1) * (1 + riposte.damageMore), criticalStrikeChance: (packet.criticalStrikeChance ?? 0) + riposte.critChanceFlat }, consumed: true };
 }
 
+/** Resolves post-action Dagger state once for a complete multi-hit Basic action. */
+export function observeBasicWeaponSummary(game: GameState, packet: DamagePacket, summary: BasicWeaponAttackSummary, attempt: BasicWeaponAttemptState = {}) {
+  if (packet.sourceActionId !== "basic.weapon-attack") return game;
+  const mechanic = equippedWeaponMechanic(game);
+  if (!mechanic || game.combat.weaponRuntime.equippedInstanceId !== mechanic.instanceId) return game;
+  const comboId = "weapon-mechanic.dagger-combo";
+  if (!mechanic.parameters.mechanics[comboId]) return game;
+  const successful = summary.successfulHits > 0;
+  return { ...game, combat: { ...game.combat, weaponRuntime: withCounter(game.combat.weaponRuntime, comboId, resolveDaggerCombo(mechanic.parameters, successful, attempt, successful ? 1 : 0)) } };
+}
+
 export function observeBasicWeaponResult(game: GameState, packet: DamagePacket, resolution: DamageResolution, attemptOrLegacyRiposte: BasicWeaponAttemptState | boolean = {}) {
   if (packet.sourceActionId !== "basic.weapon-attack") return game;
   const attempt: BasicWeaponAttemptState = typeof attemptOrLegacyRiposte === "boolean" ? {} : attemptOrLegacyRiposte;
@@ -147,20 +166,21 @@ export function observeBasicWeaponResult(game: GameState, packet: DamagePacket, 
   const momentum = "weapon-mechanic.axe-momentum"; if (mechanic.parameters.mechanics[momentum]) update(momentum, value(mechanic.parameters, momentum, "maxStacks", 4), hit ? counter(game.combat, momentum) + 1 : Math.min(counter(game.combat, momentum), value(mechanic.parameters, momentum, "missFloor")));
   const crushed = "weapon-mechanic.mace-crushed"; if (mechanic.parameters.mechanics[crushed] && hit) update(crushed, value(mechanic.parameters, crushed, "maxStacks", 3), counter(game.combat, crushed) + 1);
   const impact = "weapon-mechanic.mace-impact"; if (mechanic.parameters.mechanics[impact] && attempt.special !== "heavy-impact") update(impact, value(mechanic.parameters, impact, "requiredHits", 2), hit ? counter(game.combat, impact) + 1 : 0);
-  const combo = "weapon-mechanic.dagger-combo"; if (mechanic.parameters.mechanics[combo] && !packet.weaponSubHit) update(combo, value(mechanic.parameters, combo, "maxStacks", 5), hit ? counter(game.combat, combo) + 1 : 0);
+  const combo = "weapon-mechanic.dagger-combo";
   const heavy = "weapon-mechanic.greatsword-heavy-rhythm"; if (mechanic.parameters.mechanics[heavy]) update(GREATSWORD_HEAVY_RHYTHM_COUNTER_KEY, value(mechanic.parameters, heavy, "maxStacks", 3), attempt.special === "perfect-swing" ? (hit ? value(mechanic.parameters, heavy, "perfectSwingNextStacks", 1) : 0) : hit ? counter(game.combat, GREATSWORD_HEAVY_RHYTHM_COUNTER_KEY) + 1 : 0);
   const bloodlust = "weapon-mechanic.great-axe-bloodlust"; if (mechanic.parameters.mechanics[bloodlust] && resolution.critical && hit) runtime = withTimer(runtime, bloodlust, value(mechanic.parameters, bloodlust, "durationSeconds", 5));
   const shatter = "weapon-mechanic.warhammer-shatter"; if (mechanic.parameters.mechanics[shatter]) update(shatter, value(mechanic.parameters, shatter, "maxStacks", 3), attempt.special === "charged-impact" ? (hit ? value(mechanic.parameters, "weapon-mechanic.warhammer-charged-impact", "nextStacks", 1) : 0) : hit ? counter(game.combat, shatter) + 1 : counter(game.combat, shatter));
   const mark = "weapon-mechanic.spear-mark"; if (mechanic.parameters.mechanics[mark] && hit) update(mark, value(mechanic.parameters, mark, "maxStacks", 3), counter(game.combat, mark) + 1);
   const chain = "weapon-mechanic.spear-precision-chain"; if (mechanic.parameters.mechanics[chain]) update(chain, value(mechanic.parameters, chain, "maxStacks", 3), hit ? counter(game.combat, chain) + 1 : 0);
-  const opportunist = "weapon-mechanic.dagger-opportunist";
-  if (hit && attempt.special === "opportunist" && mechanic.parameters.mechanics[opportunist]) update("weapon-mechanic.dagger-combo", value(mechanic.parameters, "weapon-mechanic.dagger-combo", "maxStacks", 5), counter(game.combat, "weapon-mechanic.dagger-combo") + 1 + value(mechanic.parameters, opportunist, "additionalCombo"));
   const counterThrust = "weapon-mechanic.spear-counter-thrust";
   if (hit && attempt.special === "counter-thrust" && mechanic.parameters.mechanics[counterThrust]) {
     update(mark, value(mechanic.parameters, mark, "maxStacks", 3), counter(game.combat, mark) + 1 + value(mechanic.parameters, counterThrust, "additionalMark"));
     update(chain, value(mechanic.parameters, chain, "maxStacks", 3), counter(game.combat, chain) + 1 + value(mechanic.parameters, counterThrust, "additionalPrecisionChain"));
   }
-  return { ...game, combat: { ...game.combat, weaponRuntime: runtime } };
+  let next = { ...game, combat: { ...game.combat, weaponRuntime: runtime } };
+  if (mechanic.parameters.mechanics[combo] && !packet.weaponSubHit)
+    next = { ...next, combat: { ...next.combat, weaponRuntime: withCounter(next.combat.weaponRuntime, combo, resolveDaggerCombo(mechanic.parameters, hit, attempt, hit ? counter(game.combat, combo) + 1 : 0)) } };
+  return next;
 }
 
 export function applySuccessfulPlayerBlock(game: GameState) {

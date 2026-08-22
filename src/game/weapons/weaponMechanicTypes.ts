@@ -40,6 +40,15 @@ export interface BasicWeaponAttemptState {
   consumedTimer?: string;
 }
 
+export interface BasicWeaponAttackSummary {
+  attemptedHits: number;
+  successfulHits: number;
+  criticalHits: number;
+  blockedHits: number;
+  totalHpDamage: number;
+  targetDied: boolean;
+}
+
 export const RHYTHM_MECHANIC_ID = "weapon-mechanic.duelist-rhythm";
 export const RIPOSTE_MECHANIC_ID = "weapon-mechanic.riposte";
 export const RHYTHM_COUNTER_KEY = RHYTHM_MECHANIC_ID;
