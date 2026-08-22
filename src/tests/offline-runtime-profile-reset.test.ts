@@ -31,7 +31,7 @@ describe("Offline activity runtime profile boundaries", () => {
         wastedSeconds: 0,
         stopReason: "requested-time-complete",
         state: useGameStore.getState().game,
-        summary: {},
+        summary: { enemiesDefeated: 0, damageDealt: 0, damageTaken: 0, healing: 0, highestHit: 0, proficiencyXp: {}, progressionRows: [], gold: 0, itemsGained: 0, lootGained: {}, itemInstanceIdsGained: [], requestedSeconds: 300, activitySeconds: 300, wastedSeconds: 0, eventSteps: 0, virtualElapsedSeconds: 300 },
       },
     });
     useOfflineActivityRuntimeStore.getState().setMessage("old profile error");

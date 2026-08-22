@@ -13,7 +13,7 @@ import type {
   CombatProficiencyId,
   ProgressionState,
 } from "../progression/progressionTypes";
-import type { GameSaveV3, GameSaveV4, GameSaveV5, GameSaveV6, GameSaveV7, GameSaveV8, GameSaveV9, GameSaveV10, GameSaveV11, GameSaveV12, GameSaveV13, GameSaveV14, GameSaveV15, GameSaveV16, GameSaveV17, LegacyCombatProficiencyIdV14, LegacyEquipmentStateV10, LegacyInventoryStateV10, LegacyInventoryStateV11, LegacyInventoryStateV12, LegacyProgressionState, LegacyProgressionStateV14, LegacySpellbookStateV13, LegacyCombatAbilityLoadoutStateV13, InventoryStateV16 } from "./saveTypes";
+import type { GameSaveV3, GameSaveV4, GameSaveV5, GameSaveV6, GameSaveV7, GameSaveV8, GameSaveV9, GameSaveV10, GameSaveV11, GameSaveV12, GameSaveV13, GameSaveV14, GameSaveV15, GameSaveV16, GameSaveV17, HistoricalEquipmentSlotIdV17, HistoricalEquipmentStateV17, HistoricalInventoryStateV17, LegacyCombatProficiencyIdV14, LegacyEquipmentStateV10, LegacyInventoryStateV10, LegacyInventoryStateV11, LegacyInventoryStateV12, LegacyProgressionState, LegacyProgressionStateV14, LegacySpellbookStateV13, LegacyCombatAbilityLoadoutStateV13, InventoryStateV16 } from "./saveTypes";
 import { createInitialCombatAutomation } from "../automation/automationTypes";
 import { normalizeCombatAutomation } from "../automation/automationLogic";
 import { getActiveAbilityActionDefinitions } from "../combat/playerActions";
@@ -802,11 +802,18 @@ export function migrateV16Save(value: unknown): GameSaveV17 | null {
   const automation = normalizeCombatAutomation(value.combatAutomation);
   const stripRetiredSpellRules = <T extends { actionId: string }>(rules: T[]) => rules.filter((rule) => !rule.actionId.startsWith("spell."));
   const presets = normalizeCombatAutomationPresets(value.combatAutomationPresets);
+  const historicalInventory: HistoricalInventoryStateV17 = {
+    stackables: { ...inventory.stackables },
+    instances: Object.fromEntries(Object.entries(inventory.instances).map(([id, instance]) => [id, { id: instance.id, definitionId: instance.definitionId, version: 3 as const, unlockedUpgradeNodeIds: [...instance.unlockedUpgradeNodeIds] }])),
+    nextInstanceSequence: inventory.nextInstanceSequence,
+  };
+  const historicalSlots = Object.fromEntries(Object.entries(equipment.slots).filter(([slot]) => slot !== "tool")) as Partial<Record<HistoricalEquipmentSlotIdV17, string>>;
+  const historicalEquipment: HistoricalEquipmentStateV17 = { slots: historicalSlots };
   return {
     version: 17,
     progression,
-    inventory,
-    equipment,
+    inventory: historicalInventory,
+    equipment: historicalEquipment,
     collection,
     gold: typeof value.gold === "number" && Number.isFinite(value.gold) ? value.gold : 0,
     settings: isRecord(value.settings) ? { reducedMotion: value.settings.reducedMotion === true, showInspectorButton: value.settings.showInspectorButton === true } : { reducedMotion: false, showInspectorButton: false },

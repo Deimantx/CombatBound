@@ -1,6 +1,6 @@
-import type { ProfessionState } from "../professionTypes"
+import type { ProfessionState, ResourceMasteryId } from "../professionTypes"
 
-export type MiningResourceId = "mining-resource.iron-vein"
+export type MiningResourceId = string
 export type MiningStageId = "outer-crust" | "exposed-seam" | "dense-vein" | "rich-core" | "heart-of-iron"
 export type MiningMode = "idle" | "swinging" | "resting"
 
@@ -25,7 +25,7 @@ export interface MiningResourceDefinition {
   baseStaminaCostPerSwing: number
   baseRestDurationSeconds: number
   stageIds: MiningStageId[]
-  masteryId: "mastery.iron-vein"
+  masteryId: ResourceMasteryId
 }
 
 export interface MiningState {

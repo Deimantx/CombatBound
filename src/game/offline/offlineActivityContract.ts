@@ -6,6 +6,7 @@ export type OfflineActivityStopReason =
   | "activity-ended"
   | "death"
   | "requirements-lost"
+  | "safety-limit"
   | "invalid";
 
 export interface OfflineActivityEligibility {
@@ -53,22 +54,22 @@ export interface OfflineActivityAdapter<TState, TSummary = unknown> {
   ): OfflineActivitySimulationResult<TState, TSummary>;
 }
 
-export class OfflineActivityRegistry<TState> {
-  private readonly adapters: readonly OfflineActivityAdapter<TState, unknown>[];
+export class OfflineActivityRegistry<TState, TSummary = unknown> {
+  private readonly adapters: readonly OfflineActivityAdapter<TState, TSummary>[];
 
-  constructor(adapters: readonly OfflineActivityAdapter<TState, unknown>[]) {
+  constructor(adapters: readonly OfflineActivityAdapter<TState, TSummary>[]) {
     this.adapters = adapters;
   }
 
-  getCurrentActivity(state: TState): OfflineActivityAdapter<TState, unknown> | null {
+  getCurrentActivity(state: TState): OfflineActivityAdapter<TState, TSummary> | null {
     return this.adapters.find((adapter) => adapter.isActive ? adapter.isActive(state) : adapter.getEligibility(state).eligible) ?? null;
   }
 
-  resolveEligibleActivity(state: TState): OfflineActivityAdapter<TState, unknown> | null {
+  resolveEligibleActivity(state: TState): OfflineActivityAdapter<TState, TSummary> | null {
     return this.adapters.find((adapter) => adapter.getEligibility(state).eligible) ?? null;
   }
 
-  getAdapters(): readonly OfflineActivityAdapter<TState, unknown>[] {
+  getAdapters(): readonly OfflineActivityAdapter<TState, TSummary>[] {
     return this.adapters;
   }
 }
@@ -109,7 +110,7 @@ export interface OfflineActivityTransactionDependencies<TState, TSummary = unkno
   policy?: OfflineTimePolicy;
   requestedSeconds: number;
   availableBankSeconds: number;
-  registry: OfflineActivityRegistry<TState>;
+  registry: OfflineActivityRegistry<TState, TSummary>;
   snapshot: () => TState;
   verifyLease: () => boolean;
   isRunning: () => boolean;
@@ -119,9 +120,9 @@ export interface OfflineActivityTransactionDependencies<TState, TSummary = unkno
   commit: (input: OfflineActivityCommitInput<TState, TSummary>) => boolean;
 }
 
-export interface OfflineActivityTransactionSuccess<TSummary> {
+export interface OfflineActivityTransactionSuccess<TSummary, TState = unknown> {
   ok: true;
-  simulation: OfflineActivitySimulationResult<unknown, TSummary>;
+  simulation: OfflineActivitySimulationResult<TState, TSummary>;
   activityType: string;
 }
 
@@ -131,8 +132,8 @@ export interface OfflineActivityTransactionFailure {
   message: string;
 }
 
-export type OfflineActivityTransactionResult<TSummary = unknown> =
-  | OfflineActivityTransactionSuccess<TSummary>
+export type OfflineActivityTransactionResult<TSummary = unknown, TState = unknown> =
+  | OfflineActivityTransactionSuccess<TSummary, TState>
   | OfflineActivityTransactionFailure;
 
 function failure(error: OfflineActivityTransactionError, message: string): OfflineActivityTransactionFailure {
@@ -141,7 +142,7 @@ function failure(error: OfflineActivityTransactionError, message: string): Offli
 
 function isValidStopReason(value: unknown): value is OfflineActivityStopReason {
   return value === "requested-time-complete" || value === "activity-ended" || value === "death" ||
-    value === "requirements-lost" || value === "invalid";
+    value === "requirements-lost" || value === "safety-limit" || value === "invalid";
 }
 
 function validateResult<TState, TSummary>(
@@ -152,11 +153,15 @@ function validateResult<TState, TSummary>(
     Number.isInteger(result.activitySeconds) &&
     result.activitySeconds >= 0 &&
     result.activitySeconds <= requestedSeconds &&
-    (result.bankSpentSeconds === 0 || result.bankSpentSeconds === requestedSeconds) &&
+    Number.isInteger(result.bankSpentSeconds) &&
+    result.bankSpentSeconds >= 0 &&
+    result.bankSpentSeconds <= requestedSeconds &&
     Number.isInteger(result.wastedSeconds) &&
     result.wastedSeconds === result.bankSpentSeconds - result.activitySeconds &&
     result.wastedSeconds >= 0 &&
-    result.bankSpentSeconds === requestedSeconds &&
+    (result.stopReason === "safety-limit"
+      ? result.bankSpentSeconds === result.activitySeconds
+      : result.bankSpentSeconds === requestedSeconds) &&
     isValidStopReason(result.stopReason) &&
     result.state !== null && result.state !== undefined;
 }
@@ -164,7 +169,7 @@ function validateResult<TState, TSummary>(
 /** Coordinates the generic, all-or-nothing fast-forward transaction. */
 export function runOfflineActivityTransaction<TState, TSummary = unknown>(
   dependencies: OfflineActivityTransactionDependencies<TState, TSummary>,
-): OfflineActivityTransactionResult<TSummary> {
+): OfflineActivityTransactionResult<TSummary, TState> {
   const policy = dependencies.policy ?? offlineTimePolicy;
   if (dependencies.isRunning()) return failure("already-running", "A Time Bank simulation is already running.");
   if (!Number.isFinite(dependencies.requestedSeconds) || dependencies.requestedSeconds <= 0)
@@ -181,7 +186,7 @@ export function runOfflineActivityTransaction<TState, TSummary = unknown>(
     return failure("lease-lost-before-simulation", "This profile is no longer owned by the current tab.");
 
   const currentState = dependencies.snapshot();
-  const adapter = dependencies.registry.resolveEligibleActivity(currentState) as OfflineActivityAdapter<TState, TSummary> | null;
+  const adapter = dependencies.registry.resolveEligibleActivity(currentState);
   if (!adapter) return failure("no-eligible-activity", "There is no eligible activity to simulate.");
 
   dependencies.setRunning(true);
@@ -208,7 +213,7 @@ export function runOfflineActivityTransaction<TState, TSummary = unknown>(
       committed = false;
     }
     if (!committed) return failure("commit-failed", "The simulation could not be committed. No result was applied.");
-    return { ok: true, simulation: result as OfflineActivitySimulationResult<unknown, TSummary>, activityType: adapter.activityType };
+    return { ok: true, simulation: result, activityType: adapter.activityType };
   } finally {
     dependencies.setRunning(false);
   }

@@ -1,6 +1,6 @@
 import { getLevelProgress, levelForXp, xpForLevel } from "../progression/levelCurve"
 import type { ProfessionSkillId, ProfessionSkillProgress, ProfessionState } from "./professionTypes"
-import { miningPerkById } from "./mining/miningPerks"
+import { getProfessionPerkDefinitions, professionPerkDefinitionsBySkill, type ProfessionPerkRegistry } from "./professionPerkRegistry"
 
 export const MAX_PROFESSION_LEVEL = 100
 
@@ -11,18 +11,25 @@ export function createInitialProfessionState(): ProfessionState {
   }
 }
 
-export function normalizeProfessionState(value: unknown): ProfessionState {
+export function normalizeProfessionState(value: unknown, registry?: ProfessionPerkRegistry): ProfessionState {
   const raw = value && typeof value === "object" ? value as Partial<ProfessionState> : {}
-  const rawMining = raw.skills?.mining
-  const mining: ProfessionSkillProgress = {
-    skillId: "mining",
-    totalXp: finiteNonNegative(rawMining?.totalXp),
-    bonusSkillPoints: finiteNonNegative(rawMining?.bonusSkillPoints),
-    purchasedPerks: normalizeRanks(rawMining?.purchasedPerks),
+  const definitionsBySkill = registry ?? professionPerkDefinitionsBySkill
+  const rawSkills = raw.skills && typeof raw.skills === "object" ? raw.skills : {}
+  const skills: Partial<Record<ProfessionSkillId, ProfessionSkillProgress>> = {}
+  for (const [skillId, rawProgress] of Object.entries(rawSkills)) {
+    if (!rawProgress || typeof rawProgress !== "object") continue
+    const progress = rawProgress as Partial<ProfessionSkillProgress>
+    skills[skillId] = {
+      skillId,
+      totalXp: finiteNonNegative(progress.totalXp),
+      bonusSkillPoints: finiteNonNegative(progress.bonusSkillPoints),
+      purchasedPerks: normalizeRanks(progress.purchasedPerks, getProfessionPerkDefinitions(skillId, definitionsBySkill)),
+    }
   }
+  for (const skillId of Object.keys(definitionsBySkill)) if (!skills[skillId]) skills[skillId] = { skillId, totalXp: 0, bonusSkillPoints: 0, purchasedPerks: {} }
   const rawMastery = raw.resourceMasteries?.["mastery.iron-vein"]
   return {
-    skills: { mining },
+    skills,
     resourceMasteries: { "mastery.iron-vein": { masteryId: "mastery.iron-vein", totalXp: finiteNonNegative(rawMastery?.totalXp) } },
   }
 }
@@ -31,11 +38,11 @@ function finiteNonNegative(value: unknown) {
   return typeof value === "number" && Number.isFinite(value) ? Math.max(0, value) : 0
 }
 
-function normalizeRanks(value: unknown) {
+function normalizeRanks(value: unknown, definitions: Record<string, { maxRank: number }>) {
   const ranks: Record<string, number> = {}
   if (!value || typeof value !== "object" || Array.isArray(value)) return ranks
   for (const [id, rank] of Object.entries(value)) {
-    const maxRank = miningPerkById[id]?.maxRank ?? 0
+    const maxRank = definitions[id]?.maxRank ?? 0
     if (maxRank <= 0 || typeof rank !== "number" || !Number.isFinite(rank)) continue
     const safeRank = Math.max(0, Math.min(maxRank, Math.floor(rank)))
     if (safeRank > 0) ranks[id] = safeRank
@@ -66,16 +73,17 @@ export function professionPointsFromLevels(state: ProfessionState, skillId: Prof
   return Math.max(0, getProfessionLevel(state, skillId) - 1)
 }
 
-export function professionPointsSpent(state: ProfessionState, skillId: ProfessionSkillId) {
+export function professionPointsSpent(state: ProfessionState, skillId: ProfessionSkillId, registry?: ProfessionPerkRegistry) {
   const progress = state.skills[skillId]
   if (!progress) return 0
-  return Object.entries(progress.purchasedPerks).reduce((sum, [perkId, rank]) => sum + (miningPerkById[perkId]?.costPerRank ?? 1) * rank, 0)
+  const definitions = getProfessionPerkDefinitions(skillId, registry)
+  return Object.entries(progress.purchasedPerks).reduce((sum, [perkId, rank]) => sum + (definitions[perkId]?.costPerRank ?? 0) * rank, 0)
 }
 
-export function professionAvailablePoints(state: ProfessionState, skillId: ProfessionSkillId) {
+export function professionAvailablePoints(state: ProfessionState, skillId: ProfessionSkillId, registry?: ProfessionPerkRegistry) {
   const progress = state.skills[skillId]
   if (!progress) return 0
-  return Math.max(0, professionPointsFromLevels(state, skillId) + progress.bonusSkillPoints - professionPointsSpent(state, skillId))
+  return Math.max(0, professionPointsFromLevels(state, skillId) + progress.bonusSkillPoints - professionPointsSpent(state, skillId, registry))
 }
 
 export function awardProfessionXp(state: ProfessionState, skillId: ProfessionSkillId, amount: number) {

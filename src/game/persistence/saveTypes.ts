@@ -159,13 +159,33 @@ export interface GameSaveV16 {
   combatAutomation: CombatAutomationState;
   combatAutomationPresets: CombatAutomationPresetsState;
 }
+/** Frozen V17 equipment slots. V17 predates professions and has exactly 13 slots. */
+export type HistoricalEquipmentSlotIdV17 =
+  | "weapon" | "offhand" | "head" | "armor" | "gloves" | "boots" | "belt"
+  | "cape" | "necklace" | "ring1" | "ring2" | "earring1" | "earring2";
+export interface HistoricalItemInstanceV17 {
+  id: string;
+  definitionId: string;
+  version: 3;
+  unlockedUpgradeNodeIds: string[];
+}
+export interface HistoricalInventoryStateV17 {
+  stackables: Record<string, number>;
+  instances: Record<string, HistoricalItemInstanceV17>;
+  nextInstanceSequence: number;
+}
+export interface HistoricalEquipmentStateV17 {
+  slots: Partial<Record<HistoricalEquipmentSlotIdV17, string>>;
+}
 export interface GameSaveV17 extends Omit<GameSaveV16, "version" | "inventory" | "equipment"> {
   version: 17;
+  inventory: HistoricalInventoryStateV17;
+  equipment: HistoricalEquipmentStateV17;
+}
+export interface GameSaveV18 extends Omit<GameSaveV17, "version" | "inventory" | "equipment"> {
+  version: 18;
   inventory: InventoryState;
   equipment: EquipmentState;
-}
-export interface GameSaveV18 extends Omit<GameSaveV17, "version"> {
-  version: 18;
   professions: ProfessionState;
   mining: MiningState;
 }

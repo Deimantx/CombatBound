@@ -1,4 +1,4 @@
-import type { ProfessionState } from "./professionTypes"
+import type { ProfessionSkillId, ProfessionState } from "./professionTypes"
 import { getProfessionLevel, professionAvailablePoints } from "./professionProgression"
 import type { ProfessionPerkDefinition, ProfessionPerkPrerequisite } from "./professionPerkTypes"
 
@@ -28,7 +28,7 @@ export function purchaseProfessionPerk(state: ProfessionState, perkId: string, d
   return { outcome: "purchased" as const, state: { ...state, skills: { ...state.skills, [perk.skillId]: { ...current, purchasedPerks: { ...current.purchasedPerks, [perkId]: purchase.currentRank + 1 } } } } }
 }
 
-export function resetProfessionPerks(state: ProfessionState, skillId: "mining") {
+export function resetProfessionPerks(state: ProfessionState, skillId: ProfessionSkillId) {
   const current = state.skills[skillId]
   return current ? { ...state, skills: { ...state.skills, [skillId]: { ...current, purchasedPerks: {} } } } : state
 }

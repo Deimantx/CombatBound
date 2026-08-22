@@ -11,6 +11,12 @@ export interface MiningRng { next(): number }
 const EMPTY_SUMMARY = (): MiningRuntimeSummary => ({ seconds: 0, swings: 0, stagesBroken: 0, deposits: 0, restSeconds: 0, ironOre: 0, roughGems: 0, blackStones: 0, expectedRoughGems: 0, expectedBlackStones: 0, miningXp: 0, masteryXp: 0, miningLevelsGained: 0, masteryLevelsGained: 0 })
 const safeRng: MiningRng = { next: () => 0.5 }
 
+export type MiningAdvanceStopReason = "requested-time-complete" | "safety-limit"
+
+export interface MiningAdvanceOptions {
+  maxEvents?: number
+}
+
 export function startMiningState(state: MiningState, game: MiningRuntimeGame): MiningState {
   const stats = getMiningStats({ ...game, stageId: state.currentStageId, resourceId: state.selectedResourceId })
   if (state.mode === "resting" && state.restTimerRemaining > 0) return { ...state, active: true }
@@ -19,7 +25,7 @@ export function startMiningState(state: MiningState, game: MiningRuntimeGame): M
 }
 
 export function stopMiningState(state: MiningState): MiningState {
-  return { ...state, active: false, mode: "idle" }
+  return { ...state, active: false }
 }
 
 function beginRest(state: MiningState, normalDuration: number, firstRestDurationMultiplier = 1) {
@@ -98,14 +104,15 @@ function processSwing(game: MiningRuntimeGame, state: MiningState, rng: MiningRn
   return nextGame
 }
 
-export function advanceMining<T extends MiningRuntimeGame>(game: T, elapsedSeconds: number, rng: MiningRng = safeRng): { game: T; summary: MiningRuntimeSummary } {
+export function advanceMining<T extends MiningRuntimeGame>(game: T, elapsedSeconds: number, rng: MiningRng = safeRng, options: MiningAdvanceOptions = {}): { game: T; summary: MiningRuntimeSummary; stopReason: MiningAdvanceStopReason } {
   const summary = EMPTY_SUMMARY()
   const duration = Number.isFinite(elapsedSeconds) ? Math.max(0, elapsedSeconds) : 0
-  if (!game.mining.active || duration <= 0) return { game, summary }
+  if (!game.mining.active || duration <= 0) return { game, summary, stopReason: "requested-time-complete" }
   let nextGame = game
   let remaining = duration
   let events = 0
-  while (remaining > 0 && nextGame.mining.active && events < 100000) {
+  const maxEvents = Math.max(1, Math.floor(options.maxEvents ?? 100000))
+  while (remaining > 0 && nextGame.mining.active && events < maxEvents) {
     events += 1
     const mining = nextGame.mining
     if (mining.mode === "resting") {
@@ -127,7 +134,7 @@ export function advanceMining<T extends MiningRuntimeGame>(game: T, elapsedSecon
     nextGame = processSwing(nextGame, { ...mining, swingTimerRemaining: 0 }, rng, summary) as T
   }
   summary.seconds = duration - remaining
-  return { game: nextGame, summary }
+  return { game: nextGame, summary, stopReason: remaining > 0 ? "safety-limit" : "requested-time-complete" }
 }
 
 export function normalizeMiningState(value: unknown): MiningState {

@@ -22,7 +22,11 @@ export const ironVein: MiningResourceDefinition = {
 }
 
 export const miningStageById = Object.fromEntries(miningStages.map((stage) => [stage.id, stage])) as Record<string, MiningStageDefinition>
-export const miningResourceById = { [ironVein.id]: ironVein }
+export const miningResourceById: Record<string, MiningResourceDefinition> = { [ironVein.id]: ironVein }
+
+export function getMiningResource(resourceId: string, registry: Record<string, MiningResourceDefinition> = miningResourceById) {
+  return registry[resourceId]
+}
 
 export function createInitialMiningState(): import("./miningTypes").MiningState {
   return { selectedResourceId: ironVein.id, active: false, mode: "idle", currentStageId: "outer-crust", stageDurabilityRemaining: ironVein.stageIds.length ? miningStageById[ironVein.stageIds[0]].durability : 0, miningStamina: ironVein.baseMaxStamina, swingTimerRemaining: 0, restTimerRemaining: 0, yieldRemainders: {}, completedDeposits: 0, totalSwings: 0, exhaustionRestsThisDeposit: 0 }

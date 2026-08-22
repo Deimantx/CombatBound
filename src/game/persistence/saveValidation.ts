@@ -12,8 +12,14 @@ import { isItemInstanceV16, isLegacyItemInstanceV2 } from "./legacyItemTypes";
 import { magicArtDefinitions } from "../data/magicArts";
 import { isLegacyCombatProficiencyIdV14, normalizeLegacySpellIdV14 } from "./saveMigration";
 
+const HISTORICAL_V17_SLOTS = new Set(["weapon", "offhand", "head", "armor", "gloves", "boots", "belt", "cape", "necklace", "ring1", "ring2", "earring1", "earring2"]);
+
 function isRecord(value: unknown): value is Record<string, unknown> {
   return Boolean(value) && typeof value === "object" && !Array.isArray(value);
+}
+
+function isHistoricalItemInstanceV17(value: unknown): boolean {
+  return isRecord(value) && value.version === 3 && typeof value.id === "string" && typeof value.definitionId === "string" && Array.isArray(value.unlockedUpgradeNodeIds) && value.unlockedUpgradeNodeIds.every((id) => typeof id === "string") && Object.keys(value).every((key) => ["id", "definitionId", "version", "unlockedUpgradeNodeIds"].includes(key));
 }
 
 export function isGameSave(value: unknown): value is GameSaveV14 {
@@ -188,19 +194,25 @@ function validateInventoryBoundary(value: Record<string, unknown>, version: 15 |
     if (!isRecord(instance) || instance.id !== key || !isItemInstanceId(key)) return false;
     if (version === 15) {
       if (!isLegacyItemInstanceV2(instance)) return false;
+    } else if (version === 17) {
+      if (!isHistoricalItemInstanceV17(instance)) return false;
     } else if (!isItemInstanceV16(instance) || Object.keys(instance).some((field) => !["id", "definitionId", "version", "unlockedUpgradeNodeIds"].includes(field))) return false;
-    if ((version === 17 || version === 18) && (!itemById[instance.definitionId] || itemById[instance.definitionId].inventoryMode !== "instance" || !validateItemInstance(instance).valid)) return false;
-    if (version === 16 && (!itemById[instance.definitionId] || itemById[instance.definitionId].inventoryMode !== "instance")) return false;
+    const definitionId = typeof instance.definitionId === "string" ? instance.definitionId : null;
+    if (!definitionId) return false;
+    if (version === 17 && (!itemById[definitionId] || itemById[definitionId].inventoryMode !== "instance")) return false;
+    if (version === 18 && (!itemById[definitionId] || itemById[definitionId].inventoryMode !== "instance" || !validateItemInstance(instance).valid)) return false;
+    if (version === 16 && (!itemById[definitionId] || itemById[definitionId].inventoryMode !== "instance")) return false;
     instanceIds.add(key);
     highestSequence = Math.max(highestSequence, itemInstanceSequence(key));
   }
   if (typeof inventory.nextInstanceSequence !== "number" || inventory.nextInstanceSequence <= highestSequence) return false;
   for (const [slot, instanceId] of Object.entries(equipment.slots)) {
-    if (!isEquipmentSlotId(slot) || typeof instanceId !== "string" || !instanceIds.has(instanceId)) return false;
+    const currentSlot = isEquipmentSlotId(slot) ? slot : null;
+    if ((version === 17 ? !HISTORICAL_V17_SLOTS.has(slot) : !currentSlot) || typeof instanceId !== "string" || !instanceIds.has(instanceId)) return false;
     if (version !== 15) {
       const instance = isRecord(inventory.instances) ? inventory.instances[instanceId] : undefined;
       const definition = isRecord(instance) && typeof instance.definitionId === "string" ? itemById[instance.definitionId] : undefined;
-      if (!definition || !canEquipItemToSlot(definition, slot)) return false;
+      if (!definition || !currentSlot || !canEquipItemToSlot(definition, currentSlot)) return false;
     }
     if (Object.values(equipment.slots).filter((candidate) => candidate === instanceId).length > 1) return false;
   }
@@ -220,7 +232,7 @@ export function isGameSaveV17(value: unknown): value is GameSaveV17 {
 }
 
 export function isGameSaveV18(value: unknown): value is GameSaveV18 {
-  if (!isModernSaveScaffold(value, 18) || !validateInventoryBoundary(value as Record<string, unknown>, 17)) return false;
+  if (!isModernSaveScaffold(value, 18) || !validateInventoryBoundary(value as Record<string, unknown>, 18)) return false;
   const raw = value as Record<string, unknown>;
   return Boolean(raw.professions && typeof raw.professions === "object" && raw.mining && typeof raw.mining === "object");
 }

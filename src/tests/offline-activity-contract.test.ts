@@ -40,7 +40,7 @@ function harness(adapter: OfflineActivityAdapter<FakeState, FakeSummary>, overri
   const options = {
     requestedSeconds: 900,
     availableBankSeconds: 3600,
-    registry: new OfflineActivityRegistry<FakeState>([adapter]),
+    registry: new OfflineActivityRegistry<FakeState, FakeSummary>([adapter]),
     snapshot: () => ({ active: true, value: 0 }),
     verifyLease: () => lease,
     isRunning: () => running,
@@ -59,7 +59,7 @@ describe("Offline Activity Simulation Contract 1.0", () => {
     const inactive = runOfflineActivityTransaction({
       requestedSeconds: 900,
       availableBankSeconds: 3600,
-      registry: new OfflineActivityRegistry<FakeState>([makeAdapter((_state, request) => ({ ...request, activitySeconds: request.requestedSeconds, bankSpentSeconds: request.requestedSeconds, wastedSeconds: 0, stopReason: "requested-time-complete", state: { active: true, value: 1 }, summary: { note: "fake" } }))]),
+      registry: new OfflineActivityRegistry<FakeState, FakeSummary>([makeAdapter((_state, request) => ({ ...request, activitySeconds: request.requestedSeconds, bankSpentSeconds: request.requestedSeconds, wastedSeconds: 0, stopReason: "requested-time-complete", state: { active: true, value: 1 }, summary: { note: "fake" } }))]),
       snapshot: () => ({ active: false, value: 0 }),
       verifyLease: () => true,
       isRunning: () => false,
@@ -70,7 +70,7 @@ describe("Offline Activity Simulation Contract 1.0", () => {
     const result = runOfflineActivityTransaction({
       requestedSeconds: 3601,
       availableBankSeconds: 3600,
-      registry: new OfflineActivityRegistry<FakeState>([makeAdapter((_state, request) => ({ ...request, activitySeconds: request.requestedSeconds, bankSpentSeconds: request.requestedSeconds, wastedSeconds: 0, stopReason: "requested-time-complete", state: { active: true, value: 1 }, summary: { note: "fake" } }))]),
+      registry: new OfflineActivityRegistry<FakeState, FakeSummary>([makeAdapter((_state, request) => ({ ...request, activitySeconds: request.requestedSeconds, bankSpentSeconds: request.requestedSeconds, wastedSeconds: 0, stopReason: "requested-time-complete", state: { active: true, value: 1 }, summary: { note: "fake" } }))]),
       snapshot: () => ({ active: true, value: 0 }),
       verifyLease: () => true,
       isRunning: () => false,

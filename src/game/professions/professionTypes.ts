@@ -1,5 +1,5 @@
-export type ProfessionSkillId = "mining"
-export type ResourceMasteryId = "mastery.iron-vein"
+export type ProfessionSkillId = string
+export type ResourceMasteryId = string
 
 export interface ProfessionSkillProgress {
   skillId: ProfessionSkillId

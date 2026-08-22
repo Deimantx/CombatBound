@@ -1,11 +1,7 @@
 import { create } from "zustand";
-import type { OfflineActivitySimulationResult } from "../game/offline/offlineActivityContract";
+import type { OfflineActivityLastResult } from "../app/offline/offlineActivityTypes";
 
-export interface OfflineActivityLastResult {
-  profileId: string;
-  activityType: string;
-  simulation: OfflineActivitySimulationResult<unknown, unknown>;
-}
+export type { OfflineActivityLastResult } from "../app/offline/offlineActivityTypes";
 
 interface OfflineActivityRuntimeState {
   transactionRunning: boolean;

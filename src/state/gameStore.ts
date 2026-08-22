@@ -131,7 +131,7 @@ import type { DebugEffectTarget, DebugResource } from "../game/debug/debugTypes"
 import type { CombatProficiencyId } from "../game/progression/progressionTypes";
 import { advanceMining, startMiningState, stopMiningState } from "../game/professions/mining/miningRuntime";
 import { canStartMining } from "../game/professions/mining/miningStats";
-import { miningPerkById } from "../game/professions/mining/miningPerks";
+import { getProfessionPerkDefinitions } from "../game/professions/professionPerkRegistry";
 import { purchaseProfessionPerk, resetProfessionPerks } from "../game/professions/professionPerkValidation";
 import { normalizeProfessionState } from "../game/professions/professionProgression";
 import { normalizeMiningState } from "../game/professions/mining/miningRuntime";
@@ -1017,7 +1017,7 @@ export const useGameStore = create<GameStoreState>((set, get) => {
     purchaseMiningPerk: (perkId) =>
       set((state) => {
         if (state.game.mining.active === false && !state.game.professions.skills.mining) return state;
-        const result = purchaseProfessionPerk(state.game.professions, perkId, miningPerkById);
+        const result = purchaseProfessionPerk(state.game.professions, perkId, getProfessionPerkDefinitions("mining"));
         if (result.outcome !== "purchased") return state;
         const game = { ...state.game, professions: result.state };
         savePermanent(game, { reducedMotion: state.reducedMotion, showInspectorButton: state.showInspectorButton });

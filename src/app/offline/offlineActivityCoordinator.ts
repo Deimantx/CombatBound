@@ -1,9 +1,8 @@
 import type { ProfileId } from "../../game/profiles/profileTypes";
 import {
   combatHuntActivityAdapter,
-  type CombatHuntOfflineSummary,
 } from "../../game/offline/combatHuntActivity";
-import { miningActivityAdapter, type MiningOfflineSummary } from "../../game/offline/miningActivity";
+import { miningActivityAdapter } from "../../game/offline/miningActivity";
 import {
   createDeterministicOfflineRng,
   OfflineActivityRegistry,
@@ -11,6 +10,7 @@ import {
   type OfflineActivityDisplayInfo,
   type OfflineActivityEligibility,
   type OfflineActivityTransactionResult,
+  type OfflineActivityAdapter,
 } from "../../game/offline/offlineActivityContract";
 import { offlineTimePolicy } from "../../game/offline/offlineTimePolicy";
 import {
@@ -24,10 +24,22 @@ import {
   hasValidOwnedProfileSessionLease,
 } from "../../game/profiles/profileSessionLease";
 import type { GameState } from "../../game/gameState";
+import type { OfflineActivitySummary } from "./offlineActivityTypes";
+import { toOfflineActivityLastResult } from "./offlineActivityTypes";
 
-const offlineActivityRegistry = new OfflineActivityRegistry<GameState>([
-  combatHuntActivityAdapter,
-  miningActivityAdapter,
+const appCombatAdapter: OfflineActivityAdapter<GameState, OfflineActivitySummary> = {
+  ...combatHuntActivityAdapter,
+  simulate: (snapshot, request, rng) => combatHuntActivityAdapter.simulate(snapshot, request, rng),
+};
+
+const appMiningAdapter: OfflineActivityAdapter<GameState, OfflineActivitySummary> = {
+  ...miningActivityAdapter,
+  simulate: (snapshot, request, rng) => miningActivityAdapter.simulate(snapshot, request, rng),
+};
+
+const offlineActivityRegistry = new OfflineActivityRegistry<GameState, OfflineActivitySummary>([
+  appCombatAdapter,
+  appMiningAdapter,
 ]);
 
 export interface OfflineActivityPanelState {
@@ -74,7 +86,7 @@ function seedForState(game: GameState): number {
   return (game.combat.eventSequence ^ (game.combat.encounterSequence * 2654435761)) >>> 0;
 }
 
-export function requestOfflineSkip(requestedSeconds: number): OfflineActivityTransactionResult<CombatHuntOfflineSummary | MiningOfflineSummary> {
+export function requestOfflineSkip(requestedSeconds: number): OfflineActivityTransactionResult<OfflineActivitySummary, GameState> {
   const current = activeProfile();
   if (!current) {
     const result = { ok: false as const, error: "no-eligible-activity" as const, message: "Open a profile before spending Time Bank time." };
@@ -83,7 +95,7 @@ export function requestOfflineSkip(requestedSeconds: number): OfflineActivityTra
   }
 
   const ownerId = getProfileSessionOwnerId();
-  const result = runOfflineActivityTransaction<GameState, CombatHuntOfflineSummary>({
+  const result = runOfflineActivityTransaction<GameState, OfflineActivitySummary>({
     policy: offlineTimePolicy,
     requestedSeconds,
     availableBankSeconds: getProfileMetadata(current.id)?.offlineBankSeconds ?? 0,
@@ -106,15 +118,21 @@ export function requestOfflineSkip(requestedSeconds: number): OfflineActivityTra
   });
 
   if (result.ok) {
-    useOfflineActivityRuntimeStore.getState().setLastResult({
-      profileId: current.id,
-      activityType: result.activityType,
-      simulation: result.simulation,
-    });
-    useOfflineActivityRuntimeStore.getState().openResults();
+    const lastResult = toOfflineActivityLastResult(current.id, result);
+    if (lastResult) {
+      useOfflineActivityRuntimeStore.getState().setLastResult(lastResult);
+      useOfflineActivityRuntimeStore.getState().openResults();
+    } else {
+      useOfflineActivityRuntimeStore.getState().closeResults();
+      useOfflineActivityRuntimeStore.getState().setMessage("Unable to display this activity result.");
+    }
   } else {
     useOfflineActivityRuntimeStore.getState().closeResults();
-    useOfflineActivityRuntimeStore.getState().setMessage(result.message);
+    const safeMessage = result.error === "invalid-request" || result.error === "insufficient-bank" || result.error === "no-eligible-activity"
+      ? result.message
+      : "Time skip failed. Your profile and Time Bank were not changed.";
+    if (import.meta.env.DEV) console.warn("[offline-time-skip]", { error: result.error, message: result.message });
+    useOfflineActivityRuntimeStore.getState().setMessage(safeMessage);
   }
   return result;
 }
