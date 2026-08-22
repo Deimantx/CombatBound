@@ -13,5 +13,6 @@ export function createInitialInventory(): InventoryState {
   // Temporary vertical-slice bootstrap. Replace/review when Blacksmithing is implemented.
   inventory = grantItem(inventory, 'item.iron-sword', 1).inventory
   inventory = grantItem(inventory, 'item.healing-potion', 10).inventory
+  inventory = grantItem(inventory, 'item.worn-pickaxe', 1).inventory
   return inventory
 }

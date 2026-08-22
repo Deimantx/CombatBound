@@ -27,6 +27,10 @@ import {
 import type { CombatAbilityLoadoutState } from "./combatAbilities/combatAbilityTypes";
 import { createInitialMagicArts } from "./magicArts/magicArtLogic";
 import type { MagicArtsState } from "./magicArts/magicArtTypes";
+import { createInitialProfessionState } from "./professions/professionProgression";
+import type { ProfessionState } from "./professions/professionTypes";
+import { createInitialMiningState } from "./professions/mining/miningData";
+import type { MiningState } from "./professions/mining/miningTypes";
 
 export interface GameState {
   combat: CombatState;
@@ -41,6 +45,8 @@ export interface GameState {
   combatAutomation: CombatAutomationState;
   combatAutomationPresets: CombatAutomationPresetsState;
   combatAbilities: CombatAbilityLoadoutState;
+  professions: ProfessionState;
+  mining: MiningState;
 }
 
 export function createInitialGameState(): GameState {
@@ -56,6 +62,7 @@ export function createInitialGameState(): GameState {
       discoveredItems: [
         "item.iron-sword",
         "item.healing-potion",
+        "item.worn-pickaxe",
       ],
     },
     gold: 0,
@@ -64,5 +71,7 @@ export function createInitialGameState(): GameState {
     combatAutomation: createInitialCombatAutomation(),
     combatAutomationPresets: createInitialCombatAutomationPresets(),
     combatAbilities: createInitialCombatAbilityLoadout(["magic-art.earth-shield"]),
+    professions: createInitialProfessionState(),
+    mining: createInitialMiningState(),
   };
 }

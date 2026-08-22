@@ -7,6 +7,7 @@ import { useOfflineActivityRuntimeStore } from "../../state/offlineActivityRunti
 /** The only wall-clock loop that advances gameplay in the application. */
 export function SimulationDriver() {
   const combatActive = useGameStore((state) => state.combatActive);
+  const miningActive = useGameStore((state) => state.miningActive);
   const recoveryActive = useGameStore((state) => {
     const combat = state.game.combat;
     return (combat.phase === "inactive" || combat.phase === "stopped") &&
@@ -33,7 +34,7 @@ export function SimulationDriver() {
   }, []);
 
   useEffect(() => {
-    if ((!combatActive && !recoveryActive) || paused || offlineTransactionRunning || offlineResultsOpen || !visible || offlineReportOpen) {
+    if ((!combatActive && !recoveryActive && !miningActive) || paused || offlineTransactionRunning || offlineResultsOpen || !visible || offlineReportOpen) {
       accumulator.current = 0;
       return;
     }
@@ -50,7 +51,7 @@ export function SimulationDriver() {
       }
     }, 100);
     return () => window.clearInterval(interval);
-  }, [combatActive, recoveryActive, paused, offlineTransactionRunning, offlineResultsOpen, offlineReportOpen, resetVersion, timeScale, tickCombat, visible]);
+  }, [combatActive, recoveryActive, miningActive, paused, offlineTransactionRunning, offlineResultsOpen, offlineReportOpen, resetVersion, timeScale, tickCombat, visible]);
 
   return null;
 }

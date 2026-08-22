@@ -31,7 +31,7 @@ describe("Iron melee roster and V17 foundation", () => {
     const loaded = parseGameSaveJson(JSON.stringify(save));
     expect(swordId).toBeDefined();
     expect(Object.values(loaded?.inventory.instances ?? {}).some((instance) => instance.definitionId === "item.iron-sword")).toBe(false);
-    expect(loaded?.equipment.slots).toEqual({});
+    expect(loaded?.equipment.slots.tool).toBeDefined();
   });
 
   it("selects the valid branch after filtering orphaned upgrade nodes", () => {
@@ -64,8 +64,8 @@ describe("Iron melee roster and V17 foundation", () => {
     expect(equipment.slots.offhand).toBeUndefined();
   });
 
-  it("keeps the canonical thirteen equipment slot IDs stable", () => {
-    expect(EQUIPMENT_SLOT_IDS).toEqual(["weapon", "offhand", "head", "armor", "gloves", "boots", "belt", "cape", "necklace", "ring1", "ring2", "earring1", "earring2"]);
+  it("keeps the canonical fourteen equipment slot IDs stable", () => {
+    expect(EQUIPMENT_SLOT_IDS).toEqual(["weapon", "offhand", "head", "armor", "gloves", "boots", "belt", "cape", "necklace", "ring1", "ring2", "earring1", "earring2", "tool"]);
   });
 
   it("resolves the complete authored mechanic membership for every weapon", () => {

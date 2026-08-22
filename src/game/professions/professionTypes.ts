@@ -1,0 +1,19 @@
+export type ProfessionSkillId = "mining"
+export type ResourceMasteryId = "mastery.iron-vein"
+
+export interface ProfessionSkillProgress {
+  skillId: ProfessionSkillId
+  totalXp: number
+  bonusSkillPoints: number
+  purchasedPerks: Record<string, number>
+}
+
+export interface ResourceMasteryProgress {
+  masteryId: ResourceMasteryId
+  totalXp: number
+}
+
+export interface ProfessionState {
+  skills: Partial<Record<ProfessionSkillId, ProfessionSkillProgress>>
+  resourceMasteries: Record<ResourceMasteryId, ResourceMasteryProgress>
+}

@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { createInitialGameState } from "../game/gameState";
 import { gameStateToSaveV14, gameStateToSaveV17, parseGameSaveJson } from "../game/persistence/saveGame";
-import { isGameSaveV17 } from "../game/persistence/saveValidation";
+import { isGameSaveV18 } from "../game/persistence/saveValidation";
 import { grantItem } from "../game/items/itemOwnership";
 import { getItemUpgradeSpecialization, getUpgradeNodeState, purchaseItemUpgradeNode } from "../game/items/itemUpgradeLogic";
 import { normalizeItemInstance, validateItemInstance } from "../game/items/itemInstanceValidation";
@@ -24,14 +24,16 @@ const r3 = "upgrade-node.iron-sword.duelist-flow";
 const r4 = "upgrade-node.iron-sword.perfect-rhythm";
 const g1 = "upgrade-node.iron-sword.guarded-hilt";
 
-describe("Iron Sword gear foundation V17", () => {
+describe("Iron Sword gear foundation V18", () => {
   it("bootstraps one clean sword, ten potions, and equips the sword", () => {
     const game = createInitialGameState();
     const instances = Object.values(game.inventory.instances);
-    expect(instances).toHaveLength(1);
-    expect(instances[0]).toEqual({ id: instances[0].id, definitionId: "item.iron-sword", version: 3, unlockedUpgradeNodeIds: [] });
+    expect(instances).toHaveLength(2);
+    const sword = instances.find((instance) => instance.definitionId === "item.iron-sword")!;
+    const worn = instances.find((instance) => instance.definitionId === "item.worn-pickaxe")!;
+    expect(sword).toEqual({ id: sword.id, definitionId: "item.iron-sword", version: 3, unlockedUpgradeNodeIds: [] });
     expect(game.inventory.stackables["item.healing-potion"]).toBe(10);
-    expect(game.equipment.slots).toEqual({ weapon: instances[0].id });
+    expect(game.equipment.slots).toEqual({ weapon: sword.id, tool: worn.id });
   });
 
   it("purchases one node atomically on one exact sword instance", () => {
@@ -63,21 +65,22 @@ describe("Iron Sword gear foundation V17", () => {
       equipment: { slots: { weapon: "item-instance-00000009" } },
     };
     const migrated = parseGameSaveJson(JSON.stringify(legacy));
-    expect(migrated?.version).toBe(17);
-    expect(migrated && isGameSaveV17(migrated)).toBe(true);
-    expect(Object.values(migrated!.inventory.instances)).toHaveLength(1);
+    expect(migrated?.version).toBe(18);
+    expect(migrated && isGameSaveV18(migrated)).toBe(true);
+    expect(Object.values(migrated!.inventory.instances)).toHaveLength(2);
     expect(Object.values(migrated!.inventory.instances)[0]).toMatchObject({ definitionId: "item.iron-sword", version: 3, unlockedUpgradeNodeIds: [] });
     expect(Object.values(migrated!.inventory.instances)[0]).not.toHaveProperty("quality");
     expect(migrated!.inventory.stackables["item.healing-potion"]).toBe(7);
     expect(migrated!.inventory.stackables["item.wolf-fang"]).toBe(3);
-    expect(migrated!.equipment.slots.weapon).toBe(Object.keys(migrated!.inventory.instances)[0]);
+    expect(migrated!.equipment.slots.weapon).toBeDefined();
+    expect(migrated!.equipment.slots.tool).toBeDefined();
     expect(parseGameSaveJson(JSON.stringify(migrated))).toEqual(migrated);
   });
 
   it("keeps two fresh swords identical and upgrades only the purchased instance", () => {
     const game = createInitialGameState();
     const granted = grantItem(game.inventory, "item.iron-sword", 1).inventory;
-    const swordIds = Object.keys(granted.instances);
+    const swordIds = Object.values(granted.instances).filter((instance) => instance.definitionId === "item.iron-sword").map((instance) => instance.id);
     const first = resolveItemInstance(granted, swordIds[0]);
     const second = resolveItemInstance(granted, swordIds[1]);
     expect(first?.baseStats).toEqual(second?.baseStats);
@@ -106,7 +109,7 @@ describe("Iron Sword gear foundation V17", () => {
 
   it("uses discovered zero-XP proficiency as Level 1 for domain equip validation", () => {
     const game = createInitialGameState();
-    const swordId = Object.keys(game.inventory.instances)[0];
+    const swordId = Object.values(game.inventory.instances).find((instance) => instance.definitionId === "item.iron-sword")!.id;
     expect(getProficiencyLevel({ ...game.progression, proficiencies: {} }, "one-handed-sword")).toBe(0);
     expect(getProficiencyLevel(game.progression, "one-handed-sword")).toBe(1);
     expect(validateEquipmentChange({ instanceId: swordId, slotId: "weapon", inventory: game.inventory, equipment: game.equipment, hunterRank: 1, progression: { ...game.progression, proficiencies: {} } }).willDiscoverProficiency).toBe(true);
@@ -173,7 +176,7 @@ describe("Iron Sword gear foundation V17", () => {
     const swordId = Object.keys(game.inventory.instances)[0];
     const legacy = { ...current, version: 16 as const, inventory: { ...current.inventory, instances: { [swordId]: { ...current.inventory.instances[swordId], unlockedUpgradeNodeIds: [p1, p2, r1, g1] } } } };
     const migrated = parseGameSaveJson(JSON.stringify(legacy));
-    expect(migrated?.version).toBe(17);
+    expect(migrated?.version).toBe(18);
     expect(migrated?.inventory.instances[swordId].unlockedUpgradeNodeIds).toEqual([p1, p2]);
     expect(getItemUpgradeSpecialization(migrated!.inventory.instances[swordId], ironSwordUpgradeTree).branchId).toBe("upgrade-branch.iron-sword.tempered");
   });

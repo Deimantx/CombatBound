@@ -124,9 +124,12 @@ describe("Iron heavy armor and shield V17", () => {
       working = { ...working, inventory, equipment: equipped.equipment, progression: equipped.progression ?? working.progression };
     }
     const loaded = parseGameSaveJson(JSON.stringify(gameStateToSaveV17(working, { reducedMotion: false, showInspectorButton: true })));
-    expect(CURRENT_SAVE_VERSION).toBe(17);
-    expect(loaded?.inventory.instances).toEqual(working.inventory.instances);
-    expect(loaded?.equipment.slots).toEqual(working.equipment.slots);
+    expect(CURRENT_SAVE_VERSION).toBe(18);
+    expect(Object.values(loaded?.inventory.instances ?? {}).filter((instance) => instance.definitionId !== "item.worn-pickaxe")).toEqual(Object.values(working.inventory.instances));
+    expect(Object.values(loaded?.inventory.instances ?? {}).filter((instance) => instance.definitionId === "item.worn-pickaxe")).toHaveLength(1);
+    expect(loaded?.equipment.slots).toMatchObject(working.equipment.slots);
+    expect(loaded?.equipment.slots.tool).toBeTruthy();
+    expect(loaded?.inventory.instances[loaded.equipment.slots.tool!]?.definitionId).toBe("item.worn-pickaxe");
     expect(loaded?.progression.proficiencies["heavy-armor"]?.totalXp).toBe(working.progression.proficiencies["heavy-armor"]?.totalXp);
     expect(loaded?.progression.proficiencies.shield?.totalXp).toBe(working.progression.proficiencies.shield?.totalXp);
     for (const [itemId] of authored) {

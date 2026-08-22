@@ -47,7 +47,7 @@ describe("Phase 1 item instances", () => {
     expect(moved.equipment.slots.weapon).toBe(first.id);
     const replaced = equipItemInstance({ inventory: game.inventory, equipment: moved.equipment, instanceId: second.id, slotId: "weapon", hunterRank: 10, progression: game.progression });
     expect(replaced.equipment.slots.weapon).toBe(second.id);
-    expect(Object.keys(game.inventory.instances)).toHaveLength(3);
+    expect(Object.keys(game.inventory.instances)).toHaveLength(4);
   });
 
   it("normalizes a stale sequence above the highest existing suffix", () => {

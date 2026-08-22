@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { createInitialGameState } from "../game/gameState";
 import { gameStateToSaveV14, gameStateToSaveV17, parseGameSaveJson } from "../game/persistence/saveGame";
 import { migrateV14Save } from "../game/persistence/saveMigration";
-import { isGameSaveV15, isGameSaveV16, isGameSaveV17 } from "../game/persistence/saveValidation";
+import { isGameSaveV15, isGameSaveV16, isGameSaveV18 } from "../game/persistence/saveValidation";
 
 const settings = { reducedMotion: false, showInspectorButton: true };
 const temperedEdge = "upgrade-node.iron-sword.tempered-edge-1";
@@ -43,8 +43,8 @@ describe("V17 persistence boundaries", () => {
       combatAutomation: { ...base.combatAutomation, rules: [{ id: "old", actionId: "spell.flame-blast", priority: 1, enabled: true, conditions: [{ type: "always" }] }] },
     };
     const migrated = parseGameSaveJson(JSON.stringify(legacy));
-    expect(migrated?.version).toBe(17);
-    expect(isGameSaveV17(migrated)).toBe(true);
+    expect(migrated?.version).toBe(18);
+    expect(isGameSaveV18(migrated)).toBe(true);
     expect(migrated?.magicArts.knownArtIds).toEqual(["magic-art.earth-shield"]);
     expect(migrated?.progression.proficiencies["fire-magic" as never]).toBeUndefined();
     expect(migrated?.progression.proficiencies["one-handed-sword"]?.totalXp).toBe(25);
@@ -69,7 +69,7 @@ describe("V17 persistence boundaries", () => {
     };
     expect(isGameSaveV16(v16)).toBe(true);
     const migrated = parseGameSaveJson(JSON.stringify(v16));
-    expect(migrated?.version).toBe(17);
+    expect(migrated?.version).toBe(18);
     expect(migrated?.inventory.instances[swordId]?.unlockedUpgradeNodeIds).toEqual([temperedEdge]);
   });
 

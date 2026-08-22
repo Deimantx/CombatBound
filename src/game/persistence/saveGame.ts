@@ -1,5 +1,5 @@
 import type { GameState } from "../gameState";
-import type { GameSaveV14, GameSaveV15, GameSaveV17 } from "./saveTypes";
+import type { GameSaveV14, GameSaveV15, GameSaveV17, GameSaveV18 } from "./saveTypes";
 import {
   migrateCurrentSave,
   migrateLegacySave,
@@ -20,7 +20,7 @@ import {
   LEGACY_V14_PROFICIENCY_IDS,
   normalizeProgressionPerkIds,
 } from "./saveMigration";
-import { isGameSaveV17 } from "./saveValidation";
+import { isGameSaveV17, isGameSaveV18 } from "./saveValidation";
 import { normalizeCombatAutomation } from "../automation/automationLogic";
 import { normalizeCombatAbilityLoadout } from "../combatAbilities/combatAbilityLogic";
 import { normalizeCombatAutomationPresets } from "../automation/automationPresets";
@@ -31,9 +31,14 @@ import { getActiveAbilityActionDefinitions } from "../combat/playerActions";
 import { enemyDefinitions } from "../data/enemies";
 import { itemById } from "../data/items";
 import { normalizeCollectionTargets } from "../collection/collectionLogic";
+import { createInitialProfessionState, normalizeProfessionState } from "../professions/professionProgression";
+import { createInitialMiningState } from "../professions/mining/miningData";
+import { normalizeMiningState } from "../professions/mining/miningRuntime";
+import { grantItem, getInstancesByDefinitionId } from "../items/itemOwnership";
 
-export const CURRENT_SAVE_VERSION = 17;
-export const GAME_SAVE_KEY = "combatbound-idle-save-v17";
+export const CURRENT_SAVE_VERSION = 18;
+export const GAME_SAVE_KEY = "combatbound-idle-save-v18";
+export const LEGACY_V17_GAME_SAVE_KEY = "combatbound-idle-save-v17";
 export const LEGACY_V16_GAME_SAVE_KEY = "combatbound-idle-save-v16";
 export const LEGACY_V15_GAME_SAVE_KEY = "combatbound-idle-save-v15";
 export const LEGACY_V14_GAME_SAVE_KEY = "combatbound-idle-save-v14";
@@ -107,6 +112,28 @@ export function gameStateToSaveV17(
   };
 }
 
+export function gameStateToSaveV18(
+  game: GameState,
+  settings: { reducedMotion: boolean; showInspectorButton: boolean },
+): GameSaveV18 {
+  return {
+    ...gameStateToSaveV17(game, settings),
+    version: 18,
+    professions: game.professions,
+    mining: game.mining,
+  };
+}
+
+function migrateV17ToV18(save: GameSaveV17): GameSaveV18 {
+  let inventory = normalizeInventoryState(save.inventory);
+  let equipment = normalizeEquipmentState(save.equipment, inventory);
+  const hasPickaxe = getInstancesByDefinitionId(inventory, "item.worn-pickaxe").length + getInstancesByDefinitionId(inventory, "item.iron-pickaxe").length > 0;
+  if (!hasPickaxe) inventory = grantItem(inventory, "item.worn-pickaxe", 1).inventory;
+  const worn = getInstancesByDefinitionId(inventory, "item.worn-pickaxe")[0];
+  if (!equipment.slots.tool && worn) equipment = { slots: { ...equipment.slots, tool: worn.id } };
+  return { ...save, version: 18, inventory, equipment, professions: createInitialProfessionState(), mining: createInitialMiningState() };
+}
+
 function normalizeCurrentSaveV17(value: unknown): GameSaveV17 | null {
   if (!value || typeof value !== "object" || Array.isArray(value) || (value as { version?: unknown }).version !== 17) return null;
   const raw = value as Partial<GameSaveV17>;
@@ -149,6 +176,15 @@ function normalizeCurrentSaveV17(value: unknown): GameSaveV17 | null {
     combatAbilities: normalizeCombatAbilityLoadout(raw.combatAbilities, magicArts.knownArtIds),
   };
   return isGameSaveV17(normalized) ? normalized : null;
+}
+
+function normalizeCurrentSaveV18(value: unknown): GameSaveV18 | null {
+  if (!value || typeof value !== "object" || Array.isArray(value) || (value as { version?: unknown }).version !== 18) return null;
+  const raw = value as Partial<GameSaveV18>;
+  const base = normalizeCurrentSaveV17({ ...raw, version: 17 });
+  if (!base) return null;
+  const normalized: GameSaveV18 = { ...base, version: 18, professions: normalizeProfessionState(raw.professions), mining: normalizeMiningState(raw.mining) };
+  return isGameSaveV18(normalized) ? normalized : null;
 }
 
 function migrateToV15(value: unknown): GameSaveV15 | null {
@@ -195,18 +231,26 @@ function migrateToV17(value: unknown): GameSaveV17 | null {
   return null;
 }
 
-export function parseGameSaveJson(raw: string): GameSaveV17 | null {
+function migrateToV18(value: unknown): GameSaveV18 | null {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return null;
+  const version = (value as { version?: unknown }).version;
+  if (version === 18) return normalizeCurrentSaveV18(value);
+  const v17 = migrateToV17(value);
+  return v17 ? migrateV17ToV18(v17) : null;
+}
+
+export function parseGameSaveJson(raw: string): GameSaveV18 | null {
   try {
-    return migrateToV17(JSON.parse(raw) as unknown);
+    return migrateToV18(JSON.parse(raw) as unknown);
   } catch {
     return null;
   }
 }
 
 /** Reads the pre-profile global save chain for the one-time Profile 1 migration only. */
-export function loadLegacySingleGameSaveForProfileMigration(): GameSaveV17 | null {
+export function loadLegacySingleGameSaveForProfileMigration(): GameSaveV18 | null {
   if (typeof localStorage === "undefined") return null;
-  const keys = [GAME_SAVE_KEY, LEGACY_V16_GAME_SAVE_KEY, LEGACY_V15_GAME_SAVE_KEY, LEGACY_V14_GAME_SAVE_KEY, LEGACY_V13_GAME_SAVE_KEY, LEGACY_V12_GAME_SAVE_KEY, LEGACY_V11_GAME_SAVE_KEY, LEGACY_V10_GAME_SAVE_KEY, LEGACY_V9_GAME_SAVE_KEY, LEGACY_V8_GAME_SAVE_KEY, LEGACY_V7_GAME_SAVE_KEY, LEGACY_V6_GAME_SAVE_KEY, LEGACY_V5_GAME_SAVE_KEY, LEGACY_V4_GAME_SAVE_KEY, LEGACY_V3_GAME_SAVE_KEY, LEGACY_CURRENT_GAME_SAVE_KEY, LEGACY_GAME_SAVE_KEY];
+  const keys = [GAME_SAVE_KEY, LEGACY_V17_GAME_SAVE_KEY, LEGACY_V16_GAME_SAVE_KEY, LEGACY_V15_GAME_SAVE_KEY, LEGACY_V14_GAME_SAVE_KEY, LEGACY_V13_GAME_SAVE_KEY, LEGACY_V12_GAME_SAVE_KEY, LEGACY_V11_GAME_SAVE_KEY, LEGACY_V10_GAME_SAVE_KEY, LEGACY_V9_GAME_SAVE_KEY, LEGACY_V8_GAME_SAVE_KEY, LEGACY_V7_GAME_SAVE_KEY, LEGACY_V6_GAME_SAVE_KEY, LEGACY_V5_GAME_SAVE_KEY, LEGACY_V4_GAME_SAVE_KEY, LEGACY_V3_GAME_SAVE_KEY, LEGACY_CURRENT_GAME_SAVE_KEY, LEGACY_GAME_SAVE_KEY];
   try {
     for (const key of keys) {
       const raw = localStorage.getItem(key);
@@ -223,12 +267,12 @@ export function loadLegacySingleGameSaveForProfileMigration(): GameSaveV17 | nul
   return null;
 }
 
-export function saveLegacySingleGameSave(save: GameSaveV17) {
+export function saveLegacySingleGameSave(save: GameSaveV18) {
   if (typeof localStorage !== "undefined") localStorage.setItem(GAME_SAVE_KEY, JSON.stringify(save));
 }
 
 export function clearLegacySingleGameSave() {
   if (typeof localStorage !== "undefined") {
-    for (const key of [GAME_SAVE_KEY, LEGACY_V16_GAME_SAVE_KEY, LEGACY_V15_GAME_SAVE_KEY, LEGACY_V14_GAME_SAVE_KEY, LEGACY_V13_GAME_SAVE_KEY, LEGACY_V12_GAME_SAVE_KEY, LEGACY_V11_GAME_SAVE_KEY, LEGACY_V10_GAME_SAVE_KEY, LEGACY_V9_GAME_SAVE_KEY, LEGACY_V8_GAME_SAVE_KEY, LEGACY_V7_GAME_SAVE_KEY, LEGACY_V6_GAME_SAVE_KEY, LEGACY_V5_GAME_SAVE_KEY, LEGACY_V4_GAME_SAVE_KEY, LEGACY_V3_GAME_SAVE_KEY, LEGACY_CURRENT_GAME_SAVE_KEY, LEGACY_GAME_SAVE_KEY]) localStorage.removeItem(key);
+    for (const key of [GAME_SAVE_KEY, LEGACY_V17_GAME_SAVE_KEY, LEGACY_V16_GAME_SAVE_KEY, LEGACY_V15_GAME_SAVE_KEY, LEGACY_V14_GAME_SAVE_KEY, LEGACY_V13_GAME_SAVE_KEY, LEGACY_V12_GAME_SAVE_KEY, LEGACY_V11_GAME_SAVE_KEY, LEGACY_V10_GAME_SAVE_KEY, LEGACY_V9_GAME_SAVE_KEY, LEGACY_V8_GAME_SAVE_KEY, LEGACY_V7_GAME_SAVE_KEY, LEGACY_V6_GAME_SAVE_KEY, LEGACY_V5_GAME_SAVE_KEY, LEGACY_V4_GAME_SAVE_KEY, LEGACY_V3_GAME_SAVE_KEY, LEGACY_CURRENT_GAME_SAVE_KEY, LEGACY_GAME_SAVE_KEY]) localStorage.removeItem(key);
   }
 }

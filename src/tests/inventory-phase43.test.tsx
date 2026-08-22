@@ -18,7 +18,7 @@ function buildCopies() {
   const game = createInitialGameState();
   let inventory = grantItem(game.inventory, "item.iron-sword", 2).inventory;
   for (const [itemId, quantity] of [["item.iron-bar", 20], ["item.weapon-scrap", 2], ["item.wolf-fang", 3]] as const) inventory = grantItem(inventory, itemId, quantity).inventory;
-  const ids = Object.values(inventory.instances).map((instance) => instance.id);
+  const ids = Object.values(inventory.instances).filter((instance) => instance.definitionId === "item.iron-sword").map((instance) => instance.id);
   inventory = purchaseItemUpgradeNode({ inventory, instanceId: ids[0], nodeId: "upgrade-node.iron-sword.tempered-edge-1" }).inventory;
   inventory = purchaseItemUpgradeNode({ inventory, instanceId: ids[1], nodeId: "upgrade-node.iron-sword.balanced-grip" }).inventory;
   return { game: { ...game, inventory }, ids };

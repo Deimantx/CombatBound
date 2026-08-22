@@ -1,4 +1,4 @@
-export type ScreenId = 'home' | 'combat' | 'hero' | 'proficiencies' | 'inventory' | 'collection' | 'settings' | 'info'
+export type ScreenId = 'home' | 'combat' | 'hero' | 'proficiencies' | 'mining' | 'inventory' | 'collection' | 'settings' | 'info'
 export interface HeroWindowRequest {
   window: 'abilities' | 'automation'
   actionId?: string

@@ -5,8 +5,8 @@ import { createInitialGameState } from "../game/gameState";
 
 describe("current equipment foundation", () => {
   it("keeps the canonical thirteen equipment slots", () => {
-    expect(EQUIPMENT_SLOT_IDS).toHaveLength(13);
-    expect(new Set(EQUIPMENT_SLOT_IDS).size).toBe(13);
+    expect(EQUIPMENT_SLOT_IDS).toHaveLength(14);
+    expect(new Set(EQUIPMENT_SLOT_IDS).size).toBe(14);
   });
 
   it("uses the equipped exact Iron Sword instance for build stats", () => {

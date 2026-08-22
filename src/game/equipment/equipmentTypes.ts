@@ -11,7 +11,8 @@ export type EquipmentSlotId =
   | "ring1"
   | "ring2"
   | "earring1"
-  | "earring2";
+  | "earring2"
+  | "tool";
 
 export type EquipmentSlotKind =
   | "weapon"
@@ -24,9 +25,10 @@ export type EquipmentSlotKind =
   | "cape"
   | "necklace"
   | "ring"
-  | "earring";
+  | "earring"
+  | "tool";
 
-export type EquipmentSlotGroup = "weapons" | "armor" | "accessories";
+export type EquipmentSlotGroup = "weapons" | "armor" | "accessories" | "tools";
 
 export interface EquipmentSlotDefinition {
   id: EquipmentSlotId;
@@ -53,6 +55,7 @@ export const EQUIPMENT_SLOT_DEFINITIONS = [
   { id: "ring2", kind: "ring", label: "Ring 2", shortLabel: "Ring 2", group: "accessories", icon: "ring", armorTraining: false, order: 11 },
   { id: "earring1", kind: "earring", label: "Earring 1", shortLabel: "Earring 1", group: "accessories", icon: "spark", armorTraining: false, order: 12 },
   { id: "earring2", kind: "earring", label: "Earring 2", shortLabel: "Earring 2", group: "accessories", icon: "spark", armorTraining: false, order: 13 },
+  { id: "tool", kind: "tool", label: "Tool", group: "tools", icon: "pickaxe", armorTraining: false, order: 14 },
 ] as const satisfies readonly EquipmentSlotDefinition[];
 
 export type EquipmentSlot = EquipmentSlotId;
@@ -88,5 +91,6 @@ export interface EquipmentState {
 
 export function createInitialEquipment(inventory: import('../inventory/inventoryTypes').InventoryState): EquipmentState {
   const ironSword = Object.values(inventory.instances).find((instance) => instance.definitionId === "item.iron-sword")
-  return ironSword ? { slots: { weapon: ironSword.id } } : { slots: {} };
+  const wornPickaxe = Object.values(inventory.instances).find((instance) => instance.definitionId === "item.worn-pickaxe")
+  return { slots: { ...(ironSword ? { weapon: ironSword.id } : {}), ...(wornPickaxe ? { tool: wornPickaxe.id } : {}) } };
 }

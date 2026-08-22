@@ -6,6 +6,8 @@ import type { CombatAutomationState } from "../automation/automationTypes";
 import type { CombatAutomationPresetsState } from "../automation/automationPresets";
 import type { CombatAbilityLoadoutState } from "../combatAbilities/combatAbilityTypes";
 import type { MagicArtsState } from "../magicArts/magicArtTypes";
+import type { ProfessionState } from "../professions/professionTypes";
+import type { MiningState } from "../professions/mining/miningTypes";
 
 /** Frozen V14 proficiency IDs. Never derive historical parsing from current content. */
 export type LegacyCombatProficiencyIdV14 =
@@ -161,5 +163,10 @@ export interface GameSaveV17 extends Omit<GameSaveV16, "version" | "inventory" |
   version: 17;
   inventory: InventoryState;
   equipment: EquipmentState;
+}
+export interface GameSaveV18 extends Omit<GameSaveV17, "version"> {
+  version: 18;
+  professions: ProfessionState;
+  mining: MiningState;
 }
 export type GameSaveV2 = GameSaveV3;

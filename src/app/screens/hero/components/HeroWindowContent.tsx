@@ -16,7 +16,9 @@ export function HeroWindowContent({ windowId, automationRequest, onOpenAutomatio
   const combatAutomation = useGameStore((state) => state.game.combatAutomation);
   const combatAutomationPresets = useGameStore((state) => state.game.combatAutomationPresets);
   const combatAbilities = useGameStore((state) => state.game.combatAbilities);
-  const game = useMemo(() => ({ combat, progression, inventory, equipment, collection, gold, spellbook, magicArts, combatAutomation, combatAutomationPresets, combatAbilities }), [combat, progression, inventory, equipment, collection, gold, spellbook, magicArts, combatAutomation, combatAutomationPresets, combatAbilities]);
+  const professions = useGameStore((state) => state.game.professions);
+  const mining = useGameStore((state) => state.game.mining);
+  const game = useMemo(() => ({ combat, progression, inventory, equipment, collection, gold, spellbook, magicArts, combatAutomation, combatAutomationPresets, combatAbilities, professions, mining }), [combat, progression, inventory, equipment, collection, gold, spellbook, magicArts, combatAutomation, combatAutomationPresets, combatAbilities, professions, mining]);
   if (windowId === "abilities") return <CombatAbilitiesWindow game={game} onOpenAutomation={onOpenAutomation} />;
   return <AutomationWindow game={game} initialActionId={automationRequest?.actionId} createRule={automationRequest?.createRule} />;
 }

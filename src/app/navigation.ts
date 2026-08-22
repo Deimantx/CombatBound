@@ -1,4 +1,4 @@
-import { Backpack, BookOpen, CircleHelp, House, Settings, ShieldCheck, Sparkles, Swords } from 'lucide-react'
+import { Backpack, BookOpen, CircleHelp, House, Pickaxe, Settings, ShieldCheck, Sparkles, Swords } from 'lucide-react'
 import type { ComponentType } from 'react'
 import type { ScreenId } from '../shared/types'
 
@@ -14,6 +14,7 @@ export const navigationItems: NavigationItem[] = [
   { id: 'combat', label: 'Combat', icon: Swords, description: 'Fight and select targets' },
   { id: 'hero', label: 'Hero', icon: ShieldCheck, description: 'Equipment, Magic Arts and combat setup' },
   { id: 'proficiencies', label: 'Proficiencies', icon: Sparkles, description: 'Train weapons and spend Perks' },
+  { id: 'mining', label: 'Mining', icon: Pickaxe, description: 'Mine Iron Veins and grow Mining mastery' },
   { id: 'inventory', label: 'Inventory', icon: Backpack, description: 'Review carried items' },
   { id: 'collection', label: 'Collection Log', icon: BookOpen, description: 'Track discoveries' },
   { id: 'settings', label: 'Settings', icon: Settings, description: 'Prototype preferences' },
@@ -25,6 +26,7 @@ export const screenTitles: Record<ScreenId, { title: string; subtitle: string }>
   combat: { title: 'Combat', subtitle: 'Hunt enemy groups, manage combat decisions, and survive repeated encounters.' },
   hero: { title: 'Hero', subtitle: 'Prepare your equipment, magic and combat behavior.' },
   proficiencies: { title: 'Proficiencies', subtitle: 'Improve the weapons you actually use.' },
+  mining: { title: 'Mining', subtitle: 'Break Iron Veins, build Mining skill, and shape your profession.' },
   inventory: { title: 'Inventory', subtitle: 'Review carried items and equipment.' },
   collection: { title: 'Collection Log', subtitle: 'Track the items and targets you have discovered.' },
   settings: { title: 'Settings', subtitle: 'Tune presentation and prototype preferences.' },

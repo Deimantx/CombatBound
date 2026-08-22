@@ -14,6 +14,7 @@ import {
 import { calculateHunterCombatStats } from "../game/equipment/derivedStats";
 import { equipItemInstance as equipOwnedItemInstance, unequipEquipmentSlot as unequipOwnedEquipmentSlot } from "../game/equipment/equipmentRules";
 import { normalizeInventoryState } from "../game/items/itemOwnership";
+import { getInstancesByDefinitionId } from "../game/items/itemOwnership";
 import { purchaseItemUpgradeNode } from "../game/items/itemUpgradeLogic";
 import { normalizeCollectionTargets } from "../game/collection/collectionLogic";
 import { discoverItem } from "../game/collection/collectionLogic";
@@ -38,7 +39,7 @@ import {
   loadProfileGameSave,
 } from "../game/profiles/profileStorage";
 import { getProfileSessionOwnerId, isProfileSessionOwner } from "../game/profiles/profileSessionLease";
-import { gameStateToSaveV17, parseGameSaveJson } from "../game/persistence/saveGame";
+import { gameStateToSaveV18, parseGameSaveJson } from "../game/persistence/saveGame";
 import type { ProfileId } from "../game/profiles/profileTypes";
 import type { InventoryEntryRef } from "../game/items/itemTypes";
 import type { SpellbookState } from "../game/spellbook/spellbookTypes";
@@ -128,6 +129,16 @@ import {
 } from "../game/debug/debugActions";
 import type { DebugEffectTarget, DebugResource } from "../game/debug/debugTypes";
 import type { CombatProficiencyId } from "../game/progression/progressionTypes";
+import { advanceMining, startMiningState, stopMiningState } from "../game/professions/mining/miningRuntime";
+import { canStartMining } from "../game/professions/mining/miningStats";
+import { miningPerkById } from "../game/professions/mining/miningPerks";
+import { purchaseProfessionPerk, resetProfessionPerks } from "../game/professions/professionPerkValidation";
+import { normalizeProfessionState } from "../game/professions/professionProgression";
+import { normalizeMiningState } from "../game/professions/mining/miningRuntime";
+import { getProfessionLevel, setProfessionLevel, setProfessionXp } from "../game/professions/professionProgression";
+import { ironMasteryXpForLevel, ironMasteryLevel } from "../game/professions/mining/miningMastery";
+import { miningStageById } from "../game/professions/mining/miningData";
+import { getMiningStats } from "../game/professions/mining/miningStats";
 import { useDevToolsRuntimeStore } from "../app/debug/devtools/devToolsRuntimeStore";
 import { useDebugTelemetryStore } from "../app/debug/telemetry/debugTelemetryStore";
 import type { DebugScenarioSnapshot } from "../app/debug/scenarios/debugScenarioTypes";
@@ -144,7 +155,8 @@ interface GameStoreState {
   selectedCombatLocationId: string;
   activeCombatLocationId: string | null;
   combatActive: boolean;
-  activity: "idle" | "combat";
+  miningActive: boolean;
+  activity: "idle" | "combat" | "mining";
   selectedTargetId: string;
   playerHp: number;
   enemyHp: number;
@@ -173,6 +185,8 @@ interface GameStoreState {
   stopHunt: () => void;
   startCombat: () => void;
   stopCombat: () => void;
+  startMining: () => void;
+  stopMining: () => void;
   tickCombat: (delta: number) => void;
   selectCombatTargetPreview: (enemyId: string) => void;
   selectTarget: (enemyId: string) => void;
@@ -199,6 +213,7 @@ interface GameStoreState {
   usePotion: () => void;
   openLootContainer: (itemId: string) => void;
   purchaseProficiencyPerk: (perkId: string) => void;
+  purchaseMiningPerk: (perkId: string) => void;
   equipItemInstance: (instanceId: string, slot: EquipmentSlotId) => void;
   purchaseItemUpgradeNode: (instanceId: string, nodeId: string) => void;
   unequipEquipmentSlot: (slot: EquipmentSlotId) => void;
@@ -277,6 +292,27 @@ export interface DebugStoreApi {
   loadScenario: (snapshot: DebugScenarioSnapshot) => void;
   startEncounter: (locationId: string, enemyIds: string[]) => void;
   importSave: (raw: string) => { ok: boolean; error?: string };
+  setMiningLevel: (level: number) => void;
+  setMiningXp: (amount: number) => void;
+  addMiningLevel: (amount: number) => void;
+  resetMiningXp: () => void;
+  addMiningSkillPoint: () => void;
+  resetMiningBonusPoints: () => void;
+  resetMiningPerks: () => void;
+  setIronMasteryLevel: (level: number) => void;
+  setIronMasteryXp: (amount: number) => void;
+  addIronMasteryLevel: (amount: number) => void;
+  resetIronMastery: () => void;
+  debugStartMining: () => void;
+  debugStopMining: () => void;
+  setMiningStage: (stageId: string) => void;
+  setMiningDurability: (percent: number) => void;
+  setMiningStamina: (value: number) => void;
+  forceMiningRest: () => void;
+  completeMiningRest: () => void;
+  advanceMiningTime: (seconds: number) => void;
+  grantMiningTool: (itemId: string) => void;
+  equipMiningTool: (itemId: string) => void;
 }
 
 const context = createCombatContext({ next: () => Math.random(), nextFor: () => Math.random() });
@@ -316,6 +352,8 @@ function gameFromSave(saved: NonNullable<ReturnType<typeof loadProfileGameSave>>
         saved.combatAbilities ?? createInitialCombatAbilityLoadout(),
         normalizeMagicArts(saved.magicArts).knownArtIds,
       ),
+      professions: normalizeProfessionState(saved.professions),
+      mining: normalizeMiningState(saved.mining),
     });
 }
 
@@ -352,6 +390,7 @@ function flatState(
   | "selectedCombatLocationId"
   | "activeCombatLocationId"
   | "combatActive"
+  | "miningActive"
   | "activity"
   | "selectedTargetId"
   | "playerHp"
@@ -372,12 +411,14 @@ function flatState(
   const combat = game.combat;
   const target = combat.enemy;
   const active = combat.phase === "active" || combat.phase === "recovery";
+  const miningActive = game.mining.active;
   return {
     ...ui,
     game,
     activeCombatLocationId: combat.combatLocationId,
     combatActive: active,
-    activity: active ? "combat" : "idle",
+    miningActive,
+    activity: active ? "combat" : miningActive ? "mining" : "idle",
     selectedTargetId: ui.selectedTargetId,
     playerHp: Math.round(combat.playerHp),
     enemyHp: Math.round(target?.currentHealth ?? 0),
@@ -405,7 +446,7 @@ function savePermanent(
   const profileId = activeProfileIdForPersistence();
   // A lease check here protects every gameplay save path, including debug and combat mutations.
   if (!profileId || !isProfileSessionOwner(profileId, getProfileSessionOwnerId())) return false;
-  return saveProfileGameSave(profileId, gameStateToSaveV17(game, settings));
+  return saveProfileGameSave(profileId, gameStateToSaveV18(game, settings));
 }
 
 function captureDebugCombatEvents(previous: GameState, next: GameState) {
@@ -511,7 +552,7 @@ export const useGameStore = create<GameStoreState>((set, get) => {
         ? state.selectedTargetId
         : undefined;
       if (!targetId) return state;
-      const prepared = { ...state.game, combat: { ...state.game.combat, stopReason: null } };
+      const prepared = { ...state.game, mining: stopMiningState(state.game.mining), combat: { ...state.game.combat, stopReason: null } };
       const game = mode === "switch"
         ? engineSwitchCombatTarget(prepared, state.selectedCombatLocationId, targetId, stats, context)
         : engineStartCombatTarget(prepared, state.selectedCombatLocationId, targetId, stats, context);
@@ -614,6 +655,27 @@ export const useGameStore = create<GameStoreState>((set, get) => {
       });
       return { ok: true };
     },
+    setMiningLevel: (level) => commitDebug((game) => ({ ...game, professions: setProfessionLevel(game.professions, "mining", level) }), true),
+    setMiningXp: (amount) => commitDebug((game) => ({ ...game, professions: setProfessionXp(game.professions, "mining", amount) }), true),
+    addMiningLevel: (amount) => commitDebug((game) => ({ ...game, professions: setProfessionLevel(game.professions, "mining", getProfessionLevel(game.professions, "mining") + amount) }), true),
+    resetMiningXp: () => commitDebug((game) => ({ ...game, professions: setProfessionXp(game.professions, "mining", 0) }), true),
+    addMiningSkillPoint: () => commitDebug((game) => ({ ...game, professions: { ...game.professions, skills: { ...game.professions.skills, mining: { ...game.professions.skills.mining!, bonusSkillPoints: game.professions.skills.mining!.bonusSkillPoints + 1 } } } }), true),
+    resetMiningBonusPoints: () => commitDebug((game) => ({ ...game, professions: { ...game.professions, skills: { ...game.professions.skills, mining: { ...game.professions.skills.mining!, bonusSkillPoints: 0 } } } }), true),
+    resetMiningPerks: () => commitDebug((game) => ({ ...game, professions: resetProfessionPerks(game.professions, "mining") }), true),
+    setIronMasteryLevel: (level) => commitDebug((game) => ({ ...game, professions: { ...game.professions, resourceMasteries: { ...game.professions.resourceMasteries, "mastery.iron-vein": { ...game.professions.resourceMasteries["mastery.iron-vein"], totalXp: ironMasteryXpForLevel(level) } } } }), true),
+    setIronMasteryXp: (amount) => commitDebug((game) => ({ ...game, professions: { ...game.professions, resourceMasteries: { ...game.professions.resourceMasteries, "mastery.iron-vein": { ...game.professions.resourceMasteries["mastery.iron-vein"], totalXp: Math.max(0, Number.isFinite(amount) ? amount : 0) } } } }), true),
+    addIronMasteryLevel: (amount) => commitDebug((game) => ({ ...game, professions: { ...game.professions, resourceMasteries: { ...game.professions.resourceMasteries, "mastery.iron-vein": { ...game.professions.resourceMasteries["mastery.iron-vein"], totalXp: ironMasteryXpForLevel(ironMasteryLevel(game.professions.resourceMasteries["mastery.iron-vein"]) + amount) } } } }), true),
+    resetIronMastery: () => commitDebug((game) => ({ ...game, professions: { ...game.professions, resourceMasteries: { ...game.professions.resourceMasteries, "mastery.iron-vein": { ...game.professions.resourceMasteries["mastery.iron-vein"], totalXp: 0 } } } }), true),
+    debugStartMining: () => commitDebug((game) => ({ ...game, combat: engineStopHunt(game.combat, context.effects), mining: startMiningState(game.mining, game) }), true),
+    debugStopMining: () => commitDebug((game) => ({ ...game, mining: stopMiningState(game.mining) }), true),
+    setMiningStage: (stageId) => commitDebug((game) => { const stage = miningStageById[stageId]; return stage ? { ...game, mining: { ...game.mining, currentStageId: stage.id, stageDurabilityRemaining: stage.durability } } : game }, true),
+    setMiningDurability: (percent) => commitDebug((game) => { const stage = miningStageById[game.mining.currentStageId]; const safe = Math.max(0, Math.min(1, Number.isFinite(percent) ? percent : 1)); return { ...game, mining: { ...game.mining, stageDurabilityRemaining: stage.durability * safe } } }, true),
+    setMiningStamina: (value) => commitDebug((game) => { const stats = getMiningStats({ ...game, stageId: game.mining.currentStageId, resourceId: game.mining.selectedResourceId }); return { ...game, mining: { ...game.mining, miningStamina: Math.max(0, Math.min(stats.maxMiningStamina, Number.isFinite(value) ? value : 0)) } } }, true),
+    forceMiningRest: () => commitDebug((game) => { const stats = getMiningStats({ ...game, stageId: game.mining.currentStageId, resourceId: game.mining.selectedResourceId }); return { ...game, mining: { ...game.mining, active: true, mode: "resting", swingTimerRemaining: 0, restTimerRemaining: stats.restDuration } } }, true),
+    completeMiningRest: () => commitDebug((game) => { const stats = getMiningStats({ ...game, stageId: game.mining.currentStageId, resourceId: game.mining.selectedResourceId }); return { ...game, mining: { ...game.mining, active: true, mode: "swinging", miningStamina: stats.maxMiningStamina, restTimerRemaining: 0, swingTimerRemaining: stats.swingInterval } } }, true),
+    advanceMiningTime: (seconds) => commitDebug((game) => advanceMining(game, seconds, context.rng).game, true),
+    grantMiningTool: (itemId) => commitDebug((game) => debugGrantItem(game, itemId, 1), true),
+    equipMiningTool: (itemId) => commitDebug((game) => { const instance = getInstancesByDefinitionId(game.inventory, itemId)[0]; if (!instance) return game; const equipped = equipOwnedItemInstance({ instanceId: instance.id, slotId: "tool", inventory: game.inventory, equipment: game.equipment, hunterRank: hunterRankForPoints(game.progression.hunterRankPoints), progression: game.progression, professions: game.professions, ignoreRequirements: true }); return equipped.validation.valid ? { ...game, equipment: equipped.equipment } : game }, true),
   };
   return {
     activeProfileId: null,
@@ -679,16 +741,29 @@ export const useGameStore = create<GameStoreState>((set, get) => {
     },
     startCombat: () => runHunt("start"),
     stopCombat: () => get().stopHunt(),
+    startMining: () =>
+      set((state) => {
+        const eligibility = canStartMining(state.game);
+        if (!eligibility.valid) return state;
+        const game = { ...state.game, combat: engineStopHunt(state.game.combat, context.effects), mining: startMiningState(state.game.mining, state.game) };
+        savePermanent(game, { reducedMotion: state.reducedMotion, showInspectorButton: state.showInspectorButton });
+        return flatState(game, state);
+      }),
+    stopMining: () =>
+      set((state) => {
+        if (!state.game.mining.active) return state;
+        const game = { ...state.game, mining: stopMiningState(state.game.mining) };
+        savePermanent(game, { reducedMotion: state.reducedMotion, showInspectorButton: state.showInspectorButton });
+        return flatState(game, state);
+      }),
     tickCombat: (delta) =>
       set((state) => {
-        const stats = calculateHunterCombatStats(
-          state.game.equipment,
-          state.game.inventory,
-          state.game.progression,
-        );
-        const game = advanceCombat(state.game, delta, context, stats);
+        const stats = calculateHunterCombatStats(state.game.equipment, state.game.inventory, state.game.progression);
+        const game = state.game.mining.active ? advanceMining(state.game, delta, context.rng).game : advanceCombat(state.game, delta, context, stats);
         captureDebugCombatEvents(state.game, game);
         if (
+          game.mining.totalSwings !== state.game.mining.totalSwings ||
+          game.mining.completedDeposits !== state.game.mining.completedDeposits ||
           game.progression.hunterRankPoints !== state.game.progression.hunterRankPoints ||
           Object.keys(game.progression.proficiencies).length !==
             Object.keys(state.game.progression.proficiencies).length ||
@@ -939,8 +1014,18 @@ export const useGameStore = create<GameStoreState>((set, get) => {
         });
         return flatState(game, state);
       }),
+    purchaseMiningPerk: (perkId) =>
+      set((state) => {
+        if (state.game.mining.active === false && !state.game.professions.skills.mining) return state;
+        const result = purchaseProfessionPerk(state.game.professions, perkId, miningPerkById);
+        if (result.outcome !== "purchased") return state;
+        const game = { ...state.game, professions: result.state };
+        savePermanent(game, { reducedMotion: state.reducedMotion, showInspectorButton: state.showInspectorButton });
+        return flatState(game, state);
+      }),
     equipItemInstance: (instanceId, slot) =>
       set((state) => {
+        if (state.game.mining.active && slot === "tool") return state;
         if (
           state.game.combat.phase === "active" ||
           state.game.combat.phase === "recovery" ||
@@ -954,6 +1039,7 @@ export const useGameStore = create<GameStoreState>((set, get) => {
           equipment: state.game.equipment,
           hunterRank: hunterRankForPoints(state.game.progression.hunterRankPoints),
           progression: state.game.progression,
+          professions: state.game.professions,
         });
         if (!result.validation.valid) return state;
         if (result.equipment === state.game.equipment) return state;

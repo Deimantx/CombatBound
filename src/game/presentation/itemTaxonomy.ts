@@ -84,6 +84,7 @@ function equipmentTaxonomy(items: ItemDefinition[]) {
     { kind: "necklace", label: "Necklaces" }, { kind: "ring", label: "Rings" }, { kind: "earring", label: "Earrings" }, { kind: "belt", label: "Belts" }, { kind: "cape", label: "Capes" },
   ];
   const accessoryItems = equipment.filter((item) => accessories.some((accessory) => accessory.kind === item.equipmentSlotKind));
+  const tools = equipment.filter((item) => item.equipmentSlotKind === "tool");
 
   return branch("items.equipment", "Equipment", [
     branch("items.equipment.weapons", "Weapons", [
@@ -106,6 +107,7 @@ function equipmentTaxonomy(items: ItemDefinition[]) {
       accessoryItems.filter((item) => item.equipmentSlotKind === accessory.kind),
       accessoryItems.find((item) => item.equipmentSlotKind === accessory.kind)?.icon,
     )), "ring"),
+    leaf("items.equipment.tools.pickaxes", "Pickaxes", tools, "pickaxe"),
   ], "sword");
 }
 

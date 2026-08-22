@@ -5,13 +5,16 @@ import type { ItemInventoryMode, ItemStats } from "../items/itemTypes";
 import type { LootContainerId } from "../loot/lootTypes";
 import type { WeaponArchetypeId, WeaponFamilyId } from "./gear/weaponArchetypes";
 import type { ItemUpgradeTreeId } from "../items/itemUpgradeTypes";
+import type { ProfessionSkillId } from "../professions/professionTypes";
 import { deepWoodsItemDefinitions } from "./deepWoodsItems";
 import { ironDefensiveGearDefinitions } from "./gear/ironDefensiveGear";
 
-export type ItemCategory = "weapon" | "armor" | "accessory" | "material" | "consumable" | "currency";
+export type ItemCategory = "weapon" | "armor" | "accessory" | "material" | "consumable" | "currency" | "tool";
 export type ItemRarity = "common" | "uncommon" | "rare";
 export type ItemPurpose = "equipment" | "consumable" | "crafting" | "sell-only" | "loot-container" | "future";
 export type GearMaterialTierId = "iron";
+export type ProfessionToolKind = "pickaxe";
+export interface ProfessionToolStats { miningDamage: number }
 
 export interface ItemDefinition {
   id: string;
@@ -32,6 +35,10 @@ export interface ItemDefinition {
   weaponArchetypeId?: WeaponArchetypeId;
   materialTierId?: GearMaterialTierId;
   upgradeTreeId?: ItemUpgradeTreeId;
+  professionToolKind?: ProfessionToolKind;
+  requiredProfessionSkillId?: ProfessionSkillId;
+  requiredProfessionLevel?: number;
+  professionToolStats?: ProfessionToolStats;
   stats?: ItemStats;
 }
 
@@ -107,6 +114,8 @@ const authoredItemDefinitions: ItemDefinition[] = [
     description: "A refined Blacksmithing material. Its normal source will be Iron Ore after smelting is implemented.",
     icon: "cube", inventoryMode: "stackable", purpose: "crafting",
   },
+  { id: "item.worn-pickaxe", name: "Worn Pickaxe", category: "tool", rarity: "common", description: "A battered starter pickaxe. Crude, but enough to begin working an Iron Vein.", icon: "pickaxe", inventoryMode: "instance", purpose: "equipment", equipmentSlotKind: "tool", professionToolKind: "pickaxe", requiredProfessionSkillId: "mining", requiredProfessionLevel: 1, professionToolStats: { miningDamage: 10 } },
+  { id: "item.iron-pickaxe", name: "Iron Pickaxe", category: "tool", rarity: "common", description: "A reliable iron pickaxe with a stronger head that removes more material with every swing.", icon: "pickaxe", inventoryMode: "instance", purpose: "equipment", equipmentSlotKind: "tool", materialTierId: "iron", professionToolKind: "pickaxe", requiredProfessionSkillId: "mining", requiredProfessionLevel: 10, professionToolStats: { miningDamage: 18 } },
   { id: "item.healing-potion", name: "Healing Potion", category: "consumable", rarity: "common", description: "Restores health during combat.", icon: "cross", inventoryMode: "stackable", purpose: "consumable" },
   { id: "item.wolf-fang", name: "Wolf Fang", category: "material", rarity: "common", description: "A hardened wolf fang used in weapon crafting.", icon: "target", inventoryMode: "stackable", purpose: "crafting" },
   { id: "item.wolf-pelt", name: "Wolf Pelt", category: "material", rarity: "common", description: "A wolf pelt intended for future sale only.", icon: "cube", inventoryMode: "stackable", purpose: "sell-only" },

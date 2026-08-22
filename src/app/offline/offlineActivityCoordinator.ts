@@ -3,6 +3,7 @@ import {
   combatHuntActivityAdapter,
   type CombatHuntOfflineSummary,
 } from "../../game/offline/combatHuntActivity";
+import { miningActivityAdapter, type MiningOfflineSummary } from "../../game/offline/miningActivity";
 import {
   createDeterministicOfflineRng,
   OfflineActivityRegistry,
@@ -26,6 +27,7 @@ import type { GameState } from "../../game/gameState";
 
 const offlineActivityRegistry = new OfflineActivityRegistry<GameState>([
   combatHuntActivityAdapter,
+  miningActivityAdapter,
 ]);
 
 export interface OfflineActivityPanelState {
@@ -72,7 +74,7 @@ function seedForState(game: GameState): number {
   return (game.combat.eventSequence ^ (game.combat.encounterSequence * 2654435761)) >>> 0;
 }
 
-export function requestOfflineSkip(requestedSeconds: number): OfflineActivityTransactionResult<CombatHuntOfflineSummary> {
+export function requestOfflineSkip(requestedSeconds: number): OfflineActivityTransactionResult<CombatHuntOfflineSummary | MiningOfflineSummary> {
   const current = activeProfile();
   if (!current) {
     const result = { ok: false as const, error: "no-eligible-activity" as const, message: "Open a profile before spending Time Bank time." };

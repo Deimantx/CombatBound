@@ -1,5 +1,5 @@
 import { loadLegacySingleGameSaveForProfileMigration, parseGameSaveJson } from "../persistence/saveGame";
-import type { GameSaveV14, GameSaveV15, GameSaveV16, GameSaveV17 } from "../persistence/saveTypes";
+import type { GameSaveV14, GameSaveV15, GameSaveV16, GameSaveV17, GameSaveV18 } from "../persistence/saveTypes";
 import { normalizeBankSeconds, normalizeTimestampMs } from "../offline/offlineTimeBank";
 import { offlineTimePolicy } from "../offline/offlineTimePolicy";
 import {
@@ -79,7 +79,7 @@ export function getProfileSaveKey(profileId: ProfileId): string {
   return `combatbound-${profileId}-save`;
 }
 
-export function loadProfileGameSave(profileId: ProfileId): GameSaveV17 | null {
+export function loadProfileGameSave(profileId: ProfileId): GameSaveV18 | null {
   if (typeof localStorage === "undefined") return null;
   try {
     const raw = localStorage.getItem(getProfileSaveKey(profileId));
@@ -89,7 +89,7 @@ export function loadProfileGameSave(profileId: ProfileId): GameSaveV17 | null {
   }
 }
 
-export function saveProfileGameSave(profileId: ProfileId, save: GameSaveV17 | GameSaveV16 | GameSaveV15 | GameSaveV14): boolean {
+export function saveProfileGameSave(profileId: ProfileId, save: GameSaveV18 | GameSaveV17 | GameSaveV16 | GameSaveV15 | GameSaveV14): boolean {
   if (typeof localStorage === "undefined") return true;
   try {
     localStorage.setItem(getProfileSaveKey(profileId), JSON.stringify(save));

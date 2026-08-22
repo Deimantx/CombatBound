@@ -55,6 +55,7 @@ const categoryLabels: Record<ItemDefinition["category"], string> = {
   material: "Material",
   consumable: "Consumable",
   currency: "Currency",
+  tool: "Tool",
 };
 const rarityLabels: Record<ItemDefinition["rarity"], string> = {
   common: "Common",

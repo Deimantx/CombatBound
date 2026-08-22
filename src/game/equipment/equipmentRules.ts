@@ -9,6 +9,8 @@ import { discoverProficiency } from "../progression/proficiencyProgression";
 import { isTwoHandedWeapon } from "../data/gear/weaponArchetypes";
 import { getItemProficiencyRequirement, itemDefinesConflictingProficiencies } from "./itemProficiency";
 import type { CombatProficiencyId } from "../progression/progressionTypes";
+import type { ProfessionState, ProfessionSkillId } from "../professions/professionTypes";
+import { getProfessionLevel } from "../professions/professionProgression";
 
 export { getItemProficiencyRequirement } from "./itemProficiency";
 export type { ItemProficiencyRequirement } from "./itemProficiency";
@@ -29,6 +31,7 @@ export type EquipmentChangeFailureReason =
   | "hunter-rank"
   | "invalid-proficiency-requirement"
   | "proficiency-level"
+  | "profession-level"
   | "two-handed-conflict";
 
 export interface EquipmentChangeValidation {
@@ -38,6 +41,7 @@ export interface EquipmentChangeValidation {
   proficiencyKind?: "weapon" | "defensive";
   requiredLevel?: number;
   currentLevel?: number;
+  professionSkillId?: ProfessionSkillId;
   willDiscoverProficiency?: boolean;
 }
 
@@ -52,6 +56,7 @@ export function validateEquipmentChange({
   equipment,
   hunterRank,
   progression,
+  professions,
   ignoreRequirements,
 }: {
   instanceId: ItemInstanceId | string;
@@ -60,6 +65,7 @@ export function validateEquipmentChange({
   equipment: EquipmentState;
   hunterRank: number;
   progression?: ProgressionState;
+  professions?: ProfessionState;
   ignoreRequirements?: boolean;
 }): EquipmentChangeValidation {
   if (!isEquipmentSlotId(slotId)) return { valid: false, reason: "unknown-slot" };
@@ -87,6 +93,10 @@ export function validateEquipmentChange({
       return { valid: false, reason: "proficiency-level", proficiencyId: requirement.proficiencyId, proficiencyKind: requirement.kind, requiredLevel: requirement.requiredLevel, currentLevel };
     }
   }
+  if (!ignoreRequirements && definition.requiredProfessionSkillId && definition.requiredProfessionLevel) {
+    const currentLevel = professions ? getProfessionLevel(professions, definition.requiredProfessionSkillId) : 0;
+    if (currentLevel < definition.requiredProfessionLevel) return { valid: false, reason: "profession-level", professionSkillId: definition.requiredProfessionSkillId, requiredLevel: definition.requiredProfessionLevel, currentLevel };
+  }
   return { valid: true };
 }
 
@@ -101,6 +111,7 @@ export function equipItemInstance({
   slotId,
   hunterRank,
   progression,
+  professions,
   ignoreRequirements,
 }: {
   inventory: InventoryState;
@@ -109,9 +120,10 @@ export function equipItemInstance({
   slotId: EquipmentSlotId | string;
   hunterRank: number;
   progression?: ProgressionState;
+  professions?: ProfessionState;
   ignoreRequirements?: boolean;
 }): { equipment: EquipmentState; validation: EquipmentChangeValidation; progression?: ProgressionState } {
-  const validation = validateEquipmentChange({ instanceId, slotId, inventory, equipment, hunterRank, progression, ignoreRequirements });
+  const validation = validateEquipmentChange({ instanceId, slotId, inventory, equipment, hunterRank, progression, professions, ignoreRequirements });
   if (!validation.valid || !isEquipmentSlotId(slotId)) return { equipment, validation };
   if (equipment.slots[slotId] === instanceId) return { equipment, validation };
   const nextSlots = { ...equipment.slots };
@@ -137,6 +149,7 @@ export function previewEquipmentChange(input: {
   slotId: EquipmentSlotId | string;
   hunterRank: number;
   progression?: ProgressionState;
+  professions?: ProfessionState;
 }) {
   return equipItemInstance({ ...input, ignoreRequirements: true });
 }
