@@ -1,6 +1,7 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { PackagePlus, Trash2 } from "lucide-react";
 import { itemById, itemDefinitions, type ItemDefinition } from "../../../../game/data/items";
+import { weaponArchetypeById, weaponFamilyLabels } from "../../../../game/data/gear/weaponArchetypes";
 import { equippedSlotForInstance } from "../../../../game/equipment/equipmentRules";
 import { getEquipmentSlotDefinition } from "../../../../game/equipment/equipmentTypes";
 import { getInstancesByDefinitionId, getOwnedItemCount } from "../../../../game/items/itemOwnership";
@@ -18,10 +19,12 @@ import { DebugFilterBar } from "../components/DebugFilterBar";
 import { DebugSection } from "../components/DebugSection";
 import { ItemUpgradeTreePanel } from "../../../components/gear/ItemUpgradeTreePanel";
 import { buildItemPresentation } from "../../../../game/presentation/itemPresentation";
+import { equippedWeaponMechanic } from "../../../../game/weapons/weaponMechanicRuntime";
 import type { DebugGameState, DebugTabProps } from "../debugTypes";
 
 const filters = ["all", "equipment", "consumables", "materials", "currency"] as const;
 type ItemFilter = (typeof filters)[number];
+const ironMeleeRoster = ["item.iron-sword", "item.iron-axe", "item.iron-mace", "item.iron-dagger", "item.iron-greatsword", "item.iron-great-axe", "item.iron-warhammer", "item.iron-spear"];
 function itemMatches(item: ItemDefinition, query: string) { return !query || [item.name, item.category, item.rarity, item.weaponFamilyId ?? "", item.weaponArchetypeId ?? "", item.materialTierId ?? "", item.weaponProficiencyId ?? ""].join(" ").toLowerCase().includes(query); }
 
 export function DebugItemsTab({ run, debug }: DebugTabProps) {
@@ -39,13 +42,30 @@ export function DebugItemsTab({ run, debug }: DebugTabProps) {
       <DebugFilterBar values={filters} value={filter} onChange={setFilter} labels={{ all: "ALL", equipment: "EQUIPMENT", consumables: "CONSUMABLES", materials: "MATERIALS", currency: "CURRENCY" }} />
       <div className="debug-items-workspace-grid"><div className="debug-item-browser" data-debug-kind="debug-item-browser">{taxonomy ? <DebugItemTree taxonomy={taxonomy} game={game} selectedId={selectedItem?.id} onSelect={setSelectedId} /> : <p className="debug-item-empty">No definitions match this search.</p>}</div>{selectedItem ? <DebugItemInspector item={selectedItem} game={game} debug={debug} run={run} purchaseItemUpgradeNode={purchaseItemUpgradeNode} /> : <div className="debug-item-inspector" data-debug-kind="debug-item-inspector"><p className="debug-item-empty">No item definition matches the search.</p></div>}</div>
     </DebugSection>
-      <DebugSection title="Gear validation shortcuts" subtitle="Use the real upgrade purchase path after granting materials."><div className="debug-button-grid"><DebugButton action="grant-iron-melee-roster" onClick={() => run("Granted the Iron melee roster.", () => debug.grantIronMeleeRoster())}>GRANT IRON MELEE ROSTER</DebugButton><DebugButton action="grant-iron-sword" onClick={() => run("Granted Iron Sword.", () => debug.grantItem("item.iron-sword", 1))}>GRANT IRON SWORD</DebugButton><DebugButton action="grant-iron-swords-2" onClick={() => run("Granted two Iron Swords.", () => debug.grantItem("item.iron-sword", 2))}>GRANT IRON SWORD x2</DebugButton><DebugButton action="grant-iron-bar" onClick={() => run("Granted Iron Bars.", () => debug.grantItem("item.iron-bar", 100))}>GRANT IRON BARS</DebugButton><DebugButton action="grant-iron-materials" onClick={() => run("Granted Iron Sword materials.", () => debug.grantIronSwordMaterials())}>GRANT SWORD MATERIALS</DebugButton></div></DebugSection>
+    <IronMeleeRoster game={game} selectedId={selectedId} onSelect={setSelectedId} run={run} debug={debug} />
+    <EquippedWeaponTelemetry game={game} />
+    <DebugSection title="Gear validation shortcuts" subtitle="Use the real upgrade purchase path after granting materials."><div className="debug-button-grid"><DebugButton action="grant-iron-melee-roster" onClick={() => run("Granted the Iron melee roster.", () => debug.grantIronMeleeRoster())}>GRANT IRON MELEE ROSTER</DebugButton><DebugButton action="grant-selected-weapon-materials" disabled={!selectedItem?.upgradeTreeId} onClick={() => run(`Granted materials for ${selectedItem?.name ?? "selected weapon"}.`, () => debug.grantSelectedWeaponMaterials(selectedItem?.id ?? ""))}>GRANT SELECTED WEAPON MATERIALS</DebugButton><DebugButton action="grant-iron-sword" onClick={() => run("Granted Iron Sword.", () => debug.grantItem("item.iron-sword", 1))}>GRANT IRON SWORD</DebugButton><DebugButton action="grant-iron-swords-2" onClick={() => run("Granted two Iron Swords.", () => debug.grantItem("item.iron-sword", 2))}>GRANT IRON SWORD x2</DebugButton><DebugButton action="grant-iron-bar" onClick={() => run("Granted Iron Bars.", () => debug.grantItem("item.iron-bar", 100))}>GRANT IRON BARS</DebugButton><DebugButton action="grant-iron-materials" onClick={() => run("Granted Iron Sword materials.", () => debug.grantIronSwordMaterials())}>GRANT SWORD MATERIALS</DebugButton></div></DebugSection>
   </div>;
 }
 
+function IronMeleeRoster({ game, selectedId, onSelect, run, debug }: { game: DebugGameState; selectedId: string; onSelect: (id: string) => void; run: DebugTabProps["run"]; debug: DebugTabProps["debug"] }) {
+  return <DebugSection title="IRON MELEE ROSTER" subtitle="The eight canonical Iron weapon definitions and their live ownership state."><div className="debug-copy-list" data-debug-kind="iron-melee-roster">{ironMeleeRoster.map((itemId) => { const item = itemById[itemId]; const archetype = item?.weaponArchetypeId ? weaponArchetypeById[item.weaponArchetypeId] : undefined; if (!item || !archetype) return null; return <div className={`debug-copy-row ${selectedId === itemId ? "is-selected" : ""}`} key={itemId} data-debug-item-id={itemId}><span><strong>{item.name}</strong><small>{weaponFamilyLabels[archetype.familyId]} - {archetype.name} - {archetype.handedness}</small></span><em>owned {getOwnedItemCount(game.inventory, itemId)}</em><DebugButton action={`grant-${itemId}`} onClick={() => run(`Granted ${item.name}.`, () => debug.grantItem(itemId, 1))}>GRANT +1</DebugButton><DebugButton action={`inspect-${itemId}`} onClick={() => onSelect(itemId)}>INSPECT</DebugButton></div>; })}</div></DebugSection>;
+}
+
+function EquippedWeaponTelemetry({ game }: { game: DebugGameState }) {
+  const instanceId = game.equipment.slots.weapon;
+  const resolved = instanceId ? resolveItemInstance(game.inventory, instanceId) : undefined;
+  const mechanic = equippedWeaponMechanic(game);
+  if (!resolved || !mechanic) return <DebugSection title="EQUIPPED WEAPON TELEMETRY" subtitle="DEV only"><p className="debug-item-empty">No weapon is equipped.</p></DebugSection>;
+  const archetype = resolved.definition.weaponArchetypeId ? weaponArchetypeById[resolved.definition.weaponArchetypeId] : undefined;
+  return <DebugSection title="EQUIPPED WEAPON TELEMETRY" subtitle="DEV only - live mechanic state"><div className="debug-effective-stats" data-debug-kind="equipped-weapon-telemetry"><div><span>Item</span><strong>{resolved.definition.name} - {resolved.instance.id}</strong></div><div><span>Archetype</span><strong>{archetype?.name ?? "Unknown"}</strong></div><div><span>Specialization</span><strong>{buildItemPresentation(resolved).specialization?.label ?? "Unspecialized"}</strong></div><div><span>Mechanics</span><strong>{archetype?.mechanicIds.join(", ") ?? "None"}</strong></div><div><span>Counters</span><strong>{JSON.stringify(game.combat.weaponRuntime.counters)}</strong></div><div><span>Timers</span><strong>{JSON.stringify(game.combat.weaponRuntime.timers)}</strong></div><div><span>Attack profile</span><strong>{JSON.stringify(mechanic.parameters.attackProfile)}</strong></div></div></DebugSection>;
+}
+
 function DebugItemTree({ taxonomy, game, selectedId, onSelect }: { taxonomy: ItemTaxonomyNode; game: DebugGameState; selectedId?: string; onSelect: (id: string) => void }) {
-  const [expanded, setExpanded] = useState<Set<string>>(new Set(["items", "items.equipment", "items.equipment.weapons"]));
   const owned = useMemo(() => new Map(Object.values(game.inventory.instances).map((instance) => [instance.definitionId, getOwnedItemCount(game.inventory, instance.definitionId)])), [game.inventory]);
+  const rosterReady = ironMeleeRoster.every((itemId) => (owned.get(itemId) ?? 0) > 0);
+  const [expanded, setExpanded] = useState<Set<string>>(() => new Set(["items", "items.equipment", "items.equipment.weapons", ...(rosterReady ? ["items.equipment.weapons.one-handed", "items.equipment.weapons.two-handed"] : [])]));
+  useEffect(() => { if (rosterReady) setExpanded((current) => new Set([...current, "items.equipment.weapons.one-handed", "items.equipment.weapons.two-handed"])); }, [rosterReady]);
   const toggle = (id: string) => setExpanded((current) => { const next = new Set(current); next.has(id) ? next.delete(id) : next.add(id); return next; });
   return <div className="debug-item-taxonomy-tree">{taxonomy.children.map((node) => <DebugTaxonomyNode key={node.id} node={node} expanded={expanded} onToggle={toggle} selectedId={selectedId} onSelect={onSelect} owned={owned} />)}</div>;
 }

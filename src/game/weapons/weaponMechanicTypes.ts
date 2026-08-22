@@ -32,7 +32,16 @@ export interface PlayerWeaponRuntimeState {
   timers: Record<string, number>;
 }
 
+export type WeaponBasicSpecial = "riposte" | "heavy-impact" | "opportunist" | "perfect-swing" | "charged-impact" | "counter-thrust";
+
+export interface BasicWeaponAttemptState {
+  mechanicId?: string;
+  special?: WeaponBasicSpecial;
+  consumedTimer?: string;
+}
+
 export const RHYTHM_MECHANIC_ID = "weapon-mechanic.duelist-rhythm";
 export const RIPOSTE_MECHANIC_ID = "weapon-mechanic.riposte";
 export const RHYTHM_COUNTER_KEY = RHYTHM_MECHANIC_ID;
+export const GREATSWORD_HEAVY_RHYTHM_COUNTER_KEY = "weapon-mechanic.greatsword-heavy-rhythm";
 export const RIPOSTE_TIMER_KEY = RIPOSTE_MECHANIC_ID;

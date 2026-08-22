@@ -1,5 +1,5 @@
 import { absorbDamage } from "./combatEffects";
-import { applyBarrierToDamage, componentFromAttack, getDamageSourceCategory, resolveDamageWithEffectModifiers, type DamagePacket } from "./combatDamage";
+import { applyBarrierToDamage, componentFromAttack, getDamageSourceCategory, resolveDamageWithEffectModifiers, type DamagePacket, type DamageResolution } from "./combatDamage";
 import { awardCombatXp, combatEvent as event, getEnemyStats, getPlayerStats } from "./combatRuntime";
 import { nextCombatRandom } from "./combatRng";
 import { applyEnemyHealthDamage, applyPlayerHealthDamage } from "./combatHealth";
@@ -38,7 +38,7 @@ import type {
 import type { CombatProficiencyId, ProgressionCredit } from "../progression/progressionTypes";
 import { getEnemyTraitCriticalDamageResistance, getEnemyTraitIncomingDamageMultiplier, getEnemyTraitReflectionFraction, processEnemyTraitEvent, applyEnemyTraitHealthTriggers } from "../enemyTraits/enemyTraitRuntime";
 import { getPlayerHealingReceivedMultiplier } from "./combatHealing";
-import { consumeRiposteForBasicAttempt, equippedWeaponMechanic, observeBasicWeaponResult, prepareBasicWeaponAttempt } from "../weapons/weaponMechanicRuntime";
+import { equippedWeaponMechanic, observeBasicWeaponResult, prepareBasicWeaponAttempt } from "../weapons/weaponMechanicRuntime";
 
 type BarrierAbsorption = {
   effectId: string;
@@ -50,6 +50,15 @@ export interface PlayerDamageRuntimeDependencies {
   awardBarrierCredits: (game: GameState, absorptions: BarrierAbsorption[]) => GameState;
   restoreBarrierResource: (game: GameState, proficiencyId: CombatProficiencyId, absorbedAmount: number) => GameState;
   resolveDefeatedEnemies: (game: GameState, context: CombatContext) => GameState;
+}
+
+export interface BasicWeaponAttackSummary {
+  attemptedHits: number;
+  successfulHits: number;
+  criticalHits: number;
+  blockedHits: number;
+  totalHpDamage: number;
+  targetDied: boolean;
 }
 
 export interface PlayerActionRuntimeDependencies extends PlayerDamageRuntimeDependencies {
@@ -86,6 +95,8 @@ export function damageEnemy(
     };
   }> = [],
   dependencies: PlayerDamageRuntimeDependencies,
+  onResolution?: (resolution: DamageResolution) => void,
+  onSummary?: (summary: BasicWeaponAttackSummary) => void,
 ) {
   const preparedWeaponAttempt = prepareBasicWeaponAttempt(game, packet);
   game = preparedWeaponAttempt.game;
@@ -104,27 +115,23 @@ export function damageEnemy(
         },
       },
     };
-    let successful = false;
+    const summary: BasicWeaponAttackSummary = { attemptedHits: 0, successfulHits: 0, criticalHits: 0, blockedHits: 0, totalHpDamage: 0, targetDied: false };
     for (let index = 0; index < Math.max(1, Math.floor(flurry.hitCount ?? 2)); index += 1) {
       if (!next.combat.enemy || next.combat.enemy.defeated) break;
-      const beforeEvent = next.combat.eventSequence;
-      next = damageEnemy(next, next.combat.enemy, { ...packet, weaponSubHit: true, damageMultiplier: (packet.damageMultiplier ?? 1) * (flurry.hitDamageMultiplier ?? 0.65) }, attackerStats, context, `${prefix} with Flurry`, effectsToApply, dependencies);
-      successful = successful || next.combat.events.some((entry) => entry.id > beforeEvent && entry.type !== "attackEvaded");
+      next = damageEnemy(next, next.combat.enemy, { ...packet, weaponSubHit: true, damageMultiplier: (packet.damageMultiplier ?? 1) * (flurry.hitDamageMultiplier ?? 0.65) }, attackerStats, context, `${prefix} with Flurry`, effectsToApply, dependencies, (resolution) => { summary.attemptedHits += 1; if (resolution.outcome === "hit") summary.successfulHits += 1; if (resolution.critical) summary.criticalHits += 1; if (resolution.blocked) summary.blockedHits += 1; summary.totalHpDamage += resolution.healthDamage; summary.targetDied = summary.targetDied || resolution.targetDied; onResolution?.(resolution); });
     }
+    onSummary?.(summary);
     return {
       ...next,
       combat: {
         ...next.combat,
         weaponRuntime: {
           ...next.combat.weaponRuntime,
-          counters: { ...next.combat.weaponRuntime.counters, "weapon-mechanic.dagger-combo": successful ? 1 : 0 },
+          counters: { ...next.combat.weaponRuntime.counters, "weapon-mechanic.dagger-combo": summary.successfulHits > 0 ? 1 : 0 },
         },
       },
     };
   }
-  const riposteAttempt = consumeRiposteForBasicAttempt(game, packet);
-  game = riposteAttempt.game;
-  packet = riposteAttempt.packet;
   const current = game.combat.enemy?.instanceId === target.instanceId ? game.combat.enemy : undefined;
   if (!current || current.defeated) return game;
   const defenderStats = getEnemyStats(game.combat, current, context);
@@ -210,7 +217,9 @@ export function damageEnemy(
     ...game,
     combat: damageApplication.combat,
   };
-  next = observeBasicWeaponResult(next, packet, resolution, riposteAttempt.consumed, preparedWeaponAttempt.attempt);
+  onResolution?.(resolution);
+  onSummary?.({ attemptedHits: 1, successfulHits: resolution.outcome === "hit" ? 1 : 0, criticalHits: resolution.critical ? 1 : 0, blockedHits: resolution.blocked ? 1 : 0, totalHpDamage: resolution.healthDamage, targetDied: resolution.targetDied });
+  next = observeBasicWeaponResult(next, packet, resolution, preparedWeaponAttempt.attempt);
   next.combat = applyEnemyTraitHealthTriggers(next.combat, current.instanceId, current.currentHealth, context);
   let progressionResults: Array<ReturnType<typeof awardProficiencyXp>> = [];
   if (proficiencyId && effectiveHealthDamage > 0) {

@@ -2,6 +2,7 @@ import { grantItem, getInstancesByDefinitionId, removeItemInstance } from "../it
 import { discoverItem, discoverTarget } from "../collection/collectionLogic";
 import { createInitialCollection } from "../collection/collectionTypes";
 import { itemById, itemDefinitions } from "../data/items";
+import { itemUpgradeNodeById, itemUpgradeTreeById } from "../data/gear/itemUpgradeTrees";
 import { enemyDefinitions } from "../data/enemies";
 import { effectById } from "../data/effects";
 import { magicArtDefinitions } from "../data/magicArts";
@@ -411,6 +412,17 @@ export function debugGrantIronMeleeRoster(game: GameState): GameState {
   let next = game;
   for (const itemId of roster) next = debugGrantItem(next, itemId, 1);
   return next;
+}
+
+export function debugGrantSelectedWeaponMaterials(game: GameState, itemId: string): GameState {
+  const treeId = itemById[itemId]?.upgradeTreeId;
+  const tree = treeId ? itemUpgradeTreeById[treeId] : undefined;
+  if (!tree) return game;
+  const materialQuantities = new Map<string, number>();
+  for (const nodeId of tree.nodeIds) for (const cost of itemUpgradeNodeById[nodeId]?.costs ?? []) materialQuantities.set(cost.itemId, Math.max(materialQuantities.get(cost.itemId) ?? 0, cost.quantity * 100));
+  let inventory = game.inventory;
+  for (const [materialId, quantity] of materialQuantities) inventory = grantItem(inventory, materialId, quantity).inventory;
+  return { ...game, inventory };
 }
 
 export function debugResetItemUpgrades(game: GameState, instanceId: string): GameState {

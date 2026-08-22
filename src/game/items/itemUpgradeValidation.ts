@@ -2,6 +2,7 @@ import { itemById } from "../data/items";
 import { itemUpgradeBranchById, itemUpgradeNodeById, itemUpgradeTreeById, itemUpgradeTreeDefinitions } from "../data/gear/itemUpgradeTrees";
 import type { ItemUpgradeTreeDefinition } from "./itemUpgradeTypes";
 import { isKnownWeaponMechanicModifier, weaponMechanicSchemaById } from "../weapons/weaponMechanicRegistry";
+import { weaponArchetypeById } from "../data/gear/weaponArchetypes";
 
 const magicCrystalPattern = /^item\.magic-crystal-|^item\.magic-crystal-(dust|box)$/;
 
@@ -26,6 +27,15 @@ export function validateItemUpgradeTrees(
     const item = itemById[tree.itemDefinitionId];
     if (!item) errors.push(`Upgrade tree ${tree.id} references unknown item ${tree.itemDefinitionId}`);
     else if (item.upgradeTreeId !== tree.id) errors.push(`${tree.itemDefinitionId} does not reference ${tree.id}`);
+    const archetype = item?.weaponArchetypeId ? weaponArchetypeById[item.weaponArchetypeId] : undefined;
+    if (item?.weaponArchetypeId && !archetype) errors.push(`${tree.itemDefinitionId} references an unknown weapon archetype`);
+    if (archetype) {
+      if (archetype.familyId !== item?.weaponFamilyId) errors.push(`${tree.itemDefinitionId} weapon family does not match ${archetype.id}`);
+      if (archetype.primaryMechanicId && !archetype.mechanicIds.includes(archetype.primaryMechanicId)) errors.push(`${archetype.id} primary mechanic is not attached`);
+      if (archetype.secondaryMechanicId && !archetype.mechanicIds.includes(archetype.secondaryMechanicId)) errors.push(`${archetype.id} secondary mechanic is not attached`);
+      if (new Set(archetype.mechanicIds).size !== archetype.mechanicIds.length) errors.push(`${archetype.id} has duplicate mechanics`);
+      for (const mechanicId of archetype.mechanicIds) if (!weaponMechanicSchemaById[mechanicId]) errors.push(`${archetype.id} references unknown mechanic ${mechanicId}`);
+    }
     const treeNodeIds = new Set<string>();
     for (const nodeId of tree.nodeIds) {
       if (nodeIds.has(nodeId)) errors.push(`Duplicate node ID ${nodeId} across upgrade trees`);
@@ -62,6 +72,7 @@ export function validateItemUpgradeTrees(
           if (effect.operation !== "flat") errors.push(`${nodeId} has an invalid global stat operation`);
         } else if (effect.type === "weaponMechanicModifier") {
           if (!weaponMechanicSchemaById[effect.mechanicId] || !isKnownWeaponMechanicModifier(effect.mechanicId, effect.modifier)) errors.push(`${nodeId} has an invalid mechanic modifier`);
+          if (archetype && !archetype.mechanicIds.includes(effect.mechanicId)) errors.push(`${nodeId} modifies an unattached mechanic ${effect.mechanicId}`);
         } else {
           errors.push(`${nodeId} has an unknown effect type ${effectType}`);
         }

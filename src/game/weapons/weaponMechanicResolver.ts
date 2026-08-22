@@ -9,7 +9,7 @@ export function resolveWeaponMechanicParameters(definition: ItemDefinition, inst
   const archetypeId = definition.weaponArchetypeId;
   const archetype = archetypeId ? weaponArchetypeById[archetypeId] : undefined;
   if (!archetype) return null;
-  const mechanicIds = [archetype.primaryMechanicId, archetype.secondaryMechanicId].filter((id): id is string => Boolean(id));
+  const mechanicIds = archetype.mechanicIds;
   const mechanics = Object.fromEntries(mechanicIds.map((id) => [id, { ...(weaponMechanicSchemaById[id]?.defaults ?? {}) }])) as Record<string, Record<string, number>>;
   const result: WeaponMechanicParameters = {
     archetypeId: archetype.id,

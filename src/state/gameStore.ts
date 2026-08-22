@@ -77,6 +77,7 @@ import {
   debugAddGold,
   debugGrantIronSwordMaterials,
   debugGrantIronMeleeRoster,
+  debugGrantSelectedWeaponMaterials,
   debugResetItemUpgrades,
   debugAddHunterRankPoints,
   debugApplyEffect,
@@ -269,6 +270,7 @@ export interface DebugStoreApi {
   addGold: (amount: number) => void;
   grantIronSwordMaterials: () => void;
   grantIronMeleeRoster: () => void;
+  grantSelectedWeaponMaterials: (itemId: string) => void;
   resetItemUpgrades: (instanceId: string) => void;
   loadScenario: (snapshot: DebugScenarioSnapshot) => void;
   startEncounter: (locationId: string, enemyIds: string[]) => void;
@@ -581,6 +583,7 @@ export const useGameStore = create<GameStoreState>((set, get) => {
     addGold: (amount) => commitDebug((game) => debugAddGold(game, amount), true),
     grantIronSwordMaterials: () => commitDebug(debugGrantIronSwordMaterials, true),
     grantIronMeleeRoster: () => commitDebug(debugGrantIronMeleeRoster, true),
+    grantSelectedWeaponMaterials: (itemId) => commitDebug((game) => debugGrantSelectedWeaponMaterials(game, itemId), true),
     resetItemUpgrades: (instanceId) => commitDebug((game) => debugResetItemUpgrades(game, instanceId), true),
     loadScenario: (snapshot) => {
       if (!validateDebugScenario(snapshot).valid) return;
