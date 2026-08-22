@@ -122,12 +122,15 @@ export function startBlacksmithingUpgrade<T extends BlacksmithingRuntimeGame>(ga
   const depth = upgradeDepth(nodeId)
   const profile = getBlacksmithingUpgradeProfile(depth)
   if (getProfessionLevel(game.professions, "blacksmithing") < profile.requiredLevel) return { game, outcome: "level-locked", reason: `Requires Blacksmithing ${profile.requiredLevel}.` }
-  if (game.blacksmithing.forgeStamina <= 0) return { game: { ...game, blacksmithing: restState(game, game.blacksmithing) }, outcome: "resting", reason: "Forge Stamina is empty." }
   const tags = operationTagsForItem(instance.definitionId, true)
   const stats = getBlacksmithingStats(game, tags)
   const activeOperation: BlacksmithingActiveOperation = { kind: "upgrade", instanceId, nodeId, depth, operationTags: tags, durationSeconds: effectiveBlacksmithingDuration(profile.duration, stats), staminaCost: effectiveForgeStaminaCost(profile.stamina, stats), xpReward: effectiveBlacksmithingXp(profile.xp, stats), reservedCosts: node.costs.map((cost) => ({ ...cost })) }
   const reserved = consumeCosts(game, node.costs)
-  return { game: { ...reserved, blacksmithing: { ...reserved.blacksmithing, active: true, mode: "working", activityKind: "upgrade", activeOperation, actionTimerRemaining: activeOperation.durationSeconds, restTimerRemaining: 0, queuedOperationsRemaining: 0, queueMode: "fixed" } } as T, outcome: "started" }
+  const nextState = { ...reserved.blacksmithing, active: true, mode: "working" as const, activityKind: "upgrade" as const, activeOperation, actionTimerRemaining: activeOperation.durationSeconds, restTimerRemaining: 0, queuedOperationsRemaining: 0, queueMode: "fixed" as const }
+  if (reserved.blacksmithing.forgeStamina <= 0) {
+    return { game: { ...reserved, blacksmithing: restState(reserved, nextState) } as T, outcome: "resting", reason: "Forge Stamina is empty." }
+  }
+  return { game: { ...reserved, blacksmithing: nextState } as T, outcome: "started" }
 }
 
 function completeRecipe(game: BlacksmithingRuntimeGame, operation: Extract<BlacksmithingActiveOperation, { kind: "smelting" | "smithing" }>, rng: BlacksmithingRng, summary: BlacksmithingRuntimeSummary) {
@@ -174,14 +177,16 @@ function afterCompletion(game: BlacksmithingRuntimeGame, state: BlacksmithingSta
   const stamina = Math.max(0, state.forgeStamina - (state.activeOperation?.staminaCost ?? 0))
   const completedKind = state.activityKind
   let nextState = { ...state, forgeStamina: stamina, activeOperation: null, actionTimerRemaining: 0, completedOperations: state.completedOperations + 1, completedSmelts: state.completedSmelts + (completedKind === "smelting" ? 1 : 0), completedSmiths: state.completedSmiths + (completedKind === "smithing" ? 1 : 0), completedUpgrades: state.completedUpgrades + (completedKind === "upgrade" ? 1 : 0) }
-  if (stamina <= 0) return { ...game, blacksmithing: restState(game, nextState) }
   if (state.activityKind === "upgrade") return { ...game, blacksmithing: stop(nextState, "queue-complete") }
   if (state.queueMode === "fixed" && state.queuedOperationsRemaining <= 0) return { ...game, blacksmithing: stop(nextState, "queue-complete") }
   const recipeId = state.activityKind === "smithing" ? state.selectedSmithingRecipeId : state.selectedSmeltingRecipeId
   const recipe = recipeId ? getBlacksmithingRecipe(recipeId) : undefined
   if (!recipe) return { ...game, blacksmithing: stop(nextState, "activity-ended") }
+  if (getProfessionLevel(game.professions, "blacksmithing") < recipe.requiredBlacksmithingLevel) return { ...game, blacksmithing: stop(nextState, "requirements-lost") }
+  if (!canReserveCosts(game, recipe.costs)) return { ...game, blacksmithing: stop(nextState, "materials-exhausted") }
+  if (stamina <= 0) return { ...game, blacksmithing: restState(game, nextState) }
   const reserved = reserveRecipe({ ...game, blacksmithing: nextState }, recipe)
-  if (reserved.outcome !== "started") return { ...game, blacksmithing: stop(nextState, "materials-exhausted") }
+  if (reserved.outcome !== "started") return { ...game, blacksmithing: stop(nextState, reserved.outcome === "level-locked" ? "requirements-lost" : "materials-exhausted") }
   const queued = nextState.queueMode === "fixed" ? Math.max(0, nextState.queuedOperationsRemaining - 1) : 0
   return { ...reserved.game, blacksmithing: { ...reserved.game.blacksmithing, queuedOperationsRemaining: queued } }
 }
@@ -224,7 +229,10 @@ export function advanceBlacksmithing<T extends BlacksmithingRuntimeGame>(game: T
     nextGame = afterCompletion(nextGame, { ...nextGame.blacksmithing, ...state, forgeStamina: nextGame.blacksmithing.forgeStamina, activeOperation: state.activeOperation }) as T
   }
   summary.seconds = duration - remaining
-  return { game: nextGame, summary, stopReason: remaining > 0 ? "safety-limit" as const : "elapsed-time-complete" as const }
+  const stopReason = remaining > 0 && nextGame.blacksmithing.active
+    ? "safety-limit" as const
+    : nextGame.blacksmithing.lastStopReason ?? "elapsed-time-complete" as const
+  return { game: nextGame, summary, stopReason }
 }
 
 export function normalizeBlacksmithingState(value: unknown): BlacksmithingState {
@@ -233,12 +241,26 @@ export function normalizeBlacksmithingState(value: unknown): BlacksmithingState 
   const selectedSmithingRecipeId = typeof raw.selectedSmithingRecipeId === "string" && blacksmithingRecipeById[raw.selectedSmithingRecipeId]?.kind === "smithing" ? raw.selectedSmithingRecipeId : "blacksmithing-recipe.iron-dagger"
   const mode = raw.mode === "working" || raw.mode === "resting" ? raw.mode : "idle"
   const operation = raw.activeOperation && typeof raw.activeOperation === "object" ? raw.activeOperation as BlacksmithingActiveOperation : null
-  const normalizedCosts = (costs: unknown) => Array.isArray(costs) ? costs.filter((cost) => cost && typeof cost === "object" && typeof (cost as { itemId?: unknown }).itemId === "string" && Number.isInteger((cost as { quantity?: unknown }).quantity) && (cost as { quantity: number }).quantity > 0).map((cost) => ({ itemId: (cost as { itemId: string }).itemId, quantity: (cost as { quantity: number }).quantity })) : []
-  const sameCosts = (actual: readonly { itemId: string; quantity: number }[], expected: readonly { itemId: string; quantity: number }[]) => actual.length === expected.length && actual.every((cost, index) => cost.itemId === expected[index].itemId && cost.quantity === expected[index].quantity)
-  const normalizedOperation = operation ? { ...operation, durationSeconds: finite(operation.durationSeconds), staminaCost: finite(operation.staminaCost), xpReward: finite(operation.xpReward), reservedCosts: normalizedCosts(operation.reservedCosts) } as BlacksmithingActiveOperation : null
+  const normalizedCosts = (costs: unknown) => {
+    if (!Array.isArray(costs) || costs.length === 0) return null
+    const normalized = costs.map((cost) => {
+      if (!cost || typeof cost !== "object") return null
+      const itemId = (cost as { itemId?: unknown }).itemId
+      const quantity = (cost as { quantity?: unknown }).quantity
+      return typeof itemId === "string" && itemById[itemId]?.inventoryMode === "stackable" && Number.isInteger(quantity) && (quantity as number) > 0
+        ? { itemId, quantity: quantity as number }
+        : null
+    })
+    return normalized.every((cost): cost is { itemId: string; quantity: number } => cost !== null) ? normalized : null
+  }
+  const normalizedOperation = operation ? (() => {
+    const costs = normalizedCosts(operation.reservedCosts)
+    return costs ? { ...operation, durationSeconds: finite(operation.durationSeconds), staminaCost: finite(operation.staminaCost), xpReward: finite(operation.xpReward), reservedCosts: costs } as BlacksmithingActiveOperation : null
+  })() : null
+  const operationTagsAreValid = normalizedOperation?.kind === "upgrade" && Array.isArray(normalizedOperation.operationTags) && normalizedOperation.operationTags.every((tag) => tag === "smelting" || tag === "weapon" || tag === "defensive" || tag === "shield" || tag === "tool" || tag === "iron" || tag === "upgrade")
   const safeOperation = normalizedOperation && normalizedOperation.durationSeconds > 0 && normalizedOperation.staminaCost > 0 && normalizedOperation.xpReward >= 0 && (
-    (normalizedOperation.kind === "upgrade" && typeof normalizedOperation.instanceId === "string" && typeof normalizedOperation.nodeId === "string" && Boolean(itemUpgradeNodeById[normalizedOperation.nodeId]) && sameCosts(normalizedOperation.reservedCosts, itemUpgradeNodeById[normalizedOperation.nodeId].costs)) ||
-    ((normalizedOperation.kind === "smelting" || normalizedOperation.kind === "smithing") && Boolean(blacksmithingRecipeById[normalizedOperation.recipeId]) && blacksmithingRecipeById[normalizedOperation.recipeId].kind === normalizedOperation.kind && sameCosts(normalizedOperation.reservedCosts, blacksmithingRecipeById[normalizedOperation.recipeId].costs))
+    (normalizedOperation.kind === "upgrade" && operationTagsAreValid && Number.isInteger(normalizedOperation.depth) && normalizedOperation.depth > 0 && typeof normalizedOperation.instanceId === "string" && typeof normalizedOperation.nodeId === "string" && Boolean(itemUpgradeNodeById[normalizedOperation.nodeId])) ||
+    ((normalizedOperation.kind === "smelting" || normalizedOperation.kind === "smithing") && Boolean(blacksmithingRecipeById[normalizedOperation.recipeId]) && blacksmithingRecipeById[normalizedOperation.recipeId].kind === normalizedOperation.kind)
   ) ? normalizedOperation : null
   return {
     active: raw.active === true,

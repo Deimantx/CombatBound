@@ -33,13 +33,24 @@ export function createBlacksmithingActivityAdapter(options: { maxEvents?: number
         const replayed = advanceBlacksmithing(snapshot, acceptedSeconds, rngs.replay, { maxEvents: options.maxEvents })
         result = { ...replayed, stopReason: "safety-limit" }
       }
-      const activitySeconds = result.stopReason === "safety-limit" ? Math.floor(result.summary.seconds) : request.requestedSeconds
+      const activitySeconds = result.stopReason === "safety-limit"
+        ? Math.floor(result.summary.seconds)
+        : result.stopReason === "elapsed-time-complete"
+          ? request.requestedSeconds
+          : Math.min(request.requestedSeconds, Math.max(0, Math.ceil(result.summary.seconds)))
       const bankSpentSeconds = result.stopReason === "safety-limit" ? activitySeconds : request.requestedSeconds
       const before = getProfessionLevel(snapshot.professions, "blacksmithing")
       const after = getProfessionLevel(result.game.professions, "blacksmithing")
       const seconds = Math.max(1, activitySeconds)
       const summary: BlacksmithingOfflineSummary = { ...result.summary, seconds: activitySeconds, blacksmithingLevelBefore: before, blacksmithingLevelAfter: after, blacksmithingXpPerHour: perHour(result.summary.blacksmithingXp, seconds) }
-      return { requestedSeconds: request.requestedSeconds, activitySeconds, bankSpentSeconds, wastedSeconds: bankSpentSeconds - activitySeconds, stopReason: result.stopReason === "elapsed-time-complete" ? "requested-time-complete" : "safety-limit", state: result.game, summary }
+      const stopReason = result.stopReason === "elapsed-time-complete"
+        ? "requested-time-complete" as const
+        : result.stopReason === "requirements-lost"
+          ? "requirements-lost" as const
+          : result.stopReason === "safety-limit"
+            ? "safety-limit" as const
+            : "activity-ended" as const
+      return { requestedSeconds: request.requestedSeconds, activitySeconds, bankSpentSeconds, wastedSeconds: bankSpentSeconds - activitySeconds, stopReason, state: result.game, summary }
     },
   }
 }

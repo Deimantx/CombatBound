@@ -1,5 +1,5 @@
 import type { GameState } from "../gameState";
-import type { GameSaveV14, GameSaveV15, GameSaveV17, GameSaveV18, GameSaveV19, HistoricalEquipmentSlotIdV17, HistoricalEquipmentStateV17, HistoricalInventoryStateV17, HistoricalItemInstanceV17 } from "./saveTypes";
+import type { GameSaveV14, GameSaveV15, GameSaveV17, GameSaveV18, GameSaveV19, HistoricalEquipmentSlotIdV17, HistoricalEquipmentSlotIdV18, HistoricalEquipmentStateV17, HistoricalEquipmentStateV18, HistoricalInventoryStateV17, HistoricalInventoryStateV18, HistoricalItemInstanceV17, HistoricalItemInstanceV18, HistoricalMiningStateV18, HistoricalProfessionStateV18 } from "./saveTypes";
 import {
   migrateCurrentSave,
   migrateLegacySave,
@@ -61,6 +61,7 @@ export const LEGACY_CURRENT_GAME_SAVE_KEY = "combatbound-idle-save-v2";
 export const LEGACY_GAME_SAVE_KEY = "combatbound-idle-save-v1";
 
 const HISTORICAL_V17_SLOTS: readonly HistoricalEquipmentSlotIdV17[] = ["weapon", "offhand", "head", "armor", "gloves", "boots", "belt", "cape", "necklace", "ring1", "ring2", "earring1", "earring2"];
+const HISTORICAL_V18_SLOTS: readonly HistoricalEquipmentSlotIdV18[] = [...HISTORICAL_V17_SLOTS, "tool"];
 
 function toHistoricalInventoryV17(inventory: GameState["inventory"]): HistoricalInventoryStateV17 {
   return {
@@ -73,6 +74,46 @@ function toHistoricalInventoryV17(inventory: GameState["inventory"]): Historical
 function toHistoricalEquipmentV17(equipment: GameState["equipment"]): HistoricalEquipmentStateV17 {
   const slots = Object.fromEntries(HISTORICAL_V17_SLOTS.flatMap((slot) => equipment.slots[slot] ? [[slot, equipment.slots[slot]]] : []));
   return { slots: slots as HistoricalEquipmentStateV17["slots"] };
+}
+
+function toHistoricalInventoryV18(inventory: GameState["inventory"]): HistoricalInventoryStateV18 {
+  return {
+    stackables: { ...inventory.stackables },
+    instances: Object.fromEntries(Object.entries(inventory.instances).map(([id, instance]) => [id, { id: instance.id, definitionId: instance.definitionId, version: 3 as const, unlockedUpgradeNodeIds: [...instance.unlockedUpgradeNodeIds] }])) as Record<string, HistoricalItemInstanceV18>,
+    nextInstanceSequence: inventory.nextInstanceSequence,
+  };
+}
+
+function toHistoricalEquipmentV18(equipment: GameState["equipment"]): HistoricalEquipmentStateV18 {
+  const slots = Object.fromEntries(HISTORICAL_V18_SLOTS.flatMap((slot) => equipment.slots[slot] ? [[slot, equipment.slots[slot]]] : []));
+  return { slots: slots as HistoricalEquipmentStateV18["slots"] };
+}
+
+function toHistoricalProfessionV18(professions: GameState["professions"]): HistoricalProfessionStateV18 {
+  const initial = createInitialProfessionState();
+  const mining = professions.skills.mining ?? initial.skills.mining!;
+  const mastery = professions.resourceMasteries["mastery.iron-vein"] ?? initial.resourceMasteries["mastery.iron-vein"];
+  return {
+    skills: { mining: { skillId: "mining", totalXp: mining.totalXp, bonusSkillPoints: mining.bonusSkillPoints, purchasedPerks: { ...mining.purchasedPerks } } },
+    resourceMasteries: { "mastery.iron-vein": { masteryId: "mastery.iron-vein", totalXp: mastery.totalXp } },
+  };
+}
+
+function toHistoricalMiningV18(mining: GameState["mining"]): HistoricalMiningStateV18 {
+  return {
+    selectedResourceId: "mining-resource.iron-vein",
+    active: mining.active,
+    mode: mining.mode,
+    currentStageId: mining.currentStageId,
+    stageDurabilityRemaining: mining.stageDurabilityRemaining,
+    miningStamina: mining.miningStamina,
+    swingTimerRemaining: mining.swingTimerRemaining,
+    restTimerRemaining: mining.restTimerRemaining,
+    yieldRemainders: { ...mining.yieldRemainders },
+    completedDeposits: mining.completedDeposits,
+    totalSwings: mining.totalSwings,
+    exhaustionRestsThisDeposit: mining.exhaustionRestsThisDeposit,
+  };
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -106,6 +147,23 @@ function normalizeHistoricalEquipmentV17(value: unknown, inventory: HistoricalIn
   for (const [slot, instanceId] of Object.entries(value.slots)) {
     if (!HISTORICAL_V17_SLOTS.includes(slot as HistoricalEquipmentSlotIdV17) || typeof instanceId !== "string" || !isItemInstanceId(instanceId) || !inventory.instances[instanceId] || used.has(instanceId)) return null;
     slots[slot as HistoricalEquipmentSlotIdV17] = instanceId;
+    used.add(instanceId);
+  }
+  return { slots };
+}
+
+function normalizeHistoricalInventoryV18(value: unknown): HistoricalInventoryStateV18 | null {
+  const normalized = normalizeHistoricalInventoryV17(value);
+  return normalized ? { ...normalized, instances: normalized.instances as Record<string, HistoricalItemInstanceV18> } : null;
+}
+
+function normalizeHistoricalEquipmentV18(value: unknown, inventory: HistoricalInventoryStateV18): HistoricalEquipmentStateV18 | null {
+  if (!isRecord(value) || !isRecord(value.slots)) return null;
+  const slots: Partial<Record<HistoricalEquipmentSlotIdV18, string>> = {};
+  const used = new Set<string>();
+  for (const [slot, instanceId] of Object.entries(value.slots)) {
+    if (!HISTORICAL_V18_SLOTS.includes(slot as HistoricalEquipmentSlotIdV18) || typeof instanceId !== "string" || !isItemInstanceId(instanceId) || !inventory.instances[instanceId] || used.has(instanceId)) return null;
+    slots[slot as HistoricalEquipmentSlotIdV18] = instanceId;
     used.add(instanceId);
   }
   return { slots };
@@ -174,10 +232,10 @@ export function gameStateToSaveV18(
   return {
     ...gameStateToSaveV17(game, settings),
     version: 18,
-    inventory: game.inventory,
-    equipment: game.equipment,
-    professions: game.professions,
-    mining: game.mining,
+    inventory: toHistoricalInventoryV18(game.inventory),
+    equipment: toHistoricalEquipmentV18(game.equipment),
+    professions: toHistoricalProfessionV18(game.professions),
+    mining: toHistoricalMiningV18(game.mining),
   };
 }
 
@@ -186,8 +244,19 @@ export function gameStateToSaveV19(
   settings: { reducedMotion: boolean; showInspectorButton: boolean },
 ): GameSaveV19 {
   return {
-    ...gameStateToSaveV18(game, settings),
     version: 19,
+    progression: game.progression,
+    inventory: game.inventory,
+    equipment: game.equipment,
+    collection: game.collection,
+    gold: game.gold,
+    settings,
+    magicArts: normalizeMagicArts(game.magicArts),
+    combatAutomation: game.combatAutomation,
+    combatAutomationPresets: game.combatAutomationPresets,
+    combatAbilities: game.combatAbilities,
+    professions: game.professions,
+    mining: game.mining,
     blacksmithing: game.blacksmithing,
   };
 }
@@ -199,11 +268,13 @@ function migrateV17ToV18(save: GameSaveV17): GameSaveV18 {
   if (!hasPickaxe) inventory = grantItem(inventory, "item.worn-pickaxe", 1).inventory;
   const worn = getInstancesByDefinitionId(inventory, "item.worn-pickaxe")[0];
   if (!equipment.slots.tool && worn) equipment = { slots: { ...equipment.slots, tool: worn.id } };
-  return { ...save, version: 18, inventory, equipment, professions: createInitialProfessionState(), mining: createInitialMiningState() };
+  return { ...save, version: 18, inventory: toHistoricalInventoryV18(inventory), equipment: toHistoricalEquipmentV18(equipment), professions: toHistoricalProfessionV18(createInitialProfessionState()), mining: toHistoricalMiningV18(createInitialMiningState()) };
 }
 
 function migrateV18ToV19(save: GameSaveV18): GameSaveV19 {
-  return { ...save, version: 19, blacksmithing: createInitialBlacksmithingState() };
+  const inventory = normalizeInventoryState(save.inventory);
+  const equipment = normalizeEquipmentState(save.equipment, inventory);
+  return { ...save, version: 19, inventory, equipment, professions: normalizeProfessionState(save.professions), mining: normalizeMiningState(save.mining), blacksmithing: createInitialBlacksmithingState() };
 }
 
 function normalizeSharedCurrentSaveFields(raw: Record<string, unknown>, inventory: GameState["inventory"], equipment: GameState["equipment"]) {
@@ -269,9 +340,15 @@ function normalizeCurrentSaveV17(value: unknown): GameSaveV17 | null {
 function normalizeCurrentSaveV18(value: unknown): GameSaveV18 | null {
   if (!value || typeof value !== "object" || Array.isArray(value) || (value as { version?: unknown }).version !== 18) return null;
   const raw = value as Record<string, unknown>;
-  const inventory = normalizeInventoryState(raw.inventory);
-  const equipment = normalizeEquipmentState(raw.equipment, inventory);
-  const normalized: GameSaveV18 = { version: 18, ...normalizeSharedCurrentSaveFields(raw, inventory, equipment), professions: normalizeProfessionState(raw.professions), mining: normalizeMiningState(raw.mining) };
+  if ("blacksmithing" in raw) return null;
+  const historicalInventory = normalizeHistoricalInventoryV18(raw.inventory);
+  const historicalEquipment = historicalInventory ? normalizeHistoricalEquipmentV18(raw.equipment, historicalInventory) : null;
+  if (!historicalInventory || !historicalEquipment) return null;
+  const inventory = normalizeInventoryState(historicalInventory);
+  const equipment = normalizeEquipmentState(historicalEquipment, inventory);
+  const currentProfessions = normalizeProfessionState(raw.professions);
+  const currentMining = normalizeMiningState(raw.mining);
+  const normalized: GameSaveV18 = { version: 18, ...normalizeSharedCurrentSaveFields(raw, inventory, equipment), inventory: historicalInventory, equipment: historicalEquipment, professions: toHistoricalProfessionV18(currentProfessions), mining: toHistoricalMiningV18(currentMining) };
   return isGameSaveV18(normalized) ? normalized : null;
 }
 

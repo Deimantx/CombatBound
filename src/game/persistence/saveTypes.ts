@@ -183,16 +183,67 @@ export interface GameSaveV17 extends Omit<GameSaveV16, "version" | "inventory" |
   inventory: HistoricalInventoryStateV17;
   equipment: HistoricalEquipmentStateV17;
 }
+/** Frozen V18 item ownership shape. V18 added the current tool slot but still predates Blacksmithing. */
+export type HistoricalEquipmentSlotIdV18 = HistoricalEquipmentSlotIdV17 | "tool";
+export interface HistoricalItemInstanceV18 {
+  id: string;
+  definitionId: string;
+  version: 3;
+  unlockedUpgradeNodeIds: string[];
+}
+export interface HistoricalInventoryStateV18 {
+  stackables: Record<string, number>;
+  instances: Record<string, HistoricalItemInstanceV18>;
+  nextInstanceSequence: number;
+}
+export interface HistoricalEquipmentStateV18 {
+  slots: Partial<Record<HistoricalEquipmentSlotIdV18, string>>;
+}
+/** Frozen V18 profession shape. Blacksmithing is intentionally absent. */
+export interface HistoricalProfessionSkillProgressV18 {
+  skillId: "mining";
+  totalXp: number;
+  bonusSkillPoints: number;
+  purchasedPerks: Record<string, number>;
+}
+export interface HistoricalResourceMasteryProgressV18 {
+  masteryId: "mastery.iron-vein";
+  totalXp: number;
+}
+export interface HistoricalProfessionStateV18 {
+  skills: Partial<Record<"mining", HistoricalProfessionSkillProgressV18>>;
+  resourceMasteries: Record<"mastery.iron-vein", HistoricalResourceMasteryProgressV18>;
+}
+export type HistoricalMiningResourceIdV18 = "mining-resource.iron-vein";
+export type HistoricalMiningStageIdV18 = "outer-crust" | "exposed-seam" | "dense-vein" | "rich-core" | "heart-of-iron";
+export interface HistoricalMiningStateV18 {
+  selectedResourceId: HistoricalMiningResourceIdV18;
+  active: boolean;
+  mode: "idle" | "swinging" | "resting";
+  currentStageId: HistoricalMiningStageIdV18;
+  stageDurabilityRemaining: number;
+  miningStamina: number;
+  swingTimerRemaining: number;
+  restTimerRemaining: number;
+  yieldRemainders: Record<string, number>;
+  completedDeposits: number;
+  totalSwings: number;
+  exhaustionRestsThisDeposit: number;
+}
 export interface GameSaveV18 extends Omit<GameSaveV17, "version" | "inventory" | "equipment"> {
   version: 18;
+  inventory: HistoricalInventoryStateV18;
+  equipment: HistoricalEquipmentStateV18;
+  professions: HistoricalProfessionStateV18;
+  mining: HistoricalMiningStateV18;
+}
+/** Current V19 save. V18 remains a frozen historical boundary. */
+export interface GameSaveV19 extends Omit<GameSaveV18, "version" | "inventory" | "equipment" | "professions" | "mining"> {
+  version: 19;
   inventory: InventoryState;
   equipment: EquipmentState;
   professions: ProfessionState;
   mining: MiningState;
-}
-/** Current V19 save. V18 remains a frozen historical boundary. */
-export interface GameSaveV19 extends Omit<GameSaveV18, "version"> {
-  version: 19;
   blacksmithing: BlacksmithingState;
 }
 export type GameSaveV2 = GameSaveV3;

@@ -77,7 +77,10 @@ export function isMiningOfflineSummary(value: unknown): value is MiningOfflineSu
 }
 
 export function isBlacksmithingOfflineSummary(value: unknown): value is BlacksmithingOfflineSummary {
-  return isRecord(value) && typeof value.seconds === "number" && typeof value.operationsCompleted === "number" && typeof value.smeltsCompleted === "number" && typeof value.smithsCompleted === "number" && typeof value.upgradesCompleted === "number" && typeof value.restSeconds === "number" && typeof value.blacksmithingXp === "number" && typeof value.blacksmithingLevelBefore === "number" && typeof value.blacksmithingLevelAfter === "number" && typeof value.blacksmithingXpPerHour === "number" && isRecord(value.outputsGained) && isRecord(value.materialsConsumed) && isRecord(value.materialsRecovered);
+  if (!isRecord(value)) return false;
+  const nonnegativeFinite = (candidate: unknown) => typeof candidate === "number" && Number.isFinite(candidate) && candidate >= 0;
+  const counts = (candidate: unknown) => isRecord(candidate) && Object.values(candidate).every((quantity) => nonnegativeFinite(quantity));
+  return nonnegativeFinite(value.seconds) && nonnegativeFinite(value.operationsCompleted) && nonnegativeFinite(value.smeltsCompleted) && nonnegativeFinite(value.smithsCompleted) && nonnegativeFinite(value.upgradesCompleted) && nonnegativeFinite(value.restSeconds) && nonnegativeFinite(value.blacksmithingXp) && nonnegativeFinite(value.blacksmithingLevelBefore) && nonnegativeFinite(value.blacksmithingLevelAfter) && nonnegativeFinite(value.blacksmithingXpPerHour) && counts(value.outputsGained) && counts(value.materialsConsumed) && counts(value.materialsRecovered) && Array.isArray(value.completedUpgradeNodeIds) && value.completedUpgradeNodeIds.every((id) => typeof id === "string");
 }
 
 export function toOfflineActivityLastResult(

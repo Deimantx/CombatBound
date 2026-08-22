@@ -13,6 +13,7 @@ import { magicArtDefinitions } from "../data/magicArts";
 import { isLegacyCombatProficiencyIdV14, normalizeLegacySpellIdV14 } from "./saveMigration";
 
 const HISTORICAL_V17_SLOTS = new Set(["weapon", "offhand", "head", "armor", "gloves", "boots", "belt", "cape", "necklace", "ring1", "ring2", "earring1", "earring2"]);
+const HISTORICAL_V18_SLOTS = new Set([...HISTORICAL_V17_SLOTS, "tool"]);
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return Boolean(value) && typeof value === "object" && !Array.isArray(value);
@@ -185,6 +186,8 @@ function validateInventoryBoundary(value: Record<string, unknown>, version: 15 |
   for (const [definitionId, quantity] of Object.entries(inventory.stackables)) {
     if (version === 15) {
       if (typeof quantity !== "number" || !Number.isInteger(quantity) || quantity < 0) return false;
+    } else if (version === 17 || version === 18) {
+      if (typeof quantity !== "number" || !Number.isInteger(quantity) || quantity < 0) return false;
     } else {
       const definition = itemById[definitionId];
       if (!definition || definition.inventoryMode !== "stackable" || typeof quantity !== "number" || !Number.isInteger(quantity) || quantity < 0) return false;
@@ -194,15 +197,15 @@ function validateInventoryBoundary(value: Record<string, unknown>, version: 15 |
     if (!isRecord(instance) || instance.id !== key || !isItemInstanceId(key)) return false;
     if (version === 15) {
       if (!isLegacyItemInstanceV2(instance)) return false;
-    } else if (version === 17) {
+    } else if (version === 17 || version === 18) {
       if (!isHistoricalItemInstanceV17(instance)) return false;
     } else if (!isItemInstanceV16(instance) || Object.keys(instance).some((field) => !["id", "definitionId", "version", "unlockedUpgradeNodeIds"].includes(field))) return false;
     const definitionId = typeof instance.definitionId === "string" ? instance.definitionId : null;
     if (!definitionId) return false;
-    // V17 is a frozen historical boundary. Do not consult current item
-    // definitions or upgrade trees here; migration owns that conversion.
-    if (version === 17 && typeof definitionId !== "string") return false;
-    if ((version === 18 || version === 19) && (!itemById[definitionId] || itemById[definitionId].inventoryMode !== "instance" || !validateItemInstance(instance).valid)) return false;
+    // V17 and V18 are frozen historical boundaries. Do not consult current
+    // item definitions or upgrade trees here; migration owns that conversion.
+    if ((version === 17 || version === 18) && typeof definitionId !== "string") return false;
+    if (version === 19 && (!itemById[definitionId] || itemById[definitionId].inventoryMode !== "instance" || !validateItemInstance(instance).valid)) return false;
     if (version === 16 && (!itemById[definitionId] || itemById[definitionId].inventoryMode !== "instance")) return false;
     instanceIds.add(key);
     highestSequence = Math.max(highestSequence, itemInstanceSequence(key));
@@ -210,9 +213,9 @@ function validateInventoryBoundary(value: Record<string, unknown>, version: 15 |
   if (typeof inventory.nextInstanceSequence !== "number" || inventory.nextInstanceSequence <= highestSequence) return false;
   for (const [slot, instanceId] of Object.entries(equipment.slots)) {
     const currentSlot = isEquipmentSlotId(slot) ? slot : null;
-    if ((version === 17 ? !HISTORICAL_V17_SLOTS.has(slot) : !currentSlot) || typeof instanceId !== "string" || !instanceIds.has(instanceId)) return false;
-    if (version === 17) {
-      if (!HISTORICAL_V17_SLOTS.has(slot)) return false;
+    if (((version === 17 ? !HISTORICAL_V17_SLOTS.has(slot) : version === 18 ? !HISTORICAL_V18_SLOTS.has(slot) : !currentSlot)) || typeof instanceId !== "string" || !instanceIds.has(instanceId)) return false;
+    if (version === 17 || version === 18) {
+      if (!(version === 17 ? HISTORICAL_V17_SLOTS : HISTORICAL_V18_SLOTS).has(slot)) return false;
     } else if (version !== 15) {
       const instance = isRecord(inventory.instances) ? inventory.instances[instanceId] : undefined;
       const definition = isRecord(instance) && typeof instance.definitionId === "string" ? itemById[instance.definitionId] : undefined;
@@ -238,7 +241,12 @@ export function isGameSaveV17(value: unknown): value is GameSaveV17 {
 export function isGameSaveV18(value: unknown): value is GameSaveV18 {
   if (!isModernSaveScaffold(value, 18) || !validateInventoryBoundary(value as Record<string, unknown>, 18)) return false;
   const raw = value as Record<string, unknown>;
-  return Boolean(raw.professions && typeof raw.professions === "object" && raw.mining && typeof raw.mining === "object");
+  if ("blacksmithing" in raw || !isRecord(raw.professions) || !isRecord(raw.mining) || !isRecord(raw.professions.skills) || !isRecord(raw.professions.resourceMasteries)) return false;
+  if (Object.keys(raw.professions.skills).some((id) => id !== "mining") || Object.keys(raw.professions.resourceMasteries).some((id) => id !== "mastery.iron-vein")) return false;
+  const mining = raw.professions.skills.mining;
+  const mastery = raw.professions.resourceMasteries["mastery.iron-vein"];
+  const validMining = raw.mining.selectedResourceId === "mining-resource.iron-vein" && (raw.mining.mode === "idle" || raw.mining.mode === "swinging" || raw.mining.mode === "resting") && (raw.mining.currentStageId === "outer-crust" || raw.mining.currentStageId === "exposed-seam" || raw.mining.currentStageId === "dense-vein" || raw.mining.currentStageId === "rich-core" || raw.mining.currentStageId === "heart-of-iron") && [raw.mining.stageDurabilityRemaining, raw.mining.miningStamina, raw.mining.swingTimerRemaining, raw.mining.restTimerRemaining, raw.mining.completedDeposits, raw.mining.totalSwings, raw.mining.exhaustionRestsThisDeposit].every((number) => typeof number === "number" && Number.isFinite(number) && number >= 0) && isRecord(raw.mining.yieldRemainders) && Object.values(raw.mining.yieldRemainders).every((number) => typeof number === "number" && Number.isFinite(number) && number >= 0);
+  return validMining && (!mining || isRecord(mining) && mining.skillId === "mining" && typeof mining.totalXp === "number" && Number.isFinite(mining.totalXp) && mining.totalXp >= 0 && typeof mining.bonusSkillPoints === "number" && Number.isInteger(mining.bonusSkillPoints) && mining.bonusSkillPoints >= 0 && isRecord(mining.purchasedPerks)) && isRecord(mastery) && mastery.masteryId === "mastery.iron-vein" && typeof mastery.totalXp === "number" && Number.isFinite(mastery.totalXp) && mastery.totalXp >= 0;
 }
 
 export function isGameSaveV19(value: unknown): value is GameSaveV19 {

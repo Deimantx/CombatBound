@@ -9,6 +9,7 @@ import { advanceBlacksmithing, getBlacksmithingUpgradeProfile, startBlacksmithin
 import { getBlacksmithingStats, operationTagsForItem } from "../game/professions/blacksmithing/blacksmithingStats"
 import { gameStateToSaveV18, gameStateToSaveV19, parseGameSaveJson } from "../game/persistence/saveGame"
 import { itemById } from "../game/data/items"
+import { createBlacksmithingActivityAdapter } from "../game/offline/blacksmithingActivity"
 
 const rng = (value: number) => ({ next: () => value })
 
@@ -83,6 +84,19 @@ describe("Blacksmithing foundation V19", () => {
     expect(getStackableQuantity(completed.game.inventory, "item.iron-bar")).toBe(5)
     expect(completed.summary.smeltsCompleted).toBe(5)
     expect(completed.game.blacksmithing.active).toBe(false)
+    expect(completed.stopReason).toBe("queue-complete")
+  })
+
+  it("stops a fixed x1 queue before entering rest when the completed operation exhausts stamina", () => {
+    let game = createInitialGameState()
+    game = { ...game, blacksmithing: { ...game.blacksmithing, forgeStamina: 3 }, inventory: grantItem(game.inventory, "item.iron-ore", 10).inventory }
+    const started = startBlacksmithingRecipe(game, "blacksmithing-recipe.iron-bar", 1)
+    const completed = advanceBlacksmithing(started.game, 4, rng(0.99))
+    expect(completed.summary.smeltsCompleted).toBe(1)
+    expect(completed.game.blacksmithing.active).toBe(false)
+    expect(completed.game.blacksmithing.mode).toBe("idle")
+    expect(completed.game.blacksmithing.lastStopReason).toBe("queue-complete")
+    expect(getStackableQuantity(completed.game.inventory, "item.iron-ore")).toBe(5)
   })
 
   it("runs MAX until the next full cost cannot be reserved", () => {
@@ -128,6 +142,23 @@ describe("Blacksmithing foundation V19", () => {
     expect(rested.game.blacksmithing.activeOperation?.kind).toBe("smelting")
     expect(getStackableQuantity(rested.game.inventory, "item.iron-ore")).toBe(0)
     expect(getStackableQuantity(rested.game.inventory, "item.iron-bar")).toBe(0)
+  })
+
+  it("reserves and resumes the exact upgrade through zero-stamina rest", () => {
+    let game = createInitialGameState()
+    game = { ...game, professions: setProfessionLevel(game.professions, "blacksmithing", 5), blacksmithing: { ...game.blacksmithing, forgeStamina: 0 } }
+    const instance = Object.values(game.inventory.instances).find((entry) => entry.definitionId === "item.iron-sword")!
+    const nodeId = "upgrade-node.iron-sword.tempered-edge-1"
+    game = { ...game, inventory: grantItem(grantItem(game.inventory, "item.iron-bar", 2).inventory, "item.weapon-scrap", 2).inventory }
+    const started = startBlacksmithingUpgrade(game, instance.id, nodeId)
+    expect(started.outcome).toBe("resting")
+    expect(started.game.blacksmithing.activeOperation).toMatchObject({ kind: "upgrade", instanceId: instance.id, nodeId })
+    expect(getStackableQuantity(started.game.inventory, "item.iron-bar")).toBe(0)
+    const operation = started.game.blacksmithing.activeOperation!
+    const completed = advanceBlacksmithing(started.game, started.game.blacksmithing.restTimerRemaining + operation.durationSeconds + 0.01, rng(0.5))
+    expect(completed.summary.upgradesCompleted).toBe(1)
+    expect(completed.game.inventory.instances[instance.id].unlockedUpgradeNodeIds).toContain(nodeId)
+    expect(completed.game.blacksmithing.lastStopReason).toBe("queue-complete")
   })
 
   it("round-trips a paused reserved operation through V19", () => {
@@ -186,5 +217,39 @@ describe("Blacksmithing foundation V19", () => {
     expect(completed.game.inventory.instances[instance.id].unlockedUpgradeNodeIds).toContain(nodeId)
     expect(completed.summary.upgradesCompleted).toBe(1)
     expect(getStackableQuantity(completed.game.inventory, "item.iron-bar")).toBe(0)
+  })
+
+  it("reports a true safety cap separately from natural queue completion", () => {
+    let game = createInitialGameState()
+    game = { ...game, inventory: grantItem(game.inventory, "item.iron-ore", 10).inventory }
+    const started = startBlacksmithingRecipe(game, "blacksmithing-recipe.iron-bar", 1, "max")
+    const capped = advanceBlacksmithing(started.game, 60, rng(0.99), { maxEvents: 1 })
+    expect(capped.stopReason).toBe("safety-limit")
+    expect(capped.game.blacksmithing.active).toBe(true)
+    expect(capped.summary.smeltsCompleted).toBe(1)
+  })
+
+  it("keeps a fractional natural completion committed while billing the whole completed second", () => {
+    let game = createInitialGameState()
+    game = { ...game, professions: { ...game.professions, skills: { ...game.professions.skills, blacksmithing: { ...game.professions.skills.blacksmithing!, purchasedPerks: { "blacksmithing-perk.steady-hands": 1 } } } }, inventory: grantItem(game.inventory, "item.iron-ore", 5).inventory }
+    const started = startBlacksmithingRecipe(game, "blacksmithing-recipe.iron-bar")
+    const adapter = createBlacksmithingActivityAdapter()
+    const result = adapter.simulate(started.game, { requestedSeconds: 4 }, { next: () => 0.99 })
+    expect(result.stopReason).toBe("activity-ended")
+    expect(result.activitySeconds).toBe(4)
+    expect(getStackableQuantity(result.state.inventory, "item.iron-bar")).toBe(1)
+    expect(result.state.blacksmithing.active).toBe(false)
+  })
+
+  it("normalizes reserved costs structurally instead of rejecting a historical snapshot after balance tuning", () => {
+    let game = createInitialGameState()
+    game = { ...game, inventory: grantItem(game.inventory, "item.iron-ore", 5).inventory }
+    const started = startBlacksmithingRecipe(game, "blacksmithing-recipe.iron-bar")
+    const save = gameStateToSaveV19(started.game, { reducedMotion: false, showInspectorButton: true }) as unknown as Record<string, unknown>
+    const blacksmithing = save.blacksmithing as Record<string, unknown>
+    const operation = blacksmithing.activeOperation as Record<string, unknown>
+    operation.reservedCosts = [{ itemId: "item.iron-ore", quantity: 7 }]
+    const loaded = parseGameSaveJson(JSON.stringify(save))!
+    expect(loaded.blacksmithing.activeOperation?.reservedCosts).toEqual([{ itemId: "item.iron-ore", quantity: 7 }])
   })
 })
