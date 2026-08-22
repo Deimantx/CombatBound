@@ -432,8 +432,6 @@ export function debugGrantSelectedGearMaterials(game: GameState, itemId: string)
   return { ...game, inventory };
 }
 
-/** @deprecated Use debugGrantSelectedGearMaterials for any item tree. */
-export const debugGrantSelectedWeaponMaterials = debugGrantSelectedGearMaterials;
 
 export function debugResetItemUpgrades(game: GameState, instanceId: string): GameState {
   const instance = game.inventory.instances[instanceId];

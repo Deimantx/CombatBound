@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { itemById } from "../game/data/items";
-import { ironDefensiveBranches, ironDefensiveNodes, ironDefensiveTreeDefinitions, itemUpgradeNodeById } from "../game/data/gear/itemUpgradeTrees";
+import { ironDefensiveBranches, ironDefensiveNodes, ironDefensiveTreeDefinitions, itemUpgradeNodeById, itemUpgradeTreeById } from "../game/data/gear/itemUpgradeTrees";
 import { createInitialGameState } from "../game/gameState";
 import { calculateHunterCombatStats } from "../game/equipment/derivedStats";
 import { getDefensiveEquipmentContext, calculateDefensiveTrainingAwards } from "../game/equipment/defensiveEquipment";
@@ -8,6 +8,12 @@ import { equipItemInstance, validateEquipmentChange } from "../game/equipment/eq
 import { grantItem } from "../game/items/itemOwnership";
 import { getItemProficiencyRequirement } from "../game/equipment/itemProficiency";
 import { validateItemUpgradeTrees } from "../game/items/itemUpgradeValidation";
+import { resolveItemInstance } from "../game/items/itemResolver";
+import { buildItemPresentation } from "../game/presentation/itemPresentation";
+import { itemUpgradeNodeById as upgradeNodes } from "../game/data/gear/itemUpgradeTrees";
+import { gameStateToSaveV17, parseGameSaveJson, CURRENT_SAVE_VERSION } from "../game/persistence/saveGame";
+import { debugGrantSelectedGearMaterials } from "../game/debug/debugActions";
+import { getItemUpgradeSpecialization, purchaseItemUpgradeNode } from "../game/items/itemUpgradeLogic";
 
 const defensiveIds = ["item.iron-helmet", "item.iron-armor", "item.iron-gloves", "item.iron-boots", "item.iron-shield"] as const;
 
@@ -33,6 +39,24 @@ describe("Iron heavy armor and shield V17", () => {
     expect(getItemProficiencyRequirement(itemById["item.iron-shield"])).toMatchObject({ proficiencyId: "shield", requiredLevel: 1, kind: "defensive" });
   });
 
+  it("uses canonical stat semantics for defensive upgrade modifier presentation", () => {
+    const base = createInitialGameState();
+    const granted = grantOne({ ...base.inventory, instances: {} }, "item.iron-helmet");
+    const makeResolved = (unlockedUpgradeNodeIds: string[]) => {
+      const instance = { ...granted.inventory.instances[granted.instance], unlockedUpgradeNodeIds };
+      const inventory = { ...granted.inventory, instances: { ...granted.inventory.instances, [granted.instance]: instance } };
+      return resolveItemInstance(inventory, granted.instance)!;
+    };
+    const modifiers = [
+      ...buildItemPresentation(makeResolved(["upgrade-node.iron-helmet.reinforced-brow"])).modifiers,
+      ...buildItemPresentation(makeResolved(["upgrade-node.iron-helmet.padded-crown", "upgrade-node.iron-helmet.fortified-skull", "upgrade-node.iron-helmet.unyielding-mind"])).modifiers,
+      ...buildItemPresentation(makeResolved(["upgrade-node.iron-helmet.guarded-visor", "upgrade-node.iron-helmet.closed-face"])).modifiers,
+    ].map((modifier) => modifier.value);
+    expect(modifiers).toEqual(expect.arrayContaining(["Armour +4", "Max Life +5", "Life Regen +0.05 / sec", "Block Chance +1%", "Block Effect +1%"]));
+    expect(modifiers.some((value) => value.includes("400%") || value.includes("500%"))).toBe(false);
+    expect(upgradeNodes["upgrade-node.iron-helmet.reinforced-brow"]).toBeDefined();
+  });
+
   it("registers five 3-branch, 12-node single-branch trees with only global stat effects", () => {
     expect(ironDefensiveTreeDefinitions).toHaveLength(5);
     expect(ironDefensiveBranches).toHaveLength(15);
@@ -54,7 +78,7 @@ describe("Iron heavy armor and shield V17", () => {
 
   it("keeps defensive training and derived stats distinct for the shield", () => {
     const base = createInitialGameState();
-    let inventory = { ...base.inventory, instances: {} };
+    let inventory: typeof base.inventory = { ...base.inventory, instances: {} };
     const equipment: { slots: Partial<Record<"head" | "armor" | "gloves" | "boots" | "offhand", string>> } = { slots: {} };
     for (const [itemId, slot] of [["item.iron-helmet", "head"], ["item.iron-armor", "armor"], ["item.iron-gloves", "gloves"], ["item.iron-boots", "boots"], ["item.iron-shield", "offhand"]] as const) {
       const granted = grantOne(inventory, itemId);
@@ -76,5 +100,70 @@ describe("Iron heavy armor and shield V17", () => {
     const granted = grantOne({ ...base.inventory, instances: {} }, "item.iron-shield");
     expect(validateEquipmentChange({ inventory: granted.inventory, equipment: { slots: {} }, instanceId: granted.instance, slotId: "weapon", hunterRank: 1, progression: base.progression }).reason).toBe("wrong-slot-kind");
     expect(validateEquipmentChange({ inventory: granted.inventory, equipment: { slots: {} }, instanceId: granted.instance, slotId: "offhand", hunterRank: 0, progression: base.progression }).reason).toBe("hunter-rank");
+  });
+
+  it("round-trips defensive exact copies, specializations, equipment and progression through V17", () => {
+    const base = createInitialGameState();
+    let working: typeof base = { ...base, inventory: { ...base.inventory, instances: {} }, equipment: { slots: {} } };
+    const authored = [
+      ["item.iron-helmet", "head", "ironclad", 3],
+      ["item.iron-armor", "armor", "renewal", 4],
+      ["item.iron-gloves", "gloves", "guard", 2],
+      ["item.iron-boots", "boots", "endurance", 1],
+      ["item.iron-shield", "offhand", "bastion", 4],
+    ] as const;
+    for (const [itemId, slotId, branchSlug, count] of authored) {
+      const granted = grantItem(working.inventory, itemId, 1);
+      const withMaterials = debugGrantSelectedGearMaterials({ ...working, inventory: granted.inventory }, itemId);
+      const tree = itemUpgradeTreeById[itemById[itemId].upgradeTreeId!]!;
+      const branchId = `upgrade-branch.${itemId.replace("item.", "")}.${branchSlug}`;
+      let inventory = withMaterials.inventory;
+      const nodes = tree.nodeIds.filter((nodeId) => upgradeNodes[nodeId]?.branchId === branchId).slice(0, count);
+      for (const nodeId of nodes) inventory = purchaseItemUpgradeNode({ inventory, instanceId: granted.createdInstanceIds[0]!, nodeId }).inventory;
+      const equipped = equipItemInstance({ inventory, equipment: working.equipment, instanceId: granted.createdInstanceIds[0]!, slotId, hunterRank: 1, progression: working.progression });
+      working = { ...working, inventory, equipment: equipped.equipment, progression: equipped.progression ?? working.progression };
+    }
+    const loaded = parseGameSaveJson(JSON.stringify(gameStateToSaveV17(working, { reducedMotion: false, showInspectorButton: true })));
+    expect(CURRENT_SAVE_VERSION).toBe(17);
+    expect(loaded?.inventory.instances).toEqual(working.inventory.instances);
+    expect(loaded?.equipment.slots).toEqual(working.equipment.slots);
+    expect(loaded?.progression.proficiencies["heavy-armor"]?.totalXp).toBe(working.progression.proficiencies["heavy-armor"]?.totalXp);
+    expect(loaded?.progression.proficiencies.shield?.totalXp).toBe(working.progression.proficiencies.shield?.totalXp);
+    for (const [itemId] of authored) {
+      const slotId = itemById[itemId].equipmentSlotKind === "offhand" ? "offhand" : itemById[itemId].equipmentSlotKind as "head" | "armor" | "gloves" | "boots";
+      const instanceId = working.equipment.slots[slotId]!;
+      const tree = itemUpgradeTreeById[itemById[itemId].upgradeTreeId!]!;
+      expect(getItemUpgradeSpecialization(loaded!.inventory.instances[instanceId]!, tree)).toEqual(getItemUpgradeSpecialization(working.inventory.instances[instanceId]!, tree));
+    }
+  });
+
+  it("uses real Iron Sword, Shield and Greatsword transactions for the 2H conflict", () => {
+    const base = createInitialGameState();
+    let inventory: typeof base.inventory = { ...base.inventory, instances: {} };
+    const sword = grantOne(inventory, "item.iron-sword"); inventory = sword.inventory;
+    const shield = grantOne(inventory, "item.iron-shield"); inventory = shield.inventory;
+    const greatsword = grantOne(inventory, "item.iron-greatsword"); inventory = greatsword.inventory;
+    const swordEquipped = equipItemInstance({ inventory, equipment: { slots: {} }, instanceId: sword.instance, slotId: "weapon", hunterRank: 1, progression: { ...base.progression, proficiencies: {} } });
+    const shieldEquipped = equipItemInstance({ inventory, equipment: swordEquipped.equipment, instanceId: shield.instance, slotId: "offhand", hunterRank: 1, progression: swordEquipped.progression });
+    expect(shieldEquipped.equipment.slots.offhand).toBe(shield.instance);
+    const greatswordEquipped = equipItemInstance({ inventory, equipment: shieldEquipped.equipment, instanceId: greatsword.instance, slotId: "weapon", hunterRank: 1, progression: shieldEquipped.progression });
+    expect(greatswordEquipped.equipment.slots.weapon).toBe(greatsword.instance);
+    expect(greatswordEquipped.equipment.slots.offhand).toBeUndefined();
+    expect(inventory.instances[shield.instance]).toBeDefined();
+
+    const undiscovered = { ...base.progression, proficiencies: {} };
+    const twoHanded = equipItemInstance({ inventory, equipment: { slots: { weapon: greatsword.instance } }, instanceId: shield.instance, slotId: "offhand", hunterRank: 1, progression: undiscovered });
+    expect(twoHanded.validation.reason).toBe("two-handed-conflict");
+    expect(twoHanded.equipment.slots).toEqual({ weapon: greatsword.instance });
+    expect(twoHanded.progression).toBeUndefined();
+  });
+
+  it("does not auto-grant defensive gear or proficiencies when loading a clean V17 save", () => {
+    const base = createInitialGameState();
+    const save = gameStateToSaveV17({ ...base, inventory: { ...base.inventory, instances: {} }, equipment: { slots: {} }, progression: { ...base.progression, proficiencies: {} } }, { reducedMotion: false, showInspectorButton: false });
+    const loaded = parseGameSaveJson(JSON.stringify(save));
+    expect(Object.values(loaded?.inventory.instances ?? {}).some((instance) => instance.definitionId.startsWith("item.iron-") && instance.definitionId !== "item.iron-sword")).toBe(false);
+    expect(loaded?.progression.proficiencies["heavy-armor"]).toBeUndefined();
+    expect(loaded?.progression.proficiencies.shield).toBeUndefined();
   });
 });

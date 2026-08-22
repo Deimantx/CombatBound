@@ -3,7 +3,8 @@ import { getItemUpgradeSpecialization } from "../items/itemUpgradeLogic";
 import { weaponArchetypeById, weaponFamilyLabels } from "../data/gear/weaponArchetypes";
 import { equipmentSlotKindLabel } from "../equipment/equipmentTypes";
 import type { ResolvedItemInstance, ItemInstance } from "../items/itemTypes";
-import { formatItemStats, labelForStatKey } from "./statFormatting";
+import { proficiencyById } from "../data/proficiencies";
+import { formatCombatStatDelta, formatItemStats, formatSignedPercent, labelForStatKey } from "./statFormatting";
 
 export interface ItemModifierDisplay {
   id: string;
@@ -37,15 +38,22 @@ export interface ItemPresentation {
 }
 
 function formatEffect(target: string, operation: string, value: number) {
-  const label = target === "physicalDamage" ? "Physical Damage" : target === "attackSpeed" ? "Attack Speed" : target === "criticalChance" ? "Critical Strike Chance" : labelForStatKey(target);
-  const amount = target === "accuracyRating" || target === "blockChance" || target === "criticalStrikeChance" ? `${value >= 0 ? "+" : ""}${(value * (target === "accuracyRating" ? 1 : 100)).toFixed(target === "accuracyRating" ? 0 : 0)}${target === "accuracyRating" ? "" : "%"}` : `${value >= 0 ? "+" : ""}${(value * 100).toFixed(1)}%`;
-  return `${operation === "increased" ? "Increased " : operation === "more" ? "More " : ""}${label} ${amount}`;
+  const localLabel = target === "physicalDamage" ? "Physical Damage" : target === "attackSpeed" ? "Attack Speed" : target === "criticalChance" ? "Critical Strike Chance" : undefined;
+  if (localLabel) return `${operation === "increased" ? "Increased " : operation === "more" ? "More " : ""}${localLabel} ${formatSignedPercent(value)}`;
+  return `${operation === "increased" ? "Increased " : operation === "more" ? "More " : ""}${labelForStatKey(target)} ${formatCombatStatDelta(target, value)}`;
+}
+
+export function buildItemDefinitionSearchText(definition: ResolvedItemInstance["definition"]) {
+  const archetype = definition.weaponArchetypeId ? definition.weaponArchetypeId.replace("weapon-archetype.", "") : "";
+  const archetypeName = definition.weaponArchetypeId ? weaponArchetypeById[definition.weaponArchetypeId]?.name ?? "" : "";
+  const family = definition.weaponFamilyId ? weaponFamilyLabels[definition.weaponFamilyId] ?? definition.weaponFamilyId : "";
+  const weaponProficiency = definition.weaponProficiencyId ? proficiencyById[definition.weaponProficiencyId]?.name ?? definition.weaponProficiencyId : "";
+  const defensiveProficiency = definition.defensiveProficiencyId ? proficiencyById[definition.defensiveProficiencyId]?.name ?? definition.defensiveProficiencyId : "";
+  return [definition.id, definition.name, definition.description, definition.category, definition.rarity, definition.equipmentSlotKind ?? "", weaponProficiency, definition.weaponProficiencyId ?? "", defensiveProficiency, definition.defensiveProficiencyId ?? "", family, definition.weaponFamilyId ?? "", archetypeName, archetype, definition.materialTierId ?? "", definition.requiredHunterRank ?? "", ...Object.keys(definition.stats ?? {}), ...Object.values(definition.stats ?? {})].join(" ").toLowerCase();
 }
 
 export function buildItemInstanceSearchText(resolved: ResolvedItemInstance) {
-  const { definition } = resolved;
-  const archetype = definition.weaponArchetypeId ? definition.weaponArchetypeId.replace("weapon-archetype.", "") : "";
-  return [definition.id, definition.name, definition.description, definition.category, definition.rarity, definition.equipmentSlotKind ?? "", definition.weaponProficiencyId ?? "", definition.defensiveProficiencyId ?? "", definition.weaponFamilyId ?? "", archetype, definition.materialTierId ?? ""].join(" ").toLowerCase();
+  return `${buildItemDefinitionSearchText(resolved.definition)} ${resolved.instance.id} ${resolved.instance.unlockedUpgradeNodeIds.join(" ")}`.toLowerCase();
 }
 
 export function itemModifierDisplays(resolved: ResolvedItemInstance): ItemModifierDisplay[] {

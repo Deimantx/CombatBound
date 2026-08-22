@@ -36,6 +36,11 @@ describe("debug catalogue presentation", () => {
     expect(findNode(nodes, "debug.items.equipment.weapons.one-handed.one-handed-swords")?.items.every((item) => item.inventoryMode === "instance")).toBe(true);
     expect(findNode(nodes, "debug.items.equipment.offhands.shields")?.items ?? []).toHaveLength(1);
     expect(itemSearchText(itemDefinitions.find((item) => item.name === "Iron Sword")!)).toContain("iron sword");
+    expect(itemSearchText(itemDefinitions.find((item) => item.id === "item.iron-helmet")!)).toEqual(expect.stringContaining("head"));
+    expect(itemSearchText(itemDefinitions.find((item) => item.id === "item.iron-helmet")!)).toEqual(expect.stringContaining("heavy armor"));
+    expect(itemSearchText(itemDefinitions.find((item) => item.id === "item.iron-shield")!)).toEqual(expect.stringContaining("offhand"));
+    expect(itemSearchText(itemDefinitions.find((item) => item.id === "item.iron-great-axe")!)).toEqual(expect.stringContaining("great axe"));
+    expect(itemSearchText(itemDefinitions.find((item) => item.id === "item.iron-armor")!)).toEqual(expect.stringContaining("common"));
   });
 
   it("builds the canonical world hierarchy and keeps enemy source locations", () => {

@@ -6,6 +6,8 @@ const percentageStatKeys = new Set([
   "criticalStrikeChance", "criticalStrikeMultiplier", "blockChance", "blockEffect", "increasedAttackSpeed", "increasedCastSpeed", "moreAttackSpeed", "moreCastSpeed",
   "fireResistance", "coldResistance", "lightningResistance", "chaosResistance",
 ]);
+const armorTrainingSlotKinds = new Set(["head", "armor", "gloves", "boots"]);
+const armorProficiencyIds = new Set(["light-armor", "medium-armor", "heavy-armor"]);
 
 export interface ItemValidationResult {
   errors: string[];
@@ -34,6 +36,15 @@ export function validateItemDefinition(item: ItemDefinition): ItemValidationResu
     warnings.push(`${item.id}: equipment item has no stats`);
   if (item.weaponProficiencyId && item.defensiveProficiencyId)
     errors.push(`${item.id}: an item cannot define both weapon and defensive proficiency requirements`);
+  const hasProficiency = Boolean(item.weaponProficiencyId || item.defensiveProficiencyId);
+  if (item.requiredProficiencyLevel !== undefined && !hasProficiency)
+    errors.push(`${item.id}: requiredProficiencyLevel requires a weapon or defensive proficiency ID`);
+  if (hasProficiency && (item.requiredProficiencyLevel === undefined || !Number.isInteger(item.requiredProficiencyLevel) || item.requiredProficiencyLevel < 1))
+    errors.push(`${item.id}: proficiency IDs require requiredProficiencyLevel >= 1`);
+  if (item.weaponProficiencyId && (item.category !== "weapon" || item.equipmentSlotKind !== "weapon"))
+    errors.push(`${item.id}: weapon proficiency requires a weapon item in the weapon slot`);
+  if (item.defensiveProficiencyId && (item.defensiveProficiencyId === "shield" ? item.equipmentSlotKind !== "offhand" : armorProficiencyIds.has(item.defensiveProficiencyId) && !armorTrainingSlotKinds.has(item.equipmentSlotKind ?? "")))
+    errors.push(`${item.id}: defensive proficiency does not match its equipment slot`);
   if (item.lootContainerId && item.inventoryMode !== "stackable")
     errors.push(`${item.id}: loot containers must be stackable`);
   if (item.lootContainerId && item.purpose !== "loot-container")

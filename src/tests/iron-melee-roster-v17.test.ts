@@ -11,7 +11,7 @@ import { weaponArchetypeById } from "../game/data/gear/weaponArchetypes";
 import { resolveWeaponMechanicParameters } from "../game/weapons/weaponMechanicResolver";
 import { validateItemUpgradeTrees } from "../game/items/itemUpgradeValidation";
 import { itemUpgradeNodeById } from "../game/data/gear/itemUpgradeTrees";
-import { debugGrantSelectedWeaponMaterials } from "../game/debug/debugActions";
+import { debugGrantSelectedGearMaterials } from "../game/debug/debugActions";
 import { prepareBasicWeaponAttempt, observeBasicWeaponResult, syncPlayerWeaponRuntime } from "../game/weapons/weaponMechanicRuntime";
 import type { DamagePacket, DamageResolution } from "../game/combat/combatDamage";
 
@@ -99,7 +99,7 @@ describe("Iron melee roster and V17 foundation", () => {
 
   it("derives debug material grants from the selected weapon upgrade tree", () => {
     const initial = createInitialGameState();
-    const next = debugGrantSelectedWeaponMaterials(initial, "item.iron-spear");
+    const next = debugGrantSelectedGearMaterials(initial, "item.iron-spear");
     const spearTree = itemUpgradeTreeDefinitions.find((tree) => tree.itemDefinitionId === "item.iron-spear")!;
     const materialIds = new Set(spearTree.nodeIds.flatMap((nodeId) => itemUpgradeNodeById[nodeId]!.costs.map((cost) => cost.itemId)));
     for (const materialId of materialIds) expect(next.inventory.stackables[materialId] ?? 0).toBeGreaterThan(0);

@@ -18,7 +18,7 @@ import { DebugButton } from "../components/DebugButton";
 import { DebugFilterBar } from "../components/DebugFilterBar";
 import { DebugSection } from "../components/DebugSection";
 import { ItemUpgradeTreePanel } from "../../../components/gear/ItemUpgradeTreePanel";
-import { buildItemPresentation } from "../../../../game/presentation/itemPresentation";
+import { buildItemDefinitionSearchText, buildItemPresentation } from "../../../../game/presentation/itemPresentation";
 import { equippedWeaponMechanic } from "../../../../game/weapons/weaponMechanicRuntime";
 import type { DebugGameState, DebugTabProps } from "../debugTypes";
 
@@ -26,7 +26,7 @@ const filters = ["all", "equipment", "consumables", "materials", "currency"] as 
 type ItemFilter = (typeof filters)[number];
 const ironMeleeRoster = ["item.iron-sword", "item.iron-axe", "item.iron-mace", "item.iron-dagger", "item.iron-greatsword", "item.iron-great-axe", "item.iron-warhammer", "item.iron-spear"];
 const ironDefensiveRoster = ["item.iron-helmet", "item.iron-armor", "item.iron-gloves", "item.iron-boots", "item.iron-shield"];
-function itemMatches(item: ItemDefinition, query: string) { return !query || [item.name, item.category, item.weaponFamilyId ?? "", item.weaponArchetypeId ?? "", item.materialTierId ?? "", item.weaponProficiencyId ?? "", item.defensiveProficiencyId ?? ""].join(" ").toLowerCase().includes(query); }
+function itemMatches(item: ItemDefinition, query: string) { return !query || buildItemDefinitionSearchText(item).includes(query); }
 
 export function DebugItemsTab({ run, debug }: DebugTabProps) {
   const game = useGameStore((state) => state.game);

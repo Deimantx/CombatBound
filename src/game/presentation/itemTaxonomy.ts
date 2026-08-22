@@ -1,8 +1,8 @@
 import { itemById } from "../data/items";
-import { proficiencyById } from "../data/proficiencies";
 import type { ItemDefinition } from "../data/items";
 import type { InventoryState } from "../inventory/inventoryTypes";
 import type { WeaponProficiencyId } from "../progression/progressionTypes";
+import { buildItemDefinitionSearchText } from "./itemPresentation";
 
 export const weaponCatalogueByProficiencyId = {
   "one-handed-sword": { handling: "one-handed", family: "one-handed-swords", label: "One-Handed Swords" },
@@ -175,9 +175,7 @@ export function filterItemTaxonomy(root: ItemTaxonomyNode, definitionIds: Readon
 }
 
 export function itemDefinitionSearchText(item: ItemDefinition) {
-  const proficiency = item.weaponProficiencyId ? proficiencyById[item.weaponProficiencyId]?.name ?? item.weaponProficiencyId : "";
-  const defensive = item.defensiveProficiencyId ? proficiencyById[item.defensiveProficiencyId]?.name ?? item.defensiveProficiencyId : "";
-  return [item.id, item.name, item.description, item.category, item.equipmentSlotKind, item.rarity, item.requiredHunterRank, proficiency, defensive, ...Object.keys(item.stats ?? {}), ...Object.values(item.stats ?? {})].join(" ").toLowerCase();
+  return buildItemDefinitionSearchText(item as ItemDefinition);
 }
 
 export function itemTaxonomyNodeCount(node: ItemTaxonomyNode) {
